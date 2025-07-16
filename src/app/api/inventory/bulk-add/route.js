@@ -2,13 +2,11 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
 import connectDB from '@/lib/mongodb';
 import { UserInventory, User } from '@/lib/models';
 import { getSubscriptionTier, checkUsageLimit, getRequiredTier, getUpgradeMessage, FEATURE_GATES } from '@/lib/subscription-config';
 
-
-// POST - Bulk add items to inventory (with subscription limits and OCR engine tracking)
+// POST - Bulk add items to inventory (with subscription limits, OCR engine tracking, and price tracking)
 export async function POST(request) {
     try {
         const session = await auth();
@@ -27,7 +25,9 @@ export async function POST(request) {
             itemCount: items?.length,
             source,
             ocrEngine,
-            metadata: metadata ? Object.keys(metadata) : 'none'
+            metadata: metadata ? Object.keys(metadata) : 'none',
+            // 🆕 LOG PRICE TRACKING INFO
+            itemsWithPriceData: items?.filter(item => item.hasReceiptPriceData)?.length || 0
         });
 
         if (!items || !Array.isArray(items) || items.length === 0) {
@@ -58,13 +58,11 @@ export async function POST(request) {
         const requestedItemCount = items.length;
         const totalAfterAdd = currentItemCount + requestedItemCount;
 
-        // OLD CODE ENDS HERE - REPLACE WITH:
-
-        // EMERGENCY FIX: Use proper subscription object and feature gate
+        // Use proper subscription object and feature gate
         const userSubscription = user.subscription || { tier: 'free', status: 'free' };
         const effectiveTier = getSubscriptionTier(userSubscription);
 
-        console.log('🔍 EMERGENCY DEBUG - Bulk-add POST:', {
+        console.log('🔍 BULK-ADD DEBUG:', {
             userId: session.user.id,
             email: session.user.email,
             userSubscription,
@@ -76,29 +74,18 @@ export async function POST(request) {
             ocrEngine
         });
 
-        // EMERGENCY BYPASS for Platinum/Admin users
+        // Check subscription limits (bypass for Platinum/Admin)
         if (effectiveTier === 'platinum' || effectiveTier === 'admin' || user.isAdmin) {
-            console.log('✅ EMERGENCY PLATINUM/ADMIN BYPASS - Unlimited bulk-add access');
-            // Skip ALL limit checking - continue to item validation
+            console.log('✅ PLATINUM/ADMIN BYPASS - Unlimited bulk-add access');
         } else {
-            // Use INVENTORY_LIMIT feature gate (not ADD_INVENTORY_ITEM which doesn't exist)
             const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.INVENTORY_LIMIT, totalAfterAdd - 1);
-
-            console.log('🔍 Bulk-add capacity check:', {
-                hasCapacity,
-                tier: effectiveTier,
-                currentItems: currentItemCount,
-                requestedItems: requestedItemCount,
-                totalAfterAdd,
-                feature: FEATURE_GATES.INVENTORY_LIMIT
-            });
 
             if (!hasCapacity) {
                 const requiredTier = getRequiredTier(FEATURE_GATES.INVENTORY_LIMIT);
                 const maxItems = effectiveTier === 'free' ? 50 :
                     effectiveTier === 'gold' ? 250 : 'unlimited';
 
-                console.log(`❌ Bulk add rejected: ${effectiveTier} tier limit exceeded. Current: ${currentItemCount}, Requested: ${requestedItemCount}, Max: ${maxItems}`);
+                console.log(`❌ Bulk add rejected: ${effectiveTier} tier limit exceeded`);
 
                 return NextResponse.json({
                     error: `Adding ${requestedItemCount} items would exceed your limit. You have ${currentItemCount} items and can add ${maxItems === 'unlimited' ? 'unlimited' : maxItems - currentItemCount} more.`,
@@ -114,9 +101,10 @@ export async function POST(request) {
             }
         }
 
-        // Validate each item
+        // Validate each item and process price tracking
         const validatedItems = [];
         const errors = [];
+        let priceDataAdded = 0;
 
         items.forEach((item, index) => {
             if (!item.name || item.name.trim() === '') {
@@ -124,12 +112,46 @@ export async function POST(request) {
                 return;
             }
 
-            // Create validated item with defaults - Support dual units and OCR metadata
+            // 🆕 PROCESS PRICE TRACKING DATA
+            let priceHistory = [];
+            let currentBestPrice = null;
+            let averagePrice = null;
+
+            if (item.hasReceiptPriceData && item.receiptPriceEntry) {
+                try {
+                    const priceEntry = {
+                        price: parseFloat(item.receiptPriceEntry.price),
+                        store: item.receiptPriceEntry.store || 'Unknown Store',
+                        date: item.receiptPriceEntry.date || new Date().toISOString().split('T')[0],
+                        size: item.receiptPriceEntry.size || '',
+                        unit: item.receiptPriceEntry.unit || 'each',
+                        notes: item.receiptPriceEntry.notes || 'From receipt scan',
+                        isOnSale: item.receiptPriceEntry.isOnSale || false,
+                        addedDate: new Date()
+                    };
+
+                    // Validate price data
+                    if (priceEntry.price > 0 && priceEntry.price < 10000) {
+                        priceHistory = [priceEntry];
+                        currentBestPrice = priceEntry;
+                        averagePrice = priceEntry.price;
+                        priceDataAdded++;
+
+                        console.log(`💰 Added price tracking for ${item.name}: $${priceEntry.price} at ${priceEntry.store}`);
+                    } else {
+                        console.warn(`⚠️ Invalid price for ${item.name}: ${priceEntry.price}`);
+                    }
+                } catch (priceError) {
+                    console.error(`❌ Error processing price data for ${item.name}:`, priceError);
+                }
+            }
+
+            // Create validated item with defaults and price tracking
             const validatedItem = {
                 name: item.name.trim(),
                 brand: item.brand || '',
                 category: item.category || 'Other',
-                quantity: Math.max(item.quantity || 1, 0.1), // Ensure positive quantity
+                quantity: Math.max(item.quantity || 1, 0.1),
                 unit: item.unit || 'item',
 
                 // Secondary unit support
@@ -145,6 +167,17 @@ export async function POST(request) {
                 nutrition: item.nutrition || null,
                 notes: item.notes || '',
 
+                // 🆕 PRICE TRACKING FIELDS
+                priceHistory: priceHistory,
+                currentBestPrice: currentBestPrice,
+                averagePrice: averagePrice,
+                priceAlerts: {
+                    enabled: false,
+                    targetPrice: null,
+                    alertWhenBelow: true,
+                    lastAlertSent: null
+                },
+
                 // OCR and source metadata
                 sourceMetadata: {
                     source: source || 'bulk-add',
@@ -154,7 +187,10 @@ export async function POST(request) {
                     confidence: item.confidence || null,
                     unitPrice: item.unitPrice || null,
                     originalPrice: item.price || null,
-                    addedAt: new Date()
+                    addedAt: new Date(),
+                    // 🆕 PRICE TRACKING METADATA
+                    priceTrackingEnabled: priceHistory.length > 0,
+                    priceSource: 'receipt-scan'
                 }
             };
 
@@ -187,6 +223,22 @@ export async function POST(request) {
         user.usageTracking.totalInventoryItems = inventory.items.length;
         user.usageTracking.lastUpdated = new Date();
 
+        // 🆕 TRACK PRICE TRACKING USAGE
+        if (priceDataAdded > 0) {
+            if (!user.usageTracking.priceTracking) {
+                user.usageTracking.priceTracking = {
+                    totalPriceEntries: 0,
+                    itemsWithPrices: 0,
+                    firstPriceAdded: new Date(),
+                    lastPriceAdded: new Date()
+                };
+            }
+
+            user.usageTracking.priceTracking.totalPriceEntries += priceDataAdded;
+            user.usageTracking.priceTracking.itemsWithPrices += priceDataAdded;
+            user.usageTracking.priceTracking.lastPriceAdded = new Date();
+        }
+
         // Track OCR engine usage for analytics
         if (ocrEngine) {
             if (!user.usageTracking.ocrEngineUsage) {
@@ -214,6 +266,7 @@ export async function POST(request) {
         console.log(`✅ Bulk add successful:`, {
             userId: session.user.id,
             itemsAdded: validatedItems.length,
+            priceDataAdded: priceDataAdded,
             source: source || 'bulk-add',
             ocrEngine: ocrEngine || 'none',
             userTier: userSubscription.tier,
@@ -226,9 +279,10 @@ export async function POST(request) {
         const response = {
             success: true,
             itemsAdded: validatedItems.length,
+            priceDataAdded: priceDataAdded, // 🆕 PRICE TRACKING COUNT
             source: source || 'bulk-add',
             ocrEngine: ocrEngine || null,
-            message: `Successfully added ${validatedItems.length} items to your inventory`,
+            message: `Successfully added ${validatedItems.length} items to your inventory${priceDataAdded > 0 ? ` with price tracking for ${priceDataAdded} items` : ''}`,
             summary: {
                 totalItems: validatedItems.length,
                 categories: [...new Set(validatedItems.map(item => item.category))],
@@ -237,8 +291,9 @@ export async function POST(request) {
                 ocrEngine: ocrEngine || null,
                 processingInfo: {
                     validationErrors: 0,
-                    duplicatesRemoved: 0, // Could implement duplicate detection later
-                    enhancedWith: ocrEngine ? [`${ocrEngine} OCR`] : []
+                    duplicatesRemoved: 0,
+                    enhancedWith: ocrEngine ? [`${ocrEngine} OCR`] : [],
+                    priceTrackingEnabled: priceDataAdded > 0 // 🆕
                 }
             },
             inventoryStatus: {
@@ -248,6 +303,12 @@ export async function POST(request) {
                     userSubscription.tier === 'gold' ?
                         Math.max(0, 250 - inventory.items.length) : 'Unlimited',
                 currentTier: userSubscription.tier
+            },
+            // 🆕 PRICE TRACKING STATUS
+            priceTrackingStatus: {
+                itemsWithPrices: priceDataAdded,
+                priceTrackingEnabled: priceDataAdded > 0,
+                analyticsUrl: '/inventory?tab=analytics'
             },
             metadata: metadata || {}
         };

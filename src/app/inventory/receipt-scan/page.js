@@ -8,7 +8,7 @@ import {useRouter} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { apiGet, apiPost, fetchWithSession } from '@/lib/api-config';
+import {apiGet, apiPost, fetchWithSession} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
@@ -347,8 +347,9 @@ export default function ReceiptScan() {
         setProcessingStatus('Adding items to inventory...');
 
         try {
-            const response = await apiPost('/api/inventory/bulk-add', {
-                items: selectedItems.map(item => ({
+            // 🔧 ESLINT FIX: Proper object structure in map function
+            const itemsToAdd = extractedItems.map((item) => {
+                return {
                     name: item.name,
                     brand: item.brand || '',
                     category: item.category,
@@ -359,21 +360,45 @@ export default function ReceiptScan() {
                     expirationDate: null,
                     rawText: item.rawText,
                     unitPrice: item.unitPrice,
-                    price: item.price
-                })),
-                source: 'receipt-scan-enhanced',
-                ocrEngine: 'Enhanced-Tesseract-Dual-Model',
+                    price: item.price,
+                    // 🆕 PRICE TRACKING DATA
+                    hasReceiptPriceData: item.hasReceiptPriceData || false,
+                    receiptPriceEntry: item.receiptPriceEntry || null
+                };
+            });
+
+            const response = await apiPost('/api/inventory/bulk-add', {
+                items: itemsToAdd,
+                source: 'receipt-scan-enhanced-ai',
+                ocrEngine: 'Enhanced-AI-Modal',
                 metadata: {
                     platform: platformInfo.isIOSPWA ? 'iOS-PWA' : platformInfo.isIOS ? 'iOS' : 'Web',
-                    ocrMethod: 'scribe-enhanced-dual-model'
+                    ocrMethod: 'ai-enhanced-modal',
+                    priceTrackingEnabled: true
                 }
             });
 
             if (response.ok) {
                 const result = await response.json();
                 setProcessingStatus('Complete!');
-                alert(`✅ Successfully added ${result.itemsAdded} items to your inventory!`);
-                router.push('/inventory');
+
+                // 🆕 ENHANCED SUCCESS MESSAGE WITH PRICE TRACKING INFO
+                const priceTrackedCount = result.priceDataAdded || 0;
+                let successMessage = `✅ Successfully added ${result.itemsAdded} items to your inventory!`;
+
+                if (priceTrackedCount > 0) {
+                    successMessage += `\n\n💰 Price tracking data added for ${priceTrackedCount} items!`;
+                    successMessage += `\nYou can view price analytics in the Inventory → Price Analytics tab.`;
+                }
+
+                alert(successMessage);
+
+                // Navigate based on whether price tracking was added
+                if (priceTrackedCount > 0) {
+                    router.push('/inventory?tab=analytics'); // Show analytics tab
+                } else {
+                    router.push('/inventory'); // Standard inventory view
+                }
             } else {
                 const error = await response.json();
                 throw new Error(error.error || 'Failed to add items');
@@ -692,99 +717,175 @@ export default function ReceiptScan() {
 
     async function processImage(imageFile) {
         console.log('🔍 processImage called with:', imageFile);
-        console.log('🔍 Image file size:', imageFile?.size);
-        console.log('🔍 Image file type:', imageFile?.type);
 
-        setIsProcessing(true);
-        setStep('processing');
-        setOcrProgress(0);
-
-        if (receiptType === 'email') {
-            setProcessingStatus('Processing email receipt screenshot with enhanced OCR...');
-        } else {
-            setProcessingStatus('Initializing OCR...');
-        }
+        // 🆕 CAPTURE DEBUG DATA
+        setDebugImageFile(imageFile);
 
         try {
-            const text = await processImageWithSimpleTesseract(
-                imageFile,
-                (progress) => {
-                    setOcrProgress(progress);
-                    if (progress < 90) {
-                        setProcessingStatus(`Extracting text... ${progress}%`);
-                    }
+            // Your existing OCR code...
+
+            // 🆕 ENHANCED AI PROCESSING WITH BETTER ERROR HANDLING
+            let finalItems = basicItems;
+            setProcessingStatus('Enhancing with AI...');
+
+            try {
+                console.log('🤖 Starting AI enhancement...');
+
+                // Test base64 conversion first
+                const testBase64 = await convertImageToBase64(imageFile);
+                setDebugBase64Data(testBase64); // 🆕 CAPTURE FOR DEBUG
+
+                console.log('✅ Base64 conversion successful:', {
+                    length: testBase64.length,
+                    startsCorrectly: testBase64.charAt(0) === '/',
+                    hasValidChars: /^[A-Za-z0-9+/=]+$/.test(testBase64)
+                });
+
+                const { enhanceReceiptParsingWithAI } = await import('@/lib/ai/receipt-ai-helper');
+
+                finalItems = await enhanceReceiptParsingWithAI(
+                    processedText,
+                    basicItems,
+                    imageFile,
+                    getStoreContextFromReceipt(processedText)
+                );
+
+                console.log(`✅ AI enhancement complete: ${basicItems.length} → ${finalItems.length} items`);
+                setProcessingStatus('AI enhancement complete!');
+
+            } catch (aiError) {
+                console.error('❌ AI enhancement failed:', aiError);
+
+                // Show more specific error messages
+                if (aiError.message.includes('image_data is required')) {
+                    console.error('🔍 Base64 conversion issue detected');
+                    setProcessingStatus('AI enhancement failed (image conversion issue) - using OCR results');
+                } else if (aiError.message.includes('Modal')) {
+                    setProcessingStatus('AI service unavailable - using OCR results');
+                } else {
+                    setProcessingStatus('AI enhancement failed - using OCR results');
                 }
-            );
 
-            setProcessingStatus('Analyzing receipt...');
-
-            const processedText = receiptType === 'email' ? preprocessEmailReceiptText(text) : text;
-            const items = parseReceiptText(processedText);
-
-            let finalItems = items;
-            if (process.env.NEXT_PUBLIC_ENABLE_AI_RECEIPTS === 'true') {
-                try {
-                    const { enhanceReceiptParsingWithAI } = await import('@/lib/ai/receipt-ai-helper');
-                    finalItems = await enhanceReceiptParsingWithAI(processedText, items, imageFile,'');
-                    console.log('✅ AI enhancement applied');
-                } catch (error) {
-                    console.warn('AI enhancement failed, using original parsing:', error);
-                    finalItems = items;
-                }
+                finalItems = basicItems;
             }
 
-            setExtractedItems(finalItems);
+            // Rest of your existing code...
 
-            if (items.length === 0) {
-                setProcessingStatus('Recording scan attempt...');
-                await recordReceiptScanUsage(0, 'no-items-found');
+        } catch (error) {
+            console.error('❌ Complete processing error:', error);
+            // Your existing error handling...
+        }
+    }
 
-                alert('❌ No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image.');
-                setStep('upload');
+    // 🆕 HELPER FUNCTION: Convert image to base64 (moved from receipt-ai-helper for debugging)
+    async function convertImageToBase64(imageFile) {
+        return new Promise((resolve, reject) => {
+            if (!imageFile) {
+                reject(new Error('No image file provided'));
                 return;
             }
 
-            setProcessingStatus('Recording successful scan...');
+            console.log('📷 Converting image to base64...', {
+                name: imageFile.name,
+                size: imageFile.size,
+                type: imageFile.type
+            });
 
-            try {
-                const recordResponse = await apiPost('/api/receipt-scan/usage', {
-                    scanType: 'receipt',
-                    itemsExtracted: items.length,
-                    ocrEngine: 'Enhanced-Tesseract-Dual-Model'
-                });
+            const reader = new FileReader();
 
-                if (!recordResponse.ok) {
-                    console.error('Failed to record receipt scan usage');
-                } else {
-                    const recordData = await recordResponse.json();
-                    console.log('Receipt scan usage recorded:', recordData);
+            reader.onload = function(event) {
+                try {
+                    const result = event.target.result;
 
-                    if (recordData.usage.remaining !== 'unlimited') {
-                        setProcessingStatus(`Scan successful! ${recordData.usage.remaining} scans remaining this month.`);
+                    if (!result || typeof result !== 'string') {
+                        throw new Error('FileReader returned invalid result');
                     }
-                }
-            } catch (recordError) {
-                console.error('Error recording receipt scan usage:', recordError);
-            }
 
-            setExtractedItems(items);
-            setProcessingStatus('Complete!');
-            setStep('review');
+                    // Get the base64 string without the data:image/...;base64, prefix
+                    const base64String = result.split(',')[1];
+
+                    if (!base64String) {
+                        throw new Error('Could not extract base64 data from result');
+                    }
+
+                    console.log('✅ Base64 conversion successful:', {
+                        originalLength: result.length,
+                        base64Length: base64String.length,
+                        prefix: result.substring(0, 50)
+                    });
+
+                    resolve(base64String);
+                } catch (error) {
+                    console.error('❌ Base64 conversion failed:', error);
+                    reject(error);
+                }
+            };
+
+            reader.onerror = function(error) {
+                console.error('❌ FileReader error:', error);
+                reject(new Error('Failed to read image file'));
+            };
+
+            // Read the file as data URL (base64)
+            reader.readAsDataURL(imageFile);
+        });
+    }
+
+    /**
+     * Extract store context from receipt text for AI enhancement
+     */
+    function getStoreContextFromReceipt(receiptText) {
+        const text = receiptText.toLowerCase();
+
+        const storePatterns = {
+            'walmart': /walmart|wal-mart/i,
+            'target': /target/i,
+            'kroger': /kroger/i,
+            'safeway': /safeway/i,
+            'costco': /costco/i,
+            'sams club': /sam'?s club/i,
+            'trader joes': /trader joe'?s/i,
+            'whole foods': /whole foods/i,
+            'hy-vee': /hy-?vee/i,
+            'meijer': /meijer/i
+        };
+
+        for (const [store, pattern] of Object.entries(storePatterns)) {
+            if (pattern.test(text)) {
+                return store;
+            }
+        }
+
+        return 'Unknown Store';
+    }
+
+    /**
+     * Add price tracking data from receipt scan
+     */
+    async function addPriceTrackingFromReceipt(item) {
+        if (!item.priceData || !item.priceData.price) {
+            return;
+        }
+
+        try {
+            // We'll add the price data when the item is added to inventory
+            // For now, just attach it to the item
+            item.hasReceiptPriceData = true;
+            item.receiptPriceEntry = {
+                price: item.priceData.price,
+                store: item.priceData.store,
+                date: item.priceData.purchaseDate,
+                size: item.priceData.size,
+                unit: item.priceData.unit,
+                notes: 'From receipt scan',
+                isFromReceipt: true
+            };
+
+            console.log(`💰 Prepared price data for ${item.name}:`, item.receiptPriceEntry);
 
         } catch (error) {
-            console.error('OCR processing error:', error);
-
-            try {
-                await recordReceiptScanUsage(0, 'processing-failed');
-            } catch (recordError) {
-                console.error('Failed to record failed scan:', recordError);
-            }
-
-            alert('❌ Error processing receipt. This scan has been counted towards your monthly limit. Please try again with a clearer image.');
-            setStep('upload');
-        } finally {
-            setIsProcessing(false);
-            setOcrProgress(0);
+            console.error('Error preparing price tracking data:', error);
+            throw error;
         }
     }
 
@@ -3108,13 +3209,17 @@ export default function ReceiptScan() {
                                                 🤖 Android Native App
                                             </h4>
                                             <p className="text-sm text-green-800 mb-3">
-                                                You're using Google's native ML Kit for optimal performance and accuracy.
+                                                You're using Google's native ML Kit for optimal performance and
+                                                accuracy.
                                                 All three options work great on Android!
                                             </p>
                                             <ul className="text-sm text-green-700 space-y-1">
-                                                <li>• <strong>Take Photo:</strong> Uses native camera with ML Kit OCR</li>
+                                                <li>• <strong>Take Photo:</strong> Uses native camera with ML Kit OCR
+                                                </li>
                                                 <li>• <strong>Upload Image:</strong> Process any saved photo</li>
-                                                <li>• <strong>Email Receipt:</strong> Screenshot email receipts for best results</li>
+                                                <li>• <strong>Email Receipt:</strong> Screenshot email receipts for best
+                                                    results
+                                                </li>
                                             </ul>
                                         </div>
                                     )}
@@ -3125,13 +3230,16 @@ export default function ReceiptScan() {
                                                 📱 iOS PWA
                                             </h4>
                                             <p className="text-sm text-blue-800 mb-3">
-                                                <strong>Tip:</strong> If camera doesn't work, "Upload Image" and "Email Receipt"
+                                                <strong>Tip:</strong> If camera doesn't work, "Upload Image" and "Email
+                                                Receipt"
                                                 work perfectly! Enhanced Tesseract.js provides reliable OCR.
                                             </p>
                                             <ul className="text-sm text-blue-700 space-y-1">
                                                 <li>• <strong>Take Photo:</strong> May need camera permissions</li>
                                                 <li>• <strong>Upload Image:</strong> Most reliable option for iOS</li>
-                                                <li>• <strong>Email Receipt:</strong> Screenshot emails for perfect accuracy</li>
+                                                <li>• <strong>Email Receipt:</strong> Screenshot emails for perfect
+                                                    accuracy
+                                                </li>
                                             </ul>
                                         </div>
                                     )}
@@ -3148,22 +3256,26 @@ export default function ReceiptScan() {
                                             <ul className="text-sm text-purple-700 space-y-1">
                                                 <li>• <strong>Take Photo:</strong> Uses browser camera API</li>
                                                 <li>• <strong>Upload Image:</strong> Drag & drop or browse files</li>
-                                                <li>• <strong>Email Receipt:</strong> Screenshot or save HTML emails</li>
+                                                <li>• <strong>Email Receipt:</strong> Screenshot or save HTML emails
+                                                </li>
                                             </ul>
                                         </div>
                                     )}
 
                                     {/* Email Receipt Simple Instructions */}
                                     <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-green-900 mb-2">📧 Email Receipt Instructions:</h4>
+                                        <h4 className="text-sm font-medium text-green-900 mb-2">📧 Email Receipt
+                                            Instructions:</h4>
                                         <div className="text-sm text-green-800">
                                             <div className="bg-white border border-green-200 rounded p-3 mb-3">
-                                                <p className="font-medium text-green-900 mb-2">Simple 5-Step Process:</p>
+                                                <p className="font-medium text-green-900 mb-2">Simple 5-Step
+                                                    Process:</p>
                                                 <ol className="space-y-1 text-green-700">
                                                     <li><strong>1.</strong> Open your email receipt</li>
                                                     <li><strong>2.</strong> Select all text (Ctrl+A / Cmd+A)</li>
                                                     <li><strong>3.</strong> Copy (Ctrl+C / Cmd+C)</li>
-                                                    <li><strong>4.</strong> Paste into Notepad/TextEdit and save as .txt</li>
+                                                    <li><strong>4.</strong> Paste into Notepad/TextEdit and save as .txt
+                                                    </li>
                                                     <li><strong>5.</strong> Upload the .txt file here</li>
                                                 </ol>
                                             </div>
@@ -3178,14 +3290,16 @@ export default function ReceiptScan() {
                                             </div>
 
                                             <div className="mt-3 p-2 bg-green-100 rounded">
-                                                <p className="font-medium text-green-800">🎯 Why this works: Pure text = 100% accurate parsing!</p>
+                                                <p className="font-medium text-green-800">🎯 Why this works: Pure text =
+                                                    100% accurate parsing!</p>
                                             </div>
                                         </div>
                                     </div>
 
                                     {/* Universal Tips */}
                                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">📝 Tips for Best Results:</h4>
+                                        <h4 className="text-sm font-medium text-gray-900 mb-2">📝 Tips for Best
+                                            Results:</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
                                             <div>
                                                 <strong>📷 Paper Receipts:</strong>
@@ -3380,358 +3494,488 @@ export default function ReceiptScan() {
                                             </div>
                                         ) : (
                                             extractedItems.map((item) => (
-                                                <div
-                                                    key={item.id}
-                                                    className={`border rounded-lg p-4 ${item.selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}
-                                                >
-                                                    <div className="flex items-start space-x-3">
-                                                        <input
-                                                            type="checkbox"
-                                                            checked={item.selected}
-                                                            onChange={() => toggleItemSelection(item.id)}
-                                                            className="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                                        />
+                                                    <div
+                                                        key={item.id}
+                                                        className={`border rounded-lg p-4 ${item.selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}
+                                                    >
+                                                        <div className="flex items-start space-x-3">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={item.selected}
+                                                                onChange={() => toggleItemSelection(item.id)}
+                                                                className="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                            />
 
-                                                        <div className="flex-1 grid grid-cols-1 md:grid-cols-3 gap-4">
-                                                            <div>
-                                                                <label
-                                                                    className="block text-sm font-medium text-gray-700 mb-1">
-                                                                    Item Name
-                                                                </label>
-                                                                <input
-                                                                    type="text"
-                                                                    value={item.name}
-                                                                    onChange={(e) => updateItem(item.id, 'name', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                                />
+                                                            <div className="flex-1 space-y-4">
+                                                                {/* 🆕 PRICE TRACKING BANNER */}
+                                                                {item.hasReceiptPriceData && (
+                                                                    <div
+                                                                        className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                                        <div
+                                                                            className="flex items-center justify-between">
+                                                                            <div
+                                                                                className="flex items-center space-x-2">
+                                                                                <span
+                                                                                    className="text-green-600 font-medium">💰 Price Data Available</span>
+                                                                                <span
+                                                                                    className="text-sm text-green-700">
+                                    ${item.receiptPriceEntry.price} at {item.receiptPriceEntry.store}
+                                </span>
+                                                                            </div>
+                                                                            <span
+                                                                                className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                Auto-tracked
+                            </span>
+                                                                        </div>
+                                                                        {item.receiptPriceEntry.size && (
+                                                                            <div
+                                                                                className="text-xs text-green-600 mt-1">
+                                                                                Size: {item.receiptPriceEntry.size}
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* 🆕 AI CONFIDENCE INDICATOR */}
+                                                                {item.confidence && (
+                                                                    <div
+                                                                        className={`text-xs px-2 py-1 rounded inline-block ${
+                                                                            item.confidence >= 0.9 ? 'bg-green-100 text-green-800' :
+                                                                                item.confidence >= 0.7 ? 'bg-yellow-100 text-yellow-800' :
+                                                                                    'bg-red-100 text-red-800'
+                                                                        }`}>
+                                                                        🤖 AI
+                                                                        Confidence: {Math.round(item.confidence * 100)}%
+                                                                        {item.needsReview && ' - Review Recommended'}
+                                                                    </div>
+                                                                )}
+
+                                                                {/* EXISTING FORM FIELDS */}
+                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                                    <div>
+                                                                        <label
+                                                                            className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            Item Name
+                                                                        </label>
+                                                                        <input
+                                                                            type="text"
+                                                                            value={item.name}
+                                                                            onChange={(e) => updateItem(item.id, 'name', e.target.value)}
+                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                        />
+                                                                    </div>
+
+                                                                    <div>
+                                                                        <label
+                                                                            className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            Category
+                                                                        </label>
+                                                                        <select
+                                                                            value={item.category}
+                                                                            onChange={(e) => updateItem(item.id, 'category', e.target.value)}
+                                                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                        >
+                                                                            <option value="">Select category</option>
+                                                                            <option
+                                                                                value="Baking & Cooking Ingredients">Baking
+                                                                                & Cooking Ingredients
+                                                                            </option>
+                                                                            <option value="Beans">Beans</option>
+                                                                            <option value="Beverages">Beverages</option>
+                                                                            <option value="Bouillon">Bouillon</option>
+                                                                            <option value="Boxed Meals">Boxed Meals
+                                                                            </option>
+                                                                            <option value="Breads">Breads</option>
+                                                                            <option value="Canned Beans">Canned/Jarred
+                                                                                Beans
+                                                                            </option>
+                                                                            <option value="Canned Fruit">Canned/Jarred
+                                                                                Fruit
+                                                                            </option>
+                                                                            <option value="Canned Meals">Canned/Jarred
+                                                                                Meals
+                                                                            </option>
+                                                                            <option value="Canned Meat">Canned/Jarred
+                                                                                Meat
+                                                                            </option>
+                                                                            <option value="Canned Sauces">Canned/Jarred
+                                                                                Sauces
+                                                                            </option>
+                                                                            <option
+                                                                                value="Canned Tomatoes">Canned/Jarred
+                                                                                Tomatoes
+                                                                            </option>
+                                                                            <option
+                                                                                value="Canned Vegetables">Canned/Jarred
+                                                                                Vegetables
+                                                                            </option>
+                                                                            <option value="Cheese">Cheese</option>
+                                                                            <option value="Condiments">Condiments
+                                                                            </option>
+                                                                            <option value="Dairy">Dairy</option>
+                                                                            <option value="Eggs">Eggs</option>
+                                                                            <option value="Fresh Fruits">Fresh Fruits
+                                                                            </option>
+                                                                            <option value="Fresh Spices">Fresh Spices
+                                                                            </option>
+                                                                            <option value="Fresh Vegetables">Fresh
+                                                                                Vegetables
+                                                                            </option>
+                                                                            <option
+                                                                                value="Fresh/Frozen Beef">Fresh/Frozen
+                                                                                Beef
+                                                                            </option>
+                                                                            <option
+                                                                                value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
+                                                                                Fish & Seafood
+                                                                            </option>
+                                                                            <option
+                                                                                value="Fresh/Frozen Lamb">Fresh/Frozen
+                                                                                Lamb
+                                                                            </option>
+                                                                            <option
+                                                                                value="Fresh/Frozen Pork">Fresh/Frozen
+                                                                                Pork
+                                                                            </option>
+                                                                            <option
+                                                                                value="Fresh/Frozen Poultry">Fresh/Frozen
+                                                                                Poultry
+                                                                            </option>
+                                                                            <option
+                                                                                value="Fresh/Frozen Rabbit">Fresh/Frozen
+                                                                                Rabbit
+                                                                            </option>
+                                                                            <option
+                                                                                value="Fresh/Frozen Venison">Fresh/Frozen
+                                                                                Venison
+                                                                            </option>
+                                                                            <option value="Frozen Fruit">Frozen Fruit
+                                                                            </option>
+                                                                            <option value="Frozen Meals">Frozen Meals
+                                                                            </option>
+                                                                            <option value="Frozen Other Items">Frozen
+                                                                                Other Items
+                                                                            </option>
+                                                                            <option value="Frozen Vegetables">Frozen
+                                                                                Vegetables
+                                                                            </option>
+                                                                            <option value="Grains">Grains</option>
+                                                                            <option value="Other">Other</option>
+                                                                            <option value="Pasta">Pasta</option>
+                                                                            <option value="Seasonings">Seasonings
+                                                                            </option>
+                                                                            <option value="Snacks">Snacks</option>
+                                                                            <option value="Soups & Soup Mixes">Soups &
+                                                                                Soup Mixes
+                                                                            </option>
+                                                                            <option value="Spices">Spices</option>
+                                                                            <option value="Stock/Broth">Stock/Broth
+                                                                            </option>
+                                                                            <option value="Stuffing & Sides">Stuffing &
+                                                                                Sides
+                                                                            </option>
+                                                                        </select>
+                                                                    </div>
+
+                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                        <div>
+                                                                            <label
+                                                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Qty
+                                                                            </label>
+                                                                            <input
+                                                                                type="number"
+                                                                                min="1"
+                                                                                value={item.quantity}
+                                                                                onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
+                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                            />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label
+                                                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Location
+                                                                            </label>
+                                                                            <select
+                                                                                value={item.location}
+                                                                                onChange={(e) => updateItem(item.id, 'location', e.target.value)}
+                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                            >
+
+                                                                                <option value="pantry">Pantry</option>
+                                                                                <option value="kitchen">Kitchen
+                                                                                    Cabinets
+                                                                                </option>
+                                                                                <option value="fridge">Fridge</option>
+                                                                                <option value="fridge-freezer">Fridge
+                                                                                    Freezer
+                                                                                </option>
+                                                                                <option
+                                                                                    value="deep-freezer">Deep/Stand-up
+                                                                                    Freezer
+                                                                                </option>
+                                                                                <option value="garage">Garage/Storage
+                                                                                </option>
+                                                                                <option value="other">Other</option>
+                                                                            </select>
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
                                                             </div>
 
-                                                            <div>
-                                                                <label
-                                                                    className="block text-sm font-medium text-gray-700 mb-1">
-                                                                    Category
-                                                                </label>
-                                                                <select
-                                                                    value={item.category}
-                                                                    onChange={(e) => updateItem(item.id, 'category', e.target.value)}
-                                                                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                            {/* EXISTING UPC LOOKUP BUTTON */}
+                                                            {item.upc && (
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => lookupByUPC(item)}
+                                                                    className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
+                                                                    title={`Lookup product details for UPC: ${item.upc}`}
                                                                 >
-                                                                    <option value="">Select category</option>
-                                                                    <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
-                                                                    <option value="Beans">Beans</option>
-                                                                    <option value="Beverages">Beverages</option>
-                                                                    <option value="Bouillon">Bouillon</option>
-                                                                    <option value="Boxed Meals">Boxed Meals</option>
-                                                                    <option value="Breads">Breads</option>
-                                                                    <option value="Canned Beans">Canned/Jarred Beans</option>
-                                                                    <option value="Canned Fruit">Canned/Jarred Fruit</option>
-                                                                    <option value="Canned Meals">Canned/Jarred Meals</option>
-                                                                    <option value="Canned Meat">Canned/Jarred Meat</option>
-                                                                    <option value="Canned Sauces">Canned/Jarred Sauces</option>
-                                                                    <option value="Canned Tomatoes">Canned/Jarred Tomatoes</option>
-                                                                    <option value="Canned Vegetables">Canned/Jarred Vegetables</option>
-                                                                    <option value="Cheese">Cheese</option>
-                                                                    <option value="Condiments">Condiments</option>
-                                                                    <option value="Dairy">Dairy</option>
-                                                                    <option value="Eggs">Eggs</option>
-                                                                    <option value="Fresh Fruits">Fresh Fruits</option>
-                                                                    <option value="Fresh Spices">Fresh Spices</option>
-                                                                    <option value="Fresh Vegetables">Fresh Vegetables</option>
-                                                                    <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                                                    <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
-                                                                    <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
-                                                                    <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
-                                                                    <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
-                                                                    <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
-                                                                    <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
-                                                                    <option value="Frozen Fruit">Frozen Fruit</option>
-                                                                    <option value="Frozen Meals">Frozen Meals</option>
-                                                                    <option value="Frozen Other Items">Frozen Other Items</option>
-                                                                    <option value="Frozen Vegetables">Frozen Vegetables</option>
-                                                                    <option value="Grains">Grains</option>
-                                                                    <option value="Other">Other</option>
-                                                                    <option value="Pasta">Pasta</option>
-                                                                    <option value="Seasonings">Seasonings</option>
-                                                                    <option value="Snacks">Snacks</option>
-                                                                    <option value="Soups & Soup Mixes">Soups & Soup Mixes</option>
-                                                                    <option value="Spices">Spices</option>
-                                                                    <option value="Stock/Broth">Stock/Broth</option>
-                                                                    <option value="Stuffing & Sides">Stuffing & Sides</option>
-                                                                </select>
-                                                            </div>
-                                                            <TouchEnhancedButton
-                                                                onClick={async () => {
-                                                                    try {
-                                                                        const { aiClassifyFoodItem } = await import('@/lib/ai/receipt-ai-helper');
-                                                                        const classification = await aiClassifyFoodItem(item.name, item.category);
-                                                                        if (classification.confidence > 0.8) {
-                                                                            updateItem(item.id, 'category', classification.category);
-                                                                            updateItem(item.id, 'location', classification.storage_location);
-                                                                        }
-                                                                    } catch (error) {
-                                                                        console.warn('AI classification failed:', error);
-                                                                    }
-                                                                }}
-                                                                className="px-2 py-1 bg-blue-500 text-white text-xs rounded"
-                                                            >
-                                                                🤖 AI Suggest
-                                                            </TouchEnhancedButton>
-
-                                                            <div className="grid grid-cols-2 gap-2">
-                                                                <div>
-                                                                    <label
-                                                                        className="block text-sm font-medium text-gray-700 mb-1">
-                                                                        Qty
-                                                                    </label>
-                                                                    <input
-                                                                        type="number"
-                                                                        min="1"
-                                                                        value={item.quantity}
-                                                                        onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
-                                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                                    />
-                                                                </div>
-                                                                <div>
-                                                                    <label
-                                                                        className="block text-sm font-medium text-gray-700 mb-1">
-                                                                        Location
-                                                                    </label>
-                                                                    <select
-                                                                        value={item.location}
-                                                                        onChange={(e) => updateItem(item.id, 'location', e.target.value)}
-                                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                                    >
-                                                                        <option value="pantry">Pantry</option>
-                                                                        <option value="kitchen">Kitchen Cabinets</option>
-                                                                        <option value="fridge">Fridge</option>
-                                                                        <option value="fridge-freezer">Fridge Freezer</option>
-                                                                        <option value="deep-freezer">Deep/Stand-up Freezer</option>
-                                                                        <option value="garage">Garage/Storage</option>
-                                                                        <option value="other">Other</option>
-                                                                    </select>
-                                                                </div>
-                                                            </div>
+                                                                    🔍 Lookup
+                                                                </TouchEnhancedButton>
+                                                            )}
                                                         </div>
 
-                                                        {item.upc && (
-                                                            <TouchEnhancedButton
-                                                                onClick={() => lookupByUPC(item)}
-                                                                className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
-                                                                title={`Lookup product details for UPC: ${item.upc}`}
-                                                            >
-                                                                🔍 Lookup
-                                                            </TouchEnhancedButton>
-                                                        )}
+                                                        {/* ENHANCED ITEM INFO */}
+                                                        <div className="mt-3 text-sm text-gray-500 space-y-1">
+                                                            <div className="flex items-center space-x-4">
+                                                                <span>Price: ${item.price.toFixed(2)}</span>
+                                                                {item.upc && <span>UPC: {item.upc}</span>}
+                                                                {item.hasReceiptPriceData && (
+                                                                    <span className="text-green-600 font-medium">✅ Price Tracked</span>
+                                                                )}
+                                                            </div>
+                                                            <div className="text-xs bg-gray-200 px-2 py-1 rounded">
+                                                                Raw: {item.rawText}
+                                                            </div>
+                                                        </div>
                                                     </div>
-
-                                                    <div
-                                                        className="mt-2 text-sm text-gray-500 flex items-center space-x-4">
-                                                        <span>Price: ${item.price.toFixed(2)}</span>
-                                                        {item.upc && <span>UPC: {item.upc}</span>}
-                                                        <span className="text-xs bg-gray-200 px-2 py-1 rounded">
-                                                            {item.rawText}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            ))
+                                                ))
                                         )}
-                                    </div>
-                                </div>
-                            )}
 
-                            {/* Step 4: Adding to Inventory */}
-                            {step === 'adding' && (
-                                <div className="text-center space-y-6">
-                                    <div className="text-6xl mb-4">📦</div>
-                                    <h3 className="text-lg font-medium text-gray-900">Adding Items to Inventory</h3>
-                                    <p className="text-gray-600 mb-6">{processingStatus}</p>
-                                    <div
-                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
-                    {/* Hidden canvas for photo capture */}
-                    <canvas ref={canvasRef} className="hidden"/>
-
-                    {/* iOS PWA Camera Modal */}
-                    <IOSPWACameraModal/>
-
-                    {/* Report Issue Modal */}
-                    {showReportModal && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
-                                <div className="p-6">
-                                    <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-medium text-gray-900">📧 Report Receipt Issue</h3>
-                                        <TouchEnhancedButton
-                                            onClick={() => setShowReportModal(false)}
-                                            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-                                        >
-                                            ×
-                                        </TouchEnhancedButton>
-                                    </div>
-
-                                    <div className="space-y-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                What type of issue are you experiencing? *
-                                            </label>
-                                            <select
-                                                value={reportData.issue}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    issue: e.target.value
-                                                }))}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            >
-                                                <option value="">Select an issue...</option>
-                                                <option value="android-mlkit-not-working">Android ML Kit Not Working
-                                                </option>
-                                                <option value="tesseractjs-poor-accuracy">Tesseract.js Poor Accuracy
-                                                </option>
-                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working
-                                                </option>
-                                                <option value="camera-not-working">Camera not working</option>
-                                                <option value="wrong-items-detected">Wrong items detected</option>
-                                                <option value="missing-items">Items not detected</option>
-                                                <option value="categories-wrong">Wrong categories assigned</option>
-                                                <option value="upc-lookup-failed">UPC lookup not working</option>
-                                                <option value="app-crash">App crashed/froze</option>
-                                                <option value="other">Other issue</option>
-                                            </select>
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Please describe the issue in detail *
-                                            </label>
-                                            <textarea
-                                                value={reportData.description}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    description: e.target.value
-                                                }))}
-                                                placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                rows={4}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                Your email (for follow-up)
-                                            </label>
-                                            <input
-                                                type="email"
-                                                value={reportData.email}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    email: e.target.value
-                                                }))}
-                                                placeholder="your.email@example.com"
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            />
-                                        </div>
-
-                                        {capturedImage && (
-                                            <div>
-                                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                    Receipt Image (will be included)
-                                                </label>
-                                                <img
-                                                    src={capturedImage}
-                                                    alt="Receipt to be sent"
-                                                    className="max-w-full h-32 object-contain border rounded"
-                                                />
+                                        {/* Step 4: Adding to Inventory */}
+                                        {step === 'adding' && (
+                                            <div className="text-center space-y-6">
+                                                <div className="text-6xl mb-4">📦</div>
+                                                <h3 className="text-lg font-medium text-gray-900">Adding Items to
+                                                    Inventory</h3>
+                                                <p className="text-gray-600 mb-6">{processingStatus}</p>
+                                                <div
+                                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                             </div>
                                         )}
-
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                                Additional Screenshots/Images
-                                            </label>
-                                            <input
-                                                type="file"
-                                                multiple
-                                                accept="image/*"
-                                                onChange={handleReportFileUpload}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            />
-                                            <p className="text-xs text-gray-500">
-                                                Upload screenshots showing the issue. Supports: JPG, PNG, GIF, WebP (max
-                                                10MB each)
-                                            </p>
-
-                                            {reportData.additionalFiles.length > 0 && (
-                                                <div className="space-y-2 mt-2">
-                                                    <p className="text-sm font-medium text-gray-700">
-                                                        Files to be sent ({reportData.additionalFiles.length}):
-                                                    </p>
-                                                    {reportData.additionalFiles.map((file, index) => (
-                                                        <div key={index}
-                                                             className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                                            <div className="flex items-center space-x-2">
-                                                                <span className="text-sm">📸</span>
-                                                                <span
-                                                                    className="text-sm text-gray-700 truncate">{file.name}</span>
-                                                                <span className="text-xs text-gray-500">
-                                                                    ({(file.size / 1024 / 1024).toFixed(1)}MB)
-                                                                </span>
-                                                            </div>
-                                                            <TouchEnhancedButton
-                                                                onClick={() => removeFile(index)}
-                                                                className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                                            >
-                                                                Remove
-                                                            </TouchEnhancedButton>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                            <p className="text-sm text-blue-800">
-                                                📝 <strong>Your report will include:</strong>
-                                            </p>
-                                            <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                                                <li>• Your issue description</li>
-                                                <li>• Platform: {platformInfo.isAndroid ? 'Android (ML Kit)' :
-                                                    platformInfo.isIOSPWA ? 'iOS PWA (Tesseract.js)' : 'Web (Tesseract.js)'}</li>
-                                                {capturedImage && <li>• Receipt image</li>}
-                                                {reportData.additionalFiles.length > 0 && (
-                                                    <li>• {reportData.additionalFiles.length} additional
-                                                        screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
-                                                )}
-                                                <li>• Browser and device information</li>
-                                                <li>• No personal information from your account</li>
-                                            </ul>
-                                        </div>
-                                    </div>
-
-                                    <div className="flex space-x-3 mt-6">
-                                        <TouchEnhancedButton
-                                            onClick={() => setShowReportModal(false)}
-                                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                                        >
-                                            Cancel
-                                        </TouchEnhancedButton>
-                                        <TouchEnhancedButton
-                                            onClick={submitIssueReport}
-                                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                                        >
-                                            📧 Send Report
-                                        </TouchEnhancedButton>
                                     </div>
                                 </div>
-                            </div>
-                        </div>
-                    )}
+                            )}
 
-                    <Footer/>
+
+                            {/* Hidden canvas for photo capture */}
+                            <canvas ref={canvasRef} className="hidden"/>
+
+                            {/* iOS PWA Camera Modal */}
+                            <IOSPWACameraModal/>
+
+                            {/* Report Issue Modal */}
+                            {showReportModal && (
+                                <div
+                                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                                    <div
+                                        className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
+                                        <div className="p-6">
+                                            <div className="flex justify-between items-center mb-4">
+                                                <h3 className="text-lg font-medium text-gray-900">📧 Report
+                                                    Receipt Issue</h3>
+                                                <TouchEnhancedButton
+                                                    onClick={() => setShowReportModal(false)}
+                                                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                                                >
+                                                    ×
+                                                </TouchEnhancedButton>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                <div>
+                                                    <label
+                                                        className="block text-sm font-medium text-gray-700 mb-1">
+                                                        What type of issue are you experiencing? *
+                                                    </label>
+                                                    <select
+                                                        value={reportData.issue}
+                                                        onChange={(e) => setReportData(prev => ({
+                                                            ...prev,
+                                                            issue: e.target.value
+                                                        }))}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                    >
+                                                        <option value="">Select an issue...</option>
+                                                        <option value="android-mlkit-not-working">Android ML Kit
+                                                            Not Working
+                                                        </option>
+                                                        <option value="tesseractjs-poor-accuracy">Tesseract.js
+                                                            Poor Accuracy
+                                                        </option>
+                                                        <option value="ios-pwa-camera-not-working">iOS PWA
+                                                            Camera Not Working
+                                                        </option>
+                                                        <option value="camera-not-working">Camera not working
+                                                        </option>
+                                                        <option value="wrong-items-detected">Wrong items
+                                                            detected
+                                                        </option>
+                                                        <option value="missing-items">Items not detected
+                                                        </option>
+                                                        <option value="categories-wrong">Wrong categories
+                                                            assigned
+                                                        </option>
+                                                        <option value="upc-lookup-failed">UPC lookup not
+                                                            working
+                                                        </option>
+                                                        <option value="app-crash">App crashed/froze</option>
+                                                        <option value="other">Other issue</option>
+                                                    </select>
+                                                </div>
+
+                                                <div>
+                                                    <label
+                                                        className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Please describe the issue in detail *
+                                                    </label>
+                                                    <textarea
+                                                        value={reportData.description}
+                                                        onChange={(e) => setReportData(prev => ({
+                                                            ...prev,
+                                                            description: e.target.value
+                                                        }))}
+                                                        placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                        rows={4}
+                                                    />
+                                                </div>
+
+                                                <div>
+                                                    <label
+                                                        className="block text-sm font-medium text-gray-700 mb-1">
+                                                        Your email (for follow-up)
+                                                    </label>
+                                                    <input
+                                                        type="email"
+                                                        value={reportData.email}
+                                                        onChange={(e) => setReportData(prev => ({
+                                                            ...prev,
+                                                            email: e.target.value
+                                                        }))}
+                                                        placeholder="your.email@example.com"
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                    />
+                                                </div>
+
+                                                {capturedImage && (
+                                                    <div>
+                                                        <label
+                                                            className="block text-sm font-medium text-gray-700 mb-2">
+                                                            Receipt Image (will be included)
+                                                        </label>
+                                                        <img
+                                                            src={capturedImage}
+                                                            alt="Receipt to be sent"
+                                                            className="max-w-full h-32 object-contain border rounded"
+                                                        />
+                                                    </div>
+                                                )}
+
+                                                <div>
+                                                    <label
+                                                        className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Additional Screenshots/Images
+                                                    </label>
+                                                    <input
+                                                        type="file"
+                                                        multiple
+                                                        accept="image/*"
+                                                        onChange={handleReportFileUpload}
+                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                    />
+                                                    <p className="text-xs text-gray-500">
+                                                        Upload screenshots showing the issue. Supports: JPG,
+                                                        PNG, GIF, WebP (max
+                                                        10MB each)
+                                                    </p>
+
+                                                    {reportData.additionalFiles.length > 0 && (
+                                                        <div className="space-y-2 mt-2">
+                                                            <p className="text-sm font-medium text-gray-700">
+                                                                Files to be sent
+                                                                ({reportData.additionalFiles.length}):
+                                                            </p>
+                                                            {reportData.additionalFiles.map((file, index) => (
+                                                                <div key={index}
+                                                                     className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                                    <div
+                                                                        className="flex items-center space-x-2">
+                                                                        <span className="text-sm">📸</span>
+                                                                        <span
+                                                                            className="text-sm text-gray-700 truncate">{file.name}</span>
+                                                                        <span className="text-xs text-gray-500">
+                                                                    ({(file.size / 1024 / 1024).toFixed(1)}MB)
+                                                                </span>
+                                                                    </div>
+                                                                    <TouchEnhancedButton
+                                                                        onClick={() => removeFile(index)}
+                                                                        className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                                    >
+                                                                        Remove
+                                                                    </TouchEnhancedButton>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                <div
+                                                    className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                                    <p className="text-sm text-blue-800">
+                                                        📝 <strong>Your report will include:</strong>
+                                                    </p>
+                                                    <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                                                        <li>• Your issue description</li>
+                                                        <li>•
+                                                            Platform: {platformInfo.isAndroid ? 'Android (ML Kit)' :
+                                                                platformInfo.isIOSPWA ? 'iOS PWA (Tesseract.js)' : 'Web (Tesseract.js)'}</li>
+                                                        {capturedImage && <li>• Receipt image</li>}
+                                                        {reportData.additionalFiles.length > 0 && (
+                                                            <li>• {reportData.additionalFiles.length} additional
+                                                                screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                                        )}
+                                                        <li>• Browser and device information</li>
+                                                        <li>• No personal information from your account</li>
+                                                    </ul>
+                                                </div>
+                                            </div>
+
+                                            <div className="flex space-x-3 mt-6">
+                                                <TouchEnhancedButton
+                                                    onClick={() => setShowReportModal(false)}
+                                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                                                >
+                                                    Cancel
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={submitIssueReport}
+                                                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                                >
+                                                    📧 Send Report
+                                                </TouchEnhancedButton>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            <Footer/>
+                        </div>
+                    </div>
                 </div>
+
             </FeatureGate>
         </MobileOptimizedLayout>
     );
