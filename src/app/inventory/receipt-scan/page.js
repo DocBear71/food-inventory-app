@@ -13,7 +13,6 @@ import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {Capacitor} from '@capacitor/core';
-import {Promise} from "mongoose";
 
 export default function ReceiptScan() {
     const router = useRouter();
@@ -301,7 +300,7 @@ export default function ReceiptScan() {
         ];
 
         for (let i = 0; i < configs.length; i++) {
-            const { name, config } = configs[i];
+            const {name, config} = configs[i];
 
             try {
                 console.log(`📄 Trying ${name} configuration...`);
@@ -319,7 +318,7 @@ export default function ReceiptScan() {
                     }
                 });
 
-                const { data: { text, confidence } } = await worker.recognize(imageBlob, config);
+                const {data: {text, confidence}} = await worker.recognize(imageBlob, config);
                 await worker.terminate();
 
                 console.log(`✅ ${name} Tesseract: ${Math.round(confidence)}% confidence, ${text.length} chars`);
@@ -761,99 +760,155 @@ export default function ReceiptScan() {
             console.log(`✅ Basic parsing complete: extracted ${basicItems.length} items`);
 
             // ✅ STEP 3: AI ENHANCEMENT (COMPLETELY OPTIONAL - SKIP ON ANY ERROR)
-            let finalItems = basicItems; // Default to basic items
+            let finalItems = basicItems; // Start with basic items
+            setProcessingStatus('Running mandatory AI enhancement...');
 
-            // Only attempt AI enhancement if we have items and it's enabled
-            const shouldTryAI = basicItems.length > 0 && process.env.NODE_ENV !== 'production';
+            console.log('🤖 FORCING AI enhancement for all receipts...');
 
-            if (shouldTryAI) {
-                setProcessingStatus('Attempting AI enhancement...');
+            try {
+                // Step 3a: Base64 conversion (required for AI)
+                console.log('🔄 Converting image to base64 for AI...');
+                setProcessingStatus('Converting image for AI analysis...');
 
-                try {
-                    console.log('🤖 Attempting AI enhancement (optional)...');
+                const testBase64 = await convertImageToBase64(imageFile);
+                setDebugBase64Data(testBase64);
 
-                    // Test base64 conversion first (separate try-catch)
-                    let testBase64 = '';
-                    try {
-                        testBase64 = await convertImageToBase64(imageFile);
-                        setDebugBase64Data(testBase64);
-                        console.log('✅ Base64 conversion successful:', {
-                            length: testBase64.length,
-                            hasValidChars: /^[A-Za-z0-9+/=]+$/.test(testBase64)
-                        });
-                    } catch (base64Error) {
-                        console.warn('⚠️ Base64 conversion failed:', base64Error.message);
-                        throw new Error('Base64 conversion failed');
-                    }
+                console.log('✅ Base64 conversion successful:', {
+                    length: testBase64.length,
+                    hasValidChars: /^[A-Za-z0-9+/=]+$/.test(testBase64),
+                    firstChars: testBase64.substring(0, 10)
+                });
 
-                    // Try to dynamically import AI helper (separate try-catch)
-                    let enhanceReceiptParsingWithAI;
-                    try {
-                        const aiModule = await import('@/lib/ai/receipt-ai-helper');
-                        enhanceReceiptParsingWithAI = aiModule.enhanceReceiptParsingWithAI;
+                // Step 3b: Import AI helper (required)
+                console.log('📦 Importing AI enhancement module...');
+                setProcessingStatus('Loading AI enhancement module...');
 
-                        if (typeof enhanceReceiptParsingWithAI !== 'function') {
-                            throw new Error('AI enhancement function not found or not a function');
-                        }
+                const aiModule = await import('@/lib/ai/receipt-ai-helper');
+                const enhanceReceiptParsingWithAI = aiModule.enhanceReceiptParsingWithAI;
 
-                        console.log('✅ AI module imported successfully');
-                    } catch (importError) {
-                        console.warn('⚠️ AI module import failed:', importError.message);
-                        throw new Error(`AI module import failed: ${importError.message}`);
-                    }
-
-                    // Try AI enhancement (separate try-catch)
-                    try {
-                        console.log('🤖 Calling AI enhancement function...');
-
-                        // Set a timeout for AI enhancement
-                        const aiPromise = enhanceReceiptParsingWithAI(
-                            processedText,
-                            basicItems,
-                            imageFile,
-                            getStoreContextFromReceipt(processedText)
-                        );
-
-                        const timeoutPromise = new Promise((_, reject) => {
-                            setTimeout(() => reject(new Error('AI enhancement timeout')), 30000); // 30 second timeout
-                        });
-
-                        finalItems = await Promise.race([aiPromise, timeoutPromise]);
-
-                        console.log(`✅ AI enhancement completed: ${basicItems.length} → ${finalItems.length} items`);
-                        setProcessingStatus('AI enhancement complete!');
-
-                    } catch (aiCallError) {
-                        console.warn('⚠️ AI enhancement call failed:', aiCallError.message);
-                        throw aiCallError;
-                    }
-
-                } catch (aiError) {
-                    console.warn('⚠️ AI enhancement failed (falling back to OCR results):', {
-                        error: aiError.message,
-                        stack: aiError.stack?.substring(0, 200) + '...'
-                    });
-
-                    // Set user-friendly status message based on error type
-                    if (aiError.message.includes('Base64')) {
-                        setProcessingStatus('AI enhancement failed (image conversion issue) - using OCR results');
-                    } else if (aiError.message.includes('import') || aiError.message.includes('module')) {
-                        setProcessingStatus('AI enhancement unavailable - using OCR results');
-                    } else if (aiError.message.includes('timeout')) {
-                        setProcessingStatus('AI enhancement timed out - using OCR results');
-                    } else if (aiError.message.includes('Promise') || aiError.message.includes('constructor')) {
-                        setProcessingStatus('AI service compatibility issue - using OCR results');
-                    } else {
-                        setProcessingStatus('AI enhancement failed - using OCR results');
-                    }
-
-                    // Always fall back to basic items
-                    finalItems = basicItems;
+                if (typeof enhanceReceiptParsingWithAI !== 'function') {
+                    throw new Error('AI enhancement function not available - this is required');
                 }
-            } else {
-                console.log('🤖 Skipping AI enhancement (not enabled or no items found)');
-                setProcessingStatus('Using OCR results (AI enhancement skipped)');
+
+                console.log('✅ AI module loaded successfully');
+
+                // Step 3c: Run AI enhancement (required)
+                console.log('🧠 Running AI enhancement analysis...');
+                setProcessingStatus('AI analyzing receipt and enhancing item detection...');
+
+                const storeContext = getStoreContextFromReceipt(processedText);
+                console.log('🏪 Store context detected:', storeContext);
+
+                // Set reasonable timeout but don't skip AI
+                const aiPromise = enhanceReceiptParsingWithAI(
+                    processedText,
+                    basicItems,
+                    imageFile,
+                    storeContext
+                );
+
+                const timeoutPromise = new Promise((_, reject) => {
+                    setTimeout(() => reject(new Error('AI enhancement timeout after 45 seconds')), 45000);
+                });
+
+                finalItems = await Promise.race([aiPromise, timeoutPromise]);
+
+                console.log(`🎉 AI enhancement SUCCESS: ${basicItems.length} basic → ${finalItems.length} enhanced items`);
+                setProcessingStatus('AI enhancement complete - items verified and enhanced!');
+
+                // Add AI confidence indicators
+                finalItems = finalItems.map(item => ({
+                    ...item,
+                    aiEnhanced: true,
+                    confidence: item.confidence || 0.85, // Default confidence if not provided
+                    enhancementSource: 'AI'
+
+                }));
+
+            } catch (aiError) {
+                console.error('💥 AI enhancement FAILED (this is bad):', {
+                    error: aiError.message,
+                    stack: aiError.stack?.substring(0, 300),
+                    basicItemsCount: basicItems.length
+                });
+
+                // Set detailed error status for user
+                if (aiError.message.includes('Base64') || aiError.message.includes('conversion')) {
+                    setProcessingStatus('❌ AI enhancement failed: Image conversion error');
+                    alert('❌ AI Enhancement Failed: Could not convert image for AI analysis. Please try with a different image format.');
+                } else if (aiError.message.includes('import') || aiError.message.includes('module')) {
+                    setProcessingStatus('❌ AI enhancement failed: Service unavailable');
+                    alert('❌ AI Enhancement Failed: AI service is currently unavailable. Please try again later.');
+                } else if (aiError.message.includes('timeout')) {
+                    setProcessingStatus('❌ AI enhancement failed: Analysis timeout');
+                    alert('❌ AI Enhancement Failed: AI analysis took too long. Please try with a simpler receipt.');
+                } else if (aiError.message.includes('Promise') || aiError.message.includes('constructor')) {
+                    setProcessingStatus('❌ AI enhancement failed: Service compatibility issue');
+                    alert('❌ AI Enhancement Failed: AI service compatibility issue. Please contact support.');
+                } else {
+                    setProcessingStatus('❌ AI enhancement failed: Unknown error');
+                    alert(`❌ AI Enhancement Failed: ${aiError.message}. Please try again or contact support.`);
+                }
+
+                // STOP THE PROCESS - Don't allow non-AI enhanced results
+                console.log('🛑 Stopping process due to AI enhancement failure');
+                setStep('upload');
+                return;
             }
+
+            // Ensure we have AI-enhanced items before proceeding
+            if (!finalItems || finalItems.length === 0) {
+                console.error('💥 AI enhancement returned no items');
+                setProcessingStatus('❌ AI enhancement failed: No items detected');
+                alert('❌ AI Enhancement Failed: No items could be detected. Please try with a clearer receipt image.');
+                setStep('upload');
+                return;
+            }
+
+            console.log(`✅ Proceeding with ${finalItems.length} AI-enhanced items`);
+
+            setProcessingStatus('Enhancing item data...');
+
+            finalItems = finalItems.map(item => {
+                // Ensure UPC is properly formatted
+                if (item.upc && typeof item.upc === 'string') {
+                    // Clean UPC: remove non-digits, ensure proper length
+                    const cleanUPC = item.upc.replace(/\D/g, '');
+                    if (cleanUPC.length >= 6) {
+                        item.upc = cleanUPC;
+                    }
+                }
+
+                // Ensure price is properly formatted
+                if (item.price && typeof item.price === 'number') {
+                    item.price = Math.round(item.price * 100) / 100; // Round to 2 decimals
+                    item.unitPrice = item.unitPrice || item.price / (item.quantity || 1);
+                }
+
+                // Add enhanced metadata
+                item.processedBy = 'AI-Enhanced';
+                item.extractionQuality = 'High';
+                item.needsReview = item.confidence && item.confidence < 0.7;
+
+                return item;
+            });
+
+            console.log('🔧 Item enhancement complete');
+
+            // DEBUGGING: Log Enhanced Items for Verification
+            console.log('📋 AI-ENHANCED ITEMS DETAILS:');
+            finalItems.forEach((item, index) => {
+                console.log(`${index + 1}. "${item.name}" - $${item.price}`, {
+                    upc: item.upc,
+                    confidence: item.confidence,
+                    aiEnhanced: item.aiEnhanced,
+                    needsReview: item.needsReview,
+                    category: item.category
+                });
+            });
+
+            setProcessingStatus(`✅ AI verification complete! ${finalItems.length} items enhanced and ready for review.`);
+
 
             // ✅ STEP 4: Handle no items found
             if (finalItems.length === 0) {
@@ -1017,7 +1072,7 @@ export default function ReceiptScan() {
 
             const reader = new FileReader();
 
-            reader.onload = function(event) {
+            reader.onload = function (event) {
                 try {
                     const result = event.target.result;
 
@@ -1045,7 +1100,7 @@ export default function ReceiptScan() {
                 }
             };
 
-            reader.onerror = function(error) {
+            reader.onerror = function (error) {
                 console.error('❌ FileReader error:', error);
                 reject(new Error('Failed to read image file'));
             };
@@ -3158,7 +3213,7 @@ export default function ReceiptScan() {
 // RENDER FUNCTIONS AND MODALS
 // ===============================================
 
-    function DebugModal({ isOpen, onClose, imageFile, base64Data }) {
+    function DebugModal({isOpen, onClose, imageFile, base64Data}) {
         if (!isOpen) return null;
 
         return (
@@ -3620,7 +3675,8 @@ export default function ReceiptScan() {
                                     {/* 🆕 ADD THIS DEBUG SECTION HERE */}
                                     {process.env.NODE_ENV === 'development' && (
                                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                                            <h4 className="text-sm font-medium text-yellow-900 mb-2">🔧 Development Debug Tools</h4>
+                                            <h4 className="text-sm font-medium text-yellow-900 mb-2">🔧 Development Debug
+                                                Tools</h4>
                                             <TouchEnhancedButton
                                                 onClick={() => setShowDebugModal(true)}
                                                 className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
@@ -3728,15 +3784,15 @@ export default function ReceiptScan() {
                             {/* Step 3: Review Items */}
                             {step === 'review' && (
                                 <div className="space-y-6">
+                                    {/* Header */}
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <h3 className="text-lg font-medium text-gray-900">Review Extracted
+                                            <h3 className="text-lg font-medium text-gray-900">Review AI-Enhanced
                                                 Items</h3>
                                             <p className="text-gray-600">
                                                 {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items
                                                 selected
-                                                {' '}- Processed
-                                                with {platformInfo.isAndroid ? 'Android ML Kit' : 'Tesseract.js OCR'}
+                                                {' '}- Enhanced with AI analysis
                                             </p>
                                         </div>
                                         <div className="flex space-x-2">
@@ -3781,64 +3837,77 @@ export default function ReceiptScan() {
                                             </div>
                                         ) : (
                                             extractedItems.map((item) => (
-                                                    <div
-                                                        key={item.id}
-                                                        className={`border rounded-lg p-4 ${item.selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}
-                                                    >
-                                                        <div className="flex items-start space-x-3">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={item.selected}
-                                                                onChange={() => toggleItemSelection(item.id)}
-                                                                className="mt-1 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                                            />
+                                                <div
+                                                    key={item.id}
+                                                    className={`border rounded-lg p-6 ${item.selected ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}
+                                                >
+                                                    <div className="flex items-start space-x-4">
+                                                        {/* Checkbox */}
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={item.selected}
+                                                            onChange={() => toggleItemSelection(item.id)}
+                                                            className="mt-2 h-5 w-5 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                        />
 
-                                                            <div className="flex-1 space-y-4">
-                                                                {/* 🆕 PRICE TRACKING BANNER */}
-                                                                {item.hasReceiptPriceData && (
-                                                                    <div
-                                                                        className="bg-green-50 border border-green-200 rounded-lg p-3">
-                                                                        <div
-                                                                            className="flex items-center justify-between">
-                                                                            <div
-                                                                                className="flex items-center space-x-2">
-                                                                                <span
-                                                                                    className="text-green-600 font-medium">💰 Price Data Available</span>
-                                                                                <span
-                                                                                    className="text-sm text-green-700">
-                                    ${item.receiptPriceEntry.price} at {item.receiptPriceEntry.store}
-                                </span>
-                                                                            </div>
+                                                        {/* Main Content */}
+                                                        <div className="flex-1 space-y-4">
+                                                            {/* AI Enhancement Status */}
+                                                            {item.aiEnhanced && (
+                                                                <div
+                                                                    className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center space-x-2">
                                                                             <span
-                                                                                className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
-                                Auto-tracked
-                            </span>
+                                                                                className="text-green-600 font-medium">🤖 AI Enhanced</span>
+                                                                            <span className="text-sm text-green-700">
+                                                    Confidence: {Math.round((item.confidence || 0.85) * 100)}%
+                                                </span>
+                                                                            {item.needsReview && (
+                                                                                <span
+                                                                                    className="text-xs text-orange-600 bg-orange-100 px-2 py-1 rounded">
+                                                        Review Recommended
+                                                    </span>
+                                                                            )}
                                                                         </div>
-                                                                        {item.receiptPriceEntry.size && (
-                                                                            <div
-                                                                                className="text-xs text-green-600 mt-1">
-                                                                                Size: {item.receiptPriceEntry.size}
-                                                                            </div>
-                                                                        )}
+                                                                        <span
+                                                                            className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                                {item.enhancementSource || 'AI'}
+                                            </span>
                                                                     </div>
-                                                                )}
+                                                                </div>
+                                                            )}
 
-                                                                {/* 🆕 AI CONFIDENCE INDICATOR */}
-                                                                {item.confidence && (
-                                                                    <div
-                                                                        className={`text-xs px-2 py-1 rounded inline-block ${
-                                                                            item.confidence >= 0.9 ? 'bg-green-100 text-green-800' :
-                                                                                item.confidence >= 0.7 ? 'bg-yellow-100 text-yellow-800' :
-                                                                                    'bg-red-100 text-red-800'
-                                                                        }`}>
-                                                                        🤖 AI
-                                                                        Confidence: {Math.round(item.confidence * 100)}%
-                                                                        {item.needsReview && ' - Review Recommended'}
+                                                            {/* Price Tracking Banner */}
+                                                            {item.hasReceiptPriceData && (
+                                                                <div
+                                                                    className="bg-green-50 border border-green-200 rounded-lg p-3">
+                                                                    <div className="flex items-center justify-between">
+                                                                        <div className="flex items-center space-x-2">
+                                                                            <span
+                                                                                className="text-green-600 font-medium">💰 Price Data Available</span>
+                                                                            <span className="text-sm text-green-700">
+                                                    ${item.receiptPriceEntry.price} at {item.receiptPriceEntry.store}
+                                                </span>
+                                                                        </div>
+                                                                        <span
+                                                                            className="text-xs text-green-600 bg-green-100 px-2 py-1 rounded">
+                                                Auto-tracked
+                                            </span>
                                                                     </div>
-                                                                )}
+                                                                    {item.receiptPriceEntry.size && (
+                                                                        <div className="text-xs text-green-600 mt-1">
+                                                                            Size: {item.receiptPriceEntry.size}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
 
-                                                                {/* EXISTING FORM FIELDS */}
-                                                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                                            {/* Form Fields - Fixed Layout */}
+                                                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                                                {/* Left Column */}
+                                                                <div className="space-y-4">
+                                                                    {/* Item Name */}
                                                                     <div>
                                                                         <label
                                                                             className="block text-sm font-medium text-gray-700 mb-1">
@@ -3852,6 +3921,7 @@ export default function ReceiptScan() {
                                                                         />
                                                                     </div>
 
+                                                                    {/* Category */}
                                                                     <div>
                                                                         <label
                                                                             className="block text-sm font-medium text-gray-700 mb-1">
@@ -3869,9 +3939,6 @@ export default function ReceiptScan() {
                                                                             </option>
                                                                             <option value="Beans">Beans</option>
                                                                             <option value="Beverages">Beverages</option>
-                                                                            <option value="Bouillon">Bouillon</option>
-                                                                            <option value="Boxed Meals">Boxed Meals
-                                                                            </option>
                                                                             <option value="Breads">Breads</option>
                                                                             <option value="Canned Beans">Canned/Jarred
                                                                                 Beans
@@ -3903,8 +3970,6 @@ export default function ReceiptScan() {
                                                                             <option value="Eggs">Eggs</option>
                                                                             <option value="Fresh Fruits">Fresh Fruits
                                                                             </option>
-                                                                            <option value="Fresh Spices">Fresh Spices
-                                                                            </option>
                                                                             <option value="Fresh Vegetables">Fresh
                                                                                 Vegetables
                                                                             </option>
@@ -3917,10 +3982,6 @@ export default function ReceiptScan() {
                                                                                 Fish & Seafood
                                                                             </option>
                                                                             <option
-                                                                                value="Fresh/Frozen Lamb">Fresh/Frozen
-                                                                                Lamb
-                                                                            </option>
-                                                                            <option
                                                                                 value="Fresh/Frozen Pork">Fresh/Frozen
                                                                                 Pork
                                                                             </option>
@@ -3928,20 +3989,9 @@ export default function ReceiptScan() {
                                                                                 value="Fresh/Frozen Poultry">Fresh/Frozen
                                                                                 Poultry
                                                                             </option>
-                                                                            <option
-                                                                                value="Fresh/Frozen Rabbit">Fresh/Frozen
-                                                                                Rabbit
-                                                                            </option>
-                                                                            <option
-                                                                                value="Fresh/Frozen Venison">Fresh/Frozen
-                                                                                Venison
-                                                                            </option>
                                                                             <option value="Frozen Fruit">Frozen Fruit
                                                                             </option>
                                                                             <option value="Frozen Meals">Frozen Meals
-                                                                            </option>
-                                                                            <option value="Frozen Other Items">Frozen
-                                                                                Other Items
                                                                             </option>
                                                                             <option value="Frozen Vegetables">Frozen
                                                                                 Vegetables
@@ -3956,19 +4006,18 @@ export default function ReceiptScan() {
                                                                                 Soup Mixes
                                                                             </option>
                                                                             <option value="Spices">Spices</option>
-                                                                            <option value="Stock/Broth">Stock/Broth
-                                                                            </option>
-                                                                            <option value="Stuffing & Sides">Stuffing &
-                                                                                Sides
-                                                                            </option>
                                                                         </select>
                                                                     </div>
+                                                                </div>
 
-                                                                    <div className="grid grid-cols-2 gap-2">
+                                                                {/* Right Column */}
+                                                                <div className="space-y-4">
+                                                                    {/* Quantity and Location */}
+                                                                    <div className="grid grid-cols-2 gap-3">
                                                                         <div>
                                                                             <label
                                                                                 className="block text-sm font-medium text-gray-700 mb-1">
-                                                                                Qty
+                                                                                Quantity
                                                                             </label>
                                                                             <input
                                                                                 type="number"
@@ -3988,7 +4037,6 @@ export default function ReceiptScan() {
                                                                                 onChange={(e) => updateItem(item.id, 'location', e.target.value)}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                             >
-
                                                                                 <option value="pantry">Pantry</option>
                                                                                 <option value="kitchen">Kitchen
                                                                                     Cabinets
@@ -4007,11 +4055,37 @@ export default function ReceiptScan() {
                                                                             </select>
                                                                         </div>
                                                                     </div>
+
+                                                                    {/* Price and UPC Display */}
+                                                                    <div className="grid grid-cols-2 gap-3">
+                                                                        <div>
+                                                                            <label
+                                                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Price
+                                                                            </label>
+                                                                            <div
+                                                                                className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm">
+                                                                                ${item.price ? item.price.toFixed(2) : '0.00'}
+                                                                            </div>
+                                                                        </div>
+                                                                        <div>
+                                                                            <label
+                                                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                UPC Code
+                                                                            </label>
+                                                                            <div
+                                                                                className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm">
+                                                                                {item.upc || 'Not detected'}
+                                                                            </div>
+                                                                        </div>
+                                                                    </div>
                                                                 </div>
                                                             </div>
+                                                        </div>
 
-                                                            {/* EXISTING UPC LOOKUP BUTTON */}
-                                                            {item.upc && (
+                                                        {/* UPC Lookup Button */}
+                                                        {item.upc && (
+                                                            <div className="flex-shrink-0">
                                                                 <TouchEnhancedButton
                                                                     onClick={() => lookupByUPC(item)}
                                                                     className="px-3 py-2 bg-blue-600 text-white text-sm rounded-md hover:bg-blue-700"
@@ -4019,256 +4093,269 @@ export default function ReceiptScan() {
                                                                 >
                                                                     🔍 Lookup
                                                                 </TouchEnhancedButton>
+                                                            </div>
+                                                        )}
+                                                    </div>
+
+                                                    {/* Item Metadata */}
+                                                    <div className="mt-4 pt-4 border-t border-gray-200">
+                                                        <div
+                                                            className="flex flex-wrap items-center gap-4 text-sm text-gray-600">
+                                                            <span
+                                                                className="font-medium">Price: ${item.price ? item.price.toFixed(2) : '0.00'}</span>
+                                                            {item.unitPrice && item.unitPrice !== item.price && (
+                                                                <span>Unit Price: ${item.unitPrice.toFixed(2)}</span>
+                                                            )}
+                                                            {item.upc && <span>UPC: {item.upc}</span>}
+                                                            {item.taxCode && <span>Tax: {item.taxCode}</span>}
+                                                            {item.aiEnhanced && (
+                                                                <span className="text-green-600 font-medium">✅ AI Verified</span>
+                                                            )}
+                                                            {item.hasReceiptPriceData && (
+                                                                <span className="text-green-600 font-medium">💰 Price Tracked</span>
                                                             )}
                                                         </div>
-
-                                                        {/* ENHANCED ITEM INFO */}
-                                                        <div className="mt-3 text-sm text-gray-500 space-y-1">
-                                                            <div className="flex items-center space-x-4">
-                                                                <span>Price: ${item.price.toFixed(2)}</span>
-                                                                {item.upc && <span>UPC: {item.upc}</span>}
-                                                                {item.hasReceiptPriceData && (
-                                                                    <span className="text-green-600 font-medium">✅ Price Tracked</span>
-                                                                )}
-                                                            </div>
-                                                            <div className="text-xs bg-gray-200 px-2 py-1 rounded">
-                                                                Raw: {item.rawText}
-                                                            </div>
+                                                        <div
+                                                            className="text-xs text-gray-500 mt-2 bg-gray-100 px-2 py-1 rounded">
+                                                            Raw OCR: {item.rawText}
                                                         </div>
                                                     </div>
-                                                ))
-                                        )}
-
-
-                                        {/* Step 4: Adding to Inventory */}
-                                        {step === 'adding' && (
-                                            <div className="text-center space-y-6">
-                                                <div className="text-6xl mb-4">📦</div>
-                                                <h3 className="text-lg font-medium text-gray-900">Adding Items to
-                                                    Inventory</h3>
-                                                <p className="text-gray-600 mb-6">{processingStatus}</p>
-                                                <div
-                                                    className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
-                                            </div>
+                                                </div>
+                                            ))
                                         )}
                                     </div>
                                 </div>
                             )}
 
 
-                            {/* Hidden canvas for photo capture */}
-                            <canvas ref={canvasRef} className="hidden"/>
-
-                            {/* iOS PWA Camera Modal */}
-                            <IOSPWACameraModal/>
-
-                            {/* Report Issue Modal */}
-                            {showReportModal && (
-                                <div
-                                    className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            {/* Step 4: Adding to Inventory */}
+                            {step === 'adding' && (
+                                <div className="text-center space-y-6">
+                                    <div className="text-6xl mb-4">📦</div>
+                                    <h3 className="text-lg font-medium text-gray-900">Adding Items to
+                                        Inventory</h3>
+                                    <p className="text-gray-600 mb-6">{processingStatus}</p>
                                     <div
-                                        className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
-                                        <div className="p-6">
-                                            <div className="flex justify-between items-center mb-4">
-                                                <h3 className="text-lg font-medium text-gray-900">📧 Report
-                                                    Receipt Issue</h3>
-                                                <TouchEnhancedButton
-                                                    onClick={() => setShowReportModal(false)}
-                                                    className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-                                                >
-                                                    ×
-                                                </TouchEnhancedButton>
-                                            </div>
-
-                                            <div className="space-y-4">
-                                                <div>
-                                                    <label
-                                                        className="block text-sm font-medium text-gray-700 mb-1">
-                                                        What type of issue are you experiencing? *
-                                                    </label>
-                                                    <select
-                                                        value={reportData.issue}
-                                                        onChange={(e) => setReportData(prev => ({
-                                                            ...prev,
-                                                            issue: e.target.value
-                                                        }))}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                    >
-                                                        <option value="">Select an issue...</option>
-                                                        <option value="android-mlkit-not-working">Android ML Kit
-                                                            Not Working
-                                                        </option>
-                                                        <option value="tesseractjs-poor-accuracy">Tesseract.js
-                                                            Poor Accuracy
-                                                        </option>
-                                                        <option value="ios-pwa-camera-not-working">iOS PWA
-                                                            Camera Not Working
-                                                        </option>
-                                                        <option value="camera-not-working">Camera not working
-                                                        </option>
-                                                        <option value="wrong-items-detected">Wrong items
-                                                            detected
-                                                        </option>
-                                                        <option value="missing-items">Items not detected
-                                                        </option>
-                                                        <option value="categories-wrong">Wrong categories
-                                                            assigned
-                                                        </option>
-                                                        <option value="upc-lookup-failed">UPC lookup not
-                                                            working
-                                                        </option>
-                                                        <option value="app-crash">App crashed/froze</option>
-                                                        <option value="other">Other issue</option>
-                                                    </select>
-                                                </div>
-
-                                                <div>
-                                                    <label
-                                                        className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Please describe the issue in detail *
-                                                    </label>
-                                                    <textarea
-                                                        value={reportData.description}
-                                                        onChange={(e) => setReportData(prev => ({
-                                                            ...prev,
-                                                            description: e.target.value
-                                                        }))}
-                                                        placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                        rows={4}
-                                                    />
-                                                </div>
-
-                                                <div>
-                                                    <label
-                                                        className="block text-sm font-medium text-gray-700 mb-1">
-                                                        Your email (for follow-up)
-                                                    </label>
-                                                    <input
-                                                        type="email"
-                                                        value={reportData.email}
-                                                        onChange={(e) => setReportData(prev => ({
-                                                            ...prev,
-                                                            email: e.target.value
-                                                        }))}
-                                                        placeholder="your.email@example.com"
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                    />
-                                                </div>
-
-                                                {capturedImage && (
-                                                    <div>
-                                                        <label
-                                                            className="block text-sm font-medium text-gray-700 mb-2">
-                                                            Receipt Image (will be included)
-                                                        </label>
-                                                        <img
-                                                            src={capturedImage}
-                                                            alt="Receipt to be sent"
-                                                            className="max-w-full h-32 object-contain border rounded"
-                                                        />
-                                                    </div>
-                                                )}
-
-                                                <div>
-                                                    <label
-                                                        className="block text-sm font-medium text-gray-700 mb-2">
-                                                        Additional Screenshots/Images
-                                                    </label>
-                                                    <input
-                                                        type="file"
-                                                        multiple
-                                                        accept="image/*"
-                                                        onChange={handleReportFileUpload}
-                                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                    />
-                                                    <p className="text-xs text-gray-500">
-                                                        Upload screenshots showing the issue. Supports: JPG,
-                                                        PNG, GIF, WebP (max
-                                                        10MB each)
-                                                    </p>
-
-                                                    {reportData.additionalFiles.length > 0 && (
-                                                        <div className="space-y-2 mt-2">
-                                                            <p className="text-sm font-medium text-gray-700">
-                                                                Files to be sent
-                                                                ({reportData.additionalFiles.length}):
-                                                            </p>
-                                                            {reportData.additionalFiles.map((file, index) => (
-                                                                <div key={index}
-                                                                     className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                                                                    <div
-                                                                        className="flex items-center space-x-2">
-                                                                        <span className="text-sm">📸</span>
-                                                                        <span
-                                                                            className="text-sm text-gray-700 truncate">{file.name}</span>
-                                                                        <span className="text-xs text-gray-500">
-                                                                    ({(file.size / 1024 / 1024).toFixed(1)}MB)
-                                                                </span>
-                                                                    </div>
-                                                                    <TouchEnhancedButton
-                                                                        onClick={() => removeFile(index)}
-                                                                        className="text-red-600 hover:text-red-800 text-sm font-medium"
-                                                                    >
-                                                                        Remove
-                                                                    </TouchEnhancedButton>
-                                                                </div>
-                                                            ))}
-                                                        </div>
-                                                    )}
-                                                </div>
-
-                                                <div
-                                                    className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                                                    <p className="text-sm text-blue-800">
-                                                        📝 <strong>Your report will include:</strong>
-                                                    </p>
-                                                    <ul className="text-sm text-blue-700 mt-1 space-y-1">
-                                                        <li>• Your issue description</li>
-                                                        <li>•
-                                                            Platform: {platformInfo.isAndroid ? 'Android (ML Kit)' :
-                                                                platformInfo.isIOSPWA ? 'iOS PWA (Tesseract.js)' : 'Web (Tesseract.js)'}</li>
-                                                        {capturedImage && <li>• Receipt image</li>}
-                                                        {reportData.additionalFiles.length > 0 && (
-                                                            <li>• {reportData.additionalFiles.length} additional
-                                                                screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
-                                                        )}
-                                                        <li>• Browser and device information</li>
-                                                        <li>• No personal information from your account</li>
-                                                    </ul>
-                                                </div>
-                                            </div>
-
-                                            <div className="flex space-x-3 mt-6">
-                                                <TouchEnhancedButton
-                                                    onClick={() => setShowReportModal(false)}
-                                                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
-                                                >
-                                                    Cancel
-                                                </TouchEnhancedButton>
-                                                <TouchEnhancedButton
-                                                    onClick={submitIssueReport}
-                                                    className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
-                                                >
-                                                    📧 Send Report
-                                                </TouchEnhancedButton>
-                                            </div>
-                                        </div>
-                                    </div>
+                                        className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto"></div>
                                 </div>
                             )}
-                            {/* Report Issue Modal */}
-                            {showReportModal && (
-                                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                                    {/* Report modal content */}
-                                </div>
-                            )}
-
-
-                            <Footer/>
                         </div>
                     </div>
+
+
+                    {/* Hidden canvas for photo capture */}
+                    <canvas ref={canvasRef} className="hidden"/>
+
+                    {/* iOS PWA Camera Modal */}
+                    <IOSPWACameraModal/>
+
+                    {/* Report Issue Modal */}
+                    {showReportModal && (
+                        <div
+                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div
+                                className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
+                                <div className="p-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-medium text-gray-900">📧 Report
+                                            Receipt Issue</h3>
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowReportModal(false)}
+                                            className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                                        >
+                                            ×
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <div>
+                                            <label
+                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                What type of issue are you experiencing? *
+                                            </label>
+                                            <select
+                                                value={reportData.issue}
+                                                onChange={(e) => setReportData(prev => ({
+                                                    ...prev,
+                                                    issue: e.target.value
+                                                }))}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value="">Select an issue...</option>
+                                                <option value="android-mlkit-not-working">Android ML Kit
+                                                    Not Working
+                                                </option>
+                                                <option value="tesseractjs-poor-accuracy">Tesseract.js
+                                                    Poor Accuracy
+                                                </option>
+                                                <option value="ios-pwa-camera-not-working">iOS PWA
+                                                    Camera Not Working
+                                                </option>
+                                                <option value="camera-not-working">Camera not working
+                                                </option>
+                                                <option value="wrong-items-detected">Wrong items
+                                                    detected
+                                                </option>
+                                                <option value="missing-items">Items not detected
+                                                </option>
+                                                <option value="categories-wrong">Wrong categories
+                                                    assigned
+                                                </option>
+                                                <option value="upc-lookup-failed">UPC lookup not
+                                                    working
+                                                </option>
+                                                <option value="app-crash">App crashed/froze</option>
+                                                <option value="other">Other issue</option>
+                                            </select>
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                Please describe the issue in detail *
+                                            </label>
+                                            <textarea
+                                                value={reportData.description}
+                                                onChange={(e) => setReportData(prev => ({
+                                                    ...prev,
+                                                    description: e.target.value
+                                                }))}
+                                                placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                rows={4}
+                                            />
+                                        </div>
+
+                                        <div>
+                                            <label
+                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                Your email (for follow-up)
+                                            </label>
+                                            <input
+                                                type="email"
+                                                value={reportData.email}
+                                                onChange={(e) => setReportData(prev => ({
+                                                    ...prev,
+                                                    email: e.target.value
+                                                }))}
+                                                placeholder="your.email@example.com"
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                        </div>
+
+                                        {capturedImage && (
+                                            <div>
+                                                <label
+                                                    className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Receipt Image (will be included)
+                                                </label>
+                                                <img
+                                                    src={capturedImage}
+                                                    alt="Receipt to be sent"
+                                                    className="max-w-full h-32 object-contain border rounded"
+                                                />
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <label
+                                                className="block text-sm font-medium text-gray-700 mb-2">
+                                                Additional Screenshots/Images
+                                            </label>
+                                            <input
+                                                type="file"
+                                                multiple
+                                                accept="image/*"
+                                                onChange={handleReportFileUpload}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            />
+                                            <p className="text-xs text-gray-500">
+                                                Upload screenshots showing the issue. Supports: JPG,
+                                                PNG, GIF, WebP (max
+                                                10MB each)
+                                            </p>
+
+                                            {reportData.additionalFiles.length > 0 && (
+                                                <div className="space-y-2 mt-2">
+                                                    <p className="text-sm font-medium text-gray-700">
+                                                        Files to be sent
+                                                        ({reportData.additionalFiles.length}):
+                                                    </p>
+                                                    {reportData.additionalFiles.map((file, index) => (
+                                                        <div key={index}
+                                                             className="flex items-center justify-between bg-gray-50 p-2 rounded">
+                                                            <div
+                                                                className="flex items-center space-x-2">
+                                                                <span className="text-sm">📸</span>
+                                                                <span
+                                                                    className="text-sm text-gray-700 truncate">{file.name}</span>
+                                                                <span className="text-xs text-gray-500">
+                                                                    ({(file.size / 1024 / 1024).toFixed(1)}MB)
+                                                                </span>
+                                                            </div>
+                                                            <TouchEnhancedButton
+                                                                onClick={() => removeFile(index)}
+                                                                className="text-red-600 hover:text-red-800 text-sm font-medium"
+                                                            >
+                                                                Remove
+                                                            </TouchEnhancedButton>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div
+                                            className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                            <p className="text-sm text-blue-800">
+                                                📝 <strong>Your report will include:</strong>
+                                            </p>
+                                            <ul className="text-sm text-blue-700 mt-1 space-y-1">
+                                                <li>• Your issue description</li>
+                                                <li>•
+                                                    Platform: {platformInfo.isAndroid ? 'Android (ML Kit)' :
+                                                        platformInfo.isIOSPWA ? 'iOS PWA (Tesseract.js)' : 'Web (Tesseract.js)'}</li>
+                                                {capturedImage && <li>• Receipt image</li>}
+                                                {reportData.additionalFiles.length > 0 && (
+                                                    <li>• {reportData.additionalFiles.length} additional
+                                                        screenshot{reportData.additionalFiles.length > 1 ? 's' : ''}</li>
+                                                )}
+                                                <li>• Browser and device information</li>
+                                                <li>• No personal information from your account</li>
+                                            </ul>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex space-x-3 mt-6">
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowReportModal(false)}
+                                            className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                                        >
+                                            Cancel
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={submitIssueReport}
+                                            className="flex-1 px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
+                                        >
+                                            📧 Send Report
+                                        </TouchEnhancedButton>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* 🆕 ADD THIS DEBUG MODAL CALL HERE */}
+                    <DebugModal
+                        isOpen={showDebugModal}
+                        onClose={() => setShowDebugModal(false)}
+                        imageFile={debugImageFile}
+                        base64Data={debugBase64Data}
+                    />
+
+                    <Footer/>
                 </div>
+
 
             </FeatureGate>
         </MobileOptimizedLayout>
