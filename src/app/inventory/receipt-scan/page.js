@@ -45,6 +45,9 @@ export default function ReceiptScan() {
         additionalFiles: []
     });
     const [receiptType, setReceiptType] = useState('paper');
+    const [showDebugModal, setShowDebugModal] = useState(false);
+    const [debugImageFile, setDebugImageFile] = useState(null);
+    const [debugBase64Data, setDebugBase64Data] = useState('');
 
     // Platform and device detection state
     const [platformInfo, setPlatformInfo] = useState({
@@ -2953,6 +2956,76 @@ export default function ReceiptScan() {
 // RENDER FUNCTIONS AND MODALS
 // ===============================================
 
+    function DebugModal({ isOpen, onClose, imageFile, base64Data }) {
+        if (!isOpen) return null;
+
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
+                    <div className="p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-medium text-gray-900">🔍 Receipt Processing Debug</h3>
+                            <TouchEnhancedButton
+                                onClick={onClose}
+                                className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <h4 className="font-medium text-gray-900">Image File Info:</h4>
+                                <div className="bg-gray-50 p-3 rounded text-sm">
+                                    <p>Size: {imageFile?.size ? `${Math.round(imageFile.size / 1024)} KB` : 'N/A'}</p>
+                                    <p>Type: {imageFile?.type || 'N/A'}</p>
+                                    <p>Name: {imageFile?.name || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <h4 className="font-medium text-gray-900">Base64 Data:</h4>
+                                <div className="bg-gray-50 p-3 rounded text-sm">
+                                    <p>Length: {base64Data?.length || 0} characters</p>
+                                    <p>Has Data: {base64Data ? '✅ Yes' : '❌ No'}</p>
+                                    {base64Data && (
+                                        <div className="mt-2">
+                                            <p>Preview (first 100 chars):</p>
+                                            <code className="text-xs bg-gray-200 p-1 rounded block mt-1">
+                                                {base64Data.substring(0, 100)}...
+                                            </code>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {imageFile && (
+                                <div>
+                                    <h4 className="font-medium text-gray-900">Image Preview:</h4>
+                                    <img
+                                        src={URL.createObjectURL(imageFile)}
+                                        alt="Receipt preview"
+                                        className="max-w-full h-48 object-contain border rounded"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                                <h4 className="font-medium text-blue-900">Troubleshooting Tips:</h4>
+                                <ul className="text-sm text-blue-800 mt-2 space-y-1">
+                                    <li>• Base64 length should be 50,000+ characters for typical receipts</li>
+                                    <li>• Image type should be image/jpeg, image/png, etc.</li>
+                                    <li>• File size should be 100KB - 5MB for good results</li>
+                                    <li>• Check browser console for base64 conversion errors</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
 // iOS PWA Camera Modal Component
     function IOSPWACameraModal() {
         if (!showIOSPWAModal) return null;
@@ -3342,6 +3415,18 @@ export default function ReceiptScan() {
                                             📧 Report Receipt Issue
                                         </TouchEnhancedButton>
                                     </div>
+                                    {/* 🆕 ADD THIS DEBUG SECTION HERE */}
+                                    {process.env.NODE_ENV === 'development' && (
+                                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
+                                            <h4 className="text-sm font-medium text-yellow-900 mb-2">🔧 Development Debug Tools</h4>
+                                            <TouchEnhancedButton
+                                                onClick={() => setShowDebugModal(true)}
+                                                className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
+                                            >
+                                                🔍 Debug Last Upload
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
@@ -3970,6 +4055,13 @@ export default function ReceiptScan() {
                                     </div>
                                 </div>
                             )}
+                            {/* Report Issue Modal */}
+                            {showReportModal && (
+                                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                                    {/* Report modal content */}
+                                </div>
+                            )}
+
 
                             <Footer/>
                         </div>
