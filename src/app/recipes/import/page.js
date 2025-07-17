@@ -209,12 +209,8 @@ export default function ImportRecipePage() {
         try {
             console.log('🎯 Importing recipe:', recipeData);
 
-            const response = await fetch('/api/recipes', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(recipeData)
+            const response = await apiPost('/api/recipes', {
+                recipeData
             });
 
             const data = await response.json();

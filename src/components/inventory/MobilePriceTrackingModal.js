@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPriceAdded }) {
     const [activeTab, setActiveTab] = useState('add-price');
@@ -81,10 +82,8 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
         MobileHaptics?.light();
 
         try {
-            const response = await fetch(`/api/inventory/${item._id}/prices`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+            const response = await apiPost(`/api/inventory/${item._id}/prices`, {
+               formData
             });
 
             const data = await response.json();
@@ -129,10 +128,8 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
             setLoading(true);
             MobileHaptics?.light();
 
-            const response = await fetch(`/api/inventory/${item._id}/prices`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(quickData)
+            const response = await apiPost(`/api/inventory/${item._id}/prices`, {
+                quickData
             });
 
             const data = await response.json();

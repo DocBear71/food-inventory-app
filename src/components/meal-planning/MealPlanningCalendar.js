@@ -1,6 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/MealPlanningCalendar.js v15 - Updated with expanded meal types (Breakfast, AM Snack, Lunch, Afternoon Snack, Dinner, PM Snack)
-
+// file: /src/components/meal-planning/MealPlanningCalendar.js v16 - Enhanced with Price Intelligence Integration
 
 import {useState, useEffect} from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -12,7 +11,6 @@ import SimpleMealBuilder from './SimpleMealBuilder';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MealCompletionModal from './MealCompletionModal';
 import { apiGet, apiPost, apiPut } from '@/lib/api-config';
-
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();
@@ -27,7 +25,6 @@ export default function MealPlanningCalendar() {
     const [loading, setLoading] = useState(true);
     const [isMobile, setIsMobile] = useState(false);
     const [weekStartDay, setWeekStartDay] = useState('monday');
-    // UPDATED: Default to expanded meal types
     const [userMealTypes, setUserMealTypes] = useState(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
     const [showWeekSettings, setShowWeekSettings] = useState(false);
     const [showWeekNotification, setShowWeekNotification] = useState(true);
@@ -42,6 +39,22 @@ export default function MealPlanningCalendar() {
     const [selectedMealForCompletion, setSelectedMealForCompletion] = useState(null);
     const [inventory, setInventory] = useState([]);
     const [mealDropdowns, setMealDropdowns] = useState({});
+
+    // 💰 NEW: Price Intelligence State
+    const [priceIntelligence, setPriceIntelligence] = useState({
+        enabled: true,
+        showInsights: false,
+        weeklyBudget: 0,
+        currentCost: 0,
+        projectedCost: 0,
+        savingsOpportunities: [],
+        dealOpportunities: [],
+        priceAlerts: []
+    });
+    const [mealCosts, setMealCosts] = useState({});
+    const [dealNotifications, setDealNotifications] = useState([]);
+    const [showPriceSettings, setShowPriceSettings] = useState(false);
+    const [showBudgetModal, setShowBudgetModal] = useState(false);
 
     const showToast = (message, type = 'success') => {
         const toast = document.createElement('div');
@@ -85,13 +98,181 @@ export default function MealPlanningCalendar() {
         { id: 'snack', name: 'Snacks', icon: '🍿' }
     ];
 
-    // ENHANCED: Add this function to categorize recipes:
+    // 💰 NEW: Price Intelligence Functions
+    const loadPriceIntelligence = async () => {
+        if (!session?.user?.id) return;
+
+        try {
+            const [dealsResponse, alertsResponse, budgetResponse] = await Promise.all([
+                apiGet('/api/price-tracking/deals?limit=20'),
+                apiGet('/api/price-tracking/alerts'),
+                apiGet('/api/user/budget')
+            ]);
+
+            const [dealsData, alertsData, budgetData] = await Promise.all([
+                dealsResponse.json(),
+                alertsResponse.json(),
+                budgetResponse.json()
+            ]);
+
+            if (dealsData.success) {
+                setPriceIntelligence(prev => ({
+                    ...prev,
+                    dealOpportunities: dealsData.deals || []
+                }));
+            }
+
+            if (alertsData.success) {
+                setPriceIntelligence(prev => ({
+                    ...prev,
+                    priceAlerts: alertsData.alerts?.filter(alert => alert.triggered) || []
+                }));
+            }
+
+            if (budgetData.success && budgetData.budget) {
+                setPriceIntelligence(prev => ({
+                    ...prev,
+                    weeklyBudget: budgetData.budget.weeklyMealBudget || 0
+                }));
+            }
+        } catch (error) {
+            console.error('Error loading price intelligence:', error);
+        }
+    };
+
+    const calculateMealPlanCosts = async (plan) => {
+        if (!plan?.meals || !priceIntelligence.enabled) return;
+
+        try {
+            const recipeIds = [];
+            Object.values(plan.meals).forEach(dayMeals => {
+                dayMeals.forEach(meal => {
+                    if (meal.recipeId && !recipeIds.includes(meal.recipeId)) {
+                        recipeIds.push(meal.recipeId);
+                    }
+                });
+            });
+
+            if (recipeIds.length === 0) return;
+
+            const costPromises = recipeIds.map(async (recipeId) => {
+                try {
+                    const response = await apiPost('/api/meal-planning/calculate-cost', {
+                        recipeId,
+                        servings: 4
+                    });
+                    const data = await response.json();
+                    return data.success ? { recipeId, cost: data.cost, breakdown: data.breakdown } : null;
+                } catch (error) {
+                    console.error(`Error calculating cost for recipe ${recipeId}:`, error);
+                    return null;
+                }
+            });
+
+            const costs = await Promise.all(costPromises);
+            const validCosts = costs.filter(Boolean);
+
+            let totalCost = 0;
+            const costMap = {};
+
+            Object.entries(plan.meals).forEach(([day, dayMeals]) => {
+                dayMeals.forEach(meal => {
+                    if (meal.recipeId) {
+                        const costData = validCosts.find(c => c.recipeId === meal.recipeId);
+                        if (costData) {
+                            const mealCost = (costData.cost * (meal.servings || 1)) / 4;
+                            totalCost += mealCost;
+                            costMap[`${day}-${meal.mealType}-${meal.recipeId}`] = {
+                                cost: mealCost,
+                                breakdown: costData.breakdown
+                            };
+                        }
+                    }
+                });
+            });
+
+            setMealCosts(costMap);
+            setPriceIntelligence(prev => ({
+                ...prev,
+                currentCost: totalCost,
+                projectedCost: totalCost
+            }));
+
+        } catch (error) {
+            console.error('Error calculating meal plan costs:', error);
+        }
+    };
+
+    const generateSmartSuggestions = async () => {
+        if (!mealPlan) return;
+
+        try {
+            const response = await apiPost('/api/meal-planning/smart-suggestions', {
+                mealPlanId: mealPlan._id,
+                inventory: inventory,
+                dealOpportunities: priceIntelligence.dealOpportunities,
+                budget: priceIntelligence.weeklyBudget,
+                preferences: {
+                    prioritizeSavings: true,
+                    useInventoryFirst: true,
+                    maxCostPerMeal: priceIntelligence.weeklyBudget / 21,
+                    dietaryRestrictions: userDietaryRestrictions,
+                    avoidIngredients: userAvoidIngredients
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                showToast(`Found ${data.suggestions.length} money-saving meal suggestions!`, 'success');
+                // Could open a modal here to show suggestions
+            }
+        } catch (error) {
+            console.error('Error generating smart suggestions:', error);
+            showToast('Unable to generate suggestions right now', 'error');
+        }
+    };
+
+    const formatPrice = (price) => {
+        return typeof price === 'number' ? `$${price.toFixed(2)}` : '$0.00';
+    };
+
+    const getMealCostIndicator = (day, mealType, recipeId) => {
+        if (!priceIntelligence.enabled) return null;
+
+        const costKey = `${day.toLowerCase()}-${mealType}-${recipeId}`;
+        const costData = mealCosts[costKey];
+
+        if (!costData) return null;
+
+        const cost = costData.cost;
+        const avgCostPerMeal = priceIntelligence.weeklyBudget / 21;
+
+        let colorClass = 'text-green-600';
+        let indicator = '💰';
+
+        if (avgCostPerMeal > 0) {
+            if (cost > avgCostPerMeal * 1.5) {
+                colorClass = 'text-red-600';
+                indicator = '💸';
+            } else if (cost > avgCostPerMeal) {
+                colorClass = 'text-yellow-600';
+                indicator = '💵';
+            }
+        }
+
+        return (
+            <div className={`text-xs ${colorClass} font-medium mt-1`}>
+                {indicator} {formatPrice(cost)}
+            </div>
+        );
+    };
+
+    // Enhanced categorize recipe function (same as original)
     const categorizeRecipe = (recipe) => {
         const title = recipe.title?.toLowerCase() || '';
         const tags = recipe.tags || [];
         const category = recipe.category?.toLowerCase() || '';
 
-        // Check tags first for explicit categorization
         const tagCategories = {
             'entree': ['entree', 'main dish', 'main course', 'dinner', 'lunch'],
             'side': ['side dish', 'side', 'sides'],
@@ -103,21 +284,18 @@ export default function MealPlanningCalendar() {
             'snack': ['snack', 'snacks']
         };
 
-        // Check tags for matches
         for (const [cat, keywords] of Object.entries(tagCategories)) {
             if (tags.some(tag => keywords.some(keyword => tag.toLowerCase().includes(keyword)))) {
                 return cat;
             }
         }
 
-        // Check title for matches
         for (const [cat, keywords] of Object.entries(tagCategories)) {
             if (keywords.some(keyword => title.includes(keyword))) {
                 return cat;
             }
         }
 
-        // Check category field
         if (category) {
             for (const [cat, keywords] of Object.entries(tagCategories)) {
                 if (keywords.some(keyword => category.includes(keyword))) {
@@ -126,18 +304,15 @@ export default function MealPlanningCalendar() {
             }
         }
 
-        // Default categorization based on common food words
         if (title.includes('salad')) return 'salad';
         if (title.includes('soup') || title.includes('stew')) return 'soup';
         if (title.includes('cake') || title.includes('cookie') || title.includes('pie') || title.includes('dessert')) return 'dessert';
         if (title.includes('breakfast') || title.includes('pancake') || title.includes('waffle') || title.includes('omelette')) return 'breakfast';
 
-        // Default to entree
         return 'entree';
     };
 
-
-    // Week days configuration based user preference
+    // Week days configuration based user preference (same as original)
     const getWeekDaysOrder = (startDay) => {
         const allDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const startIndex = allDays.indexOf(startDay);
@@ -147,22 +322,19 @@ export default function MealPlanningCalendar() {
     const weekDays = getWeekDaysOrder(weekStartDay);
     const mealTypes = userMealTypes;
 
-    // Filter recipes based on dietary restrictions and avoided ingredients
+    // Filter recipes based on dietary restrictions and avoided ingredients (same as original)
     const filterRecipesByDietaryPreferences = (recipeList) => {
         if (!recipeList || recipeList.length === 0) return [];
 
         return recipeList.filter(recipe => {
-            // Check dietary restrictions
             if (userDietaryRestrictions.length > 0) {
                 const recipeTags = recipe.tags || [];
                 const recipeDietaryTags = recipe.dietaryTags || [];
                 const allRecipeTags = [...recipeTags, ...recipeDietaryTags].map(tag => tag.toLowerCase());
 
-                // Check if recipe matches user's dietary restrictions
                 const hasRequiredRestrictions = userDietaryRestrictions.every(restriction => {
                     const restrictionLower = restriction.toLowerCase().trim();
 
-                    // Common dietary restriction mappings
                     const restrictionMappings = {
                         'vegetarian': ['vegetarian', 'veggie'],
                         'vegan': ['vegan'],
@@ -185,23 +357,17 @@ export default function MealPlanningCalendar() {
                 }
             }
 
-            // Check avoided ingredients
             if (userAvoidIngredients.length > 0) {
                 const recipeIngredients = recipe.ingredients || [];
                 const recipeTitle = recipe.title?.toLowerCase() || '';
                 const recipeDescription = recipe.description?.toLowerCase() || '';
 
-                // Check if recipe contains any avoided ingredients
                 const hasAvoidedIngredients = userAvoidIngredients.some(avoidedIngredient => {
                     const avoidedLower = avoidedIngredient.toLowerCase().trim();
 
-                    // Check in recipe title
                     if (recipeTitle.includes(avoidedLower)) return true;
-
-                    // Check in recipe description
                     if (recipeDescription.includes(avoidedLower)) return true;
 
-                    // Check in ingredients list
                     return recipeIngredients.some(ingredient => {
                         const ingredientName = typeof ingredient === 'string'
                             ? ingredient.toLowerCase()
@@ -219,12 +385,11 @@ export default function MealPlanningCalendar() {
         });
     };
 
-    // Check if a meal conflicts with dietary preferences
+    // Check if a meal conflicts with dietary preferences (same as original)
     const checkMealDietaryConflicts = (meal) => {
         const conflicts = [];
 
         if (meal.entryType === 'simple' && meal.simpleMeal?.items) {
-            // Check simple meal items against avoided ingredients
             meal.simpleMeal.items.forEach(item => {
                 const itemName = item.itemName?.toLowerCase() || '';
                 userAvoidIngredients.forEach(avoidedIngredient => {
@@ -234,9 +399,6 @@ export default function MealPlanningCalendar() {
                     }
                 });
             });
-        } else if (meal.entryType === 'recipe') {
-            // For recipes, we could check if the recipe should have been filtered out
-            // This is more complex and would require the full recipe data
         }
 
         return conflicts;
@@ -259,6 +421,7 @@ export default function MealPlanningCalendar() {
     useEffect(() => {
         if (session?.user) {
             loadUserPreferences();
+            loadPriceIntelligence(); // 💰 NEW: Load price data
         }
     }, [session]);
 
@@ -276,7 +439,6 @@ export default function MealPlanningCalendar() {
 
             console.log(`🔍 Recipe filtering: Starting with ${recipes.length} recipes, after dietary filter: ${filtered.length}`);
 
-            // Apply search filter
             if (recipeSearchQuery.trim()) {
                 const query = recipeSearchQuery.toLowerCase();
                 filtered = filtered.filter(recipe =>
@@ -293,7 +455,6 @@ export default function MealPlanningCalendar() {
                 console.log(`🔍 After search filter "${query}": ${filtered.length} recipes`);
             }
 
-            // Apply category filter
             if (selectedRecipeCategory !== 'all') {
                 filtered = filtered.filter(recipe =>
                     categorizeRecipe(recipe) === selectedRecipeCategory
@@ -303,7 +464,6 @@ export default function MealPlanningCalendar() {
 
             setFilteredRecipes(filtered);
 
-            // Show warning if many recipes were filtered out
             if (recipes.length > 0 && filtered.length < recipes.length * 0.5) {
                 setDietaryWarningMessage(
                     `${recipes.length - filtered.length} of ${recipes.length} recipes were filtered out based on your preferences.`
@@ -320,7 +480,13 @@ export default function MealPlanningCalendar() {
         }
     }, [session]);
 
-    // Add this function to fetch inventory:
+    // 💰 NEW: Calculate costs when meal plan changes
+    useEffect(() => {
+        if (mealPlan && priceIntelligence.enabled) {
+            calculateMealPlanCosts(mealPlan);
+        }
+    }, [mealPlan, priceIntelligence.enabled]);
+
     const fetchInventory = async () => {
         try {
             const response = await apiGet('/api/inventory');
@@ -333,11 +499,11 @@ export default function MealPlanningCalendar() {
         }
     };
 
+    // All the meal handling functions remain the same...
     const handleMealCompletion = async (completionData) => {
         if (!mealPlan) return;
 
         try {
-            // Update the meal entry with completion status
             const mealEntry = selectedMealForCompletion.meal;
             const updatedMeal = {
                 ...mealEntry,
@@ -348,7 +514,6 @@ export default function MealPlanningCalendar() {
                 completionNotes: completionData.notes
             };
 
-            // Update the meal plan
             const updatedMeals = { ...mealPlan.meals };
             const dayMeals = updatedMeals[selectedMealForCompletion.day] || [];
             const mealIndex = dayMeals.findIndex(m =>
@@ -368,10 +533,7 @@ export default function MealPlanningCalendar() {
                     meals: updatedMeals
                 }));
 
-                // Refresh inventory to reflect consumed items
                 await fetchInventory();
-
-                // Show success message
                 showToast(`Meal completed! ${completionData.itemsConsumed} ingredients consumed from inventory.`);
             }
         } catch (error) {
@@ -395,7 +557,6 @@ export default function MealPlanningCalendar() {
         if (!confirmUndo) return;
 
         try {
-            // Find and update the meal
             const updatedMeals = { ...mealPlan.meals };
             const dayMeals = updatedMeals[day] || [];
             const mealIndex = dayMeals.findIndex(m =>
@@ -404,7 +565,6 @@ export default function MealPlanningCalendar() {
             );
 
             if (mealIndex !== -1) {
-                // Remove completion status
                 const updatedMeal = {
                     ...dayMeals[mealIndex],
                     completed: false,
@@ -418,7 +578,6 @@ export default function MealPlanningCalendar() {
                 dayMeals[mealIndex] = updatedMeal;
             }
 
-            // Update meal plan
             const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, { meals: updatedMeals });
 
             if (response.ok) {
@@ -438,9 +597,6 @@ export default function MealPlanningCalendar() {
     };
 
     const handleMarkComplete = (meal, day, mealType) => {
-        console.log('✅ Mark Complete clicked:', { meal, day, mealType });
-        console.log('✅ Setting selectedMealForCompletion...');
-
         setSelectedMealForCompletion({
             meal,
             day,
@@ -448,59 +604,42 @@ export default function MealPlanningCalendar() {
         });
         setShowMealCompletion(true);
         closeMealDropdowns();
-
-        console.log('✅ Modal should open now');
     };
 
     const handleEditMeal = (meal, day) => {
-        console.log('✏️ Edit Meal clicked:', { meal, day });
-
         if (meal.entryType === 'simple') {
-            console.log('✏️ Opening simple meal builder');
             setSelectedSlot({ day, mealType: meal.mealType });
             setShowSimpleMealBuilder(true);
         } else if (meal.entryType === 'recipe') {
-            console.log('✏️ Recipe meal - showing info alert');
             alert(`Recipe meal editing: You can remove this meal and add a different recipe, or modify the servings/notes.\n\nFull recipe editing should be done in the Recipe section.`);
         }
-
         closeMealDropdowns();
     };
 
     const handleDeleteMeal = (day, actualIndex) => {
-        console.log('🗑️ Delete Meal clicked:', { day, actualIndex });
-
         const confirmDelete = window.confirm('Are you sure you want to delete this meal?');
         if (confirmDelete) {
-            console.log('🗑️ User confirmed delete');
             removeMealFromSlot(day, actualIndex);
-        } else {
-            console.log('🗑️ User cancelled delete');
         }
-
         closeMealDropdowns();
     };
 
     const toggleMealDropdown = (mealId) => {
-        console.log('🔽 toggleMealDropdown called with mealId:', mealId);
         setMealDropdowns(prev => {
             const newState = {
                 ...prev,
                 [mealId]: !prev[mealId]
             };
-            console.log('🔽 Updated dropdown state:', newState);
             return newState;
         });
     };
 
     const closeMealDropdowns = () => {
-        console.log('❌ closeMealDropdowns called');
         setMealDropdowns({});
     };
 
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // Close all meal dropdowns when clicking outside
             if (!event.target.closest('.meal-dropdown')) {
                 closeMealDropdowns();
             }
@@ -512,23 +651,20 @@ export default function MealPlanningCalendar() {
         };
     }, []);
 
-    // UPDATED: Migration function for existing users with old meal types
+    // Migration function for existing users with old meal types (same as original)
     const migrateOldMealTypes = (mealTypes) => {
         const oldMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
         const newMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
 
-        // If user has the old format, upgrade to new format
         if (mealTypes && mealTypes.length > 0 && mealTypes.every(type => oldMealTypes.includes(type.toLowerCase()))) {
             console.log('Migrating old meal types to new expanded format');
             return newMealTypes;
         }
 
-        // If empty or undefined, return new default
         if (!mealTypes || mealTypes.length === 0) {
             return newMealTypes;
         }
 
-        // Otherwise, keep existing selection
         return mealTypes;
     };
 
@@ -537,30 +673,32 @@ export default function MealPlanningCalendar() {
             const response = await apiGet('/api/user/preferences');
             const data = await response.json();
             if (data.success && data.preferences) {
-                // Set week start day
                 if (data.preferences.weekStartDay) {
                     setWeekStartDay(data.preferences.weekStartDay);
                 }
 
-                // UPDATED: Set user's preferred meal types with migration
                 if (data.preferences.defaultMealTypes && data.preferences.defaultMealTypes.length > 0) {
                     const migratedMealTypes = migrateOldMealTypes(data.preferences.defaultMealTypes);
                     setUserMealTypes(migratedMealTypes);
-                    console.log('Loaded user meal types:', migratedMealTypes);
                 } else {
-                    // UPDATED: New default meal types
                     setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
                 }
 
-                // Load dietary restrictions and avoided ingredients
                 if (data.preferences.dietaryRestrictions) {
                     setUserDietaryRestrictions(data.preferences.dietaryRestrictions);
-                    console.log('Loaded dietary restrictions:', data.preferences.dietaryRestrictions);
                 }
 
                 if (data.preferences.avoidIngredients) {
                     setUserAvoidIngredients(data.preferences.avoidIngredients);
-                    console.log('Loaded avoided ingredients:', data.preferences.avoidIngredients);
+                }
+
+                // 💰 NEW: Load price intelligence preferences
+                if (data.preferences.priceIntelligence) {
+                    setPriceIntelligence(prev => ({
+                        ...prev,
+                        enabled: data.preferences.priceIntelligence.enabled !== false,
+                        showInsights: data.preferences.priceIntelligence.showInsights || false
+                    }));
                 }
             }
         } catch (error) {
@@ -594,10 +732,48 @@ export default function MealPlanningCalendar() {
             const data = await response.json();
             if (data.success) {
                 setUserMealTypes(newMealTypes);
-                console.log('Updated user meal types:', newMealTypes);
             }
         } catch (error) {
             console.error('Error updating meal type preferences:', error);
+        }
+    };
+
+    // 💰 NEW: Update price intelligence preferences
+    const updatePricePreferences = async (newPreferences) => {
+        try {
+            const response = await apiPut('/api/user/preferences', {
+                priceIntelligence: newPreferences
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setPriceIntelligence(prev => ({
+                    ...prev,
+                    ...newPreferences
+                }));
+            }
+        } catch (error) {
+            console.error('Error updating price preferences:', error);
+        }
+    };
+
+    const updateWeeklyBudget = async (newBudget) => {
+        try {
+            const response = await apiPut('/api/user/budget', {
+                weeklyMealBudget: newBudget
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setPriceIntelligence(prev => ({
+                    ...prev,
+                    weeklyBudget: newBudget
+                }));
+                showToast('Weekly budget updated!', 'success');
+            }
+        } catch (error) {
+            console.error('Error updating budget:', error);
+            showToast('Failed to update budget', 'error');
         }
     };
 
@@ -678,7 +854,8 @@ export default function MealPlanningCalendar() {
                     mealTypes: userMealTypes,
                     weekStartDay: weekStartDay,
                     dietaryRestrictions: userDietaryRestrictions,
-                    avoidIngredients: userAvoidIngredients
+                    avoidIngredients: userAvoidIngredients,
+                    priceIntelligence: priceIntelligence // 💰 NEW: Include price preferences
                 }
             });
 
@@ -704,7 +881,6 @@ export default function MealPlanningCalendar() {
     };
 
     const handleTemplateApplied = (updatedMealPlan) => {
-        console.log('Template applied, updating meal plan:', updatedMealPlan);
         setMealPlan(updatedMealPlan);
     };
 
@@ -754,7 +930,6 @@ export default function MealPlanningCalendar() {
     const addSimpleMealToSlot = async (day, mealType, simpleMealEntry) => {
         if (!mealPlan) return;
 
-        // Check for dietary conflicts before adding
         const conflicts = checkMealDietaryConflicts(simpleMealEntry);
         if (conflicts.length > 0) {
             const confirmAdd = window.confirm(
@@ -857,16 +1032,14 @@ export default function MealPlanningCalendar() {
         return `${meal.servings} servings • ${meal.prepTime + meal.cookTime} min`;
     };
 
-    // Render meal with dietary conflict warnings
+    // Enhanced meal rendering with price information
     const renderMealWithWarnings = (meal, mealTypeIndex, day, actualIndex) => {
         const conflicts = checkMealDietaryConflicts(meal);
         const hasConflicts = conflicts.length > 0;
 
-        // Create unique meal ID for dropdown tracking
         const mealId = `${day}-${meal.mealType}-${actualIndex}`;
         const isDropdownOpen = mealDropdowns[mealId] || false;
 
-        // Check if meal is completed
         const isCompleted = meal.completed || false;
         const completionPercentage = meal.completionPercentage || 100;
 
@@ -899,6 +1072,10 @@ export default function MealPlanningCalendar() {
                     <div className="text-xs text-gray-600 mt-1">
                         {getMealDisplayDetails(meal)}
                     </div>
+
+                    {/* 💰 NEW: Price information display */}
+                    {meal.recipeId && getMealCostIndicator(day, meal.mealType, meal.recipeId)}
+
                     {meal.entryType === 'simple' && meal.simpleMeal?.description && (
                         <div className="text-xs text-gray-600 mt-1">
                             {meal.simpleMeal.description}
@@ -940,14 +1117,13 @@ export default function MealPlanningCalendar() {
                     {isDropdownOpen && (
                         <div
                             className="meal-dropdown absolute right-0 top-8 mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10"
-                            onClick={(e) => e.stopPropagation()} // Prevent event bubbling
+                            onClick={(e) => e.stopPropagation()}
                         >
                             <div className="py-1">
                                 {!isCompleted && (
                                     <button
                                         type="button"
                                         onClick={(e) => {
-                                            console.log('✅ Mark Complete button clicked');
                                             e.preventDefault();
                                             e.stopPropagation();
                                             handleMarkComplete(meal, day, meal.mealType);
@@ -963,7 +1139,6 @@ export default function MealPlanningCalendar() {
                                     <button
                                         type="button"
                                         onClick={(e) => {
-                                            console.log('↶ Undo Complete button clicked');
                                             e.preventDefault();
                                             e.stopPropagation();
                                             handleUndoCompletion(meal, day);
@@ -978,7 +1153,6 @@ export default function MealPlanningCalendar() {
                                 <button
                                     type="button"
                                     onClick={(e) => {
-                                        console.log('✏️ Edit Meal button clicked');
                                         e.preventDefault();
                                         e.stopPropagation();
                                         handleEditMeal(meal, day);
@@ -994,7 +1168,6 @@ export default function MealPlanningCalendar() {
                                 <button
                                     type="button"
                                     onClick={(e) => {
-                                        console.log('🗑️ Delete Meal button clicked');
                                         e.preventDefault();
                                         e.stopPropagation();
                                         handleDeleteMeal(day, actualIndex);
@@ -1071,21 +1244,44 @@ export default function MealPlanningCalendar() {
         );
     }
 
-    // UPDATED: Available meal types constant
     const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
 
     // Mobile Layout
     if (isMobile) {
         return (
             <div className="max-w-full mx-auto p-4">
-                {/* Mobile Header */}
+                {/* Enhanced Mobile Header with Price Intelligence */}
                 <div className="mb-6">
                     <div className="flex flex-col space-y-4">
                         <div className="flex items-center justify-between">
                             <div>
-                                <h1 className="text-2xl font-bold text-gray-900">📅 Meal Planning</h1>
+                                <h1 className="text-2xl font-bold text-gray-900">
+                                    {priceIntelligence.enabled ? '💰📅' : '📅'} Meal Planning
+                                </h1>
                                 <p className="text-gray-600 text-sm mt-1">Plan your meals for the week</p>
-                                {/* Show dietary preferences summary */}
+
+                                {/* 💰 NEW: Price Intelligence Summary */}
+                                {priceIntelligence.enabled && (
+                                    <div className="text-xs text-gray-500 mt-1 space-y-1">
+                                        {priceIntelligence.weeklyBudget > 0 && (
+                                            <div className="flex items-center space-x-2">
+                                                <span>Budget: {formatPrice(priceIntelligence.weeklyBudget)}</span>
+                                                <span>•</span>
+                                                <span>Used: {formatPrice(priceIntelligence.currentCost)}</span>
+                                                <span className={priceIntelligence.currentCost > priceIntelligence.weeklyBudget ? 'text-red-600' : 'text-green-600'}>
+                                                    ({priceIntelligence.weeklyBudget > 0 ? ((priceIntelligence.currentCost / priceIntelligence.weeklyBudget) * 100).toFixed(0) : 0}%)
+                                                </span>
+                                            </div>
+                                        )}
+                                        {priceIntelligence.dealOpportunities.length > 0 && (
+                                            <div className="text-green-600">
+                                                💡 {priceIntelligence.dealOpportunities.length} deals available
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+
+                                {/* Dietary preferences summary */}
                                 {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                     <div className="text-xs text-gray-500 mt-1">
                                         {userDietaryRestrictions.length > 0 && (
@@ -1100,19 +1296,102 @@ export default function MealPlanningCalendar() {
                                 )}
                             </div>
 
-                            <TouchEnhancedButton
-                                onClick={() => setShowWeekSettings(true)}
-                                className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                                title="Week Settings"
-                            >
-                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                                </svg>
-                            </TouchEnhancedButton>
+                            <div className="flex items-center space-x-2">
+                                {/* 💰 NEW: Price Intelligence Toggle */}
+                                {priceIntelligence.enabled && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setPriceIntelligence(prev => ({ ...prev, showInsights: !prev.showInsights }))}
+                                        className={`p-2 rounded-lg transition-colors ${
+                                            priceIntelligence.showInsights
+                                                ? 'text-green-600 bg-green-100'
+                                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                        }`}
+                                        title="Toggle Price Insights"
+                                    >
+                                        💡
+                                    </TouchEnhancedButton>
+                                )}
+
+                                <TouchEnhancedButton
+                                    onClick={() => setShowWeekSettings(true)}
+                                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title="Week Settings"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
+
+                        {/* 💰 NEW: Price Intelligence Insights Panel */}
+                        {priceIntelligence.enabled && priceIntelligence.showInsights && (
+                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
+                                <h3 className="text-sm font-semibold text-green-900 mb-3">💡 Smart Insights</h3>
+
+                                <div className="grid grid-cols-1 gap-3">
+                                    {/* Budget Status */}
+                                    <div className="bg-white rounded-lg p-3 border border-green-300">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <h4 className="font-medium text-green-900 text-sm">💰 Budget Status</h4>
+                                            <TouchEnhancedButton
+                                                onClick={() => setShowBudgetModal(true)}
+                                                className="text-xs text-green-600 hover:text-green-700"
+                                            >
+                                                {priceIntelligence.weeklyBudget === 0 ? 'Set Budget' : 'Edit'}
+                                            </TouchEnhancedButton>
+                                        </div>
+                                        <div className="text-sm text-green-800">
+                                            {priceIntelligence.weeklyBudget > 0 ? (
+                                                priceIntelligence.currentCost < priceIntelligence.weeklyBudget ? (
+                                                    `Under budget by ${formatPrice(priceIntelligence.weeklyBudget - priceIntelligence.currentCost)}`
+                                                ) : (
+                                                    `Over budget by ${formatPrice(priceIntelligence.currentCost - priceIntelligence.weeklyBudget)}`
+                                                )
+                                            ) : (
+                                                'Set a weekly budget to track spending'
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    {/* Inventory Opportunities */}
+                                    <div className="bg-white rounded-lg p-3 border border-green-300">
+                                        <h4 className="font-medium text-green-900 mb-2 text-sm">📦 Use Your Inventory</h4>
+                                        <div className="text-sm text-green-800">
+                                            You have {inventory.length} items that could be used in meals this week
+                                        </div>
+                                        <TouchEnhancedButton
+                                            onClick={generateSmartSuggestions}
+                                            className="text-xs text-green-600 hover:text-green-700 mt-2"
+                                        >
+                                            Get Suggestions →
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* Current Deals */}
+                                    {priceIntelligence.dealOpportunities.length > 0 && (
+                                        <div className="bg-white rounded-lg p-3 border border-green-300">
+                                            <h4 className="font-medium text-green-900 mb-2 text-sm">🎯 Best Deals Today</h4>
+                                            <div className="text-sm text-green-800">
+                                                {priceIntelligence.dealOpportunities.slice(0, 2).map((deal, index) => (
+                                                    <div key={index} className="mb-1">
+                                                        {deal.itemName} - {deal.savingsPercent}% off
+                                                    </div>
+                                                ))}
+                                                {priceIntelligence.dealOpportunities.length > 2 && (
+                                                    <div className="text-xs text-green-600 mt-1">
+                                                        +{priceIntelligence.dealOpportunities.length - 2} more deals
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Dietary filtering notification */}
                         {dietaryWarningMessage && (
@@ -1132,7 +1411,7 @@ export default function MealPlanningCalendar() {
                             </div>
                         )}
 
-                        {/* Action Buttons - Mobile */}
+                        {/* Enhanced Action Buttons - Mobile */}
                         <div className="flex flex-col space-y-3">
                             {mealPlan && (
                                 <TemplateLibraryButton
@@ -1149,7 +1428,18 @@ export default function MealPlanningCalendar() {
                                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
                                     title="Generate shopping list from your meal plan"
                                 >
-                                    🛒 Shopping List
+                                    🛒 {priceIntelligence.enabled ? 'Smart Shopping List' : 'Shopping List'}
+                                </TouchEnhancedButton>
+                            )}
+
+                            {/* 💰 NEW: Smart Suggestions Button */}
+                            {priceIntelligence.enabled && mealPlan && (
+                                <TouchEnhancedButton
+                                    onClick={generateSmartSuggestions}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
+                                    title="Get AI-powered money-saving meal suggestions"
+                                >
+                                    💡 Money-Saving Ideas
                                 </TouchEnhancedButton>
                             )}
 
@@ -1233,13 +1523,13 @@ export default function MealPlanningCalendar() {
                                 <div className="mt-1 text-sm text-blue-700">
                                     <p>
                                         Click the <span className="inline-flex items-center mx-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                        </span> settings icon to choose which day starts your week and which meal types to show.
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </span> settings icon to choose which day starts your week and which meal types to show.
                                     </p>
                                 </div>
                             </div>
@@ -1277,7 +1567,7 @@ export default function MealPlanningCalendar() {
                                     <div key={`${day}-${mealType}`}>
                                         <h4 className="font-medium text-gray-800 mb-2">{mealType}</h4>
                                         <div className="space-y-2">
-                                            {/* Existing Meals - with dietary warnings */}
+                                            {/* Existing Meals - with dietary warnings and price info */}
                                             {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
                                                 const actualIndex = mealPlan.meals[day].findIndex(m =>
                                                     m.recipeId === meal.recipeId &&
@@ -1298,12 +1588,12 @@ export default function MealPlanningCalendar() {
                     ))}
                 </div>
 
-                {/* Week Settings Modal - UPDATED with new meal types */}
+                {/* Enhanced Week Settings Modal with Price Intelligence */}
                 {showWeekSettings && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
                             <div className="flex items-center justify-between mb-4">
-                                <h3 className="text-lg font-semibold text-gray-900">Week Settings</h3>
+                                <h3 className="text-lg font-semibold text-gray-900">Settings</h3>
                                 <TouchEnhancedButton
                                     onClick={() => setShowWeekSettings(false)}
                                     className="text-gray-400 hover:text-gray-600 text-xl"
@@ -1313,6 +1603,53 @@ export default function MealPlanningCalendar() {
                             </div>
 
                             <div className="space-y-6">
+                                {/* 💰 NEW: Price Intelligence Settings */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-3">
+                                        Price Intelligence:
+                                    </label>
+                                    <div className="space-y-3">
+                                        <div className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                id="price-intelligence-enabled"
+                                                checked={priceIntelligence.enabled}
+                                                onChange={(e) => updatePricePreferences({ enabled: e.target.checked })}
+                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                            />
+                                            <label htmlFor="price-intelligence-enabled" className="ml-3 text-sm text-gray-700">
+                                                Enable price tracking and budget features
+                                            </label>
+                                        </div>
+
+                                        {priceIntelligence.enabled && (
+                                            <div className="ml-7 space-y-2">
+                                                <div className="flex items-center">
+                                                    <input
+                                                        type="checkbox"
+                                                        id="show-insights"
+                                                        checked={priceIntelligence.showInsights}
+                                                        onChange={(e) => updatePricePreferences({ showInsights: e.target.checked })}
+                                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                    />
+                                                    <label htmlFor="show-insights" className="ml-3 text-sm text-gray-700">
+                                                        Show smart insights panel
+                                                    </label>
+                                                </div>
+
+                                                <div className="mt-3">
+                                                    <TouchEnhancedButton
+                                                        onClick={() => setShowBudgetModal(true)}
+                                                        className="text-sm text-indigo-600 hover:text-indigo-700"
+                                                    >
+                                                        {priceIntelligence.weeklyBudget === 0 ? 'Set Weekly Budget' : `Update Budget (${formatPrice(priceIntelligence.weeklyBudget)})`}
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Week starts on:
@@ -1342,7 +1679,6 @@ export default function MealPlanningCalendar() {
                                         Show meal types:
                                     </label>
                                     <div className="space-y-2">
-                                        {/* UPDATED: Use new meal types */}
                                         {availableMealTypes.map(mealType => (
                                             <div key={mealType} className="flex items-center">
                                                 <input
@@ -1384,14 +1720,14 @@ export default function MealPlanningCalendar() {
                                         <div className="text-sm text-gray-600 space-y-1">
                                             {userDietaryRestrictions.length > 0 && (
                                                 <div>
-                                                    <span
-                                                        className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                            <span
+                                                className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
                                                 </div>
                                             )}
                                             {userAvoidIngredients.length > 0 && (
                                                 <div>
-                                                    <span
-                                                        className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                            <span
+                                                className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
                                                 </div>
                                             )}
                                         </div>
@@ -1410,7 +1746,58 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
-                {/* MOBILE Recipe Selection Modal - Replace your existing mobile recipe modal: */}
+                {/* 💰 NEW: Budget Setting Modal */}
+                {showBudgetModal && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-md w-full p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Set Weekly Budget</h3>
+
+                            <div className="mb-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Weekly Meal Budget
+                                </label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                    <input
+                                        type="number"
+                                        step="0.01"
+                                        min="0"
+                                        value={priceIntelligence.weeklyBudget}
+                                        onChange={(e) => setPriceIntelligence(prev => ({
+                                            ...prev,
+                                            weeklyBudget: parseFloat(e.target.value) || 0
+                                        }))}
+                                        className="pl-8 w-full border border-gray-300 rounded-lg px-3 py-2"
+                                        placeholder="0.00"
+                                    />
+                                </div>
+                                <div className="text-xs text-gray-500 mt-1">
+                                    This helps track spending and find cost-effective meal options
+                                </div>
+                            </div>
+
+                            <div className="flex justify-end space-x-3">
+                                <TouchEnhancedButton
+                                    onClick={() => setShowBudgetModal(false)}
+                                    className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                                >
+                                    Cancel
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        updateWeeklyBudget(priceIntelligence.weeklyBudget);
+                                        setShowBudgetModal(false);
+                                    }}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                                >
+                                    Save Budget
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Recipe Selection Modal - Enhanced with price info */}
                 {showRecipeModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-lg w-full h-[85vh] overflow-hidden flex flex-col">
@@ -1433,7 +1820,7 @@ export default function MealPlanningCalendar() {
                                     </TouchEnhancedButton>
                                 </div>
 
-                                {/* FIXED: Compact filters */}
+                                {/* Compact filters */}
                                 <div className="space-y-2">
                                     {/* Search */}
                                     <input
@@ -1444,7 +1831,7 @@ export default function MealPlanningCalendar() {
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                     />
 
-                                    {/* FIXED: Dropdown Category Filter */}
+                                    {/* Category Filter */}
                                     <select
                                         value={selectedRecipeCategory}
                                         onChange={(e) => setSelectedRecipeCategory(e.target.value)}
@@ -1471,7 +1858,7 @@ export default function MealPlanningCalendar() {
                                 </div>
                             </div>
 
-                            {/* FIXED: Much larger recipe list area */}
+                            {/* Recipe list area */}
                             <div className="flex-1 overflow-y-auto p-4">
                                 {filteredRecipes.length === 0 ? (
                                     <div className="text-center py-8">
@@ -1527,13 +1914,13 @@ export default function MealPlanningCalendar() {
                                                         <div className="flex flex-wrap gap-1">
                                                             {recipe.tags.slice(0, 3).map(tag => (
                                                                 <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                    {tag}
-                                                </span>
+                                            {tag}
+                                        </span>
                                                             ))}
                                                             {recipe.tags.length > 3 && (
                                                                 <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                    +{recipe.tags.length - 3} more
-                                                </span>
+                                            +{recipe.tags.length - 3} more
+                                        </span>
                                                             )}
                                                         </div>
                                                     )}
@@ -1547,7 +1934,7 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
-                {/* Simple Meal Builder Modal - Pass dietary preferences */}
+                {/* Simple Meal Builder Modal */}
                 {showSimpleMealBuilder && (
                     <SimpleMealBuilder
                         isOpen={showSimpleMealBuilder}
@@ -1568,6 +1955,7 @@ export default function MealPlanningCalendar() {
                         mealPlanId={mealPlan._id}
                         mealPlanName={mealPlan.name}
                         onClose={() => setShowShoppingList(false)}
+                        priceIntelligence={priceIntelligence.enabled} // 💰 NEW: Pass price intelligence flag
                     />
                 )}
 
@@ -1577,8 +1965,7 @@ export default function MealPlanningCalendar() {
                         <div className="text-6xl mb-4">🍽️</div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
                         <div className="space-y-2">
-                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick
-                                meals.</p>
+                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
                             {mealPlan && (
                                 <div className="mt-4">
                                     <TemplateLibraryButton
@@ -1592,6 +1979,8 @@ export default function MealPlanningCalendar() {
                         </div>
                     </div>
                 )}
+
+                {/* Meal Completion Modal */}
                 {showMealCompletion && selectedMealForCompletion && (
                     <MealCompletionModal
                         isOpen={showMealCompletion}
@@ -1605,7 +1994,6 @@ export default function MealPlanningCalendar() {
                         inventory={inventory}
                     />
                 )}
-
             </div>
         );
     }
@@ -1613,13 +2001,31 @@ export default function MealPlanningCalendar() {
 // Desktop Layout
     return (
         <div className="max-w-7xl mx-auto p-6">
-            {/* Header */}
+            {/* Enhanced Desktop Header with Price Intelligence */}
             <div className="mb-6">
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold text-gray-900">📅 Meal Planning</h1>
+                        <h1 className="text-3xl font-bold text-gray-900">
+                            {priceIntelligence.enabled ? '💰📅' : '📅'} Meal Planning
+                        </h1>
                         <p className="text-gray-600 mt-1">Plan your meals for the week</p>
-                        {/* Show dietary preferences summary on desktop */}
+
+                        {/* 💰 NEW: Desktop Price Intelligence Summary */}
+                        {priceIntelligence.enabled && (
+                            <div className="text-sm text-gray-500 mt-1 space-y-1">
+                                {priceIntelligence.weeklyBudget > 0 && (
+                                    <div className="flex items-center space-x-4">
+                                        <span>Budget: {formatPrice(priceIntelligence.weeklyBudget)}</span>
+                                        <span>Used: {formatPrice(priceIntelligence.currentCost)} ({priceIntelligence.weeklyBudget > 0 ? ((priceIntelligence.currentCost / priceIntelligence.weeklyBudget) * 100).toFixed(0) : 0}%)</span>
+                                        {priceIntelligence.dealOpportunities.length > 0 && (
+                                            <span className="text-green-600">💡 {priceIntelligence.dealOpportunities.length} deals available</span>
+                                        )}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        {/* Dietary preferences summary on desktop */}
                         {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                             <div className="text-sm text-gray-500 mt-1">
                                 {userDietaryRestrictions.length > 0 && (
@@ -1634,16 +2040,31 @@ export default function MealPlanningCalendar() {
                         )}
                     </div>
 
-                    {/* Action Buttons - Desktop */}
+                    {/* Enhanced Action Buttons - Desktop */}
                     <div className="flex items-center space-x-3">
                         <div className="text-sm text-gray-500">
                             Meals: {mealsPlanned ? 'Yes' : 'No'}
                         </div>
 
+                        {/* 💰 NEW: Price Intelligence Toggle */}
+                        {priceIntelligence.enabled && (
+                            <TouchEnhancedButton
+                                onClick={() => setPriceIntelligence(prev => ({ ...prev, showInsights: !prev.showInsights }))}
+                                className={`p-2 rounded-lg transition-colors ${
+                                    priceIntelligence.showInsights
+                                        ? 'text-green-600 bg-green-100'
+                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                }`}
+                                title="Toggle Price Insights"
+                            >
+                                💡
+                            </TouchEnhancedButton>
+                        )}
+
                         <TouchEnhancedButton
                             onClick={() => setShowWeekSettings(true)}
                             className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Week Settings"
+                            title="Settings"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
@@ -1668,7 +2089,18 @@ export default function MealPlanningCalendar() {
                                 className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
                                 title="Generate shopping list from your meal plan"
                             >
-                                🛒 Shopping List
+                                🛒 {priceIntelligence.enabled ? 'Smart Shopping List' : 'Shopping List'}
+                            </TouchEnhancedButton>
+                        )}
+
+                        {/* 💰 NEW: Smart Suggestions Button */}
+                        {priceIntelligence.enabled && mealPlan && (
+                            <TouchEnhancedButton
+                                onClick={generateSmartSuggestions}
+                                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                title="Get AI-powered money-saving meal suggestions"
+                            >
+                                💡 Money-Saving Ideas
                             </TouchEnhancedButton>
                         )}
 
@@ -1739,6 +2171,91 @@ export default function MealPlanningCalendar() {
                 </div>
             </div>
 
+            {/* 💰 NEW: Desktop Price Intelligence Insights Panel */}
+            {priceIntelligence.enabled && priceIntelligence.showInsights && (
+                <div className="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
+                    <h3 className="text-lg font-semibold text-green-900 mb-3">💡 Smart Insights</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        {/* Budget Status */}
+                        <div className="bg-white rounded-lg p-3 border border-green-300">
+                            <div className="flex items-center justify-between mb-2">
+                                <h4 className="font-medium text-green-900">💰 Budget Status</h4>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowBudgetModal(true)}
+                                    className="text-xs text-green-600 hover:text-green-700"
+                                >
+                                    {priceIntelligence.weeklyBudget === 0 ? 'Set' : 'Edit'}
+                                </TouchEnhancedButton>
+                            </div>
+                            <div className="text-sm text-green-800">
+                                {priceIntelligence.weeklyBudget > 0 ? (
+                                    <div>
+                                        <div>{formatPrice(priceIntelligence.currentCost)} / {formatPrice(priceIntelligence.weeklyBudget)}</div>
+                                        <div className={priceIntelligence.currentCost > priceIntelligence.weeklyBudget ? 'text-red-600' : 'text-green-600'}>
+                                            {priceIntelligence.currentCost < priceIntelligence.weeklyBudget ? 'Under budget' : 'Over budget'}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    'Set a weekly budget to track spending'
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Inventory Opportunities */}
+                        <div className="bg-white rounded-lg p-3 border border-green-300">
+                            <h4 className="font-medium text-green-900 mb-2">📦 Use Your Inventory</h4>
+                            <div className="text-sm text-green-800">
+                                {inventory.length} items available
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={generateSmartSuggestions}
+                                className="text-xs text-green-600 hover:text-green-700 mt-2"
+                            >
+                                Get Suggestions →
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Current Deals */}
+                        <div className="bg-white rounded-lg p-3 border border-green-300">
+                            <h4 className="font-medium text-green-900 mb-2">🎯 Best Deals Today</h4>
+                            <div className="text-sm text-green-800">
+                                {priceIntelligence.dealOpportunities.length > 0 ? (
+                                    <>
+                                        {priceIntelligence.dealOpportunities.slice(0, 2).map((deal, index) => (
+                                            <div key={index} className="mb-1">
+                                                {deal.itemName} - {deal.savingsPercent}% off
+                                            </div>
+                                        ))}
+                                        {priceIntelligence.dealOpportunities.length > 2 && (
+                                            <div className="text-xs text-green-600 mt-1">
+                                                +{priceIntelligence.dealOpportunities.length - 2} more
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    'No special deals detected right now'
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Week Summary */}
+                        <div className="bg-white rounded-lg p-3 border border-green-300">
+                            <h4 className="font-medium text-green-900 mb-2">📊 Week Summary</h4>
+                            <div className="text-sm text-green-800">
+                                <div>{Object.keys(mealPlan?.meals || {}).reduce((total, day) => total + (mealPlan.meals[day]?.length || 0), 0)} meals planned</div>
+                                <div>Cost: {formatPrice(priceIntelligence.currentCost)}</div>
+                                {priceIntelligence.priceAlerts.length > 0 && (
+                                    <div className="text-orange-600">
+                                        {priceIntelligence.priceAlerts.length} price alerts
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Dietary filtering notification for desktop */}
             {dietaryWarningMessage && (
                 <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
@@ -1775,13 +2292,13 @@ export default function MealPlanningCalendar() {
                             <div className="mt-1 text-sm text-blue-700">
                                 <p>
                                     Click the <span className="inline-flex items-center mx-1">
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                        </span> settings icon to choose which day starts your week and which meal types to show.
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                    </svg>
+                </span> settings icon to choose which day starts your week and which meal types to show.
                                 </p>
                             </div>
                         </div>
@@ -1802,7 +2319,7 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            {/* Desktop Calendar Grid */}
+            {/* Enhanced Desktop Calendar Grid */}
             <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
                 {/* Header Row */}
                 <div className="grid grid-cols-7 border-b border-gray-200 bg-gray-50">
@@ -1828,7 +2345,7 @@ export default function MealPlanningCalendar() {
                                 <div key={`${day}-${mealType}`}
                                      className="p-3 border-r border-gray-200 last:border-r-0 min-h-24">
                                     <div className="space-y-2">
-                                        {/* Existing Meals - with dietary warnings */}
+                                        {/* Existing Meals - with dietary warnings and price info */}
                                         {mealPlan?.meals[day]?.filter(meal => meal.mealType === mealType).map((meal, mealTypeIndex) => {
                                             const actualIndex = mealPlan.meals[day].findIndex(m =>
                                                 m.recipeId === meal.recipeId &&
@@ -1849,12 +2366,12 @@ export default function MealPlanningCalendar() {
                 ))}
             </div>
 
-            {/* Week Settings Modal - Same as mobile but UPDATED with new meal types */}
+            {/* Enhanced Week Settings Modal with Price Intelligence - Same as mobile */}
             {showWeekSettings && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
                         <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">Week Settings</h3>
+                            <h3 className="text-lg font-semibold text-gray-900">Settings</h3>
                             <TouchEnhancedButton
                                 onClick={() => setShowWeekSettings(false)}
                                 className="text-gray-400 hover:text-gray-600 text-xl"
@@ -1864,6 +2381,54 @@ export default function MealPlanningCalendar() {
                         </div>
 
                         <div className="space-y-6">
+                            {/* Price Intelligence Settings */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-3">
+                                    Price Intelligence:
+                                </label>
+                                <div className="space-y-3">
+                                    <div className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            id="price-intelligence-enabled-desktop"
+                                            checked={priceIntelligence.enabled}
+                                            onChange={(e) => updatePricePreferences({ enabled: e.target.checked })}
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                        />
+                                        <label htmlFor="price-intelligence-enabled-desktop" className="ml-3 text-sm text-gray-700">
+                                            Enable price tracking and budget features
+                                        </label>
+                                    </div>
+
+                                    {priceIntelligence.enabled && (
+                                        <div className="ml-7 space-y-2">
+                                            <div className="flex items-center">
+                                                <input
+                                                    type="checkbox"
+                                                    id="show-insights-desktop"
+                                                    checked={priceIntelligence.showInsights}
+                                                    onChange={(e) => updatePricePreferences({ showInsights: e.target.checked })}
+                                                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                                />
+                                                <label htmlFor="show-insights-desktop" className="ml-3 text-sm text-gray-700">
+                                                    Show smart insights panel
+                                                </label>
+                                            </div>
+
+                                            <div className="mt-3">
+                                                <TouchEnhancedButton
+                                                    onClick={() => setShowBudgetModal(true)}
+                                                    className="text-sm text-indigo-600 hover:text-indigo-700"
+                                                >
+                                                    {priceIntelligence.weeklyBudget === 0 ? 'Set Weekly Budget' : `Update Budget (${formatPrice(priceIntelligence.weeklyBudget)})`}
+                                                </TouchEnhancedButton>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Week Start Settings */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Week starts on:
@@ -1888,17 +2453,17 @@ export default function MealPlanningCalendar() {
                                 </div>
                             </div>
 
+                            {/* Meal Types Settings */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Show meal types:
                                 </label>
                                 <div className="space-y-2">
-                                    {/* UPDATED: Use new meal types */}
                                     {availableMealTypes.map(mealType => (
                                         <div key={mealType} className="flex items-center">
                                             <input
                                                 type="checkbox"
-                                                id={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
+                                                id={`meal-type-desktop-${mealType.toLowerCase().replace(' ', '-')}`}
                                                 checked={userMealTypes.includes(mealType)}
                                                 onChange={(e) => {
                                                     const updatedMealTypes = e.target.checked
@@ -1912,7 +2477,7 @@ export default function MealPlanningCalendar() {
                                                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                             />
                                             <label
-                                                htmlFor={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
+                                                htmlFor={`meal-type-desktop-${mealType.toLowerCase().replace(' ', '-')}`}
                                                 className="ml-3 text-sm text-gray-700"
                                             >
                                                 {mealType}
@@ -1926,7 +2491,7 @@ export default function MealPlanningCalendar() {
                                 </p>
                             </div>
 
-                            {/* Show current dietary preferences */}
+                            {/* Current dietary preferences */}
                             {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -1935,14 +2500,12 @@ export default function MealPlanningCalendar() {
                                     <div className="text-sm text-gray-600 space-y-1">
                                         {userDietaryRestrictions.length > 0 && (
                                             <div>
-                                                <span
-                                                    className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                                <span className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
                                             </div>
                                         )}
                                         {userAvoidIngredients.length > 0 && (
                                             <div>
-                                                <span
-                                                    className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                                <span className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
                                             </div>
                                         )}
                                     </div>
@@ -1960,7 +2523,58 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            {/* DESKTOP Recipe Selection Modal - Replace your existing desktop recipe modal: */}
+            {/* Budget Setting Modal - Same as mobile */}
+            {showBudgetModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Set Weekly Budget</h3>
+
+                        <div className="mb-4">
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Weekly Meal Budget
+                            </label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                <input
+                                    type="number"
+                                    step="0.01"
+                                    min="0"
+                                    value={priceIntelligence.weeklyBudget}
+                                    onChange={(e) => setPriceIntelligence(prev => ({
+                                        ...prev,
+                                        weeklyBudget: parseFloat(e.target.value) || 0
+                                    }))}
+                                    className="pl-8 w-full border border-gray-300 rounded-lg px-3 py-2"
+                                    placeholder="0.00"
+                                />
+                            </div>
+                            <div className="text-xs text-gray-500 mt-1">
+                                This helps track spending and find cost-effective meal options
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end space-x-3">
+                            <TouchEnhancedButton
+                                onClick={() => setShowBudgetModal(false)}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                            >
+                                Cancel
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    updateWeeklyBudget(priceIntelligence.weeklyBudget);
+                                    setShowBudgetModal(false);
+                                }}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                            >
+                                Save Budget
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Enhanced Desktop Recipe Selection Modal with price info */}
             {showRecipeModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-6xl w-full h-[85vh] overflow-hidden flex flex-col">
@@ -1983,7 +2597,7 @@ export default function MealPlanningCalendar() {
                                 </TouchEnhancedButton>
                             </div>
 
-                            {/* FIXED: Compact Search and Filters */}
+                            {/* Search and Filters */}
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 {/* Search */}
                                 <div className="md:col-span-2">
@@ -1996,7 +2610,7 @@ export default function MealPlanningCalendar() {
                                     />
                                 </div>
 
-                                {/* FIXED: Dropdown Category Filter */}
+                                {/* Category Filter */}
                                 <div>
                                     <select
                                         value={selectedRecipeCategory}
@@ -2051,7 +2665,7 @@ export default function MealPlanningCalendar() {
                             )}
                         </div>
 
-                        {/* FIXED: Much larger recipe grid area */}
+                        {/* Recipe grid area */}
                         <div className="flex-1 overflow-y-auto p-6">
                             {filteredRecipes.length === 0 ? (
                                 <div className="text-center py-12">
@@ -2138,13 +2752,13 @@ export default function MealPlanningCalendar() {
                                                     <div className="flex flex-wrap gap-1 mt-auto">
                                                         {recipe.tags.slice(0, 3).map(tag => (
                                                             <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                    {tag}
-                                                </span>
+                                                {tag}
+                                            </span>
                                                         ))}
                                                         {recipe.tags.length > 3 && (
                                                             <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                    +{recipe.tags.length - 3}
-                                                </span>
+                                                +{recipe.tags.length - 3}
+                                            </span>
                                                         )}
                                                     </div>
                                                 )}
@@ -2179,6 +2793,7 @@ export default function MealPlanningCalendar() {
                     mealPlanId={mealPlan._id}
                     mealPlanName={mealPlan.name}
                     onClose={() => setShowShoppingList(false)}
+                    priceIntelligence={priceIntelligence.enabled} // 💰 NEW: Pass price intelligence flag
                 />
             )}
 
@@ -2188,8 +2803,7 @@ export default function MealPlanningCalendar() {
                     <div className="text-6xl mb-4">🍽️</div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
                     <div className="space-y-4">
-                        <p className="text-gray-600">Start by using a template, adding recipes, or creating quick
-                            meals.</p>
+                        <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
                         {mealPlan && (
                             <TemplateLibraryButton
                                 mealPlanId={mealPlan._id}
@@ -2201,6 +2815,8 @@ export default function MealPlanningCalendar() {
                     </div>
                 </div>
             )}
+
+            {/* Meal Completion Modal */}
             {showMealCompletion && selectedMealForCompletion && (
                 <MealCompletionModal
                     isOpen={showMealCompletion}
@@ -2214,7 +2830,6 @@ export default function MealPlanningCalendar() {
                     inventory={inventory}
                 />
             )}
-
         </div>
     );
 }

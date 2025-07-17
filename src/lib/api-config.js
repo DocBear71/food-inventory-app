@@ -1,4 +1,4 @@
-// file: /src/lib/api-config.js - Simple session injection without global fetch override
+// file: /src/lib/api-config.js v1 - Simple session injection without global fetch override
 
 import { Capacitor } from '@capacitor/core';
 

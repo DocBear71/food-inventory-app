@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { useFeatureGate } from '@/hooks/useSubscription';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import {apiDelete, apiPost, apiPut} from "@/lib/api-config.js";
 
 export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded }) {
     // Feature gate checks
@@ -102,10 +103,8 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
         setLoading(true);
 
         try {
-            const response = await fetch(`/api/inventory/${item._id}/prices`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+            const response = await apiPost(`/api/inventory/${item._id}/prices`, {
+                formData
             });
 
             const data = await response.json();
@@ -141,10 +140,8 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
         }
 
         try {
-            const response = await fetch(`/api/inventory/${item._id}/prices`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(alerts)
+            const response = await apiPut(`/api/inventory/${item._id}/prices`, {
+                alerts
             });
 
             const data = await response.json();
@@ -163,8 +160,7 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
         if (!confirm('Are you sure you want to delete this price entry?')) return;
 
         try {
-            const response = await fetch(`/api/inventory/${item._id}/prices?priceEntryId=${priceEntryId}`, {
-                method: 'DELETE'
+            const response = await apiDelete(`/api/inventory/${item._id}/prices?priceEntryId=${priceEntryId}`, {
             });
 
             const data = await response.json();

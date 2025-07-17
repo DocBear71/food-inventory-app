@@ -6,6 +6,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function AdminUserDetailPage({ params }) {
     const { data: session, status } = useSession();
@@ -82,10 +83,8 @@ export default function AdminUserDetailPage({ params }) {
         try {
             setActionLoading(true);
 
-            const response = await fetch(`/api/admin/users/${userId}/upgrade`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(upgradeData)
+            const response = await apiPost(`/api/admin/users/${userId}/upgrade`, {
+                upgradeData
             });
 
             if (!response.ok) {
@@ -111,13 +110,9 @@ export default function AdminUserDetailPage({ params }) {
         try {
             setActionLoading(true);
 
-            const response = await fetch(`/api/admin/users/${userId}/suspend`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const response = await apiPost(`/api/admin/users/${userId}/suspend`, {
                     action,
                     ...suspendData
-                })
             });
 
             if (!response.ok) {
