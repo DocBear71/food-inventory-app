@@ -4,7 +4,7 @@
 import {useState, useCallback, useRef, useEffect} from 'react';
 import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import { apiGet } from '@/lib/api-config';
+import {apiGet, apiPost} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
 
 // Helper function for Nutri-Score colors
@@ -312,15 +312,8 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 page_size: '15'
             });
 
-            const response = await fetch(`/api/upc/search?${params}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache, no-store, must-revalidate',
-                    'Pragma': 'no-cache'
-                },
-                cache: 'no-store'
-            });
+            const response = await apiGet(`/api/upc/search?${params}`, {
+                });
 
             console.log('🔍 Search response status:', response.status);
 
@@ -489,16 +482,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         try {
             console.log('🤖 Performing AI classification for:', productName);
 
-            const response = await fetch('/api/food/classify', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+            const response = await apiPost('/api/food/classify', {
                     itemName: productName,
                     productDetails: existingData.name || '',
                     context: 'upc_lookup_fallback'
-                })
             });
 
             if (response.ok) {
@@ -723,12 +710,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 page_size: '5'
             });
 
-            const response = await fetch(`/api/upc/search?${params}`, {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Cache-Control': 'no-cache'
-                }
+            const response = await apiGet(`/api/upc/search?${params}`, {
             });
 
             console.log('🔍 Autocomplete response status:', response.status);

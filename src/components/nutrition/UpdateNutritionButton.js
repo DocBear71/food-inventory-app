@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { Zap, Loader2, CheckCircle, AlertCircle, DollarSign, Clock, Target } from 'lucide-react';
+import {apiPost} from "@/lib/api-config.js";
 
 const UpdateNutritionButton = ({
                                    recipe,
@@ -23,15 +24,9 @@ const UpdateNutritionButton = ({
         setLastResult(null);
 
         try {
-            const response = await fetch(`/api/recipes/${recipe._id}/analyze-nutrition`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+            const response = await apiPost(`/api/recipes/${recipe._id}/analyze-nutrition`, {
                     forceAnalysis: true,
                     includeDetails: true
-                })
             });
 
             const data = await response.json();

@@ -1,8 +1,8 @@
 {
   "name": "Doc Bear's Comfort Kitchen",
   "short_name": "Comfort Kitchen",
-  "description": "Manage your food inventory, meal planning, and recipes",
-  "version": "1.1.1",
+  "description": "Manage your food inventory, meal planning, recipes, and AI-powered shopping lists",
+  "version": "1.3.0",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -12,6 +12,8 @@
   "lang": "en-US",
   "dir": "ltr",
   "scope": "/",
+  "id": "kitchen.docbearscomfort",
+
   "icons": [
     {
       "src": "/icons/icon-72x72.png",
@@ -101,12 +103,7 @@
       "type": "image/png"
     }
   ],
-  "share_target": {
-    "action": "/recipes/add?source=share",
-    "method": "GET",
-    "params": {
-      "text": "url"
-    },
+
   "shortcuts": [
     {
       "name": "Add Item",
@@ -130,13 +127,61 @@
       "icons": [{ "src": "/icons/recipe-shortcut.png", "sizes": "96x96" }]
     },
     {
-      "name": "Shopping List",
-      "short_name": "Shopping",
-      "description": "Generate smart shopping lists",
+      "name": "AI Shopping List",
+      "short_name": "AI Shopping",
+      "description": "Generate AI-optimized shopping lists",
       "url": "/shopping",
       "icons": [{ "src": "/icons/shopping-shortcut.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Scan Barcode",
+      "short_name": "Scan",
+      "description": "Scan product barcodes",
+      "url": "/inventory?action=scan",
+      "icons": [{ "src": "/icons/scan-shortcut.png", "sizes": "96x96" }]
     }
   ],
+
+  "share_target": {
+    "action": "/import",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "name",
+      "text": "description",
+      "url": "link",
+      "files": [
+        {
+          "name": "recipe_data",
+          "accept": ["text/plain", ".txt", ".csv", "image/*", ".json"]
+        }
+      ]
+    }
+  },
+
+  "file_handlers": [
+    {
+      "action": "/import",
+      "accept": {
+        "text/plain": [".txt"],
+        "text/csv": [".csv"],
+        "application/json": [".json"],
+        "text/x-comma-separated-values": [".csv"]
+      }
+    }
+  ],
+
+  "protocol_handlers": [
+    {
+      "protocol": "web+recipe",
+      "url": "/recipes/import?url=%s"
+    },
+    {
+      "protocol": "web+shoppinglist",
+      "url": "/shopping/import?url=%s"
+    }
+  ],
+
   "screenshots": [
     {
       "src": "/screenshots/home-narrow.png",
@@ -146,6 +191,13 @@
       "label": "Dashboard view on mobile"
     },
     {
+      "src": "/screenshots/shopping-ai-narrow.png",
+      "sizes": "640x1136",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "AI-powered shopping lists on mobile"
+    },
+    {
       "src": "/screenshots/home-wide.png",
       "sizes": "1024x768",
       "type": "image/png",
@@ -153,8 +205,8 @@
       "label": "Desktop dashboard"
     }
   ],
+
   "prefer_related_applications": false,
-  "id": "kitchen.docbearscomfort",
   "edge_side_panel": {
     "preferred_width": 400
   },

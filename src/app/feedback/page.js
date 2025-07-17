@@ -8,6 +8,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSubscription } from '@/hooks/useSubscription';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function FeedbackPage() {
     const { data: session } = useSafeSession();
@@ -75,17 +76,11 @@ export default function FeedbackPage() {
             }
 
             // Send feedback
-            const response = await fetch('/api/feedback/submit', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+            const response = await apiPost('/api/feedback/submit', {
                     ...formData,
                     userTier: subscription?.tier || 'free',
                     userId: session?.user?.id || null,
                     timestamp: new Date().toISOString()
-                }),
             });
 
             const result = await response.json();
