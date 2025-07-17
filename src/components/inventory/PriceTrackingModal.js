@@ -6,8 +6,10 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { useFeatureGate } from '@/hooks/useSubscription';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import {apiDelete, apiPost, apiPut} from "@/lib/api-config.js";
+import { useCurrency } from '@/lib/currency-utils';
 
 export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded }) {
+    const userCurrency = useCurrency();
     // Feature gate checks
     const priceTrackingGate = useFeatureGate(FEATURE_GATES.PRICE_TRACKING);
     const priceHistoryGate = useFeatureGate(FEATURE_GATES.PRICE_HISTORY);
@@ -188,7 +190,10 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
     };
 
     const formatPrice = (price) => {
-        return typeof price === 'number' ? price.toFixed(2) : '0.00';
+        if (userCurrency.preferences) {
+            return userCurrency.formatPrice(price);
+        }
+        return typeof price === 'number' ? `$${price.toFixed(2)}` : '$0.00';
     };
 
     const getUsageDisplay = () => {
@@ -316,19 +321,24 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                                             Price *
                                         </label>
                                         <div className="relative">
-                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+            {userCurrency.preferences?.currencySymbol || '$'}
+        </span>
                                             <input
                                                 type="number"
-                                                step="0.01"
+                                                step={userCurrency.preferences?.decimalPlaces === 0 ? '1' : '0.01'}
                                                 min="0"
                                                 required
                                                 value={formData.price}
                                                 onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
-                                                className="pl-6 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                placeholder="0.00"
+                                                className="pl-8 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                placeholder={userCurrency.preferences?.decimalPlaces === 0 ? '0' : '0.00'}
                                                 style={{fontSize: '16px'}}
                                             />
                                         </div>
+                                        <p className="text-xs text-gray-500 mt-1">
+                                            Enter price in {userCurrency.preferences?.currency || 'USD'}
+                                        </p>
                                     </div>
 
                                     <div>

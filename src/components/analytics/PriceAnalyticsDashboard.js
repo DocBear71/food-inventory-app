@@ -3,8 +3,10 @@
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import { useCurrency } from '@/lib/currency-utils';
 
 export default function PriceAnalyticsDashboard({ className = "" }) {
+    const userCurrency = useCurrency();
     const [analytics, setAnalytics] = useState(null);
     const [loading, setLoading] = useState(true);
     const [timeRange, setTimeRange] = useState('30');
@@ -57,7 +59,12 @@ export default function PriceAnalyticsDashboard({ className = "" }) {
         );
     }
 
-    const formatCurrency = (amount) => `$${amount.toFixed(2)}`;
+    const formatCurrency = (amount) => {
+        if (userCurrency.preferences) {
+            return userCurrency.formatPrice(amount);
+        }
+        return `$${amount.toFixed(2)}`;
+    };
 
     return (
         <div className={`space-y-6 ${className}`}>

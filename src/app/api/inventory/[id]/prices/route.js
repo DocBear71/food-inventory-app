@@ -1,11 +1,11 @@
-// file: src/app/api/inventory/[id]/prices/route.js v1
+// file: src/app/api/inventory/[id]/prices/route.js v2
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import { InventoryItem } from '@/lib/models';
+import { UserInventory, User } from '@/lib/models';
 
-// GET - Fetch price history for an inventory item
+// GET - Fetch price history for an inventory item with currency support
 export async function GET(request, { params }) {
     try {
         const session = await auth();
@@ -17,14 +17,21 @@ export async function GET(request, { params }) {
 
         const { id } = params;
 
-        // Find the inventory item and verify ownership
-        const item = await InventoryItem.findById(id);
-        if (!item) {
-            return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+        // Get user for currency preferences
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        if (item.userId.toString() !== session.user.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        // Find the inventory item and verify ownership
+        const inventory = await UserInventory.findOne({ userId: session.user.id });
+        if (!inventory) {
+            return NextResponse.json({ error: 'Inventory not found' }, { status: 404 });
+        }
+
+        const item = inventory.items.id(id);
+        if (!item) {
+            return NextResponse.json({ error: 'Item not found' }, { status: 404 });
         }
 
         // Calculate price statistics
@@ -35,7 +42,11 @@ export async function GET(request, { params }) {
             average: 0,
             lowest: 0,
             highest: 0,
-            totalEntries: prices.length
+            totalEntries: prices.length,
+            // 🆕 ADD CURRENCY INFO
+            currency: user.currencyPreferences?.currency || 'USD',
+            currencySymbol: user.currencyPreferences?.currencySymbol || '$',
+            currencyPosition: user.currencyPreferences?.currencyPosition || 'before'
         };
 
         if (prices.length > 0) {
@@ -52,7 +63,15 @@ export async function GET(request, { params }) {
                 priceHistory: priceHistory.sort((a, b) => new Date(b.date) - new Date(a.date)), // newest first
                 currentBestPrice: item.currentBestPrice || null,
                 statistics,
-                priceAlerts: item.priceAlerts || { enabled: false }
+                priceAlerts: item.priceAlerts || { enabled: false },
+                // 🆕 ADD USER CURRENCY PREFERENCES
+                userCurrency: user.currencyPreferences || {
+                    currency: 'USD',
+                    currencySymbol: '$',
+                    currencyPosition: 'before',
+                    showCurrencyCode: false,
+                    decimalPlaces: 2
+                }
             }
         });
 
@@ -65,7 +84,7 @@ export async function GET(request, { params }) {
     }
 }
 
-// POST - Add new price entry
+// POST - Add new price entry with currency support
 export async function POST(request, { params }) {
     try {
         const session = await auth();
@@ -77,7 +96,11 @@ export async function POST(request, { params }) {
 
         const { id } = params;
         const body = await request.json();
-        const { price, store, size, unit, isOnSale, saleEndDate, notes } = body;
+        const { formData, quickData } = body;
+
+        // Handle both regular form data and quick add data
+        const priceData = formData || quickData;
+        const { price, store, size, unit, isOnSale, saleEndDate, notes } = priceData;
 
         // Validation
         if (!price || isNaN(price) || parseFloat(price) <= 0) {
@@ -92,14 +115,21 @@ export async function POST(request, { params }) {
             }, { status: 400 });
         }
 
-        // Find the inventory item and verify ownership
-        const item = await InventoryItem.findById(id);
-        if (!item) {
-            return NextResponse.json({ error: 'Item not found' }, { status: 404 });
+        // Get user for currency preferences
+        const user = await User.findById(session.user.id);
+        if (!user) {
+            return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        if (item.userId.toString() !== session.user.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        // Find the inventory item and verify ownership
+        const inventory = await UserInventory.findOne({ userId: session.user.id });
+        if (!inventory) {
+            return NextResponse.json({ error: 'Inventory not found' }, { status: 404 });
+        }
+
+        const item = inventory.items.id(id);
+        if (!item) {
+            return NextResponse.json({ error: 'Item not found' }, { status: 404 });
         }
 
         // Calculate unit price if size and unit are provided
@@ -111,18 +141,22 @@ export async function POST(request, { params }) {
             }
         }
 
-        // Create new price entry
+        // Create new price entry with currency info
         const newPriceEntry = {
             price: parseFloat(price),
             store: store.trim(),
-            date: new Date(),
+            date: new Date().toISOString().split('T')[0], // Store as date string
             size: size?.trim() || '',
             unit: unit?.trim() || '',
             unitPrice: unitPrice,
             isOnSale: Boolean(isOnSale),
-            saleEndDate: saleEndDate ? new Date(saleEndDate) : null,
+            saleEndDate: saleEndDate ? new Date(saleEndDate).toISOString().split('T')[0] : null,
             notes: notes?.trim() || '',
-            addedBy: session.user.id
+            addedBy: session.user.id,
+            addedDate: new Date(),
+            // 🆕 ADD CURRENCY INFO
+            currency: user.currencyPreferences?.currency || 'USD',
+            currencySymbol: user.currencyPreferences?.currencySymbol || '$'
         };
 
         // Initialize priceHistory if it doesn't exist
@@ -139,9 +173,12 @@ export async function POST(request, { params }) {
             item.currentBestPrice = {
                 price: currentPrice,
                 store: store.trim(),
-                date: new Date(),
+                date: new Date().toISOString().split('T')[0],
                 unitPrice: unitPrice,
-                isOnSale: Boolean(isOnSale)
+                isOnSale: Boolean(isOnSale),
+                // 🆕 ADD CURRENCY INFO
+                currency: user.currencyPreferences?.currency || 'USD',
+                currencySymbol: user.currencyPreferences?.currencySymbol || '$'
             };
         }
 
@@ -153,8 +190,10 @@ export async function POST(request, { params }) {
             item.highestPrice = Math.max(...allPrices);
         }
 
-        // Save the updated item
-        await item.save();
+        // Save the updated inventory
+        await inventory.save();
+
+        console.log(`💰 Price added: ${user.currencyPreferences?.currencySymbol || '$'}${currentPrice} for ${item.name} at ${store.trim()}`);
 
         return NextResponse.json({
             success: true,
@@ -167,7 +206,10 @@ export async function POST(request, { params }) {
                     average: item.averagePrice,
                     lowest: item.lowestPrice,
                     highest: item.highestPrice,
-                    totalEntries: item.priceHistory.length
+                    totalEntries: item.priceHistory.length,
+                    // 🆕 ADD CURRENCY INFO
+                    currency: user.currencyPreferences?.currency || 'USD',
+                    currencySymbol: user.currencyPreferences?.currencySymbol || '$'
                 }
             }
         });
@@ -176,136 +218,6 @@ export async function POST(request, { params }) {
         console.error('POST price entry error:', error);
         return NextResponse.json({
             error: 'Failed to add price entry',
-            details: error.message
-        }, { status: 500 });
-    }
-}
-
-// PUT - Update price alert settings
-export async function PUT(request, { params }) {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        await connectDB();
-
-        const { id } = params;
-        const body = await request.json();
-        const { enabled, targetPrice, alertWhenBelow } = body;
-
-        // Find the inventory item and verify ownership
-        const item = await InventoryItem.findById(id);
-        if (!item) {
-            return NextResponse.json({ error: 'Item not found' }, { status: 404 });
-        }
-
-        if (item.userId.toString() !== session.user.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-        }
-
-        // Update price alerts
-        item.priceAlerts = {
-            enabled: Boolean(enabled),
-            targetPrice: targetPrice ? parseFloat(targetPrice) : null,
-            alertWhenBelow: Boolean(alertWhenBelow),
-            lastAlertSent: item.priceAlerts?.lastAlertSent || null
-        };
-
-        await item.save();
-
-        return NextResponse.json({
-            success: true,
-            message: 'Price alerts updated successfully',
-            data: {
-                priceAlerts: item.priceAlerts
-            }
-        });
-
-    } catch (error) {
-        console.error('PUT price alerts error:', error);
-        return NextResponse.json({
-            error: 'Failed to update price alerts',
-            details: error.message
-        }, { status: 500 });
-    }
-}
-
-// DELETE - Remove a specific price entry
-export async function DELETE(request, { params }) {
-    try {
-        const session = await auth();
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-        }
-
-        await connectDB();
-
-        const { id } = params;
-        const { searchParams } = new URL(request.url);
-        const priceEntryId = searchParams.get('priceEntryId');
-
-        if (!priceEntryId) {
-            return NextResponse.json({
-                error: 'Price entry ID is required'
-            }, { status: 400 });
-        }
-
-        // Find the inventory item and verify ownership
-        const item = await InventoryItem.findById(id);
-        if (!item) {
-            return NextResponse.json({ error: 'Item not found' }, { status: 404 });
-        }
-
-        if (item.userId.toString() !== session.user.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-        }
-
-        // Remove the price entry
-        if (item.priceHistory) {
-            item.priceHistory = item.priceHistory.filter(
-                entry => entry._id.toString() !== priceEntryId
-            );
-
-            // Recalculate best price and statistics
-            if (item.priceHistory.length > 0) {
-                const allPrices = item.priceHistory.map(p => p.price);
-                const lowestPriceEntry = item.priceHistory.find(
-                    entry => entry.price === Math.min(...allPrices)
-                );
-
-                item.currentBestPrice = {
-                    price: lowestPriceEntry.price,
-                    store: lowestPriceEntry.store,
-                    date: lowestPriceEntry.date,
-                    unitPrice: lowestPriceEntry.unitPrice,
-                    isOnSale: lowestPriceEntry.isOnSale
-                };
-
-                item.averagePrice = allPrices.reduce((a, b) => a + b, 0) / allPrices.length;
-                item.lowestPrice = Math.min(...allPrices);
-                item.highestPrice = Math.max(...allPrices);
-            } else {
-                // No price history left
-                item.currentBestPrice = null;
-                item.averagePrice = null;
-                item.lowestPrice = null;
-                item.highestPrice = null;
-            }
-
-            await item.save();
-        }
-
-        return NextResponse.json({
-            success: true,
-            message: 'Price entry deleted successfully'
-        });
-
-    } catch (error) {
-        console.error('DELETE price entry error:', error);
-        return NextResponse.json({
-            error: 'Failed to delete price entry',
             details: error.message
         }, { status: 500 });
     }

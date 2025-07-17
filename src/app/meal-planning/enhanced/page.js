@@ -11,7 +11,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar';
-import { apiGet } from '@/lib/api-config';
+import {apiGet, apiPost} from '@/lib/api-config';
 
 export default function EnhancedMealPlanningPage() {
     const { data: session, status } = useSafeSession();

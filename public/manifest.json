@@ -1,14 +1,14 @@
 {
   "name": "Doc Bear's Comfort Kitchen",
   "short_name": "Comfort Kitchen",
-  "description": "Manage your food inventory, meal planning, recipes, and AI-powered shopping lists",
+  "description": "AI-powered meal planning with voice input, price intelligence, and smart shopping lists",
   "version": "1.3.0",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#4f46e5",
   "orientation": "portrait-primary",
-  "categories": ["food", "lifestyle", "productivity"],
+  "categories": ["food", "lifestyle", "productivity", "utilities"],
   "lang": "en-US",
   "dir": "ltr",
   "scope": "/",
@@ -106,37 +106,37 @@
 
   "shortcuts": [
     {
-      "name": "Add Item",
-      "short_name": "Add",
-      "description": "Quickly add item to inventory",
-      "url": "/inventory?action=add",
-      "icons": [{ "src": "/icons/add-shortcut.png", "sizes": "96x96" }]
+      "name": "Voice Add Item",
+      "short_name": "Voice Add",
+      "description": "Use voice to quickly add items",
+      "url": "/inventory?action=voice-add",
+      "icons": [{ "src": "/icons/voice-shortcut.png", "sizes": "96x96" }]
     },
     {
-      "name": "Meal Planning",
-      "short_name": "Meals",
-      "description": "Plan your meals for the week",
-      "url": "/meal-planning",
+      "name": "Smart Meal Planning",
+      "short_name": "Smart Meals",
+      "description": "AI-powered meal planning with budget optimization",
+      "url": "/meal-planning?ai=true",
       "icons": [{ "src": "/icons/meal-shortcut.png", "sizes": "96x96" }]
     },
     {
-      "name": "Recipes",
-      "short_name": "Recipes",
-      "description": "Browse your recipe collection",
-      "url": "/recipes",
-      "icons": [{ "src": "/icons/recipe-shortcut.png", "sizes": "96x96" }]
+      "name": "Price Intelligence",
+      "short_name": "Price Tracker",
+      "description": "Track prices and find deals",
+      "url": "/price-tracking",
+      "icons": [{ "src": "/icons/price-shortcut.png", "sizes": "96x96" }]
     },
     {
-      "name": "AI Shopping List",
-      "short_name": "AI Shopping",
-      "description": "Generate AI-optimized shopping lists",
-      "url": "/shopping",
+      "name": "Voice Shopping List",
+      "short_name": "Voice Shop",
+      "description": "Create shopping lists with voice commands",
+      "url": "/shopping?voice=true",
       "icons": [{ "src": "/icons/shopping-shortcut.png", "sizes": "96x96" }]
     },
     {
       "name": "Scan Barcode",
       "short_name": "Scan",
-      "description": "Scan product barcodes",
+      "description": "Scan product barcodes with price tracking",
       "url": "/inventory?action=scan",
       "icons": [{ "src": "/icons/scan-shortcut.png", "sizes": "96x96" }]
     }
@@ -179,6 +179,34 @@
     {
       "protocol": "web+shoppinglist",
       "url": "/shopping/import?url=%s"
+    },
+    {
+      "protocol": "web+mealplan",
+      "url": "/meal-planning/import?url=%s"
+    }
+  ],
+
+  "capture_links": "new-client",
+
+  "permissions": [
+    "microphone",
+    "camera",
+    "geolocation",
+    "notifications"
+  ],
+
+  "features": [
+    {
+      "name": "microphone",
+      "required": false
+    },
+    {
+      "name": "camera",
+      "required": false
+    },
+    {
+      "name": "geolocation",
+      "required": false
     }
   ],
 
@@ -188,21 +216,35 @@
       "sizes": "640x1136",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "Dashboard view on mobile"
+      "label": "AI-powered dashboard on mobile"
+    },
+    {
+      "src": "/screenshots/voice-input-narrow.png",
+      "sizes": "640x1136",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Voice input for hands-free meal planning"
+    },
+    {
+      "src": "/screenshots/price-intelligence-narrow.png",
+      "sizes": "640x1136",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Smart price tracking and budget optimization"
     },
     {
       "src": "/screenshots/shopping-ai-narrow.png",
       "sizes": "640x1136",
       "type": "image/png",
       "form_factor": "narrow",
-      "label": "AI-powered shopping lists on mobile"
+      "label": "AI-optimized shopping lists with price intelligence"
     },
     {
       "src": "/screenshots/home-wide.png",
       "sizes": "1024x768",
       "type": "image/png",
       "form_factor": "wide",
-      "label": "Desktop dashboard"
+      "label": "Desktop dashboard with price intelligence"
     }
   ],
 
@@ -212,5 +254,9 @@
   },
   "launch_handler": {
     "client_mode": "navigate-existing"
-  }
+  },
+
+  "display_override": ["window-controls-overlay", "standalone"],
+
+  "handle_links": "preferred"
 }

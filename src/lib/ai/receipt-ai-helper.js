@@ -40,7 +40,7 @@ async function convertImageToBase64(imageFile) {
 /**
  * Enhanced AI-powered receipt parsing with Modal integration
  */
-export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, imageFile, storeContext = "") {
+export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, imageFile, storeContext = "", userCurrency = null) {
     console.log('📡 Starting AI enhancement via Modal...');
 
     try {
@@ -50,15 +50,37 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
             base64ImageString = await convertImageToBase64(imageFile);
         }
 
+        // Get user currency preferences from local storage or API
+        let currencyInfo = { currency: 'USD', currencySymbol: '$' };
+        if (userCurrency) {
+            currencyInfo = userCurrency;
+        } else {
+            try {
+                const response = await fetch('/api/user/profile');
+                const data = await response.json();
+                if (data.user?.currencyPreferences) {
+                    currencyInfo = {
+                        currency: data.user.currencyPreferences.currency,
+                        currencySymbol: data.user.currencyPreferences.currencySymbol
+                    };
+                }
+            } catch (error) {
+                console.warn('Could not fetch user currency preferences, using USD default');
+            }
+        }
+
         const requestPayload = {
             image_data: base64ImageString,
             store_context: storeContext,
             user_id: "user123",
-            raw_ocr: rawOcrText,          // 🆕 Send OCR text as fallback
-            fallback_items: extractedItems // 🆕 Send original items as fallback
+            raw_ocr: rawOcrText,
+            fallback_items: extractedItems,
+            // 🆕 ADD CURRENCY SUPPORT
+            user_currency: currencyInfo.currency,
+            currency_symbol: currencyInfo.currencySymbol
         };
 
-        console.log('📤 Sending request to Modal with fallback support');
+        console.log('📤 Sending request to Modal with currency support:', currencyInfo);
 
         const response = await fetch('https://docbear71--receipt-processor-process-receipt-with-ai.modal.run', {
             method: 'POST',
@@ -234,7 +256,7 @@ function guessLocation(itemName) {
  * Smart category classification for your existing items
  */
 export async function aiClassifyFoodItem(itemName, existingCategory = "", context = "") {
-    const response = await apiPost('/api/classify-food-item', {
+    const response = await apiPost('/api/inventory/classify-food-item', {
         itemName,
         existingCategory,
         context

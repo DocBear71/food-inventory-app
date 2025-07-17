@@ -127,7 +127,10 @@ export async function POST(request) {
                         unit: item.receiptPriceEntry.unit || 'each',
                         notes: item.receiptPriceEntry.notes || 'From receipt scan',
                         isOnSale: item.receiptPriceEntry.isOnSale || false,
-                        addedDate: new Date()
+                        addedDate: new Date(),
+                        // 🆕 ADD CURRENCY INFO
+                        currency: user.currencyPreferences?.currency || 'USD',
+                        currencySymbol: user.currencyPreferences?.currencySymbol || '$'
                     };
 
                     // Validate price data
@@ -137,9 +140,7 @@ export async function POST(request) {
                         averagePrice = priceEntry.price;
                         priceDataAdded++;
 
-                        console.log(`💰 Added price tracking for ${item.name}: $${priceEntry.price} at ${priceEntry.store}`);
-                    } else {
-                        console.warn(`⚠️ Invalid price for ${item.name}: ${priceEntry.price}`);
+                        console.log(`💰 Added price tracking for ${item.name}: ${user.currencyPreferences?.currencySymbol || '$'}${priceEntry.price} at ${priceEntry.store}`);
                     }
                 } catch (priceError) {
                     console.error(`❌ Error processing price data for ${item.name}:`, priceError);

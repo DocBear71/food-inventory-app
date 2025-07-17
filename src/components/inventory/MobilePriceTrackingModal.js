@@ -5,8 +5,10 @@ import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import {apiPost} from "@/lib/api-config.js";
+import { useCurrency } from '@/lib/currency-utils';
 
 export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPriceAdded }) {
+    const userCurrency = useCurrency();
     const [activeTab, setActiveTab] = useState('add-price');
     const [formData, setFormData] = useState({
         price: '',
@@ -153,7 +155,10 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
     };
 
     const formatPrice = (price) => {
-        return typeof price === 'number' ? price.toFixed(2) : '0.00';
+        if (userCurrency.preferences) {
+            return userCurrency.formatPrice(price);
+        }
+        return typeof price === 'number' ? `$${price.toFixed(2)}` : '$0.00';
     };
 
     const formatDate = (dateString) => {
@@ -264,19 +269,24 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
                                         💵 Price
                                     </label>
                                     <div className="relative">
-                                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-500">$</span>
+            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-500">
+                {userCurrency.preferences?.currencySymbol || '$'}
+            </span>
                                         <input
                                             type="number"
-                                            step="0.01"
+                                            step={userCurrency.preferences?.decimalPlaces === 0 ? '1' : '0.01'}
                                             min="0"
                                             required
                                             value={formData.price}
                                             onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
                                             className="pl-8 w-full text-xl font-semibold border-2 border-gray-300 rounded-xl px-4 py-4 focus:ring-indigo-500 focus:border-indigo-500"
-                                            placeholder="0.00"
+                                            placeholder={userCurrency.preferences?.decimalPlaces === 0 ? '0' : '0.00'}
                                             inputMode="decimal"
                                         />
                                     </div>
+                                    <p className="text-xs text-gray-500 mt-1 text-center">
+                                        Enter price in {userCurrency.preferences?.currency || 'USD'}
+                                    </p>
                                 </div>
 
                                 {/* Store Selection - Touch-friendly */}

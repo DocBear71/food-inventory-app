@@ -800,6 +800,39 @@ const UserSchema = new mongoose.Schema({
             default: false
         }
     },
+    // 🆕 ADD CURRENCY PREFERENCES
+    currencyPreferences: {
+        currency: {
+            type: String,
+            enum: [
+                'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'SEK', 'NOK', 'DKK',
+                'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK', 'NZD', 'ZAR', 'BRL', 'MXN',
+                'ARS', 'CLP', 'COP', 'PEN', 'INR', 'CNY', 'KRW', 'SGD', 'HKD', 'TWD',
+                'THB', 'PHP', 'MYR', 'IDR', 'VND', 'RUB', 'TRY', 'ILS', 'AED', 'SAR', 'EGP'
+            ],
+            default: 'USD'
+        },
+        currencySymbol: {
+            type: String,
+            default: '$',
+            maxlength: 5
+        },
+        currencyPosition: {
+            type: String,
+            enum: ['before', 'after'],
+            default: 'before'
+        },
+        showCurrencyCode: {
+            type: Boolean,
+            default: false
+        },
+        decimalPlaces: {
+            type: Number,
+            min: 0,
+            max: 3,
+            default: 2
+        }
+    },
     // Usage tracking for subscription limits
     usageTracking: {
         currentMonth: {type: Number, default: () => new Date().getMonth()},

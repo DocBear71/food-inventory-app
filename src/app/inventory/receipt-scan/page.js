@@ -2954,53 +2954,113 @@ export default function ReceiptScan() {
     }
 
 // Enhanced guessCategory function
-    function guessCategory(name) {
+    function guessCategory(name, taxCode = '') {
+        if (!name) return 'Other';
+
         const nameLower = name.toLowerCase();
 
-        // Comprehensive categorization logic (unchanged from original)
-        if (nameLower.includes('flour') || nameLower.includes('sugar') || nameLower.includes('brown sugar') ||
-            nameLower.includes('baking powder') || nameLower.includes('baking soda') || nameLower.includes('yeast') ||
-            nameLower.includes('vanilla') || nameLower.includes('extract') || nameLower.includes('oil') ||
-            nameLower.includes('olive oil') || nameLower.includes('vegetable oil') || nameLower.includes('vinegar')) {
-            return 'Baking & Cooking Ingredients';
+        // Beverages
+        if (nameLower.match(/\b(soda|pop|juice|coffee|tea|beer|wine|water|milk|almond milk|soy milk|oat milk)\b/)) {
+            return 'Beverages';
         }
 
-        if (nameLower.includes('bread') || nameLower.includes('bun') || nameLower.includes('roll') ||
-            nameLower.includes('bagel') || nameLower.includes('tortilla') || nameLower.includes('pita')) {
-            return 'Breads';
-        }
-
-        if (nameLower.includes('cheese') || nameLower.includes('cheddar') || nameLower.includes('mozzarella') ||
-            nameLower.includes('parmesan') || nameLower.includes('swiss') || nameLower.includes('provolone')) {
-            return 'Cheese';
-        }
-
-        if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('butter') ||
-            nameLower.includes('cream') || nameLower.includes('sour cream')) {
+        // Dairy (but not milk beverages)
+        if (nameLower.match(/\b(cheese|cheddar|mozzarella|parmesan|swiss|provolone|cream cheese|cottage cheese|sour cream|butter|yogurt|greek yogurt)\b/) && !nameLower.includes('milk')) {
             return 'Dairy';
         }
 
-        if (nameLower.includes('frozen')) {
-            if (nameLower.includes('fruit') || nameLower.includes('berry')) {
-                return 'Frozen Fruit';
-            }
-            if (nameLower.includes('vegetable') || nameLower.includes('peas') || nameLower.includes('corn')) {
-                return 'Frozen Vegetables';
-            }
-            return 'Frozen Items';
+        // Fresh Fruits
+        if (nameLower.match(/\b(apple|banana|orange|grape|strawberr|blueberr|raspberr|blackberr|peach|pear|cherry|plum|melon|watermelon|cantaloupe|kiwi|mango|pineapple|avocado|lemon|lime)\b/)) {
+            return 'Fresh Fruits';
         }
 
-        if (nameLower.includes('beef') || nameLower.includes('steak') || nameLower.includes('ground beef')) {
-            return 'Fresh/Frozen Beef';
+        // Fresh Vegetables
+        if (nameLower.match(/\b(lettuce|spinach|kale|broccoli|cauliflower|carrot|celery|onion|garlic|potato|tomato|cucumber|pepper|bell pepper|mushroom|zucchini|squash|cabbage|corn)\b/)) {
+            return 'Fresh Vegetables';
         }
 
-        if (nameLower.includes('chicken') || nameLower.includes('turkey') || nameLower.includes('poultry')) {
+        // Meat & Poultry
+        if (nameLower.match(/\b(chicken|turkey|duck)\b/)) {
             return 'Fresh/Frozen Poultry';
         }
-
-        if (nameLower.includes('fish') || nameLower.includes('salmon') || nameLower.includes('tuna') ||
-            nameLower.includes('shrimp') || nameLower.includes('seafood')) {
+        if (nameLower.match(/\b(beef|steak|ground beef|hamburger|roast)\b/)) {
+            return 'Fresh/Frozen Beef';
+        }
+        if (nameLower.match(/\b(pork|ham|bacon|sausage|pepperoni)\b/)) {
+            return 'Fresh/Frozen Pork';
+        }
+        if (nameLower.match(/\b(fish|salmon|tuna|cod|tilapia|shrimp|crab|lobster|seafood)\b/)) {
             return 'Fresh/Frozen Fish & Seafood';
+        }
+        if (nameLower.match(/\b(lamb|venison|rabbit)\b/)) {
+            return nameLower.includes('lamb') ? 'Fresh/Frozen Lamb' :
+                nameLower.includes('venison') ? 'Fresh/Frozen Venison' : 'Fresh/Frozen Rabbit';
+        }
+
+        // Breads & Bakery
+        if (nameLower.match(/\b(bread|bun|roll|bagel|muffin|croissant|donut|cake|pie|cookie)\b/)) {
+            return 'Breads';
+        }
+
+        // Pasta & Grains
+        if (nameLower.match(/\b(pasta|spaghetti|macaroni|penne|linguine|rigatoni|lasagna|noodle)\b/)) {
+            return 'Pasta';
+        }
+        if (nameLower.match(/\b(rice|quinoa|barley|oats|oatmeal|cereal|granola)\b/)) {
+            return 'Grains';
+        }
+
+        // Canned/Jarred items
+        if (nameLower.match(/\b(canned|can of|jarred)\b/)) {
+            if (nameLower.match(/\b(bean|beans|chickpea|lentil)\b/)) return 'Canned/Jarred Beans';
+            if (nameLower.match(/\b(tomato|sauce|marinara|salsa)\b/)) return 'Canned/Jarred Sauces';
+            if (nameLower.match(/\b(corn|peas|green bean|carrot|beet)\b/)) return 'Canned/Jarred Vegetables';
+            if (nameLower.match(/\b(peach|pear|pineapple|fruit)\b/)) return 'Canned/Jarred Fruit';
+            if (nameLower.match(/\b(tuna|salmon|chicken|meat)\b/)) return 'Canned/Jarred Meat';
+            return 'Canned/Jarred Meals';
+        }
+
+        // Frozen items
+        if (nameLower.match(/\b(frozen)\b/)) {
+            if (nameLower.match(/\b(berry|fruit|strawberr|blueberr)\b/)) return 'Frozen Fruit';
+            if (nameLower.match(/\b(vegetable|peas|corn|broccoli|spinach)\b/)) return 'Frozen Vegetables';
+            if (nameLower.match(/\b(meal|dinner|pizza|burrito)\b/)) return 'Frozen Meals';
+            return 'Frozen Other Items';
+        }
+
+        // Condiments & Sauces
+        if (nameLower.match(/\b(ketchup|mustard|mayo|mayonnaise|ranch|dressing|vinegar|oil|olive oil|hot sauce|bbq|barbecue)\b/)) {
+            return 'Condiments';
+        }
+
+        // Spices & Seasonings
+        if (nameLower.match(/\b(salt|pepper|oregano|basil|thyme|rosemary|paprika|cumin|chili|garlic powder|onion powder|cinnamon|vanilla)\b/)) {
+            return 'Spices';
+        }
+        if (nameLower.match(/\b(seasoning|spice|herb)\b/)) {
+            return 'Seasonings';
+        }
+
+        // Baking ingredients
+        if (nameLower.match(/\b(flour|sugar|brown sugar|baking powder|baking soda|yeast|vanilla extract|cocoa|chocolate chip)\b/)) {
+            return 'Baking & Cooking Ingredients';
+        }
+
+        // Snacks
+        if (nameLower.match(/\b(chip|crisp|cracker|pretzel|popcorn|nut|peanut|cashew|almond|granola bar|candy|chocolate)\b/)) {
+            return 'Snacks';
+        }
+
+        // Soups & Broths
+        if (nameLower.match(/\b(soup|broth|stock|bouillon)\b/)) {
+            if (nameLower.includes('bouillon')) return 'Bouillon';
+            if (nameLower.match(/\b(broth|stock)\b/)) return 'Stock/Broth';
+            return 'Soups & Soup Mixes';
+        }
+
+        // Eggs
+        if (nameLower.match(/\b(egg|eggs)\b/)) {
+            return 'Eggs';
         }
 
         // Default fallback
@@ -3030,9 +3090,22 @@ export default function ReceiptScan() {
 // ===============================================
 
     function updateItem(itemId, field, value) {
-        setExtractedItems(prev => prev.map(item =>
-            item.id === itemId ? {...item, [field]: value} : item
-        ));
+        setExtractedItems(prev => prev.map(item => {
+            if (item.id === itemId) {
+                // Handle numeric fields properly
+                if (field === 'price' || field === 'unitPrice') {
+                    const numericValue = typeof value === 'string' ? parseFloat(value) || 0 : value;
+                    return {...item, [field]: numericValue};
+                }
+                if (field === 'quantity') {
+                    const numericValue = typeof value === 'string' ? parseInt(value) || 1 : value;
+                    return {...item, [field]: numericValue};
+                }
+                // For other fields, use value as-is
+                return {...item, [field]: value};
+            }
+            return item;
+        }));
     }
 
     function toggleItemSelection(itemId) {
@@ -3971,8 +4044,7 @@ export default function ReceiptScan() {
 
                                                                     {/* Category */}
                                                                     <div>
-                                                                        <label
-                                                                            className="block text-sm font-medium text-gray-700 mb-1">
+                                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                             Category
                                                                         </label>
                                                                         <select
@@ -3981,79 +4053,46 @@ export default function ReceiptScan() {
                                                                             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                         >
                                                                             <option value="">Select category</option>
-                                                                            <option
-                                                                                value="Baking & Cooking Ingredients">Baking
-                                                                                & Cooking Ingredients
-                                                                            </option>
+                                                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
                                                                             <option value="Beans">Beans</option>
                                                                             <option value="Beverages">Beverages</option>
+                                                                            <option value="Bouillon">Bouillon</option>
+                                                                            <option value="Boxed Meals">Boxed Meals</option>
                                                                             <option value="Breads">Breads</option>
-                                                                            <option value="Canned Beans">Canned/Jarred
-                                                                                Beans
-                                                                            </option>
-                                                                            <option value="Canned Fruit">Canned/Jarred
-                                                                                Fruit
-                                                                            </option>
-                                                                            <option value="Canned Meals">Canned/Jarred
-                                                                                Meals
-                                                                            </option>
-                                                                            <option value="Canned Meat">Canned/Jarred
-                                                                                Meat
-                                                                            </option>
-                                                                            <option value="Canned Sauces">Canned/Jarred
-                                                                                Sauces
-                                                                            </option>
-                                                                            <option
-                                                                                value="Canned Tomatoes">Canned/Jarred
-                                                                                Tomatoes
-                                                                            </option>
-                                                                            <option
-                                                                                value="Canned Vegetables">Canned/Jarred
-                                                                                Vegetables
-                                                                            </option>
+                                                                            <option value="Canned/Jarred Beans">Canned/Jarred Beans</option>
+                                                                            <option value="Canned/Jarred Fruit">Canned/Jarred Fruit</option>
+                                                                            <option value="Canned/Jarred Meals">Canned/Jarred Meals</option>
+                                                                            <option value="Canned/Jarred Meat">Canned/Jarred Meat</option>
+                                                                            <option value="Canned/Jarred Sauces">Canned/Jarred Sauces</option>
+                                                                            <option value="Canned/Jarred Tomatoes">Canned/Jarred Tomatoes</option>
+                                                                            <option value="Canned/Jarred Vegetables">Canned/Jarred Vegetables</option>
                                                                             <option value="Cheese">Cheese</option>
-                                                                            <option value="Condiments">Condiments
-                                                                            </option>
+                                                                            <option value="Condiments">Condiments</option>
                                                                             <option value="Dairy">Dairy</option>
                                                                             <option value="Eggs">Eggs</option>
-                                                                            <option value="Fresh Fruits">Fresh Fruits
-                                                                            </option>
-                                                                            <option value="Fresh Vegetables">Fresh
-                                                                                Vegetables
-                                                                            </option>
-                                                                            <option
-                                                                                value="Fresh/Frozen Beef">Fresh/Frozen
-                                                                                Beef
-                                                                            </option>
-                                                                            <option
-                                                                                value="Fresh/Frozen Fish & Seafood">Fresh/Frozen
-                                                                                Fish & Seafood
-                                                                            </option>
-                                                                            <option
-                                                                                value="Fresh/Frozen Pork">Fresh/Frozen
-                                                                                Pork
-                                                                            </option>
-                                                                            <option
-                                                                                value="Fresh/Frozen Poultry">Fresh/Frozen
-                                                                                Poultry
-                                                                            </option>
-                                                                            <option value="Frozen Fruit">Frozen Fruit
-                                                                            </option>
-                                                                            <option value="Frozen Meals">Frozen Meals
-                                                                            </option>
-                                                                            <option value="Frozen Vegetables">Frozen
-                                                                                Vegetables
-                                                                            </option>
+                                                                            <option value="Fresh Fruits">Fresh Fruits</option>
+                                                                            <option value="Fresh Spices">Fresh Spices</option>
+                                                                            <option value="Fresh Vegetables">Fresh Vegetables</option>
+                                                                            <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
+                                                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
+                                                                            <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
+                                                                            <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
+                                                                            <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
+                                                                            <option value="Fresh/Frozen Rabbit">Fresh/Frozen Rabbit</option>
+                                                                            <option value="Fresh/Frozen Venison">Fresh/Frozen Venison</option>
+                                                                            <option value="Frozen Fruit">Frozen Fruit</option>
+                                                                            <option value="Frozen Meals">Frozen Meals</option>
+                                                                            <option value="Frozen Other Items">Frozen Other Items</option>
+                                                                            <option value="Frozen Vegetables">Frozen Vegetables</option>
                                                                             <option value="Grains">Grains</option>
                                                                             <option value="Other">Other</option>
                                                                             <option value="Pasta">Pasta</option>
-                                                                            <option value="Seasonings">Seasonings
-                                                                            </option>
+                                                                            <option value="Seasonings">Seasonings</option>
                                                                             <option value="Snacks">Snacks</option>
-                                                                            <option value="Soups & Soup Mixes">Soups &
-                                                                                Soup Mixes
-                                                                            </option>
+                                                                            <option value="Soups & Soup Mixes">Soups & Soup Mixes</option>
                                                                             <option value="Spices">Spices</option>
+                                                                            <option value="Stock/Broth">Stock/Broth</option>
+                                                                            <option value="Stuffing & Sides">Stuffing & Sides</option>
                                                                         </select>
                                                                     </div>
                                                                 </div>
@@ -4063,16 +4102,26 @@ export default function ReceiptScan() {
                                                                     {/* Quantity and Location */}
                                                                     <div className="grid grid-cols-2 gap-3">
                                                                         <div>
-                                                                            <label
-                                                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                                 Quantity
                                                                             </label>
                                                                             <input
                                                                                 type="number"
                                                                                 min="1"
-                                                                                value={item.quantity}
-                                                                                onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
+                                                                                step="1"
+                                                                                value={item.quantity || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newQuantity = parseInt(e.target.value) || 1;
+                                                                                    updateItem(item.id, 'quantity', newQuantity);
+                                                                                    // Auto-update unit price when quantity changes
+                                                                                    updateItem(item.id, 'unitPrice', (item.price || 0) / newQuantity);
+                                                                                }}
+                                                                                onFocus={(e) => {
+                                                                                    // Select all text when focused for easier editing
+                                                                                    e.target.select();
+                                                                                }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                                placeholder="1"
                                                                             />
                                                                         </div>
                                                                         <div>
@@ -4104,25 +4153,49 @@ export default function ReceiptScan() {
                                                                         </div>
                                                                     </div>
 
-                                                                    {/* Price and UPC Display */}
-                                                                    <div className="grid grid-cols-2 gap-3">
+                                                                    {/* Price and UPC Display - FIXED: Make price editable */}
+                                                                    <div className="grid grid-cols-3 gap-3">
                                                                         <div>
-                                                                            <label
-                                                                                className="block text-sm font-medium text-gray-700 mb-1">
-                                                                                Price
+                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Total Price
                                                                             </label>
-                                                                            <div
-                                                                                className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm">
-                                                                                ${item.price ? item.price.toFixed(2) : '0.00'}
-                                                                            </div>
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                value={item.price || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newPrice = parseFloat(e.target.value) || 0;
+                                                                                    updateItem(item.id, 'price', newPrice);
+                                                                                    updateItem(item.id, 'unitPrice', newPrice / (item.quantity || 1));
+                                                                                }}
+                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                                placeholder="0.00"
+                                                                            />
                                                                         </div>
                                                                         <div>
-                                                                            <label
-                                                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Unit Price
+                                                                            </label>
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                value={item.unitPrice || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newUnitPrice = parseFloat(e.target.value) || 0;
+                                                                                    updateItem(item.id, 'unitPrice', newUnitPrice);
+                                                                                    updateItem(item.id, 'price', newUnitPrice * (item.quantity || 1));
+                                                                                }}
+                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                                placeholder="0.00"
+                                                                            />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                                 UPC Code
                                                                             </label>
-                                                                            <div
-                                                                                className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm">
+                                                                            <div className="px-3 py-2 bg-gray-50 border border-gray-300 rounded-md text-sm">
                                                                                 {item.upc || 'Not detected'}
                                                                             </div>
                                                                         </div>
