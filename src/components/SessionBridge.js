@@ -4,6 +4,7 @@
 
 import { useEffect, useState } from 'react';
 import { useSession } from 'next-auth/react';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function SessionBridge() {
     const { data: session, status, update } = useSession();
@@ -56,15 +57,8 @@ export default function SessionBridge() {
 
                         try {
                             // Call our session restoration API
-                            const response = await fetch('/api/auth/restore-session', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    mobileSession: mobileSession
-                                }),
-                                credentials: 'include'
+                            const response = await apiPost('/api/auth/restore-session', {
+                                mobileSession
                             });
 
                             if (response.ok) {

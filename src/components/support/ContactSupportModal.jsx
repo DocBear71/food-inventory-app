@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {apiPost} from '@/lib/api-config.js';
 
 const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
     const [formData, setFormData] = useState({
@@ -72,16 +73,10 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
             }
 
             // Send support request
-            const response = await fetch('/api/support/contact', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+            const response = await apiPost('/api/support/contact', {
                     ...formData,
                     userTier: userSubscription?.tier || 'free',
                     timestamp: new Date().toISOString()
-                }),
             });
 
             const result = await response.json();

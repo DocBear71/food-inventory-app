@@ -790,17 +790,11 @@ function InventoryContent() {
                 source: 'inventory'
             };
 
-            const response = await fetch('/api/shopping/custom', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            const response = await apiPost('/api/shopping/custom', {
                     name: listName,
                     items: [itemToAdd],
                     listType: 'custom',
                     description: `Shopping list created from inventory item: ${item.name}`
-                })
             });
 
             const result = await response.json();
@@ -839,16 +833,10 @@ function InventoryContent() {
                 source: 'inventory'
             };
 
-            const response = await fetch('/api/shopping/custom', {
-                method: 'PUT',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            const response = await apiPut('/api/shopping/custom', {
                     listId: listId,
                     items: [itemToAdd],
                     mode: 'add'
-                })
             });
 
             const result = await response.json();
@@ -2656,10 +2644,8 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
             }
 
             // Online - normal submission
-            const response = await fetch(`/api/inventory/${item._id}/prices`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
+            const response = await apiPost(`/api/inventory/${item._id}/prices`, {
+                formData
             });
 
             const data = await response.json();

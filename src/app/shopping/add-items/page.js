@@ -7,6 +7,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { formatInventoryDisplayText } from '@/lib/inventoryDisplayUtils';
+import {apiPost, apiPut} from "@/lib/api-config.js";
 
 export default function AddItemsPage() {
     const [activeTab, setActiveTab] = useState('inventory');
@@ -335,15 +336,11 @@ export default function AddItemsPage() {
 
             if (listChoice === 'new') {
                 // Create new list
-                const response = await fetch('/api/shopping/custom', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                const response = await apiPost('/api/shopping/custom', {
                         name: newListName.trim(),
                         items: itemsToAdd,
                         listType: 'custom',
                         description: `Shopping list with ${itemsToAdd.length} items`
-                    })
                 });
 
                 const result = await response.json();
@@ -352,14 +349,11 @@ export default function AddItemsPage() {
                 alert(`✅ Created new shopping list: "${newListName}" with ${itemsToAdd.length} items!`);
             } else {
                 // Add to existing list
-                const response = await fetch('/api/shopping/custom', {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
+                const response = await apiPut('/api/shopping/custom', {
+
                         listId: selectedExistingList,
                         items: itemsToAdd,
                         mode: 'add'
-                    })
                 });
 
                 const result = await response.json();

@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import {apiDelete, apiPost, apiPut} from "@/lib/api-config.js";
 
 export default function StoresPage() {
     const { data: session, status } = useSafeSession();
@@ -60,10 +61,8 @@ export default function StoresPage() {
         e.preventDefault();
 
         try {
-            const response = await fetch('/api/stores', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(newStore)
+            const response = await apiPost('/api/stores', {
+                newStore
             });
 
             const data = await response.json();
@@ -89,10 +88,9 @@ export default function StoresPage() {
 
     const handleUpdateStore = async (storeId, updates) => {
         try {
-            const response = await fetch('/api/stores', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ storeId, ...updates })
+            const response = await apiPut('/api/stores', {
+                storeId,
+                ...updates
             });
 
             const data = await response.json();
@@ -116,8 +114,7 @@ export default function StoresPage() {
         }
 
         try {
-            const response = await fetch(`/api/stores?storeId=${storeId}`, {
-                method: 'DELETE'
+            const response = await apiDelete(`/api/stores?storeId=${storeId}`, {
             });
 
             const data = await response.json();

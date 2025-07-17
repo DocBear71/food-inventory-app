@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function AdminUsersPage() {
     const { data: session, status } = useSession();
@@ -122,14 +123,10 @@ export default function AdminUsersPage() {
         try {
             if (!selectedUserForUpgrade) return;
 
-            const response = await fetch(`/api/admin/users/${selectedUserForUpgrade._id}/upgrade`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const response = await apiPost(`/api/admin/users/${selectedUserForUpgrade._id}/upgrade`, {
                     tier: individualUpgradeData.tier,
                     endDate: individualUpgradeData.endDate,
                     reason: individualUpgradeData.reason
-                })
             });
 
             if (!response.ok) {

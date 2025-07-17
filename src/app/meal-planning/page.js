@@ -1,11 +1,11 @@
 'use client';
-
-// file: /src/app/meal-planning/page.js v2 - Added subscription gate for Gold+ users
+// file: /src/app/meal-planning/page.js v3 - Updated existing page with enhanced features promotion
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect } from 'react';
 import { redirect } from 'next/navigation';
 import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar';
+import MealPlanningUpgradeBanner from '@/components/meal-planning/MealPlanningUpgradeBanner';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
@@ -228,7 +228,36 @@ export default function MealPlanningPage() {
                         </div>
                     }
                 >
-                    <MealPlanningCalendar />
+                    {/* Enhanced Content for Gold/Platinum Subscribers */}
+                    <div className="px-4">
+                        {/* Header */}
+                        <div className="py-6 border-b border-gray-200">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center space-x-3">
+                                    <h1 className="text-2xl font-bold text-gray-900">📅 Meal Planning</h1>
+                                    <SubscriptionIndicator />
+                                </div>
+                            </div>
+                            <p className="text-gray-600">
+                                Plan your meals in advance with our powerful meal planning tools
+                            </p>
+                        </div>
+
+                        {/* Smart Planning Upgrade Banner */}
+                        {subscription?.data?.tier === 'gold' || subscription?.data?.tier === 'platinum' ? (
+                            <div className="py-6">
+                                <MealPlanningUpgradeBanner
+                                    variant="compact"
+                                    showOnce={true}
+                                />
+                            </div>
+                        ) : null}
+
+                        {/* Main Meal Planning Calendar */}
+                        <div className="py-6">
+                            <MealPlanningCalendar />
+                        </div>
+                    </div>
                 </FeatureGate>
             </div>
         </MobileOptimizedLayout>

@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/shopping/UnifiedShoppingListModal.js v3 - Enhanced with Store Layout Templates
+// file: /src/components/shopping/AIEnhancedShoppingListModal.js - AI-Powered Shopping Experience
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -7,18 +7,19 @@ import EmailSharingModal from '@/components/sharing/EmailSharingModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {StoreLayoutUtils} from '@/lib/storeLayouts';
+import {getAIOptimizedRoute, provideLearningFeedback, createAIShoppingSystem} from '@/lib/aiShoppingOptimizer';
 
-export default function UnifiedShoppingListModal({
-                                                     isOpen,
-                                                     onClose,
-                                                     shoppingList,
-                                                     title = '🛒 Shopping List',
-                                                     subtitle = null,
-                                                     sourceRecipeIds = [],
-                                                     sourceMealPlanId = null,
-                                                     onRefresh = null,
-                                                     showRefresh = false
-                                                 }) {
+export default function AIEnhancedShoppingListModal({
+                                                        isOpen,
+                                                        onClose,
+                                                        shoppingList,
+                                                        title = '🛒 AI Shopping Assistant',
+                                                        subtitle = null,
+                                                        sourceRecipeIds = [],
+                                                        sourceMealPlanId = null,
+                                                        onRefresh = null,
+                                                        showRefresh = false
+                                                    }) {
     const {data: session} = useSafeSession();
     const [filter, setFilter] = useState('all');
     const [purchasedItems, setPurchasedItems] = useState({});
@@ -26,22 +27,28 @@ export default function UnifiedShoppingListModal({
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
-    // 🆕 PHASE 1: Drag & Drop State
-    const [draggedItem, setDraggedItem] = useState(null);
-    const [draggedCategory, setDraggedCategory] = useState(null);
-    const [dragOverCategory, setDragOverCategory] = useState(null);
-    const [dragOverIndex, setDragOverIndex] = useState(null);
-    const [customOrder, setCustomOrder] = useState({});
-    const [reorderMode, setReorderMode] = useState(false);
+    // AI Enhancement State
+    const [aiMode, setAiMode] = useState('basic'); // 'basic', 'ai-optimized', 'learning'
+    const [aiOptimization, setAiOptimization] = useState(null);
+    const [aiLoading, setAiLoading] = useState(false);
+    const [aiInsights, setAiInsights] = useState(null);
+    const [smartSuggestions, setSmartSuggestions] = useState(null);
+    const [showAiPanel, setShowAiPanel] = useState(false);
+    const [learningProgress, setLearningProgress] = useState(null);
 
-    // 🆕 PHASE 2: Store Layout State
+    // Store Layout State (from Phase 2)
     const [selectedStore, setSelectedStore] = useState('');
-    const [storeLayoutMode, setStoreLayoutMode] = useState(false);
-    const [currentStoreLayout, setCurrentStoreLayout] = useState(null);
-    const [shoppingRoute, setShoppingRoute] = useState(null);
     const [stores, setStores] = useState([]);
     const [showStoreSelector, setShowStoreSelector] = useState(false);
-    const [routeMode, setRouteMode] = useState(false);
+
+    // Shopping Progress Tracking
+    const [shoppingProgress, setShoppingProgress] = useState({
+        startTime: null,
+        completedSections: [],
+        currentSection: 0,
+        timePerSection: {},
+        routeDeviations: []
+    });
 
     // Reset state when modal opens/closes
     useEffect(() => {
@@ -51,65 +58,25 @@ export default function UnifiedShoppingListModal({
             setShowEmailModal(false);
             setShowSaveModal(false);
             setShowActions(false);
-            setReorderMode(false);
-            setStoreLayoutMode(false);
-            setRouteMode(false);
-            setDraggedItem(null);
-            setDraggedCategory(null);
-            setDragOverCategory(null);
-            setDragOverIndex(null);
+            setAiMode('basic');
+            setAiOptimization(null);
+            setShowAiPanel(false);
         } else {
-            // Load saved preferences when modal opens
-            loadCustomOrder();
-            loadStorePreference();
+            loadPreferences();
             fetchStores();
+            initializeAISystem();
         }
     }, [isOpen]);
 
-    // 🆕 PHASE 1: Load/Save Custom Order Functions (from previous implementation)
-    const loadCustomOrder = () => {
+    const loadPreferences = () => {
         try {
-            const saved = localStorage.getItem('shopping-list-custom-order');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setCustomOrder(parsed);
-                console.log('📋 Loaded custom shopping order:', parsed);
-            }
-        } catch (error) {
-            console.error('Error loading custom order:', error);
-        }
-    };
+            const savedStore = localStorage.getItem('preferred-shopping-store');
+            const savedAiMode = localStorage.getItem('ai-shopping-mode');
 
-    const saveCustomOrder = (newOrder) => {
-        try {
-            localStorage.setItem('shopping-list-custom-order', JSON.stringify(newOrder));
-            setCustomOrder(newOrder);
-            console.log('💾 Saved custom shopping order:', newOrder);
+            if (savedStore) setSelectedStore(savedStore);
+            if (savedAiMode) setAiMode(savedAiMode);
         } catch (error) {
-            console.error('Error saving custom order:', error);
-        }
-    };
-
-    // 🆕 PHASE 2: Store Layout Functions
-    const loadStorePreference = () => {
-        try {
-            const saved = localStorage.getItem('preferred-shopping-store');
-            if (saved && session?.user?.id) {
-                setSelectedStore(saved);
-                console.log('🏪 Loaded preferred store:', saved);
-            }
-        } catch (error) {
-            console.error('Error loading store preference:', error);
-        }
-    };
-
-    const saveStorePreference = (storeName) => {
-        try {
-            localStorage.setItem('preferred-shopping-store', storeName);
-            setSelectedStore(storeName);
-            console.log('💾 Saved preferred store:', storeName);
-        } catch (error) {
-            console.error('Error saving store preference:', error);
+            console.error('Error loading preferences:', error);
         }
     };
 
@@ -125,158 +92,129 @@ export default function UnifiedShoppingListModal({
         }
     };
 
-    const applyStoreLayout = () => {
-        if (!selectedStore || !normalizedList.items) return;
+    const initializeAISystem = async () => {
+        if (!session?.user?.id) return;
 
-        // Find store details
-        const storeDetails = stores.find(store => store.name === selectedStore);
-        const storeChain = storeDetails?.chain || '';
+        try {
+            const aiSystem = createAIShoppingSystem(session.user.id);
+            const learningStatus = aiSystem.getLearningStatus();
+            setLearningProgress(learningStatus);
 
-        console.log(`🏪 Applying store layout for: ${selectedStore} (${storeChain})`);
-
-        // Apply store layout
-        const layoutResult = StoreLayoutUtils.applyStoreLayout(
-            normalizedList.items,
-            selectedStore,
-            storeChain
-        );
-
-        setCurrentStoreLayout(layoutResult);
-
-        // Generate shopping route
-        const route = StoreLayoutUtils.generateShoppingRoute(
-            normalizedList.items,
-            selectedStore,
-            storeChain
-        );
-
-        setShoppingRoute(route);
-        console.log('🗺️ Generated shopping route:', route);
-    };
-
-    const toggleStoreLayoutMode = () => {
-        if (!storeLayoutMode && selectedStore) {
-            applyStoreLayout();
-        }
-        setStoreLayoutMode(!storeLayoutMode);
-    };
-
-    const handleStoreSelection = (storeName) => {
-        saveStorePreference(storeName);
-        setShowStoreSelector(false);
-
-        // Auto-apply layout if in layout mode
-        if (storeLayoutMode) {
-            setTimeout(applyStoreLayout, 100);
+            console.log('🤖 AI Shopping System initialized:', learningStatus);
+        } catch (error) {
+            console.error('Error initializing AI system:', error);
         }
     };
 
-    // 🆕 PHASE 1: Apply Custom Ordering (from previous implementation)
-    const applyCustomOrdering = (items, category) => {
-        const categoryOrder = customOrder[category];
-        if (!categoryOrder) return items;
-
-        const orderedItems = [];
-        const unorderedItems = [...items];
-
-        // First, add items in custom order
-        categoryOrder.forEach(itemName => {
-            const index = unorderedItems.findIndex(item =>
-                (item.ingredient || item.name) === itemName
-            );
-            if (index !== -1) {
-                orderedItems.push(unorderedItems.splice(index, 1)[0]);
-            }
-        });
-
-        // Then add any remaining items
-        orderedItems.push(...unorderedItems);
-
-        return orderedItems;
-    };
-
-    // 🆕 PHASE 1: Drag and Drop Handlers (from previous implementation)
-    const handleDragStart = (e, item, category, index) => {
-        if (!reorderMode) return;
-
-        setDraggedItem({
-            item,
-            category,
-            index,
-            name: item.ingredient || item.name
-        });
-        setDraggedCategory(category);
-
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/html', e.target.outerHTML);
-
-        setTimeout(() => {
-            e.target.style.opacity = '0.5';
-        }, 0);
-    };
-
-    const handleDragEnd = (e) => {
-        e.target.style.opacity = '1';
-        setDraggedItem(null);
-        setDraggedCategory(null);
-        setDragOverCategory(null);
-        setDragOverIndex(null);
-    };
-
-    const handleDragOver = (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    };
-
-    const handleDragEnter = (e, category, index) => {
-        e.preventDefault();
-        if (category === draggedCategory) {
-            setDragOverCategory(category);
-            setDragOverIndex(index);
-        }
-    };
-
-    const handleDrop = (e, targetCategory, targetIndex) => {
-        e.preventDefault();
-
-        if (!draggedItem || !reorderMode) return;
-
-        if (draggedItem.category !== targetCategory) {
-            console.log('Cross-category dragging not supported yet');
+    const handleAIOptimization = async () => {
+        if (!selectedStore || !session?.user?.id) {
+            alert('Please select a store first');
             return;
         }
 
-        const categoryItems = getFilteredItems(getItemsForDisplay()[targetCategory] || []);
-        const newOrder = categoryItems.map(item => item.ingredient || item.name);
-        const draggedItemName = draggedItem.name;
-        const currentIndex = newOrder.indexOf(draggedItemName);
+        setAiLoading(true);
+        setAiMode('ai-optimized');
 
-        if (currentIndex !== -1) {
-            newOrder.splice(currentIndex, 1);
+        try {
+            console.log('🚀 Starting AI optimization...');
+
+            const optimization = await getAIOptimizedRoute(
+                normalizedList.items,
+                selectedStore,
+                session.user.id,
+                {
+                    prioritizeSpeed: true,
+                    avoidCrowds: true,
+                    foodSafetyFirst: true
+                }
+            );
+
+            setAiOptimization(optimization);
+            setAiInsights(optimization.aiInsights);
+            setSmartSuggestions(optimization.smartSuggestions);
+            setShowAiPanel(true);
+
+            // Save AI mode preference
+            localStorage.setItem('ai-shopping-mode', 'ai-optimized');
+
+            console.log('✅ AI optimization complete:', optimization);
+
+        } catch (error) {
+            console.error('AI optimization error:', error);
+            alert('AI optimization failed. Using basic layout.');
+            setAiMode('basic');
+        } finally {
+            setAiLoading(false);
         }
+    };
 
-        newOrder.splice(targetIndex, 0, draggedItemName);
+    const startShoppingSession = () => {
+        setShoppingProgress({
+            startTime: new Date(),
+            completedSections: [],
+            currentSection: 0,
+            timePerSection: {},
+            routeDeviations: []
+        });
 
-        const updatedOrder = {
-            ...customOrder,
-            [targetCategory]: newOrder
+        setAiMode('learning');
+        console.log('📊 Started shopping session with AI learning');
+    };
+
+    const completeSection = (sectionIndex, sectionName) => {
+        const now = new Date();
+        const timeSpent = shoppingProgress.startTime ?
+            (now - shoppingProgress.startTime) / 1000 / 60 : 0; // minutes
+
+        setShoppingProgress(prev => ({
+            ...prev,
+            completedSections: [...prev.completedSections, sectionIndex],
+            currentSection: sectionIndex + 1,
+            timePerSection: {
+                ...prev.timePerSection,
+                [sectionName]: timeSpent
+            }
+        }));
+
+        console.log(`✅ Section completed: ${sectionName} (${timeSpent.toFixed(1)}min)`);
+    };
+
+    const finishShoppingSession = async () => {
+        if (!shoppingProgress.startTime) return;
+
+        const totalTime = (new Date() - shoppingProgress.startTime) / 1000 / 60; // minutes
+        const completionRate = shoppingProgress.completedSections.length / (aiOptimization?.optimizedRoute?.length || 1);
+
+        // Gather user feedback
+        const satisfaction = window.confirm('Was this shopping experience helpful?') ? 5 : 3;
+
+        const feedback = {
+            store: selectedStore,
+            items: Object.values(normalizedList.items).flat(),
+            route: aiOptimization?.optimizedRoute || [],
+            timeSpent: totalTime,
+            actualOrder: shoppingProgress.completedSections,
+            userSatisfaction: satisfaction,
+            completionTime: new Date().toISOString(),
+            completionRate
         };
 
-        saveCustomOrder(updatedOrder);
-        console.log(`🔄 Reordered ${draggedItemName} in ${targetCategory}:`, newOrder);
-    };
+        try {
+            await provideLearningFeedback(session.user.id, feedback);
+            console.log('📊 Learning feedback provided successfully');
 
-    const resetCustomOrder = () => {
-        if (confirm('Reset custom order to default? This cannot be undone.')) {
-            localStorage.removeItem('shopping-list-custom-order');
-            setCustomOrder({});
-            console.log('🔄 Reset custom order to default');
+            // Update learning progress
+            const aiSystem = createAIShoppingSystem(session.user.id);
+            const updatedStatus = aiSystem.getLearningStatus();
+            setLearningProgress(updatedStatus);
+
+        } catch (error) {
+            console.error('Error providing learning feedback:', error);
         }
-    };
 
-    if (!isOpen || !shoppingList) {
-        return null;
-    }
+        setAiMode('ai-optimized');
+        alert(`Shopping session complete! Total time: ${totalTime.toFixed(1)} minutes`);
+    };
 
     // Normalize shopping list structure
     const normalizeShoppingList = (list) => {
@@ -365,33 +303,46 @@ export default function UnifiedShoppingListModal({
         }
     };
 
-    // 🆕 NEW: Get items for display (store layout or custom order)
+    // Get items for display based on mode
     const getItemsForDisplay = () => {
-        if (storeLayoutMode && currentStoreLayout) {
-            return currentStoreLayout.items;
+        if (aiMode === 'ai-optimized' && aiOptimization) {
+            return aiOptimization.optimizedRoute;
         }
         return normalizedList.items;
     };
 
     // Group items by category for display
     const getGroupedItems = () => {
-        const itemsToShow = getItemsForDisplay();
-        if (!itemsToShow) return {};
+        if (aiMode === 'ai-optimized' && aiOptimization) {
+            // Use AI-optimized route
+            return aiOptimization.optimizedRoute.reduce((grouped, section) => {
+                const sectionItems = [];
+                section.categories.forEach(category => {
+                    if (normalizedList.items[category]) {
+                        const filtered = getFilteredItems(normalizedList.items[category]);
+                        sectionItems.push(...filtered);
+                    }
+                });
 
-        const grouped = {};
-        Object.entries(itemsToShow).forEach(([category, items]) => {
-            const filtered = getFilteredItems(items);
-            if (filtered.length > 0) {
-                // Apply custom ordering if not in store layout mode
-                const ordered = storeLayoutMode ? filtered : applyCustomOrdering(filtered, category);
-                grouped[category] = ordered;
-            }
-        });
-
-        return grouped;
+                if (sectionItems.length > 0) {
+                    grouped[section.name] = sectionItems;
+                }
+                return grouped;
+            }, {});
+        } else {
+            // Use standard layout
+            const grouped = {};
+            Object.entries(normalizedList.items).forEach(([category, items]) => {
+                const filtered = getFilteredItems(items);
+                if (filtered.length > 0) {
+                    grouped[category] = filtered;
+                }
+            });
+            return grouped;
+        }
     };
 
-    // Calculate statistics including purchased count
+    // Calculate statistics
     const getStats = () => {
         if (!normalizedList.items) {
             return {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0};
@@ -408,48 +359,18 @@ export default function UnifiedShoppingListModal({
         };
     };
 
-    // [Existing handleAdvancedPrint function remains the same]
-    const handleAdvancedPrint = () => {
-        // ... existing implementation ...
+    const handleStoreSelection = (storeName) => {
+        setSelectedStore(storeName);
+        localStorage.setItem('preferred-shopping-store', storeName);
+        setShowStoreSelector(false);
     };
 
-    // Determine list context for saving
-    const getListContext = () => {
-        if (sourceRecipeIds && sourceRecipeIds.length === 1) {
-            return {
-                listType: 'recipe',
-                contextName: normalizedList.recipes?.[0] || title,
-                sourceRecipeIds: sourceRecipeIds
-            };
-        } else if (sourceRecipeIds && sourceRecipeIds.length > 1) {
-            return {
-                listType: 'recipes',
-                contextName: `${sourceRecipeIds.length} Recipes`,
-                sourceRecipeIds: sourceRecipeIds
-            };
-        } else if (sourceMealPlanId) {
-            return {
-                listType: 'meal-plan',
-                contextName: normalizedList.recipes?.[0] || title,
-                sourceMealPlanId: sourceMealPlanId
-            };
-        } else {
-            return {
-                listType: 'custom',
-                contextName: title,
-                sourceRecipeIds: [],
-                sourceMealPlanId: null
-            };
-        }
-    };
+    if (!isOpen || !shoppingList) {
+        return null;
+    }
 
-    const listContext = getListContext();
     const stats = getStats();
     const groupedItems = getGroupedItems();
-
-    const handleSaveSuccess = (savedList) => {
-        console.log('Shopping list saved successfully:', savedList);
-    };
 
     return (
         <>
@@ -477,14 +398,14 @@ export default function UnifiedShoppingListModal({
                     flexDirection: 'column',
                     paddingBottom: 'max(env(safe-area-inset-bottom, 48px), 48px)'
                 }}>
-                    {/* Compact Header with Close Button */}
+                    {/* Enhanced Header with AI Indicators */}
                     <div style={{
                         padding: '0.75rem 1rem',
                         borderBottom: '1px solid #e5e7eb',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        backgroundColor: '#f8fafc',
+                        backgroundColor: aiMode === 'ai-optimized' ? '#f0f9ff' : '#f8fafc',
                         flexShrink: 0
                     }}>
                         <div style={{flex: 1, minWidth: 0}}>
@@ -498,35 +419,25 @@ export default function UnifiedShoppingListModal({
                                 whiteSpace: 'nowrap'
                             }}>
                                 {title}
-                                {/* Mode Indicators */}
-                                {reorderMode && (
+                                {/* AI Mode Indicators */}
+                                {aiMode === 'ai-optimized' && (
                                     <span style={{
                                         marginLeft: '0.5rem',
                                         fontSize: '0.8rem',
-                                        color: '#3b82f6',
+                                        color: '#0369a1',
                                         fontWeight: '500'
                                     }}>
-                                        📋 Reorder Mode
+                                        🤖 AI Optimized
                                     </span>
                                 )}
-                                {storeLayoutMode && selectedStore && (
+                                {aiMode === 'learning' && (
                                     <span style={{
                                         marginLeft: '0.5rem',
                                         fontSize: '0.8rem',
-                                        color: '#059669',
+                                        color: '#7c3aed',
                                         fontWeight: '500'
                                     }}>
-                                        🏪 {currentStoreLayout?.layout?.name || selectedStore}
-                                    </span>
-                                )}
-                                {routeMode && shoppingRoute && (
-                                    <span style={{
-                                        marginLeft: '0.5rem',
-                                        fontSize: '0.8rem',
-                                        color: '#dc2626',
-                                        fontWeight: '500'
-                                    }}>
-                                        🗺️ Route Mode
+                                        📊 Learning Mode
                                     </span>
                                 )}
                             </h2>
@@ -556,14 +467,155 @@ export default function UnifiedShoppingListModal({
                                 flexShrink: 0,
                                 borderRadius: '0.375rem'
                             }}
-                            className="hover:bg-gray-200 transition-colors"
                             title="Close"
                         >
                             ×
                         </TouchEnhancedButton>
                     </div>
 
-                    {/* Compact Statistics */}
+                    {/* AI Insights Panel */}
+                    {(aiInsights || learningProgress) && (
+                        <div style={{
+                            padding: '0.75rem 1rem',
+                            backgroundColor: '#f0f9ff',
+                            borderBottom: '1px solid #0284c7',
+                            flexShrink: 0
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                fontSize: '0.75rem',
+                                color: '#0c4a6e'
+                            }}>
+                                <span>🤖</span>
+                                {aiInsights && (
+                                    <span style={{fontWeight: '500'}}>
+                                        AI Confidence: {(aiInsights.confidenceScore * 100).toFixed(0)}% •
+                                        Est. Time Savings: {aiInsights.estimatedTimeSavings}min
+                                    </span>
+                                )}
+                                {learningProgress && (
+                                    <span style={{fontWeight: '500'}}>
+                                        Learning Level: {learningProgress.learningLevel} •
+                                        {learningProgress.nextMilestone}
+                                    </span>
+                                )}
+                                <TouchEnhancedButton
+                                    onClick={() => setShowAiPanel(!showAiPanel)}
+                                    style={{
+                                        marginLeft: 'auto',
+                                        backgroundColor: '#0284c7',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.25rem 0.5rem',
+                                        fontSize: '0.7rem',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    {showAiPanel ? '🔽 Hide' : '🔼 Details'}
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Expandable AI Panel */}
+                    {showAiPanel && aiOptimization && (
+                        <div style={{
+                            padding: '1rem',
+                            backgroundColor: '#fafbff',
+                            borderBottom: '1px solid #e0e7ff',
+                            flexShrink: 0,
+                            maxHeight: '200px',
+                            overflow: 'auto'
+                        }}>
+                            {/* AI Recommendations */}
+                            {smartSuggestions && (
+                                <div style={{marginBottom: '1rem'}}>
+                                    <h4 style={{
+                                        margin: '0 0 0.5rem 0',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '600',
+                                        color: '#1e40af'
+                                    }}>
+                                        🎯 Smart Suggestions
+                                    </h4>
+                                    <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+                                        gap: '0.5rem'
+                                    }}>
+                                        {smartSuggestions.itemSuggestions?.slice(0, 2).map((suggestion, index) => (
+                                            <div key={index} style={{
+                                                padding: '0.5rem',
+                                                backgroundColor: '#dbeafe',
+                                                borderRadius: '6px',
+                                                fontSize: '0.75rem'
+                                            }}>
+                                                <div style={{fontWeight: '500', color: '#1e40af'}}>
+                                                    {suggestion.type === 'missing-staple' && '📝 Missing Item'}
+                                                    {suggestion.type === 'organic-alternative' && '🌱 Organic Option'}
+                                                    {suggestion.type === 'bulk-opportunity' && '📦 Bulk Buy'}
+                                                </div>
+                                                <div style={{color: '#1e3a8a', marginTop: '0.25rem'}}>
+                                                    {suggestion.message}
+                                                </div>
+                                            </div>
+                                        ))}
+
+                                        {smartSuggestions.timingAdvice?.slice(0, 1).map((suggestion, index) => (
+                                            <div key={`timing-${index}`} style={{
+                                                padding: '0.5rem',
+                                                backgroundColor: '#fef3c7',
+                                                borderRadius: '6px',
+                                                fontSize: '0.75rem'
+                                            }}>
+                                                <div style={{fontWeight: '500', color: '#d97706'}}>
+                                                    ⏰ Timing Tip
+                                                </div>
+                                                <div style={{color: '#92400e', marginTop: '0.25rem'}}>
+                                                    {suggestion.message}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Traffic Info */}
+                            {aiOptimization.trafficInfo && (
+                                <div>
+                                    <h4 style={{
+                                        margin: '0 0 0.5rem 0',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '600',
+                                        color: '#1e40af'
+                                    }}>
+                                        🚦 Store Traffic
+                                    </h4>
+                                    <div style={{
+                                        padding: '0.5rem',
+                                        backgroundColor: aiOptimization.trafficInfo.overallTraffic > 0.7 ? '#fee2e2' : '#f0fdf4',
+                                        borderRadius: '6px',
+                                        fontSize: '0.75rem'
+                                    }}>
+                                        <div style={{fontWeight: '500'}}>
+                                            Current Level: {(aiOptimization.trafficInfo.overallTraffic * 100).toFixed(0)}%
+                                            {aiOptimization.trafficInfo.overallTraffic > 0.7 ? ' (Busy)' : ' (Good)'}
+                                        </div>
+                                        {aiOptimization.trafficInfo.recommendations?.[0] && (
+                                            <div style={{marginTop: '0.25rem', color: '#6b7280'}}>
+                                                {aiOptimization.trafficInfo.recommendations[0].message}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* Statistics with AI Enhancements */}
                     <div style={{
                         padding: '0.75rem 1rem',
                         borderBottom: '1px solid #f3f4f6',
@@ -572,7 +624,7 @@ export default function UnifiedShoppingListModal({
                     }}>
                         <div style={{
                             display: 'grid',
-                            gridTemplateColumns: 'repeat(4, 1fr)',
+                            gridTemplateColumns: aiMode === 'ai-optimized' ? 'repeat(5, 1fr)' : 'repeat(4, 1fr)',
                             gap: '0.5rem'
                         }}>
                             <div style={{
@@ -631,53 +683,28 @@ export default function UnifiedShoppingListModal({
                                     Bought
                                 </div>
                             </div>
-                        </div>
 
-                        {/* 🆕 NEW: Shopping Route Stats */}
-                        {routeMode && shoppingRoute && (
-                            <div style={{
-                                marginTop: '0.5rem',
-                                padding: '0.5rem',
-                                backgroundColor: '#ecfccb',
-                                borderRadius: '6px',
-                                border: '1px solid #bef264'
-                            }}>
+                            {/* AI Optimization Score */}
+                            {aiMode === 'ai-optimized' && aiInsights && (
                                 <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(3, 1fr)',
-                                    gap: '0.5rem',
-                                    textAlign: 'center'
+                                    backgroundColor: 'white',
+                                    padding: '0.5rem',
+                                    borderRadius: '6px',
+                                    textAlign: 'center',
+                                    border: '1px solid #bfdbfe'
                                 }}>
-                                    <div>
-                                        <div style={{fontSize: '0.875rem', fontWeight: 'bold', color: '#365314'}}>
-                                            {shoppingRoute.totalTime} min
-                                        </div>
-                                        <div style={{fontSize: '0.625rem', color: '#4d7c0f'}}>
-                                            Est. Time
-                                        </div>
+                                    <div style={{fontSize: '1rem', fontWeight: 'bold', color: '#0369a1'}}>
+                                        {(aiInsights.confidenceScore * 100).toFixed(0)}%
                                     </div>
-                                    <div>
-                                        <div style={{fontSize: '0.875rem', fontWeight: 'bold', color: '#365314'}}>
-                                            {shoppingRoute.totalSections}
-                                        </div>
-                                        <div style={{fontSize: '0.625rem', color: '#4d7c0f'}}>
-                                            Sections
-                                        </div>
-                                    </div>
-                                    <div>
-                                        <div style={{fontSize: '0.875rem', fontWeight: 'bold', color: '#365314'}}>
-                                            {shoppingRoute.storeName}
-                                        </div>
-                                        <div style={{fontSize: '0.625rem', color: '#4d7c0f'}}>
-                                            Layout
-                                        </div>
+                                    <div style={{fontSize: '0.625rem', color: '#0284c7'}}>
+                                        AI Score
                                     </div>
                                 </div>
-                            </div>
-                        )}
+                            )}
+                        </div>
                     </div>
 
-                    {/* Enhanced Controls with Store Layout */}
+                    {/* Enhanced Controls with AI Features */}
                     <div style={{
                         padding: '0.75rem 1rem',
                         borderBottom: '1px solid #f3f4f6',
@@ -692,16 +719,14 @@ export default function UnifiedShoppingListModal({
                         <select
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            disabled={reorderMode || routeMode}
                             style={{
                                 padding: '0.375rem 0.5rem',
                                 border: '1px solid #d1d5db',
                                 borderRadius: '4px',
                                 fontSize: '0.75rem',
-                                backgroundColor: (reorderMode || routeMode) ? '#f3f4f6' : 'white',
+                                backgroundColor: 'white',
                                 flex: '1',
-                                minWidth: '80px',
-                                opacity: (reorderMode || routeMode) ? 0.6 : 1
+                                minWidth: '80px'
                             }}
                         >
                             <option value="all">All ({stats.totalItems})</option>
@@ -710,70 +735,63 @@ export default function UnifiedShoppingListModal({
                             <option value="purchased">Bought ({stats.purchased})</option>
                         </select>
 
-                        {/* 🆕 NEW: Store Layout Toggle */}
+                        {/* Store Selection */}
                         <TouchEnhancedButton
-                            onClick={() => selectedStore ? toggleStoreLayoutMode() : setShowStoreSelector(true)}
-                            disabled={reorderMode || routeMode}
+                            onClick={() => setShowStoreSelector(true)}
                             style={{
-                                backgroundColor: storeLayoutMode ? '#059669' : '#6b7280',
+                                backgroundColor: selectedStore ? '#059669' : '#6b7280',
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (reorderMode || routeMode) ? 'not-allowed' : 'pointer',
-                                fontWeight: '500',
-                                opacity: (reorderMode || routeMode) ? 0.6 : 1
+                                cursor: 'pointer',
+                                fontWeight: '500'
                             }}
-                            title={selectedStore ? `Toggle ${selectedStore} layout` : 'Select store for layout'}
                         >
-                            {storeLayoutMode ? '🏪 Layout On' : '🏪 Store'}
+                            🏪 {selectedStore || 'Store'}
                         </TouchEnhancedButton>
 
-                        {/* 🆕 NEW: Route Mode Toggle */}
-                        {storeLayoutMode && shoppingRoute && (
+                        {/* AI Optimization Button */}
+                        <TouchEnhancedButton
+                            onClick={handleAIOptimization}
+                            disabled={!selectedStore || aiLoading}
+                            style={{
+                                backgroundColor: aiMode === 'ai-optimized' ? '#0284c7' : '#7c3aed',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.375rem 0.5rem',
+                                fontSize: '0.75rem',
+                                cursor: !selectedStore || aiLoading ? 'not-allowed' : 'pointer',
+                                fontWeight: '500',
+                                opacity: !selectedStore || aiLoading ? 0.6 : 1
+                            }}
+                        >
+                            {aiLoading ? '⏳ AI...' : aiMode === 'ai-optimized' ? '🤖 AI On' : '🤖 AI'}
+                        </TouchEnhancedButton>
+
+                        {/* Learning Mode Toggle */}
+                        {aiMode === 'ai-optimized' && (
                             <TouchEnhancedButton
-                                onClick={() => setRouteMode(!routeMode)}
-                                disabled={reorderMode}
+                                onClick={aiMode === 'learning' ? finishShoppingSession : startShoppingSession}
                                 style={{
-                                    backgroundColor: routeMode ? '#dc2626' : '#7c3aed',
+                                    backgroundColor: aiMode === 'learning' ? '#dc2626' : '#7c3aed',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '4px',
                                     padding: '0.375rem 0.5rem',
                                     fontSize: '0.75rem',
-                                    cursor: reorderMode ? 'not-allowed' : 'pointer',
-                                    fontWeight: '500',
-                                    opacity: reorderMode ? 0.6 : 1
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
                                 }}
-                                title={routeMode ? 'Exit route mode' : 'Show shopping route'}
                             >
-                                {routeMode ? '✓ Route' : '🗺️ Route'}
+                                {aiMode === 'learning' ? '✓ Finish' : '📊 Learn'}
                             </TouchEnhancedButton>
                         )}
 
-                        {/* 🆕 PHASE 1: Reorder Mode Toggle */}
-                        <TouchEnhancedButton
-                            onClick={() => setReorderMode(!reorderMode)}
-                            disabled={storeLayoutMode || routeMode}
-                            style={{
-                                backgroundColor: reorderMode ? '#ef4444' : '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.375rem 0.5rem',
-                                fontSize: '0.75rem',
-                                cursor: (storeLayoutMode || routeMode) ? 'not-allowed' : 'pointer',
-                                fontWeight: '500',
-                                opacity: (storeLayoutMode || routeMode) ? 0.6 : 1
-                            }}
-                            title={reorderMode ? 'Exit reorder mode' : 'Enter reorder mode'}
-                        >
-                            {reorderMode ? '✓ Done' : '📋 Reorder'}
-                        </TouchEnhancedButton>
-
-                        {/* Quick Actions - Disabled in special modes */}
-                        {!reorderMode && !routeMode && (
+                        {/* Quick Actions */}
+                        {aiMode !== 'learning' && (
                             <>
                                 <TouchEnhancedButton
                                     onClick={markAllAsPurchased}
@@ -811,7 +829,6 @@ export default function UnifiedShoppingListModal({
                         {/* More Actions Toggle */}
                         <TouchEnhancedButton
                             onClick={() => setShowActions(!showActions)}
-                            disabled={reorderMode || routeMode}
                             style={{
                                 backgroundColor: '#374151',
                                 color: 'white',
@@ -819,9 +836,8 @@ export default function UnifiedShoppingListModal({
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (reorderMode || routeMode) ? 'not-allowed' : 'pointer',
-                                fontWeight: '500',
-                                opacity: (reorderMode || routeMode) ? 0.6 : 1
+                                cursor: 'pointer',
+                                fontWeight: '500'
                             }}
                         >
                             {showActions ? '⌄ Less' : '⋯ More'}
@@ -858,7 +874,7 @@ export default function UnifiedShoppingListModal({
                                     fontWeight: '600',
                                     color: '#111827'
                                 }}>
-                                    🏪 Select Your Store
+                                    🏪 Select Your Store for AI Optimization
                                 </h3>
 
                                 {/* Your Stores */}
@@ -979,8 +995,10 @@ export default function UnifiedShoppingListModal({
                                     {selectedStore && (
                                         <TouchEnhancedButton
                                             onClick={() => {
-                                                handleStoreSelection(selectedStore);
-                                                toggleStoreLayoutMode();
+                                                setShowStoreSelector(false);
+                                                if (aiMode !== 'ai-optimized') {
+                                                    handleAIOptimization();
+                                                }
                                             }}
                                             style={{
                                                 flex: 1,
@@ -993,7 +1011,7 @@ export default function UnifiedShoppingListModal({
                                                 fontWeight: '500'
                                             }}
                                         >
-                                            Apply Layout
+                                            Use AI Optimization
                                         </TouchEnhancedButton>
                                     )}
                                 </div>
@@ -1001,133 +1019,8 @@ export default function UnifiedShoppingListModal({
                         </div>
                     )}
 
-                    {/* Mode-specific Instructions */}
-                    {reorderMode && (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            backgroundColor: '#dbeafe',
-                            borderBottom: '1px solid #3b82f6',
-                            flexShrink: 0
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '0.75rem',
-                                color: '#1e40af'
-                            }}>
-                                <span>📋</span>
-                                <span style={{fontWeight: '500'}}>Drag items to reorder within categories</span>
-                                <TouchEnhancedButton
-                                    onClick={resetCustomOrder}
-                                    style={{
-                                        marginLeft: 'auto',
-                                        backgroundColor: '#ef4444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        padding: '0.25rem 0.5rem',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer'
-                                    }}
-                                    title="Reset to default order"
-                                >
-                                    🔄 Reset
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
-                    )}
-
-                    {storeLayoutMode && currentStoreLayout && (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            backgroundColor: '#ecfccb',
-                            borderBottom: '1px solid #059669',
-                            flexShrink: 0
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '0.75rem',
-                                color: '#14532d'
-                            }}>
-                                <span>🏪</span>
-                                <span style={{fontWeight: '500'}}>
-                                    Shopping list optimized for {currentStoreLayout.layout.name}
-                                </span>
-                                {currentStoreLayout.tips && currentStoreLayout.tips.length > 0 && (
-                                    <TouchEnhancedButton
-                                        onClick={() => alert(currentStoreLayout.tips.join('\n• '))}
-                                        style={{
-                                            marginLeft: 'auto',
-                                            backgroundColor: '#059669',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            padding: '0.25rem 0.5rem',
-                                            fontSize: '0.7rem',
-                                            cursor: 'pointer'
-                                        }}
-                                        title="View store tips"
-                                    >
-                                        💡 Tips
-                                    </TouchEnhancedButton>
-                                )}
-                            </div>
-                        </div>
-                    )}
-
-                    {routeMode && shoppingRoute && (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            backgroundColor: '#fef2f2',
-                            borderBottom: '1px solid #dc2626',
-                            flexShrink: 0
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '0.75rem',
-                                color: '#7f1d1d'
-                            }}>
-                                <span>🗺️</span>
-                                <span style={{fontWeight: '500'}}>
-                                    Shopping route: {shoppingRoute.totalSections} sections, ~{shoppingRoute.totalTime} minutes
-                                </span>
-                                <TouchEnhancedButton
-                                    onClick={() => {
-                                        const routeText = StoreLayoutUtils.exportShoppingRoute(shoppingRoute, selectedStore);
-                                        if (navigator.share) {
-                                            navigator.share({
-                                                title: `Shopping Route - ${selectedStore}`,
-                                                text: routeText
-                                            });
-                                        } else {
-                                            alert(routeText);
-                                        }
-                                    }}
-                                    style={{
-                                        marginLeft: 'auto',
-                                        backgroundColor: '#dc2626',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        padding: '0.25rem 0.5rem',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer'
-                                    }}
-                                    title="Share shopping route"
-                                >
-                                    📤 Share
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
-                    )}
-
                     {/* Expandable Actions Panel */}
-                    {showActions && !reorderMode && !routeMode && (
+                    {showActions && (
                         <div style={{
                             padding: '0.5rem 1rem',
                             borderBottom: '1px solid #f3f4f6',
@@ -1187,23 +1080,8 @@ export default function UnifiedShoppingListModal({
                                     📧<br/>Share
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
-                                    onClick={handleAdvancedPrint}
-                                    style={{
-                                        backgroundColor: '#2563eb',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        padding: '0.5rem',
-                                        fontSize: '0.65rem',
-                                        cursor: 'pointer',
-                                        textAlign: 'center'
-                                    }}
-                                >
-                                    🖨️<br/>Print
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
                                     onClick={() => {
-                                        const textContent = `Shopping List - ${title}\n\n` +
+                                        const textContent = `AI Shopping List - ${title}\n\n` +
                                             Object.entries(groupedItems)
                                                 .map(([category, items]) => {
                                                     const categoryItems = items.map(item => {
@@ -1216,13 +1094,14 @@ export default function UnifiedShoppingListModal({
                                                     });
                                                     return `${category}:\n${categoryItems.join('\n')}`;
                                                 })
-                                                .join('\n\n');
+                                                .join('\n\n') +
+                                            (aiInsights ? `\n\nAI Insights:\n• Confidence Score: ${(aiInsights.confidenceScore * 100).toFixed(0)}%\n• Estimated Time Savings: ${aiInsights.estimatedTimeSavings} minutes\n• Store: ${selectedStore}` : '');
 
                                         const blob = new Blob([textContent], {type: 'text/plain'});
                                         const url = URL.createObjectURL(blob);
                                         const a = document.createElement('a');
                                         a.href = url;
-                                        a.download = `shopping-list-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+                                        a.download = `ai-shopping-list-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
                                         a.click();
                                         URL.revokeObjectURL(url);
                                     }}
@@ -1237,15 +1116,15 @@ export default function UnifiedShoppingListModal({
                                         textAlign: 'center'
                                     }}
                                 >
-                                    📝<br/>Text
+                                    📝<br/>Export
                                 </TouchEnhancedButton>
                             </div>
                         </div>
                     )}
 
-                    {/* Main Shopping List Content - Scrollable */}
+                    {/* Main Shopping List Content */}
                     <div
-                        id="unified-shopping-list-content"
+                        id="ai-shopping-list-content"
                         style={{
                             flex: 1,
                             padding: '1rem',
@@ -1262,35 +1141,52 @@ export default function UnifiedShoppingListModal({
                             }}>
                                 <div style={{fontSize: '2rem', marginBottom: '1rem'}}>🛒</div>
                                 <p>No items match the current filter</p>
+                                {aiMode === 'basic' && selectedStore && (
+                                    <TouchEnhancedButton
+                                        onClick={handleAIOptimization}
+                                        style={{
+                                            marginTop: '1rem',
+                                            backgroundColor: '#7c3aed',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '8px',
+                                            padding: '0.75rem 1.5rem',
+                                            fontSize: '0.875rem',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🤖 Try AI Optimization
+                                    </TouchEnhancedButton>
+                                )}
                             </div>
-                        ) : routeMode && shoppingRoute ? (
-                            // 🆕 NEW: Route Mode Display
+                        ) : aiMode === 'ai-optimized' && aiOptimization ? (
+                            // AI-Optimized Route Display
                             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                                 <div style={{
                                     textAlign: 'center',
                                     padding: '1rem',
-                                    backgroundColor: '#fef3c7',
+                                    backgroundColor: '#f0f9ff',
                                     borderRadius: '8px',
-                                    border: '1px solid #f59e0b'
+                                    border: '1px solid #0284c7'
                                 }}>
                                     <h3 style={{
                                         margin: '0 0 0.5rem 0',
                                         fontSize: '1.125rem',
                                         fontWeight: '600',
-                                        color: '#92400e'
+                                        color: '#0c4a6e'
                                     }}>
-                                        🗺️ Optimal Shopping Route
+                                        🤖 AI-Optimized Shopping Route
                                     </h3>
                                     <p style={{
                                         margin: 0,
                                         fontSize: '0.875rem',
-                                        color: '#b45309'
+                                        color: '#1e40af'
                                     }}>
-                                        Follow this route for the most efficient shopping experience
+                                        Optimized for {selectedStore} • {(aiInsights.confidenceScore * 100).toFixed(0)}% confidence
                                     </p>
                                 </div>
 
-                                {shoppingRoute.route.map((section, sectionIndex) => (
+                                {aiOptimization.optimizedRoute.map((section, sectionIndex) => (
                                     <div key={sectionIndex} style={{
                                         backgroundColor: '#f8fafc',
                                         borderRadius: '8px',
@@ -1330,7 +1226,7 @@ export default function UnifiedShoppingListModal({
                                                         fontSize: '1rem',
                                                         fontWeight: '600'
                                                     }}>
-                                                        {section.emoji} {section.section}
+                                                        {section.emoji} {section.name}
                                                     </h4>
                                                 </div>
                                             </div>
@@ -1338,69 +1234,140 @@ export default function UnifiedShoppingListModal({
                                                 textAlign: 'right',
                                                 fontSize: '0.875rem'
                                             }}>
-                                                <div>{section.itemCount} items</div>
-                                                <div>~{section.estimatedTime} min</div>
+                                                <div>{section.itemCount || 0} items</div>
+                                                <div>~{section.estimatedTime || 5} min</div>
                                             </div>
+                                            {aiMode === 'learning' && (
+                                                <TouchEnhancedButton
+                                                    onClick={() => completeSection(sectionIndex, section.name)}
+                                                    disabled={shoppingProgress.completedSections.includes(sectionIndex)}
+                                                    style={{
+                                                        backgroundColor: shoppingProgress.completedSections.includes(sectionIndex) ? '#059669' : '#7c3aed',
+                                                        color: 'white',
+                                                        border: 'none',
+                                                        borderRadius: '4px',
+                                                        padding: '0.375rem 0.75rem',
+                                                        fontSize: '0.75rem',
+                                                        cursor: shoppingProgress.completedSections.includes(sectionIndex) ? 'not-allowed' : 'pointer',
+                                                        opacity: shoppingProgress.completedSections.includes(sectionIndex) ? 0.7 : 1
+                                                    }}
+                                                >
+                                                    {shoppingProgress.completedSections.includes(sectionIndex) ? '✅ Done' : '✓ Complete'}
+                                                </TouchEnhancedButton>
+                                            )}
                                         </div>
                                         <div style={{padding: '1rem'}}>
-                                            <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-                                                {section.items.map((item, itemIndex) => {
-                                                    const itemKey = item.itemKey || `${item.ingredient || item.name}-${item.category}`;
-                                                    const isPurchased = item.purchased;
-
-                                                    return (
-                                                        <div
-                                                            key={itemIndex}
-                                                            style={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                gap: '0.75rem',
-                                                                padding: '0.75rem',
-                                                                backgroundColor: isPurchased ? '#f0fdf4' : 'white',
-                                                                borderRadius: '6px',
-                                                                border: '1px solid #e5e7eb',
-                                                                opacity: isPurchased ? 0.7 : 1,
-                                                                textDecoration: isPurchased ? 'line-through' : 'none'
-                                                            }}
-                                                        >
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isPurchased}
-                                                                onChange={() => handleItemToggle(itemKey)}
-                                                                style={{
-                                                                    cursor: 'pointer',
-                                                                    transform: 'scale(1.3)',
-                                                                    accentColor: '#8b5cf6'
-                                                                }}
-                                                            />
-                                                            <div style={{flex: 1}}>
-                                                                <div style={{
-                                                                    fontWeight: '500',
-                                                                    color: '#374151',
-                                                                    fontSize: '0.95rem'
-                                                                }}>
-                                                                    {item.amount && `${item.amount} `}{item.ingredient || item.name}
-                                                                </div>
-                                                                {item.recipes && item.recipes.length > 0 && (
-                                                                    <div style={{
-                                                                        fontSize: '0.75rem',
-                                                                        color: '#6b7280',
-                                                                        marginTop: '0.25rem'
-                                                                    }}>
-                                                                        Used in: {item.recipes.join(', ')}
-                                                                    </div>
-                                                                )}
-                                                            </div>
+                                            {/* AI Insights for Section */}
+                                            {section.aiInsights && (
+                                                <div style={{
+                                                    marginBottom: '1rem',
+                                                    padding: '0.75rem',
+                                                    backgroundColor: '#f0f9ff',
+                                                    borderRadius: '6px',
+                                                    border: '1px solid #bfdbfe'
+                                                }}>
+                                                    <div style={{
+                                                        fontSize: '0.75rem',
+                                                        color: '#1e40af',
+                                                        fontWeight: '500'
+                                                    }}>
+                                                        🤖 AI Insights: {section.aiInsights.optimalTime}
+                                                        {section.aiInsights.crowdLevel > 0.7 && ' • Expected to be busy'}
+                                                    </div>
+                                                    {section.aiInsights.efficiencyTips?.length > 0 && (
+                                                        <div style={{
+                                                            marginTop: '0.5rem',
+                                                            fontSize: '0.7rem',
+                                                            color: '#1e3a8a'
+                                                        }}>
+                                                            💡 {section.aiInsights.efficiencyTips[0]}
                                                         </div>
-                                                    );
-                                                })}
+                                                    )}
+                                                </div>
+                                            )}
+
+                                            <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
+                                                {(function() {
+                                                    // Get items for this section
+                                                    const sectionItems = [];
+                                                    section.categories.forEach(category => {
+                                                        if (normalizedList.items[category]) {
+                                                            const filtered = getFilteredItems(normalizedList.items[category]);
+                                                            sectionItems.push(...filtered);
+                                                        }
+                                                    });
+
+                                                    return sectionItems.map((item, itemIndex) => {
+                                                        const itemKey = item.itemKey || `${item.ingredient || item.name}-${item.category}`;
+                                                        const isPurchased = item.purchased;
+
+                                                        return (
+                                                            <div
+                                                                key={itemIndex}
+                                                                style={{
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.75rem',
+                                                                    padding: '0.75rem',
+                                                                    backgroundColor: isPurchased ? '#f0fdf4' : 'white',
+                                                                    borderRadius: '6px',
+                                                                    border: '1px solid #e5e7eb',
+                                                                    opacity: isPurchased ? 0.7 : 1,
+                                                                    textDecoration: isPurchased ? 'line-through' : 'none'
+                                                                }}
+                                                            >
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={isPurchased}
+                                                                    onChange={() => handleItemToggle(itemKey)}
+                                                                    style={{
+                                                                        cursor: 'pointer',
+                                                                        transform: 'scale(1.3)',
+                                                                        accentColor: '#8b5cf6'
+                                                                    }}
+                                                                />
+                                                                <div style={{flex: 1}}>
+                                                                    <div style={{
+                                                                        fontWeight: '500',
+                                                                        color: '#374151',
+                                                                        fontSize: '0.95rem'
+                                                                    }}>
+                                                                        {item.amount && `${item.amount} `}{item.ingredient || item.name}
+                                                                    </div>
+                                                                    {item.recipes && item.recipes.length > 0 && (
+                                                                        <div style={{
+                                                                            fontSize: '0.75rem',
+                                                                            color: '#6b7280',
+                                                                            marginTop: '0.25rem'
+                                                                        }}>
+                                                                            Used in: {item.recipes.join(', ')}
+                                                                        </div>
+                                                                    )}
+                                                                    {item.inInventory && (
+                                                                        <div style={{
+                                                                            fontSize: '0.7rem',
+                                                                            color: '#16a34a',
+                                                                            backgroundColor: '#f0fdf4',
+                                                                            padding: '0.25rem 0.5rem',
+                                                                            borderRadius: '4px',
+                                                                            marginTop: '0.25rem',
+                                                                            border: '1px solid #bbf7d0'
+                                                                        }}>
+                                                                            ✅ In inventory: {item.haveAmount || 'Available'}
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    });
+                                                })()}
                                             </div>
                                         </div>
                                     </div>
                                 ))}
 
-                                {/* Store Tips */}
-                                {shoppingRoute.tips && shoppingRoute.tips.length > 0 && (
+                                {/* AI Recommendations Footer */}
+                                {aiInsights && aiInsights.improvementReasons && (
                                     <div style={{
                                         backgroundColor: '#eff6ff',
                                         borderRadius: '8px',
@@ -1413,19 +1380,19 @@ export default function UnifiedShoppingListModal({
                                             fontWeight: '600',
                                             color: '#1e40af'
                                         }}>
-                                            💡 Store Tips
+                                            🎯 AI Optimizations Applied
                                         </h4>
                                         <ul style={{
                                             margin: 0,
                                             paddingLeft: '1.25rem',
                                             color: '#1e40af'
                                         }}>
-                                            {shoppingRoute.tips.map((tip, index) => (
+                                            {aiInsights.improvementReasons.map((reason, index) => (
                                                 <li key={index} style={{
                                                     fontSize: '0.875rem',
                                                     marginBottom: '0.5rem'
                                                 }}>
-                                                    {tip}
+                                                    {reason}
                                                 </li>
                                             ))}
                                         </ul>
@@ -1433,7 +1400,7 @@ export default function UnifiedShoppingListModal({
                                 )}
                             </div>
                         ) : (
-                            // 🆕 STANDARD: Category-based Display (with drag & drop)
+                            // Standard Category Display
                             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                                 {Object.entries(groupedItems).map(([category, items]) => (
                                     <div key={category}>
@@ -1446,10 +1413,7 @@ export default function UnifiedShoppingListModal({
                                             borderBottom: '2px solid #e5e7eb',
                                             display: 'flex',
                                             justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            backgroundColor: storeLayoutMode ? '#f0fdf4' : 'transparent',
-                                            paddingLeft: storeLayoutMode ? '1rem' : '0',
-                                            borderLeft: storeLayoutMode ? '4px solid #059669' : 'none'
+                                            alignItems: 'center'
                                         }}>
                                             <span>{category}</span>
                                             <span style={{
@@ -1471,62 +1435,30 @@ export default function UnifiedShoppingListModal({
                                                 return (
                                                     <div
                                                         key={index}
-                                                        draggable={reorderMode}
-                                                        onDragStart={(e) => handleDragStart(e, item, category, index)}
-                                                        onDragEnd={handleDragEnd}
-                                                        onDragOver={handleDragOver}
-                                                        onDragEnter={(e) => handleDragEnter(e, category, index)}
-                                                        onDrop={(e) => handleDrop(e, category, index)}
                                                         style={{
                                                             display: 'flex',
                                                             alignItems: 'flex-start',
                                                             gap: '0.75rem',
                                                             padding: '0.75rem',
-                                                            backgroundColor: isPurchased ? '#f0fdf4' :
-                                                                dragOverCategory === category && dragOverIndex === index ? '#e0f2fe' :
-                                                                    '#fafafa',
+                                                            backgroundColor: isPurchased ? '#f0fdf4' : '#fafafa',
                                                             borderRadius: '8px',
-                                                            border: reorderMode ? '2px dashed #d1d5db' : '1px solid #e5e7eb',
+                                                            border: '1px solid #e5e7eb',
                                                             opacity: isPurchased ? 0.7 : 1,
-                                                            textDecoration: isPurchased ? 'line-through' : 'none',
-                                                            cursor: reorderMode ? 'grab' : 'default',
-                                                            transition: 'all 0.2s ease',
-                                                            transform: draggedItem?.name === (item.ingredient || item.name) &&
-                                                            draggedItem?.category === category ? 'scale(1.02)' : 'scale(1)',
-                                                            boxShadow: reorderMode ? '0 2px 4px rgba(0,0,0,0.1)' : 'none'
+                                                            textDecoration: isPurchased ? 'line-through' : 'none'
                                                         }}
                                                     >
-                                                        {/* Drag Handle (only in reorder mode) */}
-                                                        {reorderMode && (
-                                                            <div style={{
-                                                                display: 'flex',
-                                                                alignItems: 'center',
-                                                                color: '#6b7280',
-                                                                fontSize: '1.2rem',
-                                                                cursor: 'grab',
-                                                                userSelect: 'none',
-                                                                padding: '0.25rem'
-                                                            }}>
-                                                                ⋮⋮
-                                                            </div>
-                                                        )}
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={isPurchased}
+                                                            onChange={() => handleItemToggle(itemKey)}
+                                                            style={{
+                                                                marginTop: '0.125rem',
+                                                                cursor: 'pointer',
+                                                                transform: 'scale(1.3)',
+                                                                accentColor: '#8b5cf6'
+                                                            }}
+                                                        />
 
-                                                        {/* Checkbox (hidden in reorder mode) */}
-                                                        {!reorderMode && (
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isPurchased}
-                                                                onChange={() => handleItemToggle(itemKey)}
-                                                                style={{
-                                                                    marginTop: '0.125rem',
-                                                                    cursor: 'pointer',
-                                                                    transform: 'scale(1.3)',
-                                                                    accentColor: '#8b5cf6'
-                                                                }}
-                                                            />
-                                                        )}
-
-                                                        {/* Item Details */}
                                                         <div style={{flex: 1, minWidth: 0}}>
                                                             <div style={{
                                                                 fontWeight: '500',
@@ -1538,7 +1470,6 @@ export default function UnifiedShoppingListModal({
                                                                 {item.amount && `${item.amount} `}{item.ingredient || item.name}
                                                             </div>
 
-                                                            {/* Inventory Status */}
                                                             {item.inInventory && (
                                                                 <div style={{
                                                                     fontSize: '0.8rem',
@@ -1556,7 +1487,6 @@ export default function UnifiedShoppingListModal({
                                                                 </div>
                                                             )}
 
-                                                            {/* Recipe References */}
                                                             {item.recipes && item.recipes.length > 0 && (
                                                                 <div style={{
                                                                     fontSize: '0.7rem',
@@ -1569,36 +1499,7 @@ export default function UnifiedShoppingListModal({
                                                                     Used in: {item.recipes.join(', ')}
                                                                 </div>
                                                             )}
-
-                                                            {/* Custom Order Status */}
-                                                            {reorderMode && customOrder[category] && (
-                                                                <div style={{
-                                                                    fontSize: '0.7rem',
-                                                                    color: '#3b82f6',
-                                                                    backgroundColor: '#dbeafe',
-                                                                    padding: '0.25rem 0.5rem',
-                                                                    borderRadius: '4px',
-                                                                    border: '1px solid #93c5fd',
-                                                                    marginTop: '0.25rem'
-                                                                }}>
-                                                                    📋 Custom order: {customOrder[category].indexOf(item.ingredient || item.name) + 1}
-                                                                </div>
-                                                            )}
                                                         </div>
-
-                                                        {/* Drag Position Indicator */}
-                                                        {reorderMode && dragOverCategory === category && dragOverIndex === index && (
-                                                            <div style={{
-                                                                position: 'absolute',
-                                                                top: '-2px',
-                                                                left: '0',
-                                                                right: '0',
-                                                                height: '4px',
-                                                                backgroundColor: '#3b82f6',
-                                                                borderRadius: '2px',
-                                                                zIndex: 10
-                                                            }} />
-                                                        )}
                                                     </div>
                                                 );
                                             })}
@@ -1627,18 +1528,18 @@ export default function UnifiedShoppingListModal({
                             {normalizedList.generatedAt && (
                                 `Generated ${new Date(normalizedList.generatedAt).toLocaleString()}`
                             )}
-                            {/* Status Indicators */}
-                            {Object.keys(customOrder).length > 0 && (
-                                <div style={{marginTop: '0.25rem'}}>
-                                    📋 Custom order saved for {Object.keys(customOrder).length} categories
-                                </div>
-                            )}
+                            {/* AI Status Indicators */}
                             {selectedStore && (
                                 <div style={{marginTop: '0.25rem'}}>
                                     🏪 Store: {selectedStore}
-                                    {storeLayoutMode && currentStoreLayout && (
-                                        <span style={{color: '#059669'}}> (Layout Applied)</span>
+                                    {aiMode === 'ai-optimized' && aiInsights && (
+                                        <span style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
                                     )}
+                                </div>
+                            )}
+                            {learningProgress && (
+                                <div style={{marginTop: '0.25rem'}}>
+                                    📊 Learning Level: {learningProgress.learningLevel} ({learningProgress.totalTrips} trips)
                                 </div>
                             )}
                         </div>
@@ -1665,302 +1566,29 @@ export default function UnifiedShoppingListModal({
                 isOpen={showEmailModal}
                 onClose={() => setShowEmailModal(false)}
                 shoppingList={normalizedList}
-                context={listContext.listType}
-                contextName={listContext.contextName}
+                context="ai-shopping"
+                contextName={`AI Shopping List - ${selectedStore || 'Store'}`}
             />
 
             {/* Save Shopping List Modal */}
             <SaveShoppingListModal
                 isOpen={showSaveModal}
                 onClose={() => setShowSaveModal(false)}
-                onSave={handleSaveSuccess}
+                onSave={(savedList) => {
+                    console.log('AI Shopping list saved successfully:', savedList);
+                }}
                 shoppingList={normalizedList}
-                listType={listContext.listType}
-                contextName={listContext.contextName}
-                sourceRecipeIds={listContext.sourceRecipeIds}
-                sourceMealPlanId={listContext.sourceMealPlanId}
+                listType="ai-optimized"
+                contextName={`AI Shopping List - ${selectedStore || 'Store'}`}
+                sourceRecipeIds={sourceRecipeIds}
+                sourceMealPlanId={sourceMealPlanId}
+                metadata={{
+                    store: selectedStore,
+                    aiMode: aiMode,
+                    aiInsights: aiInsights,
+                    optimizationData: aiOptimization
+                }}
             />
-
-            <style jsx>{`
-                @keyframes spin {
-                    0% {
-                        transform: rotate(0deg);
-                    }
-                    100% {
-                        transform: rotate(360deg);
-                    }
-                }
-                
-                /* Drag and Drop Styles */
-                [draggable="true"]:active {
-                    cursor: grabbing !important;
-                }
-                
-                [draggable="true"]:hover {
-                    transform: scale(1.01);
-                    transition: transform 0.1s ease;
-                }
-                
-                /* Enhanced drag visual feedback */
-                .drag-item {
-                    transition: all 0.2s ease;
-                    position: relative;
-                }
-                
-                .drag-item:hover {
-                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                }
-                
-                .drag-over {
-                    background-color: #e0f2fe !important;
-                    border-color: #0284c7 !important;
-                }
-                
-                .drag-placeholder {
-                    background-color: #f1f5f9 !important;
-                    border: 2px dashed #94a3b8 !important;
-                    opacity: 0.5;
-                }
-                
-                /* Store Layout Mode Styles */
-                .store-layout-mode {
-                    background: linear-gradient(135deg, #ecfccb 0%, #f0fdf4 100%);
-                    border-left: 4px solid #059669;
-                }
-                
-                .store-section-header {
-                    background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%);
-                    border-left: 4px solid #059669;
-                    padding-left: 1rem;
-                }
-                
-                /* Route Mode Styles */
-                .route-section {
-                    border: 2px solid #e2e8f0;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    margin-bottom: 1rem;
-                }
-                
-                .route-section-header {
-                    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-                    color: white;
-                    padding: 1rem;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                
-                .route-step-number {
-                    background: #3b82f6;
-                    color: white;
-                    border-radius: 50%;
-                    width: 2rem;
-                    height: 2rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 0.875rem;
-                    font-weight: bold;
-                }
-                
-                /* Mobile touch optimization */
-                @media (max-width: 768px) {
-                    [draggable="true"] {
-                        touch-action: pan-y;
-                        -webkit-touch-callout: none;
-                        -webkit-user-select: none;
-                        user-select: none;
-                    }
-                    
-                    /* Larger drag handles on mobile */
-                    .drag-handle {
-                        font-size: 1.5rem;
-                        padding: 0.5rem;
-                    }
-                    
-                    /* Enhanced touch targets */
-                    .reorder-item {
-                        min-height: 60px;
-                        padding: 1rem;
-                    }
-                    
-                    /* Store selector touch optimization */
-                    .store-selector-item {
-                        min-height: 48px;
-                        padding: 0.75rem;
-                    }
-                }
-                
-                /* Improved accessibility */
-                [draggable="true"]:focus {
-                    outline: 2px solid #3b82f6;
-                    outline-offset: 2px;
-                }
-                
-                /* Custom order indicator animation */
-                .custom-order-badge {
-                    animation: fadeIn 0.3s ease-in-out;
-                }
-                
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                
-                /* Store layout indicator animation */
-                .store-layout-indicator {
-                    animation: slideInRight 0.3s ease-out;
-                }
-                
-                @keyframes slideInRight {
-                    from {
-                        opacity: 0;
-                        transform: translateX(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(0);
-                    }
-                }
-                
-                /* Drag preview styling */
-                .drag-preview {
-                    opacity: 0.8;
-                    transform: rotate(2deg);
-                    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-                }
-                
-                /* Reorder mode styling */
-                .reorder-mode {
-                    background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
-                    border: 2px dashed #3b82f6;
-                }
-                
-                .reorder-mode:hover {
-                    border-color: #1d4ed8;
-                    background: linear-gradient(135deg, #bfdbfe 0%, #bae6fd 100%);
-                }
-                
-                /* Instructions panel animation */
-                .instructions-panel {
-                    animation: slideDown 0.2s ease-out;
-                }
-                
-                @keyframes slideDown {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-                
-                /* Success feedback */
-                .order-saved {
-                    animation: pulse 0.5s ease-in-out;
-                }
-                
-                @keyframes pulse {
-                    0%, 100% {
-                        transform: scale(1);
-                    }
-                    50% {
-                        transform: scale(1.05);
-                    }
-                }
-                
-                /* Category header styling */
-                .category-header {
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                
-                .category-header.reorder-mode {
-                    background: linear-gradient(90deg, #f8fafc 0%, #e2e8f0 100%);
-                    border-left: 4px solid #3b82f6;
-                    padding-left: 1rem;
-                }
-                
-                .category-header.store-layout-mode {
-                    background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%);
-                    border-left: 4px solid #059669;
-                    padding-left: 1rem;
-                }
-                
-                /* Smooth transitions for all interactive elements */
-                .shopping-item, .category-header, .mode-button {
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                
-                /* Loading state for operations */
-                .loading-state {
-                    pointer-events: none;
-                    opacity: 0.6;
-                }
-                
-                .loading-state::after {
-                    content: "";
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    width: 20px;
-                    height: 20px;
-                    margin: -10px 0 0 -10px;
-                    border: 2px solid #e5e7eb;
-                    border-top: 2px solid #3b82f6;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-                
-                /* Store selector modal styling */
-                .store-selector-modal {
-                    backdrop-filter: blur(4px);
-                    -webkit-backdrop-filter: blur(4px);
-                }
-                
-                .store-selector-content {
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                }
-                
-                /* Responsive grid for store selector */
-                @media (max-width: 640px) {
-                    .store-grid {
-                        grid-template-columns: 1fr;
-                    }
-                }
-                
-                /* Route mode specific animations */
-                .route-section {
-                    animation: slideInUp 0.3s ease-out;
-                    animation-fill-mode: both;
-                }
-                
-                .route-section:nth-child(1) { animation-delay: 0.1s; }
-                .route-section:nth-child(2) { animation-delay: 0.2s; }
-                .route-section:nth-child(3) { animation-delay: 0.3s; }
-                .route-section:nth-child(4) { animation-delay: 0.4s; }
-                .route-section:nth-child(5) { animation-delay: 0.5s; }
-                
-                @keyframes slideInUp {
-                    from {
-                        opacity: 0;
-                        transform: translateY(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-            `}</style>
         </>
     );
 }

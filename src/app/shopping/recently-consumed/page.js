@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function RecentlyConsumedPage() {
     const [selectedDays, setSelectedDays] = useState(30);
@@ -151,16 +152,10 @@ export default function RecentlyConsumedPage() {
             // Later you can add the modal to choose between new/existing
             const listName = `Shopping List - ${new Date().toLocaleDateString()}`;
 
-            const response = await fetch('/api/shopping/custom', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
+            const response = await apiPost('/api/shopping/custom', {
                     name: listName,
                     items: itemsToAdd,
                     listType: 'custom'
-                })
             });
 
             const result = await response.json();
