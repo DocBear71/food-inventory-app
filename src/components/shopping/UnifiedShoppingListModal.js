@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/shopping/UnifiedShoppingListModal.js v3 - Enhanced with Store Layout Templates
+// file: /src/components/shopping/UnifiedShoppingListModal.js v4 - Enhanced with Category Reordering + Store Layout Templates
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -30,13 +30,19 @@ export default function UnifiedShoppingListModal({
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
-    // 🆕 PHASE 1: Drag & Drop State
+    // 🆕 PHASE 1: Drag & Drop State (Items)
     const [draggedItem, setDraggedItem] = useState(null);
     const [draggedCategory, setDraggedCategory] = useState(null);
     const [dragOverCategory, setDragOverCategory] = useState(null);
     const [dragOverIndex, setDragOverIndex] = useState(null);
     const [customOrder, setCustomOrder] = useState({});
     const [reorderMode, setReorderMode] = useState(false);
+
+    // 🆕 NEW: Category Drag & Drop State
+    const [categoryReorderMode, setCategoryReorderMode] = useState(false);
+    const [draggedCategoryName, setDraggedCategoryName] = useState(null);
+    const [dragOverCategoryName, setDragOverCategoryName] = useState(null);
+    const [customCategoryOrder, setCustomCategoryOrder] = useState([]);
 
     // 🆕 PHASE 2: Store Layout State
     const [selectedStore, setSelectedStore] = useState('');
@@ -70,14 +76,18 @@ export default function UnifiedShoppingListModal({
             setReorderMode(false);
             setStoreLayoutMode(false);
             setRouteMode(false);
+            setCategoryReorderMode(false); // NEW: Reset category reorder mode
             setDraggedItem(null);
             setDraggedCategory(null);
             setDragOverCategory(null);
             setDragOverIndex(null);
+            setDraggedCategoryName(null); // NEW: Reset category drag state
+            setDragOverCategoryName(null);
             setShowTotals(false);
         } else {
             // Load saved preferences when modal opens
             loadCustomOrder();
+            loadCustomCategoryOrder(); // NEW: Load category order
             loadStorePreference();
             fetchStores();
             loadUserPreferences();
@@ -128,8 +138,7 @@ export default function UnifiedShoppingListModal({
         saveUserPreferences({ taxRate });
     };
 
-
-    // 🆕 PHASE 1: Load/Save Custom Order Functions (from previous implementation)
+    // 🆕 PHASE 1: Load/Save Custom Order Functions (Items)
     const loadCustomOrder = () => {
         try {
             const saved = localStorage.getItem('shopping-list-custom-order');
@@ -153,6 +162,35 @@ export default function UnifiedShoppingListModal({
         }
     };
 
+    // 🆕 NEW: Load/Save Custom Category Order Functions
+    const loadCustomCategoryOrder = () => {
+        try {
+            const storeKey = selectedStore || 'default';
+            const saved = localStorage.getItem(`shopping-category-order-${storeKey}`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setCustomCategoryOrder(parsed);
+                console.log('📂 Loaded custom category order for', storeKey, ':', parsed);
+            } else {
+                setCustomCategoryOrder([]);
+            }
+        } catch (error) {
+            console.error('Error loading custom category order:', error);
+            setCustomCategoryOrder([]);
+        }
+    };
+
+    const saveCustomCategoryOrder = (newOrder) => {
+        try {
+            const storeKey = selectedStore || 'default';
+            localStorage.setItem(`shopping-category-order-${storeKey}`, JSON.stringify(newOrder));
+            setCustomCategoryOrder(newOrder);
+            console.log('💾 Saved custom category order for', storeKey, ':', newOrder);
+        } catch (error) {
+            console.error('Error saving custom category order:', error);
+        }
+    };
+
     // 🆕 PHASE 2: Store Layout Functions
     const loadStorePreference = () => {
         try {
@@ -170,6 +208,8 @@ export default function UnifiedShoppingListModal({
         try {
             localStorage.setItem('preferred-shopping-store', storeName);
             setSelectedStore(storeName);
+            // Reload category order for new store
+            setTimeout(loadCustomCategoryOrder, 100);
             console.log('💾 Saved preferred store:', storeName);
         } catch (error) {
             console.error('Error saving store preference:', error);
@@ -234,7 +274,7 @@ export default function UnifiedShoppingListModal({
         }
     };
 
-    // 🆕 PHASE 1: Apply Custom Ordering (from previous implementation)
+    // 🆕 PHASE 1: Apply Custom Ordering (Items)
     const applyCustomOrdering = (items, category) => {
         const categoryOrder = customOrder[category];
         if (!categoryOrder) return items;
@@ -258,7 +298,33 @@ export default function UnifiedShoppingListModal({
         return orderedItems;
     };
 
-    // 🆕 PHASE 1: Drag and Drop Handlers (from previous implementation)
+    // 🆕 NEW: Apply Custom Category Ordering
+    const applyCategoryOrdering = (categorizedItems) => {
+        if (!customCategoryOrder.length) {
+            return categorizedItems; // Return as-is if no custom order
+        }
+
+        const orderedCategories = {};
+        const allCategories = Object.keys(categorizedItems);
+
+        // First, add categories in custom order
+        customCategoryOrder.forEach(categoryName => {
+            if (categorizedItems[categoryName]) {
+                orderedCategories[categoryName] = categorizedItems[categoryName];
+            }
+        });
+
+        // Then add any categories not in custom order
+        allCategories.forEach(categoryName => {
+            if (!orderedCategories[categoryName]) {
+                orderedCategories[categoryName] = categorizedItems[categoryName];
+            }
+        });
+
+        return orderedCategories;
+    };
+
+    // 🆕 PHASE 1: Drag and Drop Handlers (Items)
     const handleDragStart = (e, item, category, index) => {
         if (!reorderMode) return;
 
@@ -329,11 +395,93 @@ export default function UnifiedShoppingListModal({
         console.log(`🔄 Reordered ${draggedItemName} in ${targetCategory}:`, newOrder);
     };
 
+    // 🆕 NEW: Category Drag and Drop Handlers
+    const handleCategoryDragStart = (e, categoryName) => {
+        if (!categoryReorderMode) return;
+
+        setDraggedCategoryName(categoryName);
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', categoryName);
+
+        // Add visual feedback
+        setTimeout(() => {
+            e.target.style.opacity = '0.6';
+            e.target.style.transform = 'rotate(2deg)';
+        }, 0);
+    };
+
+    const handleCategoryDragEnd = (e) => {
+        // Reset visual feedback
+        e.target.style.opacity = '1';
+        e.target.style.transform = 'none';
+        setDraggedCategoryName(null);
+        setDragOverCategoryName(null);
+    };
+
+    const handleCategoryDragOver = (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+    };
+
+    const handleCategoryDragEnter = (e, categoryName) => {
+        e.preventDefault();
+        if (draggedCategoryName && draggedCategoryName !== categoryName) {
+            setDragOverCategoryName(categoryName);
+        }
+    };
+
+    const handleCategoryDragLeave = (e) => {
+        // Only clear if we're leaving the category container entirely
+        if (!e.currentTarget.contains(e.relatedTarget)) {
+            setDragOverCategoryName(null);
+        }
+    };
+
+    const handleCategoryDrop = (e, targetCategoryName) => {
+        e.preventDefault();
+
+        if (!draggedCategoryName || draggedCategoryName === targetCategoryName) {
+            return;
+        }
+
+        const currentOrder = customCategoryOrder.length > 0
+            ? [...customCategoryOrder]
+            : Object.keys(getItemsForDisplay());
+
+        // Remove dragged category from current position
+        const draggedIndex = currentOrder.indexOf(draggedCategoryName);
+        if (draggedIndex !== -1) {
+            currentOrder.splice(draggedIndex, 1);
+        }
+
+        // Insert at new position
+        const targetIndex = currentOrder.indexOf(targetCategoryName);
+        if (targetIndex !== -1) {
+            currentOrder.splice(targetIndex, 0, draggedCategoryName);
+        } else {
+            // If target not found, add at end
+            currentOrder.push(draggedCategoryName);
+        }
+
+        saveCustomCategoryOrder(currentOrder);
+        console.log(`🔄 Reordered categories: ${draggedCategoryName} moved to position of ${targetCategoryName}`);
+    };
+
     const resetCustomOrder = () => {
         if (confirm('Reset custom order to default? This cannot be undone.')) {
             localStorage.removeItem('shopping-list-custom-order');
             setCustomOrder({});
             console.log('🔄 Reset custom order to default');
+        }
+    };
+
+    // 🆕 NEW: Reset Category Order
+    const resetCustomCategoryOrder = () => {
+        if (confirm('Reset category order to default? This cannot be undone.')) {
+            const storeKey = selectedStore || 'default';
+            localStorage.removeItem(`shopping-category-order-${storeKey}`);
+            setCustomCategoryOrder([]);
+            console.log('🔄 Reset custom category order to default for', storeKey);
         }
     };
 
@@ -428,7 +576,7 @@ export default function UnifiedShoppingListModal({
         }
     };
 
-    // 🆕 NEW: Get items for display (store layout or custom order)
+    // Get items for display (store layout or custom order)
     const getItemsForDisplay = () => {
         if (storeLayoutMode && currentStoreLayout) {
             return currentStoreLayout.items;
@@ -436,12 +584,12 @@ export default function UnifiedShoppingListModal({
         return normalizedList.items;
     };
 
-    // Group items by category for display
+    // 🆕 UPDATED: Group items by category with BOTH item and category ordering
     const getGroupedItems = () => {
         const itemsToShow = getItemsForDisplay();
         if (!itemsToShow) return {};
 
-        const grouped = {};
+        let grouped = {};
         Object.entries(itemsToShow).forEach(([category, items]) => {
             const filtered = getFilteredItems(items);
             if (filtered.length > 0) {
@@ -450,6 +598,11 @@ export default function UnifiedShoppingListModal({
                 grouped[category] = ordered;
             }
         });
+
+        // 🆕 NEW: Apply category ordering if not in route mode
+        if (!routeMode) {
+            grouped = applyCategoryOrdering(grouped);
+        }
 
         return grouped;
     };
@@ -590,6 +743,16 @@ export default function UnifiedShoppingListModal({
                                         fontWeight: '500'
                                     }}>
                                         📋 Reorder Mode
+                                    </span>
+                                )}
+                                {categoryReorderMode && (
+                                    <span style={{
+                                        marginLeft: '0.5rem',
+                                        fontSize: '0.8rem',
+                                        color: '#7c3aed',
+                                        fontWeight: '500'
+                                    }}>
+                                        📂 Category Reorder
                                     </span>
                                 )}
                                 {storeLayoutMode && selectedStore && (
@@ -760,7 +923,7 @@ export default function UnifiedShoppingListModal({
                         )}
                     </div>
 
-                    {/* Enhanced Controls with Store Layout */}
+                    {/* Enhanced Controls with Store Layout + Category Reordering */}
                     <div style={{
                         padding: '0.75rem 1rem',
                         borderBottom: '1px solid #f3f4f6',
@@ -775,16 +938,16 @@ export default function UnifiedShoppingListModal({
                         <select
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            disabled={reorderMode || routeMode}
+                            disabled={reorderMode || routeMode || categoryReorderMode}
                             style={{
                                 padding: '0.375rem 0.5rem',
                                 border: '1px solid #d1d5db',
                                 borderRadius: '4px',
                                 fontSize: '0.75rem',
-                                backgroundColor: (reorderMode || routeMode) ? '#f3f4f6' : 'white',
+                                backgroundColor: (reorderMode || routeMode || categoryReorderMode) ? '#f3f4f6' : 'white',
                                 flex: '1',
                                 minWidth: '80px',
-                                opacity: (reorderMode || routeMode) ? 0.6 : 1
+                                opacity: (reorderMode || routeMode || categoryReorderMode) ? 0.6 : 1
                             }}
                         >
                             <option value="all">All ({stats.totalItems})</option>
@@ -796,7 +959,7 @@ export default function UnifiedShoppingListModal({
                         {/* 🆕 NEW: Store Layout Toggle */}
                         <TouchEnhancedButton
                             onClick={() => selectedStore ? toggleStoreLayoutMode() : setShowStoreSelector(true)}
-                            disabled={reorderMode || routeMode}
+                            disabled={reorderMode || routeMode || categoryReorderMode}
                             style={{
                                 backgroundColor: storeLayoutMode ? '#059669' : '#6b7280',
                                 color: 'white',
@@ -804,9 +967,9 @@ export default function UnifiedShoppingListModal({
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (reorderMode || routeMode) ? 'not-allowed' : 'pointer',
+                                cursor: (reorderMode || routeMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
-                                opacity: (reorderMode || routeMode) ? 0.6 : 1
+                                opacity: (reorderMode || routeMode || categoryReorderMode) ? 0.6 : 1
                             }}
                             title={selectedStore ? `Toggle ${selectedStore} layout` : 'Select store for layout'}
                         >
@@ -817,7 +980,7 @@ export default function UnifiedShoppingListModal({
                         {storeLayoutMode && shoppingRoute && (
                             <TouchEnhancedButton
                                 onClick={() => setRouteMode(!routeMode)}
-                                disabled={reorderMode}
+                                disabled={reorderMode || categoryReorderMode}
                                 style={{
                                     backgroundColor: routeMode ? '#dc2626' : '#7c3aed',
                                     color: 'white',
@@ -825,9 +988,9 @@ export default function UnifiedShoppingListModal({
                                     borderRadius: '4px',
                                     padding: '0.375rem 0.5rem',
                                     fontSize: '0.75rem',
-                                    cursor: reorderMode ? 'not-allowed' : 'pointer',
+                                    cursor: (reorderMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
                                     fontWeight: '500',
-                                    opacity: reorderMode ? 0.6 : 1
+                                    opacity: (reorderMode || categoryReorderMode) ? 0.6 : 1
                                 }}
                                 title={routeMode ? 'Exit route mode' : 'Show shopping route'}
                             >
@@ -835,10 +998,30 @@ export default function UnifiedShoppingListModal({
                             </TouchEnhancedButton>
                         )}
 
+                        {/* 🆕 NEW: Category Reorder Mode Toggle */}
+                        <TouchEnhancedButton
+                            onClick={() => setCategoryReorderMode(!categoryReorderMode)}
+                            disabled={storeLayoutMode || routeMode || reorderMode}
+                            style={{
+                                backgroundColor: categoryReorderMode ? '#ef4444' : '#7c3aed',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.375rem 0.5rem',
+                                fontSize: '0.75rem',
+                                cursor: (storeLayoutMode || routeMode || reorderMode) ? 'not-allowed' : 'pointer',
+                                fontWeight: '500',
+                                opacity: (storeLayoutMode || routeMode || reorderMode) ? 0.6 : 1
+                            }}
+                            title={categoryReorderMode ? 'Exit category reorder mode' : 'Reorder categories'}
+                        >
+                            {categoryReorderMode ? '✓ Done' : '📂 Categories'}
+                        </TouchEnhancedButton>
+
                         {/* 🆕 PHASE 1: Reorder Mode Toggle */}
                         <TouchEnhancedButton
                             onClick={() => setReorderMode(!reorderMode)}
-                            disabled={storeLayoutMode || routeMode}
+                            disabled={storeLayoutMode || routeMode || categoryReorderMode}
                             style={{
                                 backgroundColor: reorderMode ? '#ef4444' : '#3b82f6',
                                 color: 'white',
@@ -846,17 +1029,17 @@ export default function UnifiedShoppingListModal({
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (storeLayoutMode || routeMode) ? 'not-allowed' : 'pointer',
+                                cursor: (storeLayoutMode || routeMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
-                                opacity: (storeLayoutMode || routeMode) ? 0.6 : 1
+                                opacity: (storeLayoutMode || routeMode || categoryReorderMode) ? 0.6 : 1
                             }}
                             title={reorderMode ? 'Exit reorder mode' : 'Enter reorder mode'}
                         >
-                            {reorderMode ? '✓ Done' : '📋 Reorder'}
+                            {reorderMode ? '✓ Done' : '📋 Items'}
                         </TouchEnhancedButton>
 
                         {/* Quick Actions - Disabled in special modes */}
-                        {!reorderMode && !routeMode && (
+                        {!reorderMode && !routeMode && !categoryReorderMode && (
                             <>
                                 <TouchEnhancedButton
                                     onClick={markAllAsPurchased}
@@ -894,7 +1077,7 @@ export default function UnifiedShoppingListModal({
                         {/* More Actions Toggle */}
                         <TouchEnhancedButton
                             onClick={() => setShowActions(!showActions)}
-                            disabled={reorderMode || routeMode}
+                            disabled={reorderMode || routeMode || categoryReorderMode}
                             style={{
                                 backgroundColor: '#374151',
                                 color: 'white',
@@ -902,9 +1085,9 @@ export default function UnifiedShoppingListModal({
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (reorderMode || routeMode) ? 'not-allowed' : 'pointer',
+                                cursor: (reorderMode || routeMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
-                                opacity: (reorderMode || routeMode) ? 0.6 : 1
+                                opacity: (reorderMode || routeMode || categoryReorderMode) ? 0.6 : 1
                             }}
                         >
                             {showActions ? '⌄ Less' : '⋯ More'}
@@ -1121,6 +1304,45 @@ export default function UnifiedShoppingListModal({
                         </div>
                     )}
 
+                    {/* NEW: Category Reorder Mode Instructions */}
+                    {categoryReorderMode && (
+                        <div style={{
+                            padding: '0.75rem 1rem',
+                            backgroundColor: '#f3e8ff',
+                            borderBottom: '1px solid #7c3aed',
+                            flexShrink: 0
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                fontSize: '0.75rem',
+                                color: '#5b21b6'
+                            }}>
+                                <span>📂</span>
+                                <span style={{fontWeight: '500'}}>
+                                    Drag category headers to reorder them for {selectedStore || 'default'} store
+                                </span>
+                                <TouchEnhancedButton
+                                    onClick={resetCustomCategoryOrder}
+                                    style={{
+                                        marginLeft: 'auto',
+                                        backgroundColor: '#ef4444',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.25rem 0.5rem',
+                                        fontSize: '0.7rem',
+                                        cursor: 'pointer'
+                                    }}
+                                    title="Reset category order to default"
+                                >
+                                    🔄 Reset Categories
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    )}
+
                     {storeLayoutMode && currentStoreLayout && (
                         <div style={{
                             padding: '0.75rem 1rem',
@@ -1210,7 +1432,7 @@ export default function UnifiedShoppingListModal({
                     )}
 
                     {/* Expandable Actions Panel */}
-                    {showActions && !reorderMode && !routeMode && (
+                    {showActions && !reorderMode && !routeMode && !categoryReorderMode && (
                         <div style={{
                             padding: '0.5rem 1rem',
                             borderBottom: '1px solid #f3f4f6',
@@ -1550,25 +1772,65 @@ export default function UnifiedShoppingListModal({
                                 )}
                             </div>
                         ) : (
-                            // 🆕 STANDARD: Category-based Display (with drag & drop)
+                            // 🆕 UPDATED: Category-based Display with Category Drag & Drop
                             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                                 {Object.entries(groupedItems).map(([category, items]) => (
                                     <div key={category}>
-                                        <h3 style={{
-                                            fontSize: '1rem',
-                                            fontWeight: '600',
-                                            color: '#374151',
-                                            margin: '0 0 0.75rem 0',
-                                            padding: '0.5rem 0',
-                                            borderBottom: '2px solid #e5e7eb',
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'center',
-                                            backgroundColor: storeLayoutMode ? '#f0fdf4' : 'transparent',
-                                            paddingLeft: storeLayoutMode ? '1rem' : '0',
-                                            borderLeft: storeLayoutMode ? '4px solid #059669' : 'none'
-                                        }}>
-                                            <span>{category}</span>
+                                        {/* 🆕 NEW: Enhanced Category Header with Drag & Drop */}
+                                        <h3
+                                            draggable={categoryReorderMode}
+                                            onDragStart={(e) => handleCategoryDragStart(e, category)}
+                                            onDragEnd={handleCategoryDragEnd}
+                                            onDragOver={handleCategoryDragOver}
+                                            onDragEnter={(e) => handleCategoryDragEnter(e, category)}
+                                            onDragLeave={handleCategoryDragLeave}
+                                            onDrop={(e) => handleCategoryDrop(e, category)}
+                                            style={{
+                                                fontSize: '1rem',
+                                                fontWeight: '600',
+                                                color: '#374151',
+                                                margin: '0 0 0.75rem 0',
+                                                padding: '0.5rem 0',
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                backgroundColor: categoryReorderMode
+                                                    ? (dragOverCategoryName === category ? '#f3e8ff' : '#faf5ff')
+                                                    : (storeLayoutMode ? '#f0fdf4' : 'transparent'),
+                                                paddingLeft: categoryReorderMode || storeLayoutMode ? '1rem' : '0',
+                                                borderLeft: categoryReorderMode
+                                                    ? '4px solid #7c3aed'
+                                                    : (storeLayoutMode ? '4px solid #059669' : 'none'),
+                                                cursor: categoryReorderMode ? 'grab' : 'default',
+                                                transition: 'all 0.2s ease',
+                                                borderRadius: categoryReorderMode ? '6px' : '0',
+                                                border: categoryReorderMode
+                                                    ? (dragOverCategoryName === category
+                                                        ? '2px dashed #7c3aed'
+                                                        : '1px solid #e5e7eb')
+                                                    : 'none',
+                                                borderBottom: !categoryReorderMode ? '2px solid #e5e7eb' : 'none',
+                                                marginBottom: categoryReorderMode ? '0.5rem' : '0.75rem'
+                                            }}
+                                        >
+                                            <span style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.5rem'
+                                            }}>
+                                                {/* 🆕 NEW: Drag handle for category reorder mode */}
+                                                {categoryReorderMode && (
+                                                    <div style={{
+                                                        color: '#7c3aed',
+                                                        fontSize: '1.2rem',
+                                                        cursor: 'grab',
+                                                        userSelect: 'none'
+                                                    }}>
+                                                        ⋮⋮
+                                                    </div>
+                                                )}
+                                                {category}
+                                            </span>
                                             <span style={{
                                                 fontSize: '0.75rem',
                                                 fontWeight: '400',
@@ -1580,6 +1842,8 @@ export default function UnifiedShoppingListModal({
                                                 {items.length}
                                             </span>
                                         </h3>
+
+                                        {/* Items within category */}
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
                                             {items.map((item, index) => {
                                                 const itemKey = item.itemKey || `${item.ingredient || item.name}-${category}`;
@@ -1629,7 +1893,7 @@ export default function UnifiedShoppingListModal({
                                                         )}
 
                                                         {/* Checkbox (hidden in reorder mode) */}
-                                                        {!reorderMode && (
+                                                        {!reorderMode && !categoryReorderMode && (
                                                             <input
                                                                 type="checkbox"
                                                                 checked={isPurchased}
@@ -1701,6 +1965,21 @@ export default function UnifiedShoppingListModal({
                                                                     📋 Custom order: {customOrder[category].indexOf(item.ingredient || item.name) + 1}
                                                                 </div>
                                                             )}
+
+                                                            {/* 🆕 NEW: Category Order Status */}
+                                                            {categoryReorderMode && customCategoryOrder.length > 0 && (
+                                                                <div style={{
+                                                                    fontSize: '0.7rem',
+                                                                    color: '#7c3aed',
+                                                                    backgroundColor: '#f3e8ff',
+                                                                    padding: '0.25rem 0.5rem',
+                                                                    borderRadius: '4px',
+                                                                    border: '1px solid #c4b5fd',
+                                                                    marginTop: '0.25rem'
+                                                                }}>
+                                                                    📂 Category position: {customCategoryOrder.indexOf(category) + 1 || 'end'}
+                                                                </div>
+                                                            )}
                                                         </div>
 
                                                         {/* Drag Position Indicator */}
@@ -1748,6 +2027,12 @@ export default function UnifiedShoppingListModal({
                             {Object.keys(customOrder).length > 0 && (
                                 <div style={{marginTop: '0.25rem'}}>
                                     📋 Custom order saved for {Object.keys(customOrder).length} categories
+                                </div>
+                            )}
+                            {/* 🆕 NEW: Category Order Status */}
+                            {customCategoryOrder.length > 0 && (
+                                <div style={{marginTop: '0.25rem'}}>
+                                    📂 Custom category order: {customCategoryOrder.length} categories for {selectedStore || 'default'}
                                 </div>
                             )}
                             {selectedStore && (
@@ -1824,7 +2109,7 @@ export default function UnifiedShoppingListModal({
                     }
                 }
                 
-                /* Drag and Drop Styles */
+                /* Drag and Drop Styles for Items */
                 [draggable="true"]:active {
                     cursor: grabbing !important;
                 }
@@ -1853,6 +2138,36 @@ export default function UnifiedShoppingListModal({
                     background-color: #f1f5f9 !important;
                     border: 2px dashed #94a3b8 !important;
                     opacity: 0.5;
+                }
+
+                /* 🆕 NEW: Category Drag & Drop Styles */
+                .category-dragging {
+                    opacity: 0.6;
+                    transform: rotate(2deg);
+                    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
+                    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+                    border: 2px dashed #7c3aed !important;
+                }
+
+                .category-drag-over {
+                    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
+                    border: 2px dashed #7c3aed !important;
+                    transform: scale(1.02);
+                }
+
+                .category-reorder-mode h3 {
+                    background: linear-gradient(90deg, #faf5ff 0%, #f3e8ff 100%);
+                    border-left: 4px solid #7c3aed;
+                    padding-left: 1rem;
+                    border-radius: 6px;
+                    cursor: grab;
+                    transition: all 0.2s ease;
+                }
+
+                .category-reorder-mode h3:hover {
+                    background: linear-gradient(90deg, #f3e8ff 0%, #e9d5ff 100%);
+                    transform: translateY(-1px);
+                    box-shadow: 0 4px 8px rgba(124, 58, 237, 0.1);
                 }
                 
                 /* Store Layout Mode Styles */
@@ -1913,7 +2228,7 @@ export default function UnifiedShoppingListModal({
                     }
                     
                     /* Enhanced touch targets */
-                    .reorder-item {
+                    .reorder-item, .category-header {
                         min-height: 60px;
                         padding: 1rem;
                     }
@@ -1935,6 +2250,11 @@ export default function UnifiedShoppingListModal({
                 .custom-order-badge {
                     animation: fadeIn 0.3s ease-in-out;
                 }
+
+                /* 🆕 NEW: Category order indicator animation */
+                .category-order-badge {
+                    animation: slideInLeft 0.3s ease-out;
+                }
                 
                 @keyframes fadeIn {
                     from {
@@ -1944,6 +2264,17 @@ export default function UnifiedShoppingListModal({
                     to {
                         opacity: 1;
                         transform: translateY(0);
+                    }
+                }
+
+                @keyframes slideInLeft {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(0);
                     }
                 }
                 
@@ -1978,119 +2309,63 @@ export default function UnifiedShoppingListModal({
                 
                 .reorder-mode:hover {
                     border-color: #1d4ed8;
-                    background: linear-gradient(135deg, #bfdbfe 0%, #bae6fd 100%);
+                    background: linear-gradient(135deg, #bfdbfe 0%, #dbeafe 100%);
+                    transform: translateY(-1px);
                 }
                 
-                /* Instructions panel animation */
-                .instructions-panel {
-                    animation: slideDown 0.2s ease-out;
-                }
-                
-                @keyframes slideDown {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
+                /* Safe area support for mobile devices */
+                @supports (padding: max(0px)) {
+                    .modal-container {
+                        padding-top: max(env(safe-area-inset-top), 0px);
+                        padding-bottom: max(env(safe-area-inset-bottom), 0px);
+                        padding-left: max(env(safe-area-inset-left), 0px);
+                        padding-right: max(env(safe-area-inset-right), 0px);
                     }
                 }
                 
-                /* Success feedback */
-                .order-saved {
-                    animation: pulse 0.5s ease-in-out;
-                }
-                
-                @keyframes pulse {
-                    0%, 100% {
-                        transform: scale(1);
-                    }
-                    50% {
-                        transform: scale(1.05);
+                /* Dark mode support (future enhancement) */
+                @media (prefers-color-scheme: dark) {
+                    .dark-mode-ready {
+                        background-color: #1f2937;
+                        color: #f9fafb;
+                        border-color: #374151;
                     }
                 }
                 
-                /* Category header styling */
-                .category-header {
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                
-                .category-header.reorder-mode {
-                    background: linear-gradient(90deg, #f8fafc 0%, #e2e8f0 100%);
-                    border-left: 4px solid #3b82f6;
-                    padding-left: 1rem;
-                }
-                
-                .category-header.store-layout-mode {
-                    background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%);
-                    border-left: 4px solid #059669;
-                    padding-left: 1rem;
-                }
-                
-                /* Smooth transitions for all interactive elements */
-                .shopping-item, .category-header, .mode-button {
-                    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-                }
-                
-                /* Loading state for operations */
-                .loading-state {
-                    pointer-events: none;
-                    opacity: 0.6;
-                }
-                
-                .loading-state::after {
-                    content: "";
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    width: 20px;
-                    height: 20px;
-                    margin: -10px 0 0 -10px;
-                    border: 2px solid #e5e7eb;
-                    border-top: 2px solid #3b82f6;
-                    border-radius: 50%;
-                    animation: spin 1s linear infinite;
-                }
-                
-                /* Store selector modal styling */
-                .store-selector-modal {
-                    backdrop-filter: blur(4px);
-                    -webkit-backdrop-filter: blur(4px);
-                }
-                
-                .store-selector-content {
-                    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-                    border: 1px solid rgba(255, 255, 255, 0.2);
-                }
-                
-                /* Responsive grid for store selector */
-                @media (max-width: 640px) {
-                    .store-grid {
-                        grid-template-columns: 1fr;
+                /* High contrast mode support */
+                @media (prefers-contrast: high) {
+                    .high-contrast {
+                        border-width: 2px;
+                        font-weight: 600;
+                    }
+                    
+                    .drag-handle {
+                        background-color: #000000;
+                        color: #ffffff;
                     }
                 }
                 
-                /* Route mode specific animations */
-                .route-section {
-                    animation: slideInUp 0.3s ease-out;
-                    animation-fill-mode: both;
+                /* Reduced motion support */
+                @media (prefers-reduced-motion: reduce) {
+                    .drag-item,
+                    .category-header,
+                    .reorder-mode {
+                        transition: none;
+                        animation: none;
+                    }
                 }
                 
-                .route-section:nth-child(1) { animation-delay: 0.1s; }
-                .route-section:nth-child(2) { animation-delay: 0.2s; }
-                .route-section:nth-child(3) { animation-delay: 0.3s; }
-                .route-section:nth-child(4) { animation-delay: 0.4s; }
-                .route-section:nth-child(5) { animation-delay: 0.5s; }
-                
-                @keyframes slideInUp {
-                    from {
-                        opacity: 0;
-                        transform: translateY(20px);
+                /* Print-specific styles */
+                @media print {
+                    .no-print {
+                        display: none !important;
                     }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
+                    
+                    .print-optimized {
+                        background: white !important;
+                        color: black !important;
+                        border: 1px solid black !important;
+                        box-shadow: none !important;
                     }
                 }
             `}</style>

@@ -1648,18 +1648,6 @@ export default function MealPlanningCalendar() {
                                 </TouchEnhancedButton>
                             )}
 
-                            <TouchEnhancedButton
-                                onClick={() => {
-                                    console.log('🧪 Testing modal manually');
-                                    setShowSmartSuggestions(true);
-                                    setSmartSuggestions([]);
-                                    setSuggestionsLoading(false);
-                                }}
-                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
-                            >
-                                Test Modal
-                            </TouchEnhancedButton>
-
                             {mealPlan && (
                                 <MealPrepButton
                                     mealPlanId={mealPlan._id}
