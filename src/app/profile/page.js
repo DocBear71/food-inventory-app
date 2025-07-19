@@ -13,6 +13,7 @@ import { FEATURE_GATES } from '@/lib/subscription-config';
 import { useFeatureGate } from '@/hooks/useSubscription';
 import { getApiUrl } from "@/lib/api-config";
 import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
+import { NutritionGoalsTracking } from '@/components/integrations/NutritionGoalsTracking';
 
 export default function ProfilePage() {
     let session = null;
@@ -132,6 +133,27 @@ export default function ProfilePage() {
             return {error: 'Failed to parse server response. Please try again.'};
         }
     };
+
+    const handleNutritionGoalsSync = useCallback(async (newGoals) => {
+        try {
+            console.log('🎯 Syncing nutrition goals with profile:', newGoals);
+
+            // Update the local form data immediately for UI responsiveness
+            setFormData(prev => ({
+                ...prev,
+                nutritionGoals: newGoals
+            }));
+
+            // Show success feedback
+            setSuccess('Nutrition goals updated and synced with profile!');
+            setTimeout(() => setSuccess(''), 3000);
+
+            return Promise.resolve();
+        } catch (error) {
+            console.error('🎯 Error syncing nutrition goals:', error);
+            throw error;
+        }
+    }, []);
 
     // Helper function to compress image before upload
     const compressImage = (file, maxWidth = 300, maxHeight = 300, quality = 0.8) => {
@@ -1580,113 +1602,136 @@ export default function ProfilePage() {
                                         <div className="space-y-6">
                                             <div>
                                                 <h3 className="text-lg font-medium text-gray-900 mb-4">Nutrition Goals</h3>
+                                                <p className="text-sm text-gray-600 mb-4">
+                                                    Set your daily nutrition targets. Changes are automatically saved and synced across all features.
+                                                </p>
 
-                                                <div className="bg-gray-50 p-4 rounded-lg">
-                                                    <h4 className="text-sm font-semibold text-gray-800 mb-4">🎯 Daily Nutrition Targets</h4>
+                                                {/* Enhanced Nutrition Goals Component */}
+                                                <NutritionGoalsTracking
+                                                    data={{
+                                                        goals: {
+                                                            current: formData.nutritionGoals
+                                                        }
+                                                    }}
+                                                    loading={loading}
+                                                    onGoalsUpdate={() => {
+                                                        console.log('🎯 Nutrition goals updated via component');
+                                                        // Optionally refresh profile data here if needed
+                                                    }}
+                                                    onProfileSync={handleNutritionGoalsSync}
+                                                />
 
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Daily Calories
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={formData.nutritionGoals.dailyCalories}
-                                                                onChange={(e) => handleInputChange('nutritionGoals', 'dailyCalories', parseInt(e.target.value) || 0)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                                min="1000"
-                                                                max="5000"
-                                                            />
-                                                            <p className="text-xs text-gray-500 mt-1">Recommended: 1,500-3,000 calories</p>
+                                                {/* Alternative: Manual Goals Form (keep as backup/alternative) */}
+                                                <div className="mt-8 bg-gray-50 p-4 rounded-lg">
+                                                    <details className="cursor-pointer">
+                                                        <summary className="text-sm font-medium text-gray-700 mb-2">
+                                                            📝 Manual Entry (Alternative Method)
+                                                        </summary>
+
+                                                        <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    Daily Calories
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={formData.nutritionGoals.dailyCalories}
+                                                                    onChange={(e) => handleInputChange('nutritionGoals', 'dailyCalories', parseInt(e.target.value) || 0)}
+                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    style={{fontSize: '16px'}}
+                                                                    min="1000"
+                                                                    max="5000"
+                                                                />
+                                                                <p className="text-xs text-gray-500 mt-1">Recommended: 1,500-3,000 calories</p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    Protein (grams)
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={formData.nutritionGoals.protein}
+                                                                    onChange={(e) => handleInputChange('nutritionGoals', 'protein', parseInt(e.target.value) || 0)}
+                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    style={{fontSize: '16px'}}
+                                                                    min="20"
+                                                                    max="300"
+                                                                />
+                                                                <p className="text-xs text-gray-500 mt-1">Recommended: 50-200g</p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    Fat (grams)
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={formData.nutritionGoals.fat}
+                                                                    onChange={(e) => handleInputChange('nutritionGoals', 'fat', parseInt(e.target.value) || 0)}
+                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    style={{fontSize: '16px'}}
+                                                                    min="20"
+                                                                    max="200"
+                                                                />
+                                                                <p className="text-xs text-gray-500 mt-1">Recommended: 44-78g</p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    Carbohydrates (grams)
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={formData.nutritionGoals.carbs}
+                                                                    onChange={(e) => handleInputChange('nutritionGoals', 'carbs', parseInt(e.target.value) || 0)}
+                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    style={{fontSize: '16px'}}
+                                                                    min="50"
+                                                                    max="500"
+                                                                />
+                                                                <p className="text-xs text-gray-500 mt-1">Recommended: 130-300g</p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    Fiber (grams)
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={formData.nutritionGoals.fiber}
+                                                                    onChange={(e) => handleInputChange('nutritionGoals', 'fiber', parseInt(e.target.value) || 0)}
+                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    style={{fontSize: '16px'}}
+                                                                    min="10"
+                                                                    max="60"
+                                                                />
+                                                                <p className="text-xs text-gray-500 mt-1">Recommended: 25-35g</p>
+                                                            </div>
+
+                                                            <div>
+                                                                <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                    Sodium (mg)
+                                                                </label>
+                                                                <input
+                                                                    type="number"
+                                                                    value={formData.nutritionGoals.sodium}
+                                                                    onChange={(e) => handleInputChange('nutritionGoals', 'sodium', parseInt(e.target.value) || 0)}
+                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    style={{fontSize: '16px'}}
+                                                                    min="1000"
+                                                                    max="4000"
+                                                                />
+                                                                <p className="text-xs text-gray-500 mt-1">Recommended: Less than 2,300mg</p>
+                                                            </div>
                                                         </div>
 
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Protein (grams)
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={formData.nutritionGoals.protein}
-                                                                onChange={(e) => handleInputChange('nutritionGoals', 'protein', parseInt(e.target.value) || 0)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                                min="20"
-                                                                max="300"
-                                                            />
-                                                            <p className="text-xs text-gray-500 mt-1">Recommended: 50-200g</p>
+                                                        <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                                            <p className="text-sm text-blue-800">
+                                                                💡 <strong>Note:</strong> Use the enhanced component above for better experience with templates and visual feedback. This manual form saves with your profile when you click "Save Changes" at the bottom.
+                                                            </p>
                                                         </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Fat (grams)
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={formData.nutritionGoals.fat}
-                                                                onChange={(e) => handleInputChange('nutritionGoals', 'fat', parseInt(e.target.value) || 0)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                                min="20"
-                                                                max="200"
-                                                            />
-                                                            <p className="text-xs text-gray-500 mt-1">Recommended: 44-78g</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Carbohydrates (grams)
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={formData.nutritionGoals.carbs}
-                                                                onChange={(e) => handleInputChange('nutritionGoals', 'carbs', parseInt(e.target.value) || 0)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                                min="50"
-                                                                max="500"
-                                                            />
-                                                            <p className="text-xs text-gray-500 mt-1">Recommended: 130-300g</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Fiber (grams)
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={formData.nutritionGoals.fiber}
-                                                                onChange={(e) => handleInputChange('nutritionGoals', 'fiber', parseInt(e.target.value) || 0)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                                min="10"
-                                                                max="60"
-                                                            />
-                                                            <p className="text-xs text-gray-500 mt-1">Recommended: 25-35g</p>
-                                                        </div>
-
-                                                        <div>
-                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                Sodium (mg)
-                                                            </label>
-                                                            <input
-                                                                type="number"
-                                                                value={formData.nutritionGoals.sodium}
-                                                                onChange={(e) => handleInputChange('nutritionGoals', 'sodium', parseInt(e.target.value) || 0)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                                min="1000"
-                                                                max="4000"
-                                                            />
-                                                            <p className="text-xs text-gray-500 mt-1">Recommended: Less than 2,300mg</p>
-                                                        </div>
-                                                    </div>
-
-                                                    <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                                        <p className="text-sm text-blue-800">
-                                                            💡 <strong>Tip:</strong> These goals will be used to track your progress in meal plans and recipe nutrition analysis. Consult with a healthcare provider for personalized nutrition advice.
-                                                        </p>
-                                                    </div>
+                                                    </details>
                                                 </div>
                                             </div>
                                         </div>

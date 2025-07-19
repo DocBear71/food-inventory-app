@@ -1,13 +1,21 @@
-
 'use client';
 
-// file: /src/components/integrations/InventoryNutritionSummary.js v1
+// file: /src/components/integrations/InventoryNutritionSummary.js v2 - Enhanced with search, sort, pagination
 
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 export function InventoryNutritionSummary({ data, loading, onAnalyze }) {
     const [selectedCategory, setSelectedCategory] = useState('all');
     const [analysisProgress, setAnalysisProgress] = useState(null);
+
+    // New state for enhanced functionality
+    const [searchTerm, setSearchTerm] = useState('');
+    const [sortBy, setSortBy] = useState('name'); // 'name', 'category', 'calories', 'protein', 'confidence'
+    const [sortOrder, setSortOrder] = useState('asc'); // 'asc', 'desc'
+    const [itemsPerPage, setItemsPerPage] = useState(12);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [filterStatus, setFilterStatus] = useState('all'); // 'all', 'with-nutrition', 'without-nutrition'
+    const [showItemsView, setShowItemsView] = useState(false);
 
     const inventory = data?.inventory?.items || [];
     const itemsWithNutrition = inventory.filter(item => item.nutrition && Object.keys(item.nutrition).length > 0);
@@ -15,6 +23,75 @@ export function InventoryNutritionSummary({ data, loading, onAnalyze }) {
 
     const categoryBreakdown = data?.inventory?.categoryBreakdown || {};
     const nutritionCoverage = data?.inventory?.nutritionCoverage || { percentage: 0, total: 0, withNutrition: 0 };
+
+    // Enhanced filtering and sorting logic
+    const filteredAndSortedItems = useMemo(() => {
+        let items = inventory;
+
+        // Filter by status
+        if (filterStatus === 'with-nutrition') {
+            items = itemsWithNutrition;
+        } else if (filterStatus === 'without-nutrition') {
+            items = itemsWithoutNutrition;
+        }
+
+        // Filter by search term
+        if (searchTerm) {
+            items = items.filter(item =>
+                item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (item.brand && item.brand.toLowerCase().includes(searchTerm.toLowerCase())) ||
+                (item.category && item.category.toLowerCase().includes(searchTerm.toLowerCase()))
+            );
+        }
+
+        // Sort items
+        items = [...items].sort((a, b) => {
+            let aValue, bValue;
+
+            switch (sortBy) {
+                case 'name':
+                    aValue = a.name.toLowerCase();
+                    bValue = b.name.toLowerCase();
+                    break;
+                case 'category':
+                    aValue = a.category || '';
+                    bValue = b.category || '';
+                    break;
+                case 'calories':
+                    aValue = a.nutrition?.calories?.value || 0;
+                    bValue = b.nutrition?.calories?.value || 0;
+                    break;
+                case 'protein':
+                    aValue = a.nutrition?.protein?.value || 0;
+                    bValue = b.nutrition?.protein?.value || 0;
+                    break;
+                case 'confidence':
+                    aValue = a.nutrition?.confidence || 0;
+                    bValue = b.nutrition?.confidence || 0;
+                    break;
+                default:
+                    aValue = a.name.toLowerCase();
+                    bValue = b.name.toLowerCase();
+            }
+
+            if (typeof aValue === 'string') {
+                return sortOrder === 'asc' ? aValue.localeCompare(bValue) : bValue.localeCompare(aValue);
+            }
+            return sortOrder === 'asc' ? aValue - bValue : bValue - aValue;
+        });
+
+        return items;
+    }, [inventory, itemsWithNutrition, itemsWithoutNutrition, searchTerm, sortBy, sortOrder, filterStatus]);
+
+    // Pagination logic
+    const totalPages = Math.ceil(filteredAndSortedItems.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedItems = filteredAndSortedItems.slice(startIndex, startIndex + itemsPerPage);
+
+    // Reset page when filters change
+    React.useEffect(() => {
+        setCurrentPage(1);
+    }, [searchTerm, sortBy, sortOrder, filterStatus, itemsPerPage]);
 
     const analyzeCategory = async (category) => {
         setAnalysisProgress({ category, progress: 0 });
@@ -54,6 +131,20 @@ export function InventoryNutritionSummary({ data, loading, onAnalyze }) {
         const percentage = total > 0 ? Math.round((withNutrition / total) * 100) : 0;
 
         return { withNutrition, total, percentage };
+    };
+
+    const handleSort = (newSortBy) => {
+        if (sortBy === newSortBy) {
+            setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
+        } else {
+            setSortBy(newSortBy);
+            setSortOrder('asc');
+        }
+    };
+
+    const renderSortIcon = (column) => {
+        if (sortBy !== column) return '↕️';
+        return sortOrder === 'asc' ? '↑' : '↓';
     };
 
     if (loading && !data) {
@@ -244,86 +335,369 @@ export function InventoryNutritionSummary({ data, loading, onAnalyze }) {
                                 {itemsWithoutNutrition.length} items can be analyzed for complete nutrition data
                             </p>
                         </div>
-                        <button
-                            onClick={() => analyzeCategory('all')}
-                            className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm"
-                        >
-                            🔬 Analyze Now
-                        </button>
+                        <div className="flex space-x-2">
+                            <button
+                                onClick={() => {
+                                    setFilterStatus('without-nutrition');
+                                    setShowItemsView(true);
+                                }}
+                                className="bg-orange-100 text-orange-700 px-3 py-2 rounded-lg hover:bg-orange-200 transition-colors text-sm"
+                            >
+                                📋 View Items
+                            </button>
+                            <button
+                                onClick={() => analyzeCategory('all')}
+                                className="bg-orange-600 text-white px-4 py-2 rounded-lg hover:bg-orange-700 transition-colors text-sm"
+                            >
+                                🔬 Analyze Now
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
 
-            {/* Items with Nutrition Data */}
-            {itemsWithNutrition.length > 0 && (
-                <div className="bg-white rounded-lg border border-gray-200 p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">✅ Items with Nutrition Data</h3>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {itemsWithNutrition.slice(0, 9).map((item, index) => (
-                            <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                                <div className="flex justify-between items-start mb-2">
-                                    <h4 className="font-medium text-gray-900 text-sm">{item.name}</h4>
-                                    <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
-                                        📊 Complete
-                                    </span>
-                                </div>
+            {/* Enhanced Items View Toggle */}
+            <div className="bg-white rounded-lg border border-gray-200 p-6">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">
+                        📋 Inventory Items ({filteredAndSortedItems.length})
+                    </h3>
+                    <button
+                        onClick={() => setShowItemsView(!showItemsView)}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm"
+                    >
+                        {showItemsView ? '📊 Show Summary' : '📋 View All Items'}
+                    </button>
+                </div>
 
-                                {item.brand && (
-                                    <p className="text-xs text-gray-500 mb-2">{item.brand}</p>
+                {showItemsView && (
+                    <div className="space-y-4">
+                        {/* Search and Filter Controls */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            {/* Search */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                                <input
+                                    type="text"
+                                    placeholder="Search items..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                />
+                            </div>
+
+                            {/* Filter by Status */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                                <select
+                                    value={filterStatus}
+                                    onChange={(e) => setFilterStatus(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="all">All Items ({inventory.length})</option>
+                                    <option value="with-nutrition">With Nutrition ({itemsWithNutrition.length})</option>
+                                    <option value="without-nutrition">Without Nutrition ({itemsWithoutNutrition.length})</option>
+                                </select>
+                            </div>
+
+                            {/* Sort By */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Sort By</label>
+                                <select
+                                    value={sortBy}
+                                    onChange={(e) => setSortBy(e.target.value)}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value="name">Name</option>
+                                    <option value="category">Category</option>
+                                    <option value="calories">Calories</option>
+                                    <option value="protein">Protein</option>
+                                    <option value="confidence">Confidence</option>
+                                </select>
+                            </div>
+
+                            {/* Items Per Page */}
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-1">Per Page</label>
+                                <select
+                                    value={itemsPerPage}
+                                    onChange={(e) => setItemsPerPage(Number(e.target.value))}
+                                    className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:ring-blue-500 focus:border-blue-500"
+                                >
+                                    <option value={12}>12</option>
+                                    <option value={24}>24</option>
+                                    <option value={48}>48</option>
+                                    <option value={96}>96</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Sort Order Toggle */}
+                        <div className="flex items-center space-x-4">
+                            <span className="text-sm text-gray-600">Sort Order:</span>
+                            <button
+                                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                                className="flex items-center space-x-1 text-sm text-blue-600 hover:text-blue-700"
+                            >
+                                <span>{sortOrder === 'asc' ? 'Ascending' : 'Descending'}</span>
+                                <span>{sortOrder === 'asc' ? '↑' : '↓'}</span>
+                            </button>
+                        </div>
+
+                        {/* Results Summary */}
+                        <div className="bg-gray-50 rounded-lg p-3">
+                            <div className="flex justify-between items-center text-sm">
+                                <span>
+                                    Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredAndSortedItems.length)} of {filteredAndSortedItems.length} items
+                                </span>
+                                {searchTerm && (
+                                    <button
+                                        onClick={() => setSearchTerm('')}
+                                        className="text-blue-600 hover:text-blue-700"
+                                    >
+                                        Clear search
+                                    </button>
                                 )}
+                            </div>
+                        </div>
 
-                                <div className="space-y-1 text-sm">
-                                    {item.nutrition.calories && (
-                                        <div className="flex justify-between">
-                                            <span>Calories:</span>
-                                            <span className="font-medium">{Math.round(item.nutrition.calories.value)} kcal</span>
+                        {/* Items Grid */}
+                        {paginatedItems.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {paginatedItems.map((item, index) => (
+                                    <div key={`${item._id || item.name}-${index}`} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <h4 className="font-medium text-gray-900 text-sm">{item.name}</h4>
+                                            <span className={`text-xs px-2 py-1 rounded ${
+                                                item.nutrition && Object.keys(item.nutrition).length > 0
+                                                    ? 'bg-green-100 text-green-700'
+                                                    : 'bg-orange-100 text-orange-700'
+                                            }`}>
+                                                {item.nutrition && Object.keys(item.nutrition).length > 0 ? '📊 Complete' : '⏳ Pending'}
+                                            </span>
                                         </div>
-                                    )}
-                                    {item.nutrition.protein && (
-                                        <div className="flex justify-between">
-                                            <span>Protein:</span>
-                                            <span className="font-medium">{item.nutrition.protein.value?.toFixed(1)}g</span>
-                                        </div>
-                                    )}
-                                    {item.nutrition.carbs && (
-                                        <div className="flex justify-between">
-                                            <span>Carbs:</span>
-                                            <span className="font-medium">{item.nutrition.carbs.value?.toFixed(1)}g</span>
-                                        </div>
-                                    )}
-                                    {item.nutrition.fat && (
-                                        <div className="flex justify-between">
-                                            <span>Fat:</span>
-                                            <span className="font-medium">{item.nutrition.fat.value?.toFixed(1)}g</span>
-                                        </div>
-                                    )}
-                                </div>
 
-                                <div className="mt-3 pt-3 border-t border-gray-100">
-                                    <div className="flex justify-between items-center text-xs text-gray-500">
-                                        <span>
-                                            {item.nutrition.calculationMethod === 'ai_calculated' ? '🤖 AI' :
-                                                item.nutrition.calculationMethod === 'usda_lookup' ? '🗃️ USDA' :
-                                                    '📋 Manual'}
-                                        </span>
-                                        {item.nutrition.confidence && (
-                                            <span>{Math.round(item.nutrition.confidence * 100)}% confidence</span>
+                                        {item.brand && (
+                                            <p className="text-xs text-gray-500 mb-2">{item.brand}</p>
+                                        )}
+
+                                        {item.category && (
+                                            <p className="text-xs text-blue-600 mb-2">📂 {item.category}</p>
+                                        )}
+
+                                        {item.nutrition && Object.keys(item.nutrition).length > 0 ? (
+                                            <div className="space-y-1 text-sm">
+                                                {item.nutrition.calories && (
+                                                    <div className="flex justify-between">
+                                                        <span>Calories:</span>
+                                                        <span className="font-medium">{Math.round(item.nutrition.calories.value)} kcal</span>
+                                                    </div>
+                                                )}
+                                                {item.nutrition.protein && (
+                                                    <div className="flex justify-between">
+                                                        <span>Protein:</span>
+                                                        <span className="font-medium">{item.nutrition.protein.value?.toFixed(1)}g</span>
+                                                    </div>
+                                                )}
+                                                {item.nutrition.carbs && (
+                                                    <div className="flex justify-between">
+                                                        <span>Carbs:</span>
+                                                        <span className="font-medium">{item.nutrition.carbs.value?.toFixed(1)}g</span>
+                                                    </div>
+                                                )}
+                                                {item.nutrition.fat && (
+                                                    <div className="flex justify-between">
+                                                        <span>Fat:</span>
+                                                        <span className="font-medium">{item.nutrition.fat.value?.toFixed(1)}g</span>
+                                                    </div>
+                                                )}
+
+                                                <div className="mt-3 pt-3 border-t border-gray-100">
+                                                    <div className="flex justify-between items-center text-xs text-gray-500">
+                                                        <span>
+                                                            {item.nutrition.calculationMethod === 'ai_calculated' ? '🤖 AI' :
+                                                                item.nutrition.calculationMethod === 'usda_lookup' ? '🗃️ USDA' :
+                                                                    '📋 Manual'}
+                                                        </span>
+                                                        {item.nutrition.confidence && (
+                                                            <span>{Math.round(item.nutrition.confidence * 100)}% confidence</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="text-center py-4">
+                                                <div className="text-gray-400 mb-2">⏳</div>
+                                                <p className="text-xs text-gray-500 mb-2">Nutrition data not available</p>
+                                                <button
+                                                    onClick={() => analyzeCategory(item.category || 'all')}
+                                                    className="text-xs text-blue-600 hover:text-blue-700"
+                                                >
+                                                    🔬 Analyze
+                                                </button>
+                                            </div>
                                         )}
                                     </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8">
+                                <div className="text-4xl mb-2">🔍</div>
+                                <h4 className="font-medium text-gray-900 mb-2">No items found</h4>
+                                <p className="text-gray-600 text-sm">
+                                    {searchTerm ? 'Try adjusting your search terms' : 'No items match the current filters'}
+                                </p>
+                            </div>
+                        )}
+
+                        {/* Pagination */}
+                        {totalPages > 1 && (
+                            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setCurrentPage(1)}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                    >
+                                        First
+                                    </button>
+                                    <button
+                                        onClick={() => setCurrentPage(currentPage - 1)}
+                                        disabled={currentPage === 1}
+                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                    >
+                                        Previous
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center space-x-1">
+                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                        let page;
+                                        if (totalPages <= 5) {
+                                            page = i + 1;
+                                        } else if (currentPage <= 3) {
+                                            page = i + 1;
+                                        } else if (currentPage >= totalPages - 2) {
+                                            page = totalPages - 4 + i;
+                                        } else {
+                                            page = currentPage - 2 + i;
+                                        }
+
+                                        return (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                className={`px-3 py-1 text-sm border rounded ${
+                                                    currentPage === page
+                                                        ? 'bg-blue-600 text-white border-blue-600'
+                                                        : 'border-gray-300 hover:bg-gray-50'
+                                                }`}
+                                            >
+                                                {page}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+
+                                <div className="flex items-center space-x-2">
+                                    <button
+                                        onClick={() => setCurrentPage(currentPage + 1)}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                    >
+                                        Next
+                                    </button>
+                                    <button
+                                        onClick={() => setCurrentPage(totalPages)}
+                                        disabled={currentPage === totalPages}
+                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                    >
+                                        Last
+                                    </button>
                                 </div>
                             </div>
-                        ))}
+                        )}
                     </div>
+                )}
 
-                    {itemsWithNutrition.length > 9 && (
-                        <div className="mt-4 text-center">
-                            <p className="text-sm text-gray-600">
-                                Showing 9 of {itemsWithNutrition.length} items with nutrition data
-                            </p>
+                {/* Summary View (when not showing detailed items) */}
+                {!showItemsView && itemsWithNutrition.length > 0 && (
+                    <div>
+                        <h4 className="font-medium text-gray-900 mb-3">Recent Items with Nutrition Data</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {itemsWithNutrition.slice(0, 6).map((item, index) => (
+                                <div key={index} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
+                                    <div className="flex justify-between items-start mb-2">
+                                        <h4 className="font-medium text-gray-900 text-sm">{item.name}</h4>
+                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded">
+                                            📊 Complete
+                                        </span>
+                                    </div>
+
+                                    {item.brand && (
+                                        <p className="text-xs text-gray-500 mb-2">{item.brand}</p>
+                                    )}
+
+                                    <div className="space-y-1 text-sm">
+                                        {item.nutrition.calories && (
+                                            <div className="flex justify-between">
+                                                <span>Calories:</span>
+                                                <span className="font-medium">{Math.round(item.nutrition.calories.value)} kcal</span>
+                                            </div>
+                                        )}
+                                        {item.nutrition.protein && (
+                                            <div className="flex justify-between">
+                                                <span>Protein:</span>
+                                                <span className="font-medium">{item.nutrition.protein.value?.toFixed(1)}g</span>
+                                            </div>
+                                        )}
+                                        {item.nutrition.carbs && (
+                                            <div className="flex justify-between">
+                                                <span>Carbs:</span>
+                                                <span className="font-medium">{item.nutrition.carbs.value?.toFixed(1)}g</span>
+                                            </div>
+                                        )}
+                                        {item.nutrition.fat && (
+                                            <div className="flex justify-between">
+                                                <span>Fat:</span>
+                                                <span className="font-medium">{item.nutrition.fat.value?.toFixed(1)}g</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-3 pt-3 border-t border-gray-100">
+                                        <div className="flex justify-between items-center text-xs text-gray-500">
+                                            <span>
+                                                {item.nutrition.calculationMethod === 'ai_calculated' ? '🤖 AI' :
+                                                    item.nutrition.calculationMethod === 'usda_lookup' ? '🗃️ USDA' :
+                                                        '📋 Manual'}
+                                            </span>
+                                            {item.nutrition.confidence && (
+                                                <span>{Math.round(item.nutrition.confidence * 100)}% confidence</span>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </div>
-            )}
+
+                        <div className="mt-4 text-center">
+                            <p className="text-sm text-gray-600 mb-2">
+                                Showing 6 of {itemsWithNutrition.length} items with nutrition data
+                            </p>
+                            <button
+                                onClick={() => {
+                                    setFilterStatus('with-nutrition');
+                                    setShowItemsView(true);
+                                }}
+                                className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+                            >
+                                View All {itemsWithNutrition.length} Items →
+                            </button>
+                        </div>
+                    </div>
+                )}
+            </div>
         </div>
     );
 }

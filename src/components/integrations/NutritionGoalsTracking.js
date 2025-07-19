@@ -1,10 +1,10 @@
 'use client';
 
-// file: /src/components/integrations/NutritionGoalsTracking.js v1
+// file: /src/components/integrations/NutritionGoalsTracking.js v3 - Enhanced with profile sync
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
-export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
+export function NutritionGoalsTracking({ data, loading, onGoalsUpdate, onProfileSync }) {
     const [goals, setGoals] = useState({
         dailyCalories: 2000,
         protein: 150,
@@ -18,6 +18,13 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
     const [progress, setProgress] = useState({});
     const [recommendations, setRecommendations] = useState([]);
 
+    // Visual feedback state
+    const [notification, setNotification] = useState(null);
+    const [animatedFields, setAnimatedFields] = useState(new Set());
+
+    // Ref for scrolling to goals section
+    const goalsRef = useRef(null);
+
     useEffect(() => {
         if (data?.goals?.current) {
             setGoals(data.goals.current);
@@ -30,6 +37,7 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
         }
     }, [data]);
 
+    // Enhanced save function with profile sync
     const saveGoals = async () => {
         try {
             setSaving(true);
@@ -42,11 +50,31 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
                 body: JSON.stringify(goals),
             });
 
-            if (response.ok) {
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                showNotification('Goals saved successfully!', 'success');
+
+                // Call the original callback
                 onGoalsUpdate?.();
+
+                // NEW: Notify parent component (profile page) to sync the data
+                if (onProfileSync) {
+                    console.log('Syncing nutrition goals with profile...');
+                    try {
+                        await onProfileSync(goals);
+                        console.log('Profile sync completed successfully');
+                    } catch (syncError) {
+                        console.warn('Profile sync failed, but goals were saved:', syncError);
+                        // Don't show error to user since the main save was successful
+                    }
+                }
+            } else {
+                throw new Error(result.error || 'Failed to save goals');
             }
         } catch (error) {
             console.error('Error saving goals:', error);
+            showNotification('Failed to save goals. Please try again.', 'error');
         } finally {
             setSaving(false);
         }
@@ -57,6 +85,117 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
             ...prev,
             [key]: parseFloat(value) || 0
         }));
+    };
+
+    // Enhanced notification system
+    const showNotification = (message, type = 'success', duration = 4000) => {
+        setNotification({ message, type, id: Date.now() });
+        setTimeout(() => {
+            setNotification(null);
+        }, duration);
+    };
+
+    // Enhanced template application with profile sync
+    const applyTemplate = async (template) => {
+        // Animate the fields that are changing
+        const changedFields = new Set();
+        Object.keys(template.goals).forEach(key => {
+            if (goals[key] !== template.goals[key]) {
+                changedFields.add(key);
+            }
+        });
+
+        // Set animated fields for visual effect
+        setAnimatedFields(changedFields);
+
+        // Apply the template
+        setGoals(template.goals);
+
+        // Show notification
+        showNotification(
+            `Nutrition goals updated to "${template.name}" template!`,
+            'success',
+            5000
+        );
+
+        // Auto-save the new goals
+        try {
+            setSaving(true);
+
+            const response = await fetch('/api/nutrition/goals', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(template.goals),
+            });
+
+            const result = await response.json();
+
+            if (response.ok && result.success) {
+                // Call callbacks
+                onGoalsUpdate?.();
+
+                // Sync with profile
+                if (onProfileSync) {
+                    try {
+                        await onProfileSync(template.goals);
+                        console.log('Template applied and synced with profile');
+                    } catch (syncError) {
+                        console.warn('Profile sync failed during template application:', syncError);
+                    }
+                }
+
+                showNotification(
+                    `"${template.name}" template applied and saved!`,
+                    'success',
+                    3000
+                );
+            } else {
+                throw new Error(result.error || 'Failed to save template');
+            }
+        } catch (error) {
+            console.error('Error saving template:', error);
+            showNotification('Template applied but failed to save. Please save manually.', 'warning');
+        } finally {
+            setSaving(false);
+        }
+
+        // Scroll to goals section
+        if (goalsRef.current) {
+            goalsRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+                inline: 'nearest'
+            });
+        }
+
+        // Clear animation after a delay
+        setTimeout(() => {
+            setAnimatedFields(new Set());
+        }, 2000);
+    };
+
+    // Notification component
+    const NotificationToast = ({ notification }) => {
+        if (!notification) return null;
+
+        const bgColor = notification.type === 'success' ? 'bg-green-500' :
+            notification.type === 'error' ? 'bg-red-500' :
+                notification.type === 'warning' ? 'bg-orange-500' : 'bg-blue-500';
+
+        const icon = notification.type === 'success' ? '✅' :
+            notification.type === 'error' ? '❌' :
+                notification.type === 'warning' ? '⚠️' : 'ℹ️';
+
+        return (
+            <div className={`fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform animate-slide-in`}>
+                <div className="flex items-center space-x-2">
+                    <span className="text-lg">{icon}</span>
+                    <span className="font-medium">{notification.message}</span>
+                </div>
+            </div>
+        );
     };
 
     const getGoalStatus = (percentage, nutrient) => {
@@ -134,8 +273,51 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
 
     return (
         <div className="space-y-6">
+            {/* Add CSS for animations */}
+            <style jsx>{`
+                @keyframes slide-in {
+                    from {
+                        transform: translateX(100%);
+                        opacity: 0;
+                    }
+                    to {
+                        transform: translateX(0);
+                        opacity: 1;
+                    }
+                }
+
+                @keyframes highlight-pulse {
+                    0% {
+                        background-color: rgb(239 246 255);
+                        border-color: rgb(59 130 246);
+                        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                    }
+                    50% {
+                        background-color: rgb(219 234 254);
+                        border-color: rgb(37 99 235);
+                        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+                    }
+                    100% {
+                        background-color: rgb(239 246 255);
+                        border-color: rgb(59 130 246);
+                        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+                    }
+                }
+
+                .animate-slide-in {
+                    animation: slide-in 0.3s ease-out;
+                }
+
+                .animate-highlight {
+                    animation: highlight-pulse 1s ease-in-out 2;
+                }
+            `}</style>
+
+            {/* Notification Toast */}
+            <NotificationToast notification={notification} />
+
             {/* Goals Setting */}
-            <div className="bg-white rounded-lg border border-gray-200 p-6">
+            <div ref={goalsRef} className="bg-white rounded-lg border border-gray-200 p-6">
                 <div className="flex justify-between items-center mb-6">
                     <div>
                         <h3 className="text-lg font-semibold text-gray-900">🎯 Nutrition Goals</h3>
@@ -164,6 +346,9 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
                         <div key={goal.key} className="space-y-2">
                             <label className="text-sm font-medium text-gray-900">
                                 {goal.label}
+                                {animatedFields.has(goal.key) && (
+                                    <span className="ml-2 text-green-600 animate-bounce">✨ Updated!</span>
+                                )}
                             </label>
                             <div className="relative">
                                 <input
@@ -172,7 +357,11 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
                                     onChange={(e) => updateGoal(goal.key, e.target.value)}
                                     min={goal.min}
                                     max={goal.max}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-300 ${
+                                        animatedFields.has(goal.key)
+                                            ? 'animate-highlight border-blue-500'
+                                            : 'border-gray-300'
+                                    }`}
                                     placeholder={`Enter ${goal.label.toLowerCase()}`}
                                 />
                                 <span className="absolute right-3 top-2 text-sm text-gray-500">
@@ -185,6 +374,18 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
                         </div>
                     ))}
                 </div>
+
+                {/* Visual indicator when goals are updated */}
+                {animatedFields.size > 0 && (
+                    <div className="mt-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                        <div className="flex items-center space-x-2">
+                            <span className="text-green-600 text-lg animate-pulse">✨</span>
+                            <span className="text-sm text-green-800 font-medium">
+                                Goals updated! {animatedFields.size} field{animatedFields.size > 1 ? 's' : ''} changed.
+                            </span>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {/* Progress Tracking */}
@@ -272,11 +473,11 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
                 </div>
             )}
 
-            {/* Goal Templates */}
+            {/* Enhanced Goal Templates with auto-save */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h4 className="text-lg font-semibold text-gray-900 mb-4">📋 Goal Templates</h4>
                 <p className="text-sm text-gray-600 mb-4">
-                    Quick setup based on common nutrition goals
+                    Quick setup based on common nutrition goals. Templates are automatically saved when applied.
                 </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -339,12 +540,11 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate }) {
                             </div>
 
                             <button
-                                onClick={() => {
-                                    setGoals(template.goals);
-                                }}
-                                className="w-full bg-gray-100 text-gray-700 px-3 py-2 rounded-lg hover:bg-gray-200 transition-colors text-sm"
+                                onClick={() => applyTemplate(template)}
+                                disabled={saving}
+                                className="w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium disabled:opacity-50"
                             >
-                                Use Template
+                                {saving ? '💾 Applying...' : '✨ Use Template'}
                             </button>
                         </div>
                     ))}

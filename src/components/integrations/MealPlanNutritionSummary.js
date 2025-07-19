@@ -1,10 +1,17 @@
-// file: /src/components/integrations/MealPlanNutritionSummary.js v1
-
 'use client';
 
+// file: /src/components/integrations/MealPlanNutritionSummary.js v2
+
 import React, { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
+import { FEATURE_GATES } from '@/lib/subscription-config';
 
 export function MealPlanNutritionSummary({ data, loading, onRefresh }) {
+    const router = useRouter();
+    const subscription = useSubscription();
+    const mealPlanningGate = useFeatureGate(FEATURE_GATES.CREATE_MEAL_PLAN);
+
     const [selectedPlan, setSelectedPlan] = useState(null);
     const [nutritionView, setNutritionView] = useState('summary'); // 'summary', 'daily', 'goals'
 
@@ -12,6 +19,27 @@ export function MealPlanNutritionSummary({ data, loading, onRefresh }) {
     const weeklyNutrition = data?.mealPlans?.weeklyNutrition || {};
     const upcomingMeals = data?.mealPlans?.upcomingMeals || [];
     const nutritionGoals = data?.goals?.current || {};
+
+    // Enhanced navigation function that determines best route based on subscription
+    const handleCreateMealPlan = () => {
+        if (!mealPlanningGate.hasAccess) {
+            // Redirect to pricing if no access
+            router.push('/app/pricing');
+            return;
+        }
+
+        // Determine which meal planning interface to use based on subscription tier
+        if (subscription?.plan === 'platinum') {
+            // Platinum users get the enhanced experience with full price intelligence
+            router.push('/meal-planning/enhanced');
+        } else if (subscription?.plan === 'gold') {
+            // Gold users get smart meal planning with basic price intelligence
+            router.push('/meal-planning');
+        } else {
+            // Fallback to basic meal planning
+            router.push('/meal-planning');
+        }
+    };
 
     const calculateMealPlanNutrition = (mealPlan) => {
         // This would calculate actual nutrition from meal plan
@@ -448,17 +476,43 @@ export function MealPlanNutritionSummary({ data, loading, onRefresh }) {
                 </div>
             )}
 
-            {/* No Meal Plans */}
+            {/* Enhanced No Meal Plans State */}
             {mealPlans.length === 0 && (
                 <div className="bg-white rounded-lg border border-gray-200 p-12 text-center">
                     <div className="text-4xl mb-4">📋</div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">No Meal Plans Found</h3>
-                    <p className="text-gray-600 mb-4">
+                    <p className="text-gray-600 mb-6">
                         Create a meal plan to track nutrition and get AI-powered insights.
                     </p>
-                    <button className="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                        Create Meal Plan
-                    </button>
+
+                    {/* Enhanced CTA with smart routing */}
+                    <div className="space-y-3">
+                        <button
+                            onClick={handleCreateMealPlan}
+                            className={`px-6 py-3 rounded-lg font-medium transition-colors ${
+                                mealPlanningGate.hasAccess
+                                    ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white'
+                            }`}
+                        >
+                            {mealPlanningGate.hasAccess
+                                ? (subscription?.plan === 'platinum' ? '🚀 Create Smart Meal Plan' : '📅 Create Meal Plan')
+                                : '🔓 Upgrade to Create Meal Plans'
+                            }
+                        </button>
+
+                        {!mealPlanningGate.hasAccess && (
+                            <p className="text-sm text-gray-500">
+                                Meal planning is available with Gold and Platinum subscriptions
+                            </p>
+                        )}
+
+                        {mealPlanningGate.hasAccess && subscription?.plan === 'platinum' && (
+                            <p className="text-sm text-green-600">
+                                💎 Platinum: Includes price intelligence and advanced optimization
+                            </p>
+                        )}
+                    </div>
                 </div>
             )}
         </div>

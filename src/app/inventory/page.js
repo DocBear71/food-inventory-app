@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/inventory/page.js - v12
+// file: /src/app/inventory/page.js - v13 - FIXED - PART 1
 
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState, Suspense} from 'react';
@@ -22,7 +22,6 @@ import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashbo
 import MobilePriceTrackingModal from '@/components/inventory/MobilePriceTrackingModal';
 import AdvancedPriceSearch from '@/components/inventory/AdvancedPriceSearch';
 
-
 // Import smart display utilities
 import {
     formatInventoryDisplayText,
@@ -31,7 +30,6 @@ import {
     hasDualUnits,
     getShortDisplayText
 } from '@/lib/inventoryDisplayUtils';
-
 
 // Helper function to parse quantity/serving size and extract size info
 function parseProductSize(product) {
@@ -135,7 +133,6 @@ function OfflineIndicator() {
     );
 }
 
-
 // Helper function to extract number and unit from a string
 function extractNumberAndUnit(text) {
     // Enhanced pattern to handle various formats
@@ -237,17 +234,25 @@ function InventoryContent() {
     const [mergeDuplicates, setMergeDuplicates] = useState(true);
     const [showShoppingListModal, setShowShoppingListModal] = useState(false);
     const [selectedItemForShopping, setSelectedItemForShopping] = useState(null);
-    const [trackingPriceForItem, setTrackingPriceForItem] = useState(null); // 🆕 ADD THIS
-    const [priceTrackingModal, setPriceTrackingModal] = useState(false); // 🆕 ADD THIS
-    const [stores, setStores] = useState([]); // 🆕 ADD THIS
+    const [trackingPriceForItem, setTrackingPriceForItem] = useState(null);
+    const [priceTrackingModal, setPriceTrackingModal] = useState(false);
+    const [stores, setStores] = useState([]);
     const [activeTab, setActiveTab] = useState('inventory');
+
+    // ✅ NEW: Pagination states
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(24); // Default to 24 items per page
+
+    // ✅ NEW: Collapsible filter states
+    const [showSearchFilters, setShowSearchFilters] = useState(false);
+    const [showPriceFilters, setShowPriceFilters] = useState(false);
+
     const [priceFilters, setPriceFilters] = useState({
         priceRange: { min: '', max: '' },
         priceStatus: 'all',
         storeFilter: 'all',
         sortBy: 'price-asc'
     });
-
 
     const subscription = useSubscription();
 
@@ -256,23 +261,22 @@ function InventoryContent() {
         defaultFilterStatus: 'all',
         defaultFilterLocation: 'all',
         showQuickFilters: true,
-        itemsPerPage: 'all',
+        itemsPerPage: 24,
         compactView: false
     });
 
     // Advanced filtering and search
-    const [filterStatus, setFilterStatus] = useState('all'); // Will be updated from preferences
-    const [filterLocation, setFilterLocation] = useState('all'); // Will be updated from preferences
+    const [filterStatus, setFilterStatus] = useState('all');
+    const [filterLocation, setFilterLocation] = useState('all');
     const [filterCategory, setFilterCategory] = useState('all');
     const [searchQuery, setSearchQuery] = useState('');
-    const [sortBy, setSortBy] = useState('expiration'); // Will be updated from preferences
+    const [sortBy, setSortBy] = useState('expiration');
     const [formData, setFormData] = useState({
         name: '',
         brand: '',
         category: '',
         quantity: 1,
         unit: 'item',
-        // Dual unit fields
         secondaryQuantity: '',
         secondaryUnit: '',
         location: 'pantry',
@@ -281,6 +285,16 @@ function InventoryContent() {
     });
 
     const priceTrackingGate = useFeatureGate(FEATURE_GATES.PRICE_TRACKING);
+
+    // Add upgrade prompt state:
+    const [showUpgradePrompt, setShowUpgradePrompt] = useState({
+        show: false,
+        feature: '',
+        requiredTier: '',
+        description: '',
+        currentCount: 0,
+        limit: 0
+    });
 
     const showToast = (message, type = 'success') => {
         const toast = document.createElement('div');
@@ -322,12 +336,12 @@ function InventoryContent() {
     useEffect(() => {
         if (session) {
             fetchInventory();
-            fetchUserPreferences(); // NEW: Load user preferences
+            fetchUserPreferences();
         }
     }, [session]);
 
     useEffect(() => {
-        if (userPreferences.defaultSortBy !== 'expiration') { // Only save if not default
+        if (userPreferences.defaultSortBy !== 'expiration') {
             savePreferencesToProfile(userPreferences);
         }
     }, [userPreferences]);
@@ -567,6 +581,11 @@ function InventoryContent() {
         };
     }, []);
 
+    // ✅ FIXED: Reset pagination when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [searchQuery, filterStatus, filterLocation, filterCategory, sortBy, priceFilters]);
+
     const tabs = [
         {id: 'inventory', name: 'Inventory', icon: '📦'},
         {id: 'analytics', name: 'Price Analytics', icon: '📊'}
@@ -640,7 +659,6 @@ function InventoryContent() {
             return 'bg-gray-200 text-gray-600';
         }
     };
-
 
     const fetchInventory = async () => {
         try {
@@ -791,10 +809,10 @@ function InventoryContent() {
             };
 
             const response = await apiPost('/api/shopping/custom', {
-                    name: listName,
-                    items: [itemToAdd],
-                    listType: 'custom',
-                    description: `Shopping list created from inventory item: ${item.name}`
+                name: listName,
+                items: [itemToAdd],
+                listType: 'custom',
+                description: `Shopping list created from inventory item: ${item.name}`
             });
 
             const result = await response.json();
@@ -834,9 +852,9 @@ function InventoryContent() {
             };
 
             const response = await apiPut('/api/shopping/custom', {
-                    listId: listId,
-                    items: [itemToAdd],
-                    mode: 'add'
+                listId: listId,
+                items: [itemToAdd],
+                mode: 'add'
             });
 
             const result = await response.json();
@@ -861,7 +879,7 @@ function InventoryContent() {
         }
     };
 
-    // Advanced filter and sort inventory with search
+    // ✅ ENHANCED: Advanced filter and sort inventory with search
     const getFilteredAndSortedInventory = () => {
         let filtered = [...inventory];
 
@@ -944,7 +962,7 @@ function InventoryContent() {
             );
         }
 
-        // FIXED: Enhanced sorting with all options properly implemented
+        // ✅ FIXED: Enhanced sorting with all options properly implemented
         filtered.sort((a, b) => {
             // Use price sort if it's selected, otherwise use regular sort
             const currentSort = priceFilters.sortBy !== 'price-asc' ? sortBy : priceFilters.sortBy;
@@ -970,7 +988,7 @@ function InventoryContent() {
                     const dateB = b.priceHistory?.length ? new Date(b.priceHistory[b.priceHistory.length - 1].date) : new Date(0);
                     return dateB - dateA;
 
-                // FIXED: Regular sorting options
+                // ✅ FIXED: Regular sorting options with proper createdAt handling
                 case 'expiration':
                     // Priority sorting - expired first, then expiring soon, then by date
                     const statusA = getExpirationStatus(a.expirationDate);
@@ -1036,9 +1054,38 @@ function InventoryContent() {
                     return b.quantity - a.quantity;
 
                 case 'date-added':
-                    // FIXED: Recently added - sort by creation date
-                    const createdA = a.createdAt ? new Date(a.createdAt) : new Date(0);
-                    const createdB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                case 'recently-added':
+                    // ✅ FIXED: Recently added - sort by creation date or updatedAt, handle missing dates
+                    const getDateA = () => {
+                        if (a.createdAt) return new Date(a.createdAt);
+                        if (a.updatedAt) return new Date(a.updatedAt);
+                        if (a._id && a._id.toString().length === 24) {
+                            // Extract timestamp from MongoDB ObjectId if available
+                            try {
+                                return new Date(parseInt(a._id.toString().substring(0, 8), 16) * 1000);
+                            } catch (e) {
+                                return new Date(0);
+                            }
+                        }
+                        return new Date(0); // Fallback for very old items
+                    };
+
+                    const getDateB = () => {
+                        if (b.createdAt) return new Date(b.createdAt);
+                        if (b.updatedAt) return new Date(b.updatedAt);
+                        if (b._id && b._id.toString().length === 24) {
+                            // Extract timestamp from MongoDB ObjectId if available
+                            try {
+                                return new Date(parseInt(b._id.toString().substring(0, 8), 16) * 1000);
+                            } catch (e) {
+                                return new Date(0);
+                            }
+                        }
+                        return new Date(0); // Fallback for very old items
+                    };
+
+                    const createdA = getDateA();
+                    const createdB = getDateB();
                     return createdB - createdA; // Most recent first
 
                 default:
@@ -1047,6 +1094,17 @@ function InventoryContent() {
         });
 
         return filtered;
+    };
+
+    // ✅ NEW: Pagination helpers
+    const getPaginatedInventory = (filtered) => {
+        const startIndex = (currentPage - 1) * itemsPerPage;
+        const endIndex = startIndex + itemsPerPage;
+        return filtered.slice(startIndex, endIndex);
+    };
+
+    const getTotalPages = (filteredCount) => {
+        return Math.ceil(filteredCount / itemsPerPage);
     };
 
     // Get unique values for filter dropdowns
@@ -1067,7 +1125,7 @@ function InventoryContent() {
         setFilterLocation('all');
         setFilterCategory('all');
         setSortBy('expiration');
-        // NEW: Clear price filters too
+        // Clear price filters too
         setPriceFilters({
             priceRange: { min: '', max: '' },
             priceStatus: 'all',
@@ -1217,7 +1275,7 @@ function InventoryContent() {
         });
         setShowAddForm(true);
 
-        // ENHANCED: Auto-scroll to the UPC/form section
+        // Auto-scroll to the UPC/form section
         setTimeout(() => {
             // Try multiple selectors to find the form section
             const formElement = document.querySelector('form') ||
@@ -1342,10 +1400,7 @@ function InventoryContent() {
         setShowAddForm(false);
         setEditingItem(null);
 
-        // FIXED: Clear any lookup results to prevent carryover
-        setLookupResult(null);
-
-        // FIXED: Dispatch event to clear barcode memory in UPCLookup
+        // ✅ FIXED: Dispatch event to clear barcode memory in UPCLookup
         window.dispatchEvent(new CustomEvent('clearBarcodeMemory'));
     };
 
@@ -1361,7 +1416,7 @@ function InventoryContent() {
         }
     };
 
-// Handle opening price tracking modal
+    // Handle opening price tracking modal
     const handleOpenPriceTracking = (item) => {
         // Check if user can access price tracking
         if (!priceTrackingGate.canUse) {
@@ -1383,29 +1438,18 @@ function InventoryContent() {
         fetchStores();
     };
 
-// Add upgrade prompt state:
-    const [showUpgradePrompt, setShowUpgradePrompt] = useState({
-        show: false,
-        feature: '',
-        requiredTier: '',
-        description: '',
-        currentCount: 0,
-        limit: 0
-    });
-
-
-// Handle closing price tracking modal
+    // Handle closing price tracking modal
     const handleClosePriceTracking = () => {
         setTrackingPriceForItem(null);
         setPriceTrackingModal(false);
     };
 
-// Handle price added successfully
+    // ✅ FIXED: Handle price added successfully
     const handlePriceAdded = (priceData) => {
         console.log('Price added successfully:', priceData);
 
-        // Update the item in the inventory list with new price data
-        setInventoryItems(prevItems =>
+        // ✅ FIXED: Update the item in the inventory list with new price data (using correct state name)
+        setInventory(prevItems =>
             prevItems.map(item =>
                 item._id === trackingPriceForItem._id
                     ? {
@@ -1417,9 +1461,8 @@ function InventoryContent() {
             )
         );
 
-        // Show success message
-        setSuccessMessage('Price added successfully!');
-        setTimeout(() => setSuccessMessage(''), 3000);
+        // ✅ FIXED: Show success message using showToast instead of setSuccessMessage
+        showToast('Price added successfully!');
     };
 
     // Handle bulk consumption for expired items
@@ -1472,7 +1515,7 @@ function InventoryContent() {
         return null;
     }
 
-    const filteredInventory = getFilteredAndSortedInventory();
+    // ✅ REMOVED: filteredInventory calculation here since it's called dynamically in render
     const expiredCount = inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length;
 
     const usageInfo = getUsageInfo();
@@ -1603,7 +1646,6 @@ function InventoryContent() {
                         }
                         return null;
                     })()}
-
 
                     {/* Action Buttons Row - Mobile Responsive */}
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
@@ -1777,7 +1819,7 @@ function InventoryContent() {
                     </div>
                 </div>
 
-                {/* 🆕 ADD TAB NAVIGATION HERE */}
+                {/* ✅ NEW TAB NAVIGATION */}
                 <div className="mb-6">
                     <div className="border-b border-gray-200">
                         <nav className="-mb-px flex space-x-8">
@@ -1799,187 +1841,258 @@ function InventoryContent() {
                     </div>
                 </div>
 
-
-                {/* Enhanced Search and Filtering */}
-                <div className="bg-white shadow rounded-lg p-4 space-y-4">
-                    {/* Search Bar */}
-                    <div>
-                        <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-                            🔍 Search Inventory
-                        </label>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                id="search"
-                                placeholder="Search by name, brand, category, location, or UPC..."
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            />
-                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span className="text-gray-400">🔍</span>
+                {/* ✅ NEW: Collapsible Search and Filtering Section */}
+                <div className="bg-white shadow rounded-lg">
+                    {/* Search Bar - Always Visible */}
+                    <div className="p-4 border-b border-gray-200">
+                        <div className="flex items-center gap-3">
+                            <div className="flex-1">
+                                <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                                    🔍 Search Inventory
+                                </label>
+                                <div className="relative">
+                                    <input
+                                        type="text"
+                                        id="search"
+                                        placeholder="Search by name, brand, category, location, or UPC..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    />
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                        <span className="text-gray-400">🔍</span>
+                                    </div>
+                                    {searchQuery && (
+                                        <TouchEnhancedButton
+                                            onClick={() => setSearchQuery('')}
+                                            className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                        >
+                                            ✕
+                                        </TouchEnhancedButton>
+                                    )}
+                                </div>
                             </div>
-                            {searchQuery && (
-                                <TouchEnhancedButton
-                                    onClick={() => setSearchQuery('')}
-                                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
-                                >
-                                    ✕
-                                </TouchEnhancedButton>
-                            )}
+
+                            {/* Toggle Button for Advanced Filters */}
+                            <TouchEnhancedButton
+                                onClick={() => setShowSearchFilters(!showSearchFilters)}
+                                className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                                    showSearchFilters
+                                        ? 'bg-indigo-100 text-indigo-700 hover:bg-indigo-200'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                {showSearchFilters ? '🔽 Filters' : '🔽 Filters'}
+                            </TouchEnhancedButton>
                         </div>
+
+                        {/* Quick Results Summary */}
+                        {(searchQuery || filterStatus !== 'all' || filterLocation !== 'all' || filterCategory !== 'all') && (
+                            <div className="mt-3 text-sm text-blue-800 bg-blue-50 px-3 py-2 rounded-md">
+                                {(() => {
+                                    const filtered = getFilteredAndSortedInventory();
+                                    return (
+                                        <>
+                                            {searchQuery && (
+                                                <span>🔍 Found {filtered.length} items matching "{searchQuery}"</span>
+                                            )}
+                                            {(filterStatus !== 'all' || filterLocation !== 'all' || filterCategory !== 'all') && (
+                                                <span>
+                                                    {searchQuery ? ' with applied filters' : `📋 Showing ${filtered.length} filtered items`}
+                                                </span>
+                                            )}
+                                            {filtered.length === 0 && (
+                                                <div className="mt-2">
+                                                    <TouchEnhancedButton
+                                                        onClick={clearAllFilters}
+                                                        className="text-blue-600 hover:text-blue-800 underline text-sm"
+                                                    >
+                                                        Clear all filters
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
+                            </div>
+                        )}
                     </div>
 
-                    {/* Quick Filter Buttons - CONDITIONAL based on user preference */}
-                    {userPreferences.showQuickFilters && (
-                        <div>
-                            <div className="text-sm font-medium text-gray-700 mb-2">⚡ Quick Filters</div>
-                            <div className="flex flex-wrap gap-2">
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('expired')}
-                                    className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 border border-red-300"
-                                >
-                                    🚨 Expired
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('expiring-soon')}
-                                    className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 border border-orange-300"
-                                >
-                                    ⏰ Expiring Soon
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('good')}
-                                    className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
-                                >
-                                    ✅ Good Condition
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('pantry')}
-                                    className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 border border-yellow-300"
-                                >
-                                    🏠 Pantry
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('kitchen')}
-                                    className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
-                                >
-                                    🚪 Kitchen
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('fridge')}
-                                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
-                                >
-                                    ❄️ Fridge
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('fridge-freezer')}
-                                    className="px-3 py-1 text-xs bg-cyan-100 text-cyan-700 rounded-full hover:bg-cyan-200 border border-cyan-300"
-                                >
-                                    🧊 Fridge Freezer
-                                </TouchEnhancedButton>
+                    {/* ✅ NEW: Collapsible Advanced Filters */}
+                    {showSearchFilters && (
+                        <div className="p-4 bg-gray-50 space-y-4">
+                            {/* Quick Filter Buttons - CONDITIONAL based on user preference */}
+                            {userPreferences.showQuickFilters && (
+                                <div>
+                                    <div className="text-sm font-medium text-gray-700 mb-2">⚡ Quick Filters</div>
+                                    <div className="flex flex-wrap gap-2">
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('expired')}
+                                            className="px-3 py-1 text-xs bg-red-100 text-red-700 rounded-full hover:bg-red-200 border border-red-300"
+                                        >
+                                            🚨 Expired
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('expiring-soon')}
+                                            className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-full hover:bg-orange-200 border border-orange-300"
+                                        >
+                                            ⏰ Expiring Soon
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('good')}
+                                            className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
+                                        >
+                                            ✅ Good Condition
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('pantry')}
+                                            className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 border border-yellow-300"
+                                        >
+                                            🏠 Pantry
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('kitchen')}
+                                            className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
+                                        >
+                                            🚪 Kitchen
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('fridge')}
+                                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
+                                        >
+                                            ❄️ Fridge
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('fridge-freezer')}
+                                            className="px-3 py-1 text-xs bg-cyan-100 text-cyan-700 rounded-full hover:bg-cyan-200 border border-cyan-300"
+                                        >
+                                            🧊 Fridge Freezer
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={() => applyQuickFilter('deep-freezer')}
+                                            className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
+                                        >
+                                            ❄️ Deep Freezer
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={clearAllFilters}
+                                            className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 border border-gray-300"
+                                        >
+                                            🔄 Clear All
+                                        </TouchEnhancedButton>
+                                    </div>
+                                </div>
+                            )}
 
-                                <TouchEnhancedButton
-                                    onClick={() => applyQuickFilter('deep-freezer')}
-                                    className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded-full hover:bg-blue-200 border border-blue-300"
-                                >
-                                    ❄️ Deep Freezer
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={clearAllFilters}
-                                    className="px-3 py-1 text-xs bg-gray-100 text-gray-700 rounded-full hover:bg-gray-200 border border-gray-300"
-                                >
-                                    🔄 Clear All
-                                </TouchEnhancedButton>
+                            {/* Advanced Filters */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">📊 Status</label>
+                                    <select
+                                        value={filterStatus}
+                                        onChange={(e) => setFilterStatus(e.target.value)}
+                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    >
+                                        <option value="all">📦 All Items ({inventory.length})</option>
+                                        <option value="expired">🚨 Expired
+                                            ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})
+                                        </option>
+                                        <option value="expiring">⏰ Expiring Soon
+                                            ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})
+                                        </option>
+                                        <option value="good">✅ Good Condition
+                                            ({inventory.filter(item => ['good', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})
+                                        </option>
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">📍 Location</label>
+                                    <select
+                                        value={filterLocation}
+                                        onChange={(e) => setFilterLocation(e.target.value)}
+                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    >
+                                        <option value="all">All Locations</option>
+                                        {getUniqueLocations().map(location => (
+                                            <option key={location} value={location}>
+                                                {location.charAt(0).toUpperCase() + location.slice(1)} ({inventory.filter(item => item.location === location).length})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Category</label>
+                                    <select
+                                        value={filterCategory}
+                                        onChange={(e) => setFilterCategory(e.target.value)}
+                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    >
+                                        <option value="all">All Categories</option>
+                                        {getUniqueCategories().map(category => (
+                                            <option key={category} value={category}>
+                                                {category} ({inventory.filter(item => item.category === category).length})
+                                            </option>
+                                        ))}
+                                        {inventory.filter(item => !item.category || item.category === '').length > 0 && (
+                                            <option value="uncategorized">
+                                                Uncategorized
+                                                ({inventory.filter(item => !item.category || item.category === '').length})
+                                            </option>
+                                        )}
+                                    </select>
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-1">🔃 Sort By</label>
+                                    <select
+                                        value={sortBy}
+                                        onChange={(e) => setSortBy(e.target.value)}
+                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                    >
+                                        <option value="expiration">⚠️ Priority (Expiring First)</option>
+                                        <option value="expiration-date">📅 Expiration Date</option>
+                                        <option value="name">🔤 Name (A-Z)</option>
+                                        <option value="brand">🏷️ Brand (A-Z)</option>
+                                        <option value="category">📂 Category</option>
+                                        <option value="location">📍 Location</option>
+                                        <option value="quantity">📊 Quantity (High to Low)</option>
+                                        <option value="recently-added">🕒 Recently Added</option>
+                                    </select>
+                                </div>
                             </div>
                         </div>
                     )}
-
-                    {/* Advanced Filters */}
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">📊 Status</label>
-                            <select
-                                value={filterStatus}
-                                onChange={(e) => setFilterStatus(e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            >
-                                <option value="all">📦 All Items ({inventory.length})</option>
-                                <option value="expired">🚨 Expired
-                                    ({inventory.filter(item => getExpirationStatus(item.expirationDate).status === 'expired').length})
-                                </option>
-                                <option value="expiring">⏰ Expiring Soon
-                                    ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})
-                                </option>
-                                <option value="good">✅ Good Condition
-                                    ({inventory.filter(item => ['good', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})
-                                </option>
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">📍 Location</label>
-                            <select
-                                value={filterLocation}
-                                onChange={(e) => setFilterLocation(e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            >
-                                <option value="all">All Locations</option>
-                                {getUniqueLocations().map(location => (
-                                    <option key={location} value={location}>
-                                        {location.charAt(0).toUpperCase() + location.slice(1)} ({inventory.filter(item => item.location === location).length})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">🏷️ Category</label>
-                            <select
-                                value={filterCategory}
-                                onChange={(e) => setFilterCategory(e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            >
-                                <option value="all">All Categories</option>
-                                {getUniqueCategories().map(category => (
-                                    <option key={category} value={category}>
-                                        {category} ({inventory.filter(item => item.category === category).length})
-                                    </option>
-                                ))}
-                                {inventory.filter(item => !item.category || item.category === '').length > 0 && (
-                                    <option value="uncategorized">
-                                        Uncategorized
-                                        ({inventory.filter(item => !item.category || item.category === '').length})
-                                    </option>
-                                )}
-                            </select>
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">🔃 Sort By</label>
-                            <select
-                                value={sortBy}
-                                onChange={(e) => setSortBy(e.target.value)}
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            >
-                                <option value="expiration">⚠️ Priority (Expiring First)</option>
-                                <option value="expiration-date">📅 Expiration Date</option>
-                                <option value="name">🔤 Name (A-Z)</option>
-                                <option value="brand">🏷️ Brand (A-Z)</option>
-                                <option value="category">📂 Category</option>
-                                <option value="location">📍 Location</option>
-                                <option value="quantity">📊 Quantity (High to Low)</option>
-                                <option value="date-added">🕒 Recently Added</option>
-                            </select>
-                        </div>
-                    </div>
                 </div>
 
-                {/* 🆕 ADVANCED PRICE SEARCH - ADD THIS */}
-                <AdvancedPriceSearch
-                    onFiltersChange={setPriceFilters}
-                    inventory={inventory}
-                />
+                {/* ✅ NEW: Collapsible Price Filters */}
+                <div className="bg-white shadow rounded-lg">
+                    <div className="p-4 border-b border-gray-200">
+                        <div className="flex items-center justify-between">
+                            <h3 className="text-sm font-medium text-gray-700">💰 Price Filters</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowPriceFilters(!showPriceFilters)}
+                                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                                    showPriceFilters
+                                        ? 'bg-yellow-100 text-yellow-700 hover:bg-yellow-200'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                }`}
+                            >
+                                {showPriceFilters ? '🔽 Hide' : '🔽 Show'} Price Options
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
 
+                    {showPriceFilters && (
+                        <div className="p-4">
+                            <AdvancedPriceSearch
+                                onFiltersChange={setPriceFilters}
+                                inventory={inventory}
+                            />
+                        </div>
+                    )}
+                </div>
 
                 {/* Add/Edit Item Form */}
                 {showAddForm && (
@@ -2002,7 +2115,7 @@ function InventoryContent() {
                             </div>
 
                             <form onSubmit={handleSubmit} className="space-y-6">
-                                {/* UPC Lookup Section - FIXED PROP NAME */}
+                                {/* UPC Lookup Section */}
                                 <div>
                                     <UPCLookup
                                         onProductFound={handleProductFound}
@@ -2056,8 +2169,7 @@ function InventoryContent() {
                                             className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         >
                                             <option value="">Select category</option>
-                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients
-                                            </option>
+                                            <option value="Baking & Cooking Ingredients">Baking & Cooking Ingredients</option>
                                             <option value="Beans">Beans</option>
                                             <option value="Beverages">Beverages</option>
                                             <option value="Bouillon">Bouillon</option>
@@ -2078,8 +2190,7 @@ function InventoryContent() {
                                             <option value="Fresh Spices">Fresh Spices</option>
                                             <option value="Fresh Vegetables">Fresh Vegetables</option>
                                             <option value="Fresh/Frozen Beef">Fresh/Frozen Beef</option>
-                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood
-                                            </option>
+                                            <option value="Fresh/Frozen Fish & Seafood">Fresh/Frozen Fish & Seafood</option>
                                             <option value="Fresh/Frozen Lamb">Fresh/Frozen Lamb</option>
                                             <option value="Fresh/Frozen Pork">Fresh/Frozen Pork</option>
                                             <option value="Fresh/Frozen Poultry">Fresh/Frozen Poultry</option>
@@ -2120,7 +2231,6 @@ function InventoryContent() {
                                             <option value="deep-freezer">Deep/Stand-up Freezer</option>
                                             <option value="garage">Garage/Storage</option>
                                             <option value="other">Other</option>
-
                                         </select>
                                     </div>
                                 </div>
@@ -2130,8 +2240,7 @@ function InventoryContent() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {/* Primary Quantity */}
                                         <div>
-                                            <label htmlFor="quantity"
-                                                   className="block text-sm font-medium text-gray-700">
+                                            <label htmlFor="quantity" className="block text-sm font-medium text-gray-700">
                                                 Primary Quantity *
                                             </label>
                                             <div className="mt-1 flex rounded-md shadow-sm">
@@ -2171,8 +2280,7 @@ function InventoryContent() {
 
                                         {/* Secondary Quantity (Optional) */}
                                         <div>
-                                            <label htmlFor="secondaryQuantity"
-                                                   className="block text-sm font-medium text-gray-700">
+                                            <label htmlFor="secondaryQuantity" className="block text-sm font-medium text-gray-700">
                                                 Secondary Quantity <span className="text-gray-500">(Optional)</span>
                                             </label>
                                             <div className="mt-1 flex rounded-md shadow-sm">
@@ -2219,8 +2327,7 @@ function InventoryContent() {
                                 <div>
                                     <label htmlFor="expirationDate" className="block text-sm font-medium text-gray-700">
                                         Expiration Date
-                                        <span
-                                            className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
+                                        <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
                                     </label>
                                     <input
                                         type="date"
@@ -2256,65 +2363,65 @@ function InventoryContent() {
                     </div>
                 )}
 
-                {filteredInventory.length !== inventory.length && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-                        <div className="text-sm text-blue-800">
-                            {searchQuery && (
-                                <span>🔍 Found {filteredInventory.length} items matching "{searchQuery}"</span>
-                            )}
-                            {(filterStatus !== 'all' || filterLocation !== 'all' || filterCategory !== 'all') && (
-                                <span>
-                    {searchQuery ? ' with applied filters' : `📋 Showing ${filteredInventory.length} filtered items`}
-                </span>
-                            )}
-                            {filteredInventory.length === 0 && (
-                                <div className="mt-2">
-                                    <TouchEnhancedButton
-                                        onClick={clearAllFilters}
-                                        className="text-blue-600 hover:text-blue-800 underline text-sm"
-                                    >
-                                        Clear all filters
-                                    </TouchEnhancedButton>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                )}
-
-                {/* 🆕 CONDITIONAL CONTENT BASED ON ACTIVE TAB */}
+                {/* ✅ CONDITIONAL CONTENT BASED ON ACTIVE TAB */}
                 {activeTab === 'inventory' && (
                     <>
-                        {/* Inventory Grid Display with Smart Units */}
+                        {/* ✅ NEW: Inventory Grid Display with Pagination */}
                         <div className="bg-white shadow rounded-lg">
                             <div className="px-4 py-5 sm:p-6">
                                 <div className="flex items-center justify-between mb-4">
                                     <h3 className="text-lg leading-6 font-medium text-gray-900">
-                                        Current Inventory ({filteredInventory.length} items)
+                                        Current Inventory ({(() => {
+                                        const filtered = getFilteredAndSortedInventory();
+                                        const paginated = getPaginatedInventory(filtered);
+                                        return `${paginated.length} of ${filtered.length} items`;
+                                    })()})
                                     </h3>
 
-                                    {/* ADD: View Toggle */}
-                                    <div className="flex items-center space-x-2">
-                                        <span className="text-sm text-gray-600">View:</span>
-                                        <TouchEnhancedButton
-                                            onClick={() => setUserPreferences(prev => ({...prev, compactView: false}))}
-                                            className={`px-3 py-1 text-xs rounded ${
-                                                !userPreferences.compactView
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            }`}
-                                        >
-                                            📋 Standard
-                                        </TouchEnhancedButton>
-                                        <TouchEnhancedButton
-                                            onClick={() => setUserPreferences(prev => ({...prev, compactView: true}))}
-                                            className={`px-3 py-1 text-xs rounded ${
-                                                userPreferences.compactView
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-                                            }`}
-                                        >
-                                            📄 Compact
-                                        </TouchEnhancedButton>
+                                    {/* ADD: View Toggle & Items Per Page */}
+                                    <div className="flex items-center space-x-4">
+                                        {/* Items per page selector */}
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-sm text-gray-600">Show:</span>
+                                            <select
+                                                value={itemsPerPage}
+                                                onChange={(e) => {
+                                                    setItemsPerPage(parseInt(e.target.value));
+                                                    setCurrentPage(1); // Reset to first page
+                                                }}
+                                                className="border-gray-300 rounded text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                            >
+                                                <option value={12}>12</option>
+                                                <option value={24}>24</option>
+                                                <option value={48}>48</option>
+                                                <option value={96}>96</option>
+                                            </select>
+                                        </div>
+
+                                        {/* View Toggle */}
+                                        <div className="flex items-center space-x-2">
+                                            <span className="text-sm text-gray-600">View:</span>
+                                            <TouchEnhancedButton
+                                                onClick={() => setUserPreferences(prev => ({...prev, compactView: false}))}
+                                                className={`px-3 py-1 text-xs rounded ${
+                                                    !userPreferences.compactView
+                                                        ? 'bg-indigo-600 text-white'
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                }`}
+                                            >
+                                                📋 Standard
+                                            </TouchEnhancedButton>
+                                            <TouchEnhancedButton
+                                                onClick={() => setUserPreferences(prev => ({...prev, compactView: true}))}
+                                                className={`px-3 py-1 text-xs rounded ${
+                                                    userPreferences.compactView
+                                                        ? 'bg-indigo-600 text-white'
+                                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                }`}
+                                            >
+                                                📄 Compact
+                                            </TouchEnhancedButton>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -2322,233 +2429,352 @@ function InventoryContent() {
                                     <div className="text-center py-8">
                                         <div className="text-gray-500">Loading inventory...</div>
                                     </div>
-                                ) : filteredInventory.length === 0 ? (
-                                    <div className="text-center py-8">
-                                        <div className="text-gray-500 mb-4">
-                                            {inventory.length === 0 ? 'No items in your inventory yet' : 'No items match your filters'}
-                                        </div>
-                                        {/* In the empty inventory section, replace the existing content with: */}
-                                        {inventory.length === 0 && (
+                                ) : (() => {
+                                    const filteredInventory = getFilteredAndSortedInventory();
+                                    const paginatedInventory = getPaginatedInventory(filteredInventory);
+
+                                    if (filteredInventory.length === 0) {
+                                        return (
                                             <div className="text-center py-8">
                                                 <div className="text-gray-500 mb-4">
-                                                    {getUsageInfo().tier === 'free' ? (
-                                                        <>
-                                                            <div className="text-gray-500 mb-4">No items in your
-                                                                inventory
-                                                                yet
-                                                            </div>
-                                                            <div
-                                                                className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                                                                <div className="text-sm text-blue-800">
-                                                                    <strong>📦 Inventory Limits:</strong>
-                                                                    <ul className="mt-2 space-y-1 text-left">
-                                                                        <li>• <strong>Free:</strong> Store up to 50
-                                                                            items
-                                                                        </li>
-                                                                        <li>• <strong>Gold:</strong> Store up to 250
-                                                                            items
-                                                                        </li>
-                                                                        <li>• <strong>Platinum:</strong> Unlimited
-                                                                            inventory
-                                                                        </li>
-                                                                        <li>• Track expiration dates</li>
-                                                                        <li>• Monitor food waste</li>
-                                                                    </ul>
-                                                                </div>
-                                                            </div>
-                                                        </>
-                                                    ) : (
-                                                        'No items in your inventory yet'
-                                                    )}
+                                                    {inventory.length === 0 ? 'No items in your inventory yet' : 'No items match your filters'}
                                                 </div>
-                                                <FeatureGate
-                                                    feature={FEATURE_GATES.INVENTORY_LIMIT}
-                                                    currentCount={0}
-                                                    fallback={
-                                                        <TouchEnhancedButton
-                                                            onClick={() => window.location.href = '/pricing?source=inventory-empty'}
-                                                            className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white px-6 py-3 rounded-md font-medium hover:from-blue-500 hover:to-indigo-600"
-                                                        >
-                                                            🚀 Upgrade to Add Items
-                                                        </TouchEnhancedButton>
-                                                    }
-                                                >
-                                                    <TouchEnhancedButton
-                                                        onClick={() => setShowAddForm(true)}
-                                                        className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
-                                                    >
-                                                        Add your first item
-                                                    </TouchEnhancedButton>
-                                                </FeatureGate>
-                                            </div>
-                                        )}
-                                    </div>
-                                ) : (
-                                    <div className={`grid gap-4 ${
-                                        userPreferences.compactView
-                                            ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-                                            : 'grid-cols-1 sm:grid-cols-2'
-                                    }`}>
-                                        {filteredInventory.map((item) => {
-                                            const expirationInfo = getExpirationStatus(item.expirationDate);
-
-                                            return (
-                                                <div
-                                                    key={item._id}
-                                                    className={`border rounded-lg ${expirationInfo.bgColor} hover:shadow-md transition-shadow relative ${
-                                                        userPreferences.compactView ? 'p-3' : 'p-4'
-                                                    }`}
-                                                    style={{
-                                                        borderLeftColor: expirationInfo.color === 'red' ? '#ef4444' :
-                                                            expirationInfo.color === 'orange' ? '#f97316' :
-                                                                expirationInfo.color === 'yellow' ? '#eab308' :
-                                                                    expirationInfo.color === 'green' ? '#22c55e' : '#6b7280',
-                                                        borderLeftWidth: '4px'
-                                                    }}
-                                                >
-                                                    {/* Status Icon - Top Right */}
-                                                    <div
-                                                        className={`absolute ${userPreferences.compactView ? 'top-1 right-1' : 'top-2 right-2'} text-lg`}>
-                                                        {expirationInfo.icon || '📦'}
-                                                    </div>
-
-                                                    {/* Item Name and Brand */}
-                                                    <div
-                                                        className={`${userPreferences.compactView ? 'mb-2 pr-6' : 'mb-3 pr-8'}`}>
-                                                        <h4 className={`font-semibold text-gray-900 leading-tight mb-1 ${
-                                                            userPreferences.compactView ? 'text-sm' : 'text-sm'
-                                                        }`}>
-                                                            {item.name}
-                                                        </h4>
-                                                        {item.brand && (
-                                                            <p className={`text-gray-600 ${userPreferences.compactView ? 'text-xs' : 'text-xs'}`}>
-                                                                {item.brand}
-                                                            </p>
-                                                        )}
-                                                    </div>
-
-                                                    {/* 🆕 PRICE INFORMATION DISPLAY - SAFE VERSION */}
-                                                    {item.currentBestPrice?.price && (
-                                                        <div className="text-xs text-gray-600 mb-2">
-                                                            <div className="flex justify-between">
-                                                                <span>Best Price:</span>
-                                                                <span className="font-medium">
-                                    ${(Number(item.currentBestPrice.price) || 0).toFixed(2)}
-                                                                    {item.currentBestPrice.store && ` at ${item.currentBestPrice.store}`}
-                                </span>
-                                                            </div>
-                                                            {item.averagePrice && (
-                                                                <div className="flex justify-between">
-                                                                    <span>Avg Price:</span>
-                                                                    <span>${(Number(item.averagePrice) || 0).toFixed(2)}</span>
-                                                                </div>
+                                                {inventory.length === 0 && (
+                                                    <div className="text-center py-8">
+                                                        <div className="text-gray-500 mb-4">
+                                                            {getUsageInfo().tier === 'free' ? (
+                                                                <>
+                                                                    <div className="text-gray-500 mb-4">No items in your inventory yet</div>
+                                                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                                                        <div className="text-sm text-blue-800">
+                                                                            <strong>📦 Inventory Limits:</strong>
+                                                                            <ul className="mt-2 space-y-1 text-left">
+                                                                                <li>• <strong>Free:</strong> Store up to 50 items</li>
+                                                                                <li>• <strong>Gold:</strong> Store up to 250 items</li>
+                                                                                <li>• <strong>Platinum:</strong> Unlimited inventory</li>
+                                                                                <li>• Track expiration dates</li>
+                                                                                <li>• Monitor food waste</li>
+                                                                            </ul>
+                                                                        </div>
+                                                                    </div>
+                                                                </>
+                                                            ) : (
+                                                                'No items in your inventory yet'
                                                             )}
                                                         </div>
-                                                    )}
+                                                        <FeatureGate
+                                                            feature={FEATURE_GATES.INVENTORY_LIMIT}
+                                                            currentCount={0}
+                                                            fallback={
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => window.location.href = '/pricing?source=inventory-empty'}
+                                                                    className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white px-6 py-3 rounded-md font-medium hover:from-blue-500 hover:to-indigo-600"
+                                                                >
+                                                                    🚀 Upgrade to Add Items
+                                                                </TouchEnhancedButton>
+                                                            }
+                                                        >
+                                                            <TouchEnhancedButton
+                                                                onClick={() => setShowAddForm(true)}
+                                                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200"
+                                                            >
+                                                                Add your first item
+                                                            </TouchEnhancedButton>
+                                                        </FeatureGate>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        );
+                                    }
 
-                                                    {/* Smart Quantity Display */}
-                                                    <div
-                                                        className={`flex justify-between items-center ${userPreferences.compactView ? 'mb-2' : 'mb-3'}`}>
-                                                        <div
-                                                            className={`font-medium text-gray-900 ${userPreferences.compactView ? 'text-sm' : 'text-sm'}`}>
-                                                            {formatInventoryDisplayText(item)}
-                                                        </div>
-                                                        <span
-                                                            className={`inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-800 capitalize ${
-                                                                userPreferences.compactView ? 'px-2 py-0.5 text-xs' : 'px-2 py-1 text-xs'
-                                                            }`}>
-                            {item.location}
-                        </span>
+                                    return (
+                                        <>
+                                            {/* ✅ NEW: Pagination Controls - Top */}
+                                            {getTotalPages(filteredInventory.length) > 1 && (
+                                                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
+                                                    <div className="text-sm text-gray-600">
+                                                        Showing {((currentPage - 1) * itemsPerPage) + 1} to{' '}
+                                                        {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of{' '}
+                                                        {filteredInventory.length} items
                                                     </div>
 
-                                                    {/* Category - Only show in standard view or if no brand */}
-                                                    {(!userPreferences.compactView || !item.brand) && (
-                                                        <div
-                                                            className={`text-gray-500 ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
-                                                            {item.category || 'No category'}
-                                                        </div>
-                                                    )}
-
-                                                    {/* Expiration Status */}
-                                                    <div
-                                                        className={`font-medium ${expirationInfo.textColor} ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
-                                                        {item.expirationDate ? (
-                                                            <div>
-                                                                {!userPreferences.compactView && (
-                                                                    <div>{new Date(item.expirationDate).toLocaleDateString()}</div>
-                                                                )}
-                                                                <div>{expirationInfo.label}</div>
-                                                            </div>
-                                                        ) : (
-                                                            'No expiration set'
-                                                        )}
-                                                    </div>
-
-                                                    {/* 🆕 ENHANCED ACTION BUTTONS WITH PRICE TRACKING */}
-                                                    <div
-                                                        className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
+                                                    <div className="flex items-center space-x-2">
                                                         <TouchEnhancedButton
-                                                            onClick={() => handleAddToShoppingList(item)}
-                                                            className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
-                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                            } ${
-                                                                expirationInfo.status === 'good' || expirationInfo.status === 'no-date'
-                                                                    ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
-                                                                    : 'bg-green-50 border-green-200 hover:bg-green-100'
+                                                            onClick={() => setCurrentPage(1)}
+                                                            disabled={currentPage === 1}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === 1
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                                             }`}
-                                                            title="Add to Shopping List"
                                                         >
-                                                            {userPreferences.compactView ? '🛒' : '🛒 Add'}
-                                                        </TouchEnhancedButton>
-
-                                                        {/* 🆕 FEATURE-GATED PRICE TRACKING BUTTON */}
-                                                        <TouchEnhancedButton
-                                                            onClick={() => handleOpenPriceTracking(item)}
-                                                            className={`flex-1 font-medium rounded border transition-colors ${
-                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                            } ${
-                                                                priceTrackingGate.canUse
-                                                                    ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200'
-                                                                    : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
-                                                            }`}
-                                                            title={priceTrackingGate.canUse ? "Track Prices" : "Price Tracking (Gold+ Feature)"}
-                                                        >
-                                                            {userPreferences.compactView ? '💰' : priceTrackingGate.canUse ? '💰 Price' : '💰 Gold+'}
+                                                            ⏮️ First
                                                         </TouchEnhancedButton>
 
                                                         <TouchEnhancedButton
-                                                            onClick={() => setConsumingItem(item)}
-                                                            className={`flex-1 bg-blue-50 text-blue-700 font-medium rounded hover:bg-blue-100 border border-blue-200 ${
-                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                            disabled={currentPage === 1}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === 1
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                                             }`}
-                                                            title="Use/Consume Item"
                                                         >
-                                                            {userPreferences.compactView ? '📦' : '📦 Use'}
+                                                            ⬅️ Previous
+                                                        </TouchEnhancedButton>
+
+                                                        <span className="px-4 py-2 text-sm text-gray-700 bg-indigo-50 border border-indigo-200 rounded-md">
+                                                            Page {currentPage} of {getTotalPages(filteredInventory.length)}
+                                                        </span>
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setCurrentPage(prev => Math.min(getTotalPages(filteredInventory.length), prev + 1))}
+                                                            disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === getTotalPages(filteredInventory.length)
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            Next ➡️
                                                         </TouchEnhancedButton>
 
                                                         <TouchEnhancedButton
-                                                            onClick={() => handleEdit(item)}
-                                                            className={`flex-1 bg-indigo-50 text-indigo-700 font-medium rounded hover:bg-indigo-100 border border-indigo-200 ${
-                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                            onClick={() => setCurrentPage(getTotalPages(filteredInventory.length))}
+                                                            disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === getTotalPages(filteredInventory.length)
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                                             }`}
                                                         >
-                                                            {userPreferences.compactView ? '✏️' : '✏️ Edit'}
-                                                        </TouchEnhancedButton>
-
-                                                        <TouchEnhancedButton
-                                                            onClick={() => handleDelete(item._id)}
-                                                            className={`bg-red-50 text-red-700 font-medium rounded hover:bg-red-100 border border-red-200 ${
-                                                                userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
-                                                            }`}
-                                                        >
-                                                            🗑️
+                                                            Last ⏭️
                                                         </TouchEnhancedButton>
                                                     </div>
                                                 </div>
-                                            );
-                                        })}
-                                    </div>
-                                )}
+                                            )}
+
+
+
+                                            {/* Inventory Grid */}
+                                            <div className={`grid gap-4 ${
+                                                userPreferences.compactView
+                                                    ? 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                                                    : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
+                                            }`}>
+                                                {paginatedInventory.map((item) => {
+                                                    const expirationInfo = getExpirationStatus(item.expirationDate);
+
+                                                    return (
+                                                        <div
+                                                            key={item._id}
+                                                            className={`border rounded-lg ${expirationInfo.bgColor} hover:shadow-md transition-shadow relative ${
+                                                                userPreferences.compactView ? 'p-3' : 'p-4'
+                                                            }`}
+                                                            style={{
+                                                                borderLeftColor: expirationInfo.color === 'red' ? '#ef4444' :
+                                                                    expirationInfo.color === 'orange' ? '#f97316' :
+                                                                        expirationInfo.color === 'yellow' ? '#eab308' :
+                                                                            expirationInfo.color === 'green' ? '#22c55e' : '#6b7280',
+                                                                borderLeftWidth: '4px'
+                                                            }}
+                                                        >
+                                                            {/* Status Icon - Top Right */}
+                                                            <div className={`absolute ${userPreferences.compactView ? 'top-1 right-1' : 'top-2 right-2'} text-lg`}>
+                                                                {expirationInfo.icon || '📦'}
+                                                            </div>
+
+                                                            {/* Item Name and Brand */}
+                                                            <div className={`${userPreferences.compactView ? 'mb-2 pr-6' : 'mb-3 pr-8'}`}>
+                                                                <h4 className={`font-semibold text-gray-900 leading-tight mb-1 ${
+                                                                    userPreferences.compactView ? 'text-sm' : 'text-sm'
+                                                                }`}>
+                                                                    {item.name}
+                                                                </h4>
+                                                                {item.brand && (
+                                                                    <p className={`text-gray-600 ${userPreferences.compactView ? 'text-xs' : 'text-xs'}`}>
+                                                                        {item.brand}
+                                                                    </p>
+                                                                )}
+                                                            </div>
+
+                                                            {/* Price Information Display */}
+                                                            {item.currentBestPrice?.price && (
+                                                                <div className="text-xs text-gray-600 mb-2">
+                                                                    <div className="flex justify-between">
+                                                                        <span>Best Price:</span>
+                                                                        <span className="font-medium">
+                                                                            ${(Number(item.currentBestPrice.price) || 0).toFixed(2)}
+                                                                            {item.currentBestPrice.store && ` at ${item.currentBestPrice.store}`}
+                                                                        </span>
+                                                                    </div>
+                                                                    {item.averagePrice && (
+                                                                        <div className="flex justify-between">
+                                                                            <span>Avg Price:</span>
+                                                                            <span>${(Number(item.averagePrice) || 0).toFixed(2)}</span>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Smart Quantity Display */}
+                                                            <div className={`flex justify-between items-center ${userPreferences.compactView ? 'mb-2' : 'mb-3'}`}>
+                                                                <div className={`font-medium text-gray-900 ${userPreferences.compactView ? 'text-sm' : 'text-sm'}`}>
+                                                                    {formatInventoryDisplayText(item)}
+                                                                </div>
+                                                                <span className={`inline-flex items-center rounded-full font-medium bg-gray-100 text-gray-800 capitalize ${
+                                                                    userPreferences.compactView ? 'px-2 py-0.5 text-xs' : 'px-2 py-1 text-xs'
+                                                                }`}>
+                                                                    {item.location}
+                                                                </span>
+                                                            </div>
+
+                                                            {/* Category - Only show in standard view or if no brand */}
+                                                            {(!userPreferences.compactView || !item.brand) && (
+                                                                <div className={`text-gray-500 ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
+                                                                    {item.category || 'No category'}
+                                                                </div>
+                                                            )}
+
+                                                            {/* Expiration Status */}
+                                                            <div className={`font-medium ${expirationInfo.textColor} ${userPreferences.compactView ? 'text-xs mb-2' : 'text-xs mb-3'}`}>
+                                                                {item.expirationDate ? (
+                                                                    <div>
+                                                                        {!userPreferences.compactView && (
+                                                                            <div>{new Date(item.expirationDate).toLocaleDateString()}</div>
+                                                                        )}
+                                                                        <div>{expirationInfo.label}</div>
+                                                                    </div>
+                                                                ) : (
+                                                                    'No expiration set'
+                                                                )}
+                                                            </div>
+
+                                                            {/* Enhanced Action Buttons */}
+                                                            <div className={`flex ${userPreferences.compactView ? 'gap-0.5' : 'gap-1'}`}>
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => handleAddToShoppingList(item)}
+                                                                    className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
+                                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                                    } ${
+                                                                        expirationInfo.status === 'good' || expirationInfo.status === 'no-date'
+                                                                            ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
+                                                                            : 'bg-green-50 border-green-200 hover:bg-green-100'
+                                                                    }`}
+                                                                    title="Add to Shopping List"
+                                                                >
+                                                                    {userPreferences.compactView ? '🛒' : '🛒 Add'}
+                                                                </TouchEnhancedButton>
+
+                                                                {/* Feature-gated Price Tracking Button */}
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => handleOpenPriceTracking(item)}
+                                                                    className={`flex-1 font-medium rounded border transition-colors ${
+                                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                                    } ${
+                                                                        priceTrackingGate.canUse
+                                                                            ? 'bg-yellow-50 text-yellow-700 hover:bg-yellow-100 border-yellow-200'
+                                                                            : 'bg-gray-50 text-gray-500 border-gray-200 hover:bg-gray-100'
+                                                                    }`}
+                                                                    title={priceTrackingGate.canUse ? "Track Prices" : "Price Tracking (Gold+ Feature)"}
+                                                                >
+                                                                    {userPreferences.compactView ? '💰' : priceTrackingGate.canUse ? '💰 Price' : '💰 Gold+'}
+                                                                </TouchEnhancedButton>
+
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => setConsumingItem(item)}
+                                                                    className={`flex-1 bg-blue-50 text-blue-700 font-medium rounded hover:bg-blue-100 border border-blue-200 ${
+                                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                                    }`}
+                                                                    title="Use/Consume Item"
+                                                                >
+                                                                    {userPreferences.compactView ? '📦' : '📦 Use'}
+                                                                </TouchEnhancedButton>
+
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => handleEdit(item)}
+                                                                    className={`flex-1 bg-indigo-50 text-indigo-700 font-medium rounded hover:bg-indigo-100 border border-indigo-200 ${
+                                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                                    }`}
+                                                                >
+                                                                    {userPreferences.compactView ? '✏️' : '✏️ Edit'}
+                                                                </TouchEnhancedButton>
+
+                                                                <TouchEnhancedButton
+                                                                    onClick={() => handleDelete(item._id)}
+                                                                    className={`bg-red-50 text-red-700 font-medium rounded hover:bg-red-100 border border-red-200 ${
+                                                                        userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
+                                                                    }`}
+                                                                >
+                                                                    🗑️
+                                                                </TouchEnhancedButton>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            {/* ✅ NEW: Pagination Controls - Bottom */}
+                                            {getTotalPages(filteredInventory.length) > 1 && (
+                                                <div className="flex items-center justify-center mt-8 pt-6 border-t border-gray-200">
+                                                    <div className="flex items-center space-x-2">
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setCurrentPage(1)}
+                                                            disabled={currentPage === 1}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === 1
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            ⏮️ First
+                                                        </TouchEnhancedButton>
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                            disabled={currentPage === 1}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === 1
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            ⬅️ Previous
+                                                        </TouchEnhancedButton>
+
+                                                        <span className="px-4 py-2 text-sm text-gray-700 bg-indigo-50 border border-indigo-200 rounded-md">
+                                                            Page {currentPage} of {getTotalPages(filteredInventory.length)}
+                                                        </span>
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setCurrentPage(prev => Math.min(getTotalPages(filteredInventory.length), prev + 1))}
+                                                            disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === getTotalPages(filteredInventory.length)
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            Next ➡️
+                                                        </TouchEnhancedButton>
+
+                                                        <TouchEnhancedButton
+                                                            onClick={() => setCurrentPage(getTotalPages(filteredInventory.length))}
+                                                            disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === getTotalPages(filteredInventory.length)
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            Last ⏭️
+                                                        </TouchEnhancedButton>
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </>
+                                    );
+                                })()}
                             </div>
                         </div>
                     </>
@@ -2595,6 +2821,7 @@ function InventoryContent() {
                 onAddToExisting={handleAddToExistingList}
             />
 
+            {/* Price Tracking Modal */}
             {priceTrackingModal && trackingPriceForItem && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
@@ -2620,12 +2847,12 @@ function InventoryContent() {
                 </div>
             )}
 
+            {/* Upgrade Prompt Modal */}
             {showUpgradePrompt.show && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
                         <div className="text-center">
-                            <div
-                                className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
+                            <div className="mx-auto w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mb-4">
                                 <span className="text-2xl">💰</span>
                             </div>
                             <h3 className="text-lg font-semibold text-gray-900 mb-2">
@@ -2655,12 +2882,11 @@ function InventoryContent() {
             )}
 
             <Footer/>
-
         </MobileOptimizedLayout>
-    )
-        ;
+    );
 }
 
+// PriceTrackingForm component
 function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
     const [formData, setFormData] = useState({
         price: '',
@@ -2689,11 +2915,8 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
                     const saved = await OfflinePriceStorage.savePriceOffline(item._id, formData);
 
                     if (saved) {
-                        // Show offline success message
                         console.log('💾 Price saved offline');
                         alert('💾 Price saved offline. Will sync when internet returns.');
-
-                        // Reset form and close
                         setFormData({
                             price: '',
                             store: '',
@@ -2725,8 +2948,6 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
             if (data.success) {
                 onPriceAdded(data.data);
                 onClose();
-
-                // Reset form
                 setFormData({
                     price: '',
                     store: '',
@@ -2755,9 +2976,7 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
             )}
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Price *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
                 <div className="relative">
                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2">$</span>
                     <input
@@ -2775,9 +2994,7 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
             </div>
 
             <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Store *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Store *</label>
                 <select
                     required
                     value={formData.store}
@@ -2791,7 +3008,6 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
                             {store.name} {store.chain && `(${store.chain})`}
                         </option>
                     ))}
-                    <option value="">Select chain</option>
                     <option value="Albertsons">Albertsons</option>
                     <option value="Aldi">Aldi</option>
                     <option value="Costco">Costco</option>
@@ -2809,70 +3025,6 @@ function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
                     <option value="Whole Foods">Whole Foods</option>
                     <option value="Other">Other</option>
                 </select>
-            </div>
-
-            <div className="grid grid-cols-2 gap-3">
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Size
-                    </label>
-                    <input
-                        type="text"
-                        value={formData.size}
-                        onChange={(e) => setFormData(prev => ({...prev, size: e.target.value}))}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        style={{fontSize: '16px'}}
-                        placeholder="12 oz"
-                    />
-                </div>
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Unit
-                    </label>
-                    <select
-                        value={formData.unit}
-                        onChange={(e) => setFormData(prev => ({...prev, unit: e.target.value}))}
-                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        style={{fontSize: '16px'}}
-                    >
-                        <option value="">Select unit</option>
-                        <option value="oz">Ounces</option>
-                        <option value="lb">Pounds</option>
-                        <option value="g">Grams</option>
-                        <option value="kg">Kilograms</option>
-                        <option value="ml">Milliliters</option>
-                        <option value="l">Liters</option>
-                        <option value="each">Each</option>
-                    </select>
-                </div>
-            </div>
-
-            <div className="flex items-center">
-                <input
-                    type="checkbox"
-                    id="isOnSale"
-                    checked={formData.isOnSale}
-                    onChange={(e) => setFormData(prev => ({...prev, isOnSale: e.target.checked}))}
-                    className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                />
-                <label htmlFor="isOnSale" className="ml-2 block text-sm text-gray-700">
-                    This item was on sale
-                </label>
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes
-                </label>
-                <textarea
-                    value={formData.notes}
-                    onChange={(e) => setFormData(prev => ({...prev, notes: e.target.value}))}
-                    rows={2}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    style={{fontSize: '16px'}}
-                    placeholder="Optional notes..."
-                />
             </div>
 
             <div className="flex gap-3">
@@ -2902,8 +3054,7 @@ export default function Inventory() {
             <MobileOptimizedLayout>
                 <div className="min-h-screen flex items-center justify-center">
                     <div className="text-center">
-                        <div
-                            className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
                         <div className="text-lg text-gray-600">Loading...</div>
                     </div>
                 </div>

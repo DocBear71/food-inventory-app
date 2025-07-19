@@ -1,8 +1,7 @@
-// file: /src/app/api/nutrition/goals/route.js v1
+// file: /src/app/api/nutrition/goals/route.js v2 - Enhanced to sync with profile
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
@@ -22,9 +21,19 @@ export async function GET(request) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
+        // Return default goals if none exist
+        const defaultGoals = {
+            dailyCalories: 2000,
+            protein: 150,
+            fat: 65,
+            carbs: 250,
+            fiber: 25,
+            sodium: 2300
+        };
+
         return NextResponse.json({
             success: true,
-            goals: user.nutritionGoals
+            goals: user.nutritionGoals || defaultGoals
         });
 
     } catch (error) {
@@ -33,8 +42,8 @@ export async function GET(request) {
     }
 }
 
-// PUT - Update user's nutrition goals
-export async function PUT(request) {
+// POST - Update user's nutrition goals (compatible with NutritionGoalsTracking component)
+export async function POST(request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
@@ -42,6 +51,7 @@ export async function PUT(request) {
         }
 
         const updates = await request.json();
+        console.log('Updating nutrition goals via POST:', updates);
 
         // Validate input
         const validFields = ['dailyCalories', 'protein', 'fat', 'carbs', 'fiber', 'sodium'];
@@ -61,6 +71,7 @@ export async function PUT(request) {
 
         await connectDB();
 
+        // Update the user's nutritionGoals object
         const user = await User.findByIdAndUpdate(
             session.user.id,
             {
@@ -77,9 +88,10 @@ export async function PUT(request) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        console.log('Nutrition goals updated:', {
+        console.log('Nutrition goals updated successfully:', {
             userId: session.user.id,
-            updates: filteredUpdates
+            updates: filteredUpdates,
+            newGoals: user.nutritionGoals
         });
 
         return NextResponse.json({
@@ -97,8 +109,13 @@ export async function PUT(request) {
     }
 }
 
-// POST - Reset nutrition goals to defaults
-export async function POST(request) {
+// PUT - Update user's nutrition goals (same as POST for compatibility)
+export async function PUT(request) {
+    return POST(request);
+}
+
+// DELETE - Reset nutrition goals to defaults
+export async function DELETE(request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {

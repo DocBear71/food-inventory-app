@@ -502,76 +502,149 @@ function RecipesContent() {
                     </div>
                 </div>
 
-                {/* Enhanced Tab Navigation */}
+                {/* Enhanced Mobile-Responsive Tab Navigation */}
                 <div className="mb-6">
-                    <div className="bg-gray-100 p-1 rounded-lg flex overflow-x-auto">
-                        <TouchEnhancedButton
-                            onClick={() => setActiveTab('discovery')}
-                            className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
-                                activeTab === 'discovery'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-gray-600 hover:text-gray-800'
-                            }`}
-                        >
-                            <div className="flex flex-col items-center justify-center">
-                                <span>🎯 Discovery</span>
-                                <span className="text-xs opacity-75">Collections & Search</span>
-                            </div>
-                        </TouchEnhancedButton>
+                    <div className="bg-gray-100 p-1 rounded-lg">
+                        {/* Mobile: Vertical Stack */}
+                        <div className="grid grid-cols-2 gap-1 md:hidden">
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('discovery')}
+                                className={`py-3 px-2 rounded-md text-center font-medium transition-all ${
+                                    activeTab === 'discovery'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span className="text-sm">🎯 Discovery</span>
+                                    <span className="text-xs opacity-75">Collections</span>
+                                </div>
+                            </TouchEnhancedButton>
 
-                        <TouchEnhancedButton
-                            onClick={() => setActiveTab('my-recipes')}
-                            className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
-                                activeTab === 'my-recipes'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-gray-600 hover:text-gray-800'
-                            }`}
-                        >
-                            <div className="flex flex-col items-center justify-center">
-                                <span>📝 My Recipes</span>
-                                <span className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
-                                    {formatCountWithLimit('my-recipes')}
-                                </span>
-                            </div>
-                        </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('my-recipes')}
+                                className={`py-3 px-2 rounded-md text-center font-medium transition-all ${
+                                    activeTab === 'my-recipes'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span className="text-sm">📝 My Recipes</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full mt-1 ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
+                        {formatCountWithLimit('my-recipes')}
+                    </span>
+                                </div>
+                            </TouchEnhancedButton>
 
-                        <TouchEnhancedButton
-                            onClick={() => setActiveTab('public-recipes')}
-                            className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
-                                activeTab === 'public-recipes'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-gray-600 hover:text-gray-800'
-                            }`}
-                        >
-                            <div className="flex flex-col items-center justify-center">
-                                <span>🌍 Public Recipes</span>
-                                <span className={`text-xs px-2 py-1 rounded-full mt-1 ${
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('public-recipes')}
+                                className={`py-3 px-2 rounded-md text-center font-medium transition-all ${
                                     activeTab === 'public-recipes'
-                                        ? 'bg-indigo-100 text-indigo-600'
-                                        : 'bg-gray-200 text-gray-600'
-                                }`}>
-                                    {getTabCounts().publicRecipes}
-                                </span>
-                            </div>
-                        </TouchEnhancedButton>
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span className="text-sm">🌍 Public</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full mt-1 ${
+                                        activeTab === 'public-recipes'
+                                            ? 'bg-indigo-100 text-indigo-600'
+                                            : 'bg-gray-200 text-gray-600'
+                                    }`}>
+                        {getTabCounts().publicRecipes}
+                    </span>
+                                </div>
+                            </TouchEnhancedButton>
 
-                        <TouchEnhancedButton
-                            onClick={() => setActiveTab('collections')}
-                            className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
-                                activeTab === 'collections'
-                                    ? 'bg-white text-indigo-600 shadow-sm'
-                                    : 'text-gray-600 hover:text-gray-800'
-                            }`}
-                        >
-                            <div className="flex flex-col items-center justify-center">
-                                <span>📁 Collections</span>
-                                <span className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('collections', activeTab === 'collections')}`}>
-                                    {formatCountWithLimit('collections')}
-                                </span>
-                            </div>
-                        </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('collections')}
+                                className={`py-3 px-2 rounded-md text-center font-medium transition-all ${
+                                    activeTab === 'collections'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span className="text-sm">📁 Collections</span>
+                                    <span className={`text-xs px-2 py-0.5 rounded-full mt-1 ${getCountColor('collections', activeTab === 'collections')}`}>
+                        {formatCountWithLimit('collections')}
+                    </span>
+                                </div>
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Desktop: Horizontal Flex (hidden on mobile) */}
+                        <div className="hidden md:flex">
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('discovery')}
+                                className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
+                                    activeTab === 'discovery'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span>🎯 Discovery</span>
+                                    <span className="text-xs opacity-75">Collections & Search</span>
+                                </div>
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('my-recipes')}
+                                className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
+                                    activeTab === 'my-recipes'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span>📝 My Recipes</span>
+                                    <span className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
+                        {formatCountWithLimit('my-recipes')}
+                    </span>
+                                </div>
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('public-recipes')}
+                                className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
+                                    activeTab === 'public-recipes'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span>🌍 Public Recipes</span>
+                                    <span className={`text-xs px-2 py-1 rounded-full mt-1 ${
+                                        activeTab === 'public-recipes'
+                                            ? 'bg-indigo-100 text-indigo-600'
+                                            : 'bg-gray-200 text-gray-600'
+                                    }`}>
+                        {getTabCounts().publicRecipes}
+                    </span>
+                                </div>
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                onClick={() => setActiveTab('collections')}
+                                className={`flex-1 py-3 px-4 rounded-md text-center font-medium transition-all ${
+                                    activeTab === 'collections'
+                                        ? 'bg-white text-indigo-600 shadow-sm'
+                                        : 'text-gray-600 hover:text-gray-800'
+                                }`}
+                            >
+                                <div className="flex flex-col items-center justify-center">
+                                    <span>📁 Collections</span>
+                                    <span className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('collections', activeTab === 'collections')}`}>
+                        {formatCountWithLimit('collections')}
+                    </span>
+                                </div>
+                            </TouchEnhancedButton>
+                        </div>
                     </div>
                 </div>
+
 
                 {/* Advanced Search Filters */}
                 {showAdvancedSearch && activeTab !== 'collections' && (
@@ -588,41 +661,90 @@ function RecipesContent() {
                 {/* Tab Content */}
                 {activeTab === 'discovery' ? (
                     <>
-                        {/* Recipe Discovery Dashboard */}
-                        <RecipeDiscoveryDashboard
-                            recipes={recipes.filter(recipe => recipe.isPublic === true)}
-                            showCollections={true}
-                        />
+                        {/* Mobile-Optimized Recipe Discovery Dashboard */}
+                        <div className="space-y-6">
+                            {/* Recipe Discovery Dashboard - with mobile props */}
+                            <RecipeDiscoveryDashboard
+                                recipes={recipes.filter(recipe => recipe.isPublic === true)}
+                                showCollections={true}
+                                isMobile={typeof window !== 'undefined' && window.innerWidth < 768}
+                                compactMode={true}
+                            />
 
-                        {/* Quick Search */}
-                        {!showAdvancedSearch && (
-                            <div className="mt-8 mb-6">
-                                <div className="max-w-2xl mx-auto">
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                            </svg>
+                            {/* Quick Search - Mobile Optimized */}
+                            {!showAdvancedSearch && (
+                                <div className="mt-6 mb-6">
+                                    <div className="w-full">
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                                <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                                </svg>
+                                            </div>
+                                            <input
+                                                type="text"
+                                                value={searchFilters.query}
+                                                onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}
+                                                placeholder="Search 650+ recipes..."
+                                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                                style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                                            />
                                         </div>
-                                        <input
-                                            type="text"
-                                            value={searchFilters.query}
-                                            onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}
-                                            placeholder="Search 650+ recipes..."
-                                            className="w-full pl-10 pr-4 py-4 border border-gray-300 rounded-lg text-lg focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
-                                        />
-                                    </div>
-                                    <div className="mt-2 text-center">
-                                        <TouchEnhancedButton
-                                            onClick={() => setShowAdvancedSearch(true)}
-                                            className="text-indigo-600 hover:text-indigo-700 text-sm"
-                                        >
-                                            Advanced search options →
-                                        </TouchEnhancedButton>
+                                        <div className="mt-2 text-center">
+                                            <TouchEnhancedButton
+                                                onClick={() => setShowAdvancedSearch(true)}
+                                                className="text-indigo-600 hover:text-indigo-700 text-sm"
+                                            >
+                                                🔍 Advanced search options →
+                                            </TouchEnhancedButton>
+                                        </div>
                                     </div>
                                 </div>
+                            )}
+
+                            {/* Mobile-Friendly Quick Categories */}
+                            <div className="bg-white rounded-lg border p-4">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-3">🚀 Quick Browse</h3>
+                                <div className="grid grid-cols-2 gap-2">
+                                    {[
+                                        { label: 'Quick Meals', icon: '⚡', filter: { maxCookTime: '30' } },
+                                        { label: 'Vegetarian', icon: '🥗', filter: { tags: ['vegetarian'] } },
+                                        { label: 'Desserts', icon: '🍰', filter: { category: 'desserts' } },
+                                        { label: 'Easy', icon: '👌', filter: { difficulty: 'easy' } },
+                                        { label: 'Popular', icon: '⭐', filter: { sortBy: 'rating' } },
+                                        { label: 'Recent', icon: '🆕', filter: { sortBy: 'newest' } }
+                                    ].map((category, index) => (
+                                        <TouchEnhancedButton
+                                            key={index}
+                                            onClick={() => {
+                                                setSearchFilters(prev => ({ ...prev, ...category.filter }));
+                                                setActiveTab('public-recipes');
+                                            }}
+                                            className="flex items-center justify-center space-x-2 p-3 bg-gray-50 hover:bg-gray-100 rounded-lg transition-colors text-sm"
+                                        >
+                                            <span>{category.icon}</span>
+                                            <span>{category.label}</span>
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
                             </div>
-                        )}
+
+                            {/* Mobile Stats Cards */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <div className="bg-blue-50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-blue-600">
+                                        {recipes.filter(r => r.isPublic).length}
+                                    </div>
+                                    <div className="text-sm text-blue-700">Public Recipes</div>
+                                </div>
+                                <div className="bg-green-50 rounded-lg p-4 text-center">
+                                    <div className="text-2xl font-bold text-green-600">
+                                        {collectionsCount}
+                                    </div>
+                                    <div className="text-sm text-green-700">Collections</div>
+                                </div>
+                            </div>
+                        </div>
                     </>
                 ) : activeTab === 'collections' ? (
                     <RecipeCollections onCountChange={handleCollectionsCountChange} />
