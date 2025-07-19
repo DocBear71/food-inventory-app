@@ -10,10 +10,11 @@ import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {MobileHaptics} from "@/components/mobile/MobileHaptics";
 import VerificationBanner from '@/components/auth/VerificationBanner';
-import searchParams from "quagga";
+import { useSearchParams } from 'next/navigation';
 
 export default function DashboardLayout({children}) {
     const {data: session} = useSafeSession();
+    const searchParams = useSearchParams();
     const [sidebarOpen, setSidebarOpen] = useState(false);
     const [expandedMenus, setExpandedMenus] = useState({});
     const [isSigningOut, setIsSigningOut] = useState(false);

@@ -39,16 +39,6 @@ export default function NutritionDashboard() {
         try {
             setLoading(true);
 
-            if (typeof apiGet !== 'function') {
-                console.error('apiGet is not a function, using fetch instead');
-                const response = await fetch('/api/integrations/nutrition-integration');
-                const data = await response.json();
-                if (data.success) {
-                    setDashboardData(data.data);
-                }
-                return;
-            }
-
             // Fetch nutrition dashboard data
             const response = await apiGet('/api/integrations/nutrition-integration');
             const data = await response.json();
