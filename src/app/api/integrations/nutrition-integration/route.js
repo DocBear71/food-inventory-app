@@ -229,3 +229,87 @@ async function bulkAnalyzeInventory(data, userId) {
         };
     }
 }
+
+export async function GET(request) {
+    try {
+        const session = await auth();
+        if (!session?.user?.id) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        await connectDB();
+
+        // Fetch comprehensive nutrition dashboard data
+        const dashboardData = await getDashboardData(session.user.id);
+
+        return NextResponse.json({
+            success: true,
+            data: dashboardData
+        });
+    } catch (error) {
+        console.error('Nutrition dashboard GET error:', error);
+        return NextResponse.json({
+            error: 'Failed to fetch nutrition dashboard data',
+            details: error.message
+        }, { status: 500 });
+    }
+}
+
+async function getDashboardData(userId) {
+    try {
+        // Get user's inventory
+        const userInventory = await UserInventory.findOne({ userId }).populate('items');
+
+        // Get user's recipes with nutrition data
+        const recipes = await Recipe.find({ createdBy: userId, nutrition: { $exists: true } });
+
+        // Get user for nutrition goals
+        const user = await User.findById(userId);
+
+        // Calculate summary statistics
+        const inventoryWithNutrition = userInventory?.items?.filter(item => item.nutrition) || [];
+        const recipesWithNutrition = recipes.filter(recipe => recipe.nutrition);
+
+        return {
+            overview: {
+                totalInventoryItems: userInventory?.items?.length || 0,
+                itemsWithNutrition: inventoryWithNutrition.length,
+                totalRecipes: recipes.length,
+                recipesWithNutrition: recipesWithNutrition.length,
+                nutritionCoverage: userInventory?.items?.length > 0 ?
+                    Math.round((inventoryWithNutrition.length / userInventory.items.length) * 100) : 0
+            },
+            inventory: {
+                items: inventoryWithNutrition,
+                totalItems: userInventory?.items?.length || 0,
+                lastUpdated: userInventory?.lastUpdated
+            },
+            recipes: {
+                items: recipesWithNutrition,
+                totalRecipes: recipes.length
+            },
+            goals: {
+                dailyCalories: user?.nutritionGoals?.dailyCalories || 2000,
+                protein: user?.nutritionGoals?.protein || 150,
+                carbs: user?.nutritionGoals?.carbs || 250,
+                fat: user?.nutritionGoals?.fat || 65,
+                fiber: user?.nutritionGoals?.fiber || 25,
+                sodium: user?.nutritionGoals?.sodium || 2300
+            },
+            mealPlans: {
+                // Add meal plan nutrition data if you have meal plans
+                totalPlans: 0,
+                activePlans: 0
+            }
+        };
+    } catch (error) {
+        console.error('Error getting dashboard data:', error);
+        return {
+            overview: { totalInventoryItems: 0, itemsWithNutrition: 0, totalRecipes: 0, recipesWithNutrition: 0, nutritionCoverage: 0 },
+            inventory: { items: [], totalItems: 0 },
+            recipes: { items: [], totalRecipes: 0 },
+            goals: { dailyCalories: 2000, protein: 150, carbs: 250, fat: 65, fiber: 25, sodium: 2300 },
+            mealPlans: { totalPlans: 0, activePlans: 0 }
+        };
+    }
+}
