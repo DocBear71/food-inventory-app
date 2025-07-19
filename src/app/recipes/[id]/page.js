@@ -16,6 +16,8 @@ import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import NutritionModal from '@/components/nutrition/NutritionModal';
+import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
+import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 
 export default function RecipeDetailPage() {
     let session = null;
@@ -43,6 +45,8 @@ export default function RecipeDetailPage() {
     const [mealPlans, setMealPlans] = useState([]);
     const [loadingMealPlans, setLoadingMealPlans] = useState(false);
     const [showNutritionModal, setShowNutritionModal] = useState(false);
+    const [showPhotoUpload, setShowPhotoUpload] = useState(false);
+    const [refreshPhotos, setRefreshPhotos] = useState(0);
 
     useEffect(() => {
         if (recipeId) {
@@ -55,6 +59,14 @@ export default function RecipeDetailPage() {
             setServings(recipe.servings);
         }
     }, [recipe]);
+
+    // Add this function to handle photo uploads:
+    const handlePhotoUploaded = (photo) => {
+        setRefreshPhotos(prev => prev + 1);
+        setShowPhotoUpload(false);
+        // Optionally refresh the recipe to get updated photo count
+        fetchRecipe();
+    };
 
     const fetchRecipe = async () => {
         try {
@@ -477,10 +489,46 @@ export default function RecipeDetailPage() {
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                    {/* Main Content */}
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* LEFT COLUMN - Main Content */}
                     <div className="lg:col-span-2 space-y-8">
-                        {/* Ingredients */}
+                        {/* Recipe Photos Section */}
+                        <div className="bg-white rounded-lg border p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold text-gray-900">Photos</h2>
+                                {session?.user?.id === recipe.createdBy?._id && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowPhotoUpload(!showPhotoUpload)}
+                                        className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm font-medium flex items-center space-x-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        <span>Add Photo</span>
+                                    </TouchEnhancedButton>
+                                )}
+                            </div>
+
+                            {/* Photo Upload Section */}
+                            {showPhotoUpload && session?.user?.id === recipe.createdBy?._id && (
+                                <div className="mb-6">
+                                    <RecipePhotoUpload
+                                        recipeId={recipe._id}
+                                        onPhotoUploaded={handlePhotoUploaded}
+                                        className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                                    />
+                                </div>
+                            )}
+
+                            {/* Photo Gallery */}
+                            <RecipePhotoGallery
+                                recipeId={recipe._id}
+                                canEdit={session?.user?.id === recipe.createdBy?._id}
+                                key={refreshPhotos} // Force refresh when photos change
+                            />
+                        </div>
+
+                        {/* Existing Ingredients section continues here... */}
                         <div className="bg-white rounded-lg border p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
@@ -525,7 +573,7 @@ export default function RecipeDetailPage() {
                             </ul>
                         </div>
 
-                        {/* Instructions */}
+                        {/* Existing Instructions section continues here... */}
                         <div className="bg-white rounded-lg border p-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Instructions</h2>
                             <ol className="space-y-4">
@@ -594,7 +642,7 @@ export default function RecipeDetailPage() {
                             )}
                         </div>
 
-                        {/* Reviews Section */}
+                        {/* Existing Reviews section continues here... */}
                         <div className="bg-white rounded-lg border p-6">
                             <RecipeReviewsSection
                                 recipeId={recipeId}
@@ -603,7 +651,7 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
-                    {/* Sidebar */}
+                    {/* RIGHT COLUMN - Sidebar (your existing sidebar content) */}
                     <div className="space-y-6">
                         {/* Recipe Info Card - Updated with user tracking */}
                         <div className="bg-white rounded-lg border p-6">

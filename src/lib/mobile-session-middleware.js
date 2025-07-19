@@ -2,7 +2,7 @@
 // Middleware to check both NextAuth and mobile sessions
 
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 
 export async function getSessionFromRequest(request) {
     console.log('🔍 Checking session for API request...');

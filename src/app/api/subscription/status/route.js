@@ -1,7 +1,7 @@
 // file: /src/app/api/subscription/status/route.js v5 - FIXED admin detection
 
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import connectDB from '@/lib/mongodb';
 import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
 

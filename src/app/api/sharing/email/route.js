@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import { sendShoppingListEmail, validateEmails } from '@/lib/email';
 import { User, EmailLog } from '@/lib/models';
 import { checkFeatureAccess, checkUsageLimit, getUsageLimit } from '@/lib/subscription-config';

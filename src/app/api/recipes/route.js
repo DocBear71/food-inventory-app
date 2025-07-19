@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/route.js v7 - Added AI nutrition analysis integration
+// file: /src/app/api/recipes/route.js v8 - Enhanced with image support and AI nutrition
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
@@ -6,6 +6,7 @@ import connectDB from '@/lib/mongodb';
 import { Recipe, User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 import { AIRecipeNutritionService } from '@/lib/services/aiNutritionService';
+// import { uploadToCloudinary } from '@/lib/cloudinary'; // Add when you set up Cloudinary
 
 async function checkPublicRecipePermission(userId, requestedIsPublic) {
     // If user doesn't want to make it public, allow it
@@ -179,7 +180,7 @@ export async function GET(request) {
     }
 }
 
-// ENHANCED POST - Add new recipe with automatic AI nutrition analysis
+// ENHANCED POST - Add new recipe with image support and automatic AI nutrition analysis
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -191,7 +192,23 @@ export async function POST(request) {
 
         console.log('POST /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
-        const body = await request.json();
+        // NEW: Handle both form data (with image files) and JSON data
+        let recipeData;
+        let imageFile = null;
+
+        const contentType = request.headers.get('content-type') || '';
+
+        if (contentType.includes('multipart/form-data')) {
+            // Handle form data with potential image upload
+            const formData = await request.formData();
+            recipeData = JSON.parse(formData.get('recipeData') || '{}');
+            imageFile = formData.get('recipeImage');
+        } else {
+            // Handle JSON data
+            const body = await request.json();
+            recipeData = body.recipeData || body;
+        }
+
         const {
             title,
             description,
@@ -208,8 +225,9 @@ export async function POST(request) {
             nutrition,
             importedFrom,
             videoMetadata,
-            skipAIAnalysis = false  // NEW: Allow skipping AI analysis
-        } = body;
+            extractedImage, // NEW: Extracted image from video
+            skipAIAnalysis = false
+        } = recipeData;
 
         if (!title || !ingredients || ingredients.length === 0) {
             return NextResponse.json(
@@ -250,6 +268,34 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
+        // NEW: Handle image upload if present
+        let imageUrl = null;
+        if (imageFile && imageFile.size > 0) {
+            try {
+                console.log('📸 Processing uploaded recipe image...');
+
+                // Convert to base64 and store in uploadedImage field
+                const bytes = await imageFile.arrayBuffer();
+                const buffer = Buffer.from(bytes);
+                const base64Data = buffer.toString('base64');
+
+                // Store in your existing uploadedImage schema field
+                newRecipeData.uploadedImage = {
+                    data: base64Data,
+                    mimeType: imageFile.type,
+                    size: imageFile.size,
+                    originalName: imageFile.name,
+                    uploadedAt: new Date(),
+                    source: 'user_upload'
+                };
+
+                console.log('✅ Image stored as base64 in uploadedImage field');
+            } catch (uploadError) {
+                console.warn('⚠️ Image processing failed:', uploadError.message);
+                // Continue without image rather than failing the entire recipe
+            }
+        }
+
         // FIXED: Handle both string and object instructions (for video imports)
         const processedInstructions = instructions.filter(inst => {
             // Handle both string and object instructions
@@ -265,7 +311,7 @@ export async function POST(request) {
         // FIXED: Handle ingredients with video metadata
         const processedIngredients = ingredients.filter(ing => ing.name && ing.name.trim() !== '');
 
-        const recipeData = {
+        const newRecipeData = {
             title,
             description: description || '',
             ingredients: processedIngredients,
@@ -284,9 +330,26 @@ export async function POST(request) {
             updatedAt: new Date(),
             isPublic: await checkPublicRecipePermission(session.user.id, isPublic),
 
+            // NEW: Handle images
+            ...(imageUrl && { imageUrl }), // Uploaded image URL
+            ...(extractedImage && {
+                extractedImage: {
+                    data: extractedImage.data,
+                    extractionMethod: extractedImage.extractionMethod || 'video_frame_analysis',
+                    frameCount: extractedImage.frameCount || 0,
+                    source: extractedImage.source || 'unknown',
+                    extractedAt: new Date(),
+                    confidence: extractedImage.confidence,
+                    metadata: extractedImage.metadata || {}
+                }
+            }),
+
             // Add video metadata if present
             ...(videoMetadata && {
-                videoMetadata: videoMetadata
+                videoMetadata: {
+                    ...videoMetadata,
+                    hasExtractedImage: !!(extractedImage) // NEW: Flag for image presence
+                }
             }),
 
             // Handle manual nutrition data
@@ -298,16 +361,18 @@ export async function POST(request) {
         };
 
         console.log('Creating recipe with data:', {
-            title: recipeData.title,
-            instructionCount: recipeData.instructions.length,
-            ingredientCount: recipeData.ingredients.length,
-            hasVideoMetadata: !!recipeData.videoMetadata,
-            instructionTypes: recipeData.instructions.map(inst => typeof inst),
+            title: newRecipeData.title,
+            instructionCount: newRecipeData.instructions.length,
+            ingredientCount: newRecipeData.ingredients.length,
+            hasVideoMetadata: !!newRecipeData.videoMetadata,
+            hasExtractedImage: !!(newRecipeData.extractedImage),
+            hasUploadedImage: !!(newRecipeData.imageUrl),
+            instructionTypes: newRecipeData.instructions.map(inst => typeof inst),
             skipAIAnalysis
         });
 
         // Create the recipe first
-        const recipe = new Recipe(recipeData);
+        const recipe = new Recipe(newRecipeData);
         await recipe.save();
 
         // NEW: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
@@ -325,24 +390,23 @@ export async function POST(request) {
             console.log('🤖 AI analysis result:', nutritionAnalysis);
         }
 
-            // If AI analysis succeeded, update the recipe with nutrition data
-            if (nutritionAnalysis?.success) {
-                await Recipe.findByIdAndUpdate(recipe._id, {
-                    nutrition: nutritionAnalysis.nutrition,
-                    nutritionCalculatedAt: new Date(),
-                    nutritionCoverage: nutritionAnalysis.metadata.coverage,
-                    nutritionManuallySet: false,
-                    // Store AI analysis metadata
-                    'aiAnalysis.nutritionGenerated': true,
-                    'aiAnalysis.nutritionMetadata': nutritionAnalysis.metadata
-                });
+        // If AI analysis succeeded, update the recipe with nutrition data
+        if (nutritionAnalysis?.success) {
+            await Recipe.findByIdAndUpdate(recipe._id, {
+                nutrition: nutritionAnalysis.nutrition,
+                nutritionCalculatedAt: new Date(),
+                nutritionCoverage: nutritionAnalysis.metadata.coverage,
+                nutritionManuallySet: false,
+                // Store AI analysis metadata
+                'aiAnalysis.nutritionGenerated': true,
+                'aiAnalysis.nutritionMetadata': nutritionAnalysis.metadata
+            });
 
-                // Update the local recipe object for response
-                recipe.nutrition = nutritionAnalysis.nutrition;
-                recipe.nutritionCalculatedAt = new Date();
-                recipe.nutritionCoverage = nutritionAnalysis.metadata.coverage;
-            }
-
+            // Update the local recipe object for response
+            recipe.nutrition = nutritionAnalysis.nutrition;
+            recipe.nutritionCalculatedAt = new Date();
+            recipe.nutritionCoverage = nutritionAnalysis.metadata.coverage;
+        }
 
         // Update user's usage tracking
         if (!user.usageTracking) {
@@ -356,18 +420,34 @@ export async function POST(request) {
         await recipe.populate('createdBy', 'name email');
         await recipe.populate('lastEditedBy', 'name email');
 
+        // NEW: Log image processing results
+        let imageInfo = 'no image';
+        if (recipe.extractedImage) {
+            imageInfo = `extracted image from ${recipe.extractedImage.source}`;
+        } else if (recipe.imageUrl) {
+            imageInfo = 'uploaded image';
+        }
+
         console.log('POST /api/recipes - Recipe created successfully:', {
             id: recipe._id,
             hasVideoMetadata: !!recipe.videoMetadata,
-            hasAINutrition: !!(nutritionAnalysis?.success)
+            hasAINutrition: !!(nutritionAnalysis?.success),
+            imageInfo
         });
 
         return NextResponse.json({
             success: true,
-            recipe,
-            nutritionAnalysis, // NEW: Include AI analysis results
+            recipe: {
+                ...recipe.toObject(),
+                // NEW: Include image information in response
+                hasImage: !!(recipe.extractedImage || recipe.imageUrl),
+                imageType: recipe.extractedImage ? 'extracted' : (recipe.imageUrl ? 'uploaded' : null),
+                imageSource: recipe.extractedImage?.source || 'upload'
+            },
+            nutritionAnalysis, // Include AI analysis results
             message: 'Recipe added successfully' +
-                (nutritionAnalysis?.success ? ' with AI nutrition analysis' : ''),
+                (nutritionAnalysis?.success ? ' with AI nutrition analysis' : '') +
+                (imageInfo !== 'no image' ? ` and ${imageInfo}` : ''),
             remainingRecipes: userSubscription.tier === 'free' ?
                 Math.max(0, 5 - (currentRecipeCount + 1)) :
                 userSubscription.tier === 'gold' ?
@@ -435,7 +515,14 @@ export async function PUT(request) {
         const updateFields = {
             ...updateData,
             ingredients: updateData.ingredients?.filter(ing => ing.name && ing.name.trim() !== ''),
-            instructions: updateData.instructions?.filter(inst => inst && inst.trim() !== ''),
+            instructions: updateData.instructions?.filter(inst => {
+                if (typeof inst === 'string') {
+                    return inst.trim() !== '';
+                } else if (typeof inst === 'object' && inst !== null) {
+                    return inst.text && inst.text.trim() !== '';
+                }
+                return false;
+            }),
             lastEditedBy: session.user.id,
             updatedAt: new Date(),
 
@@ -536,7 +623,7 @@ export async function PUT(request) {
         return NextResponse.json({
             success: true,
             recipe: updatedRecipe,
-            nutritionAnalysis, // NEW: Include AI analysis results
+            nutritionAnalysis, // Include AI analysis results
             message: 'Recipe updated successfully' +
                 (nutritionAnalysis?.success ? ' with updated AI nutrition analysis' : '')
         });

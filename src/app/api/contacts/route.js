@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import connectDB from '@/lib/mongodb';
 import { Contact } from '@/lib/models';
 import { validateEmail } from '@/lib/email';

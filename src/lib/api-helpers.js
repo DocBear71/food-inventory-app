@@ -1,7 +1,7 @@
 // file: /src/lib/api-helpers.js - Simple API wrapper for better error handling
 
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 

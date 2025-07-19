@@ -1,5 +1,7 @@
 'use client';
 
+// file: /src/app/recipes/import/page.js v2 - Enhanced with image extraction
+
 import {useEffect, useState} from 'react';
 import { useRouter } from 'next/navigation';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -16,6 +18,7 @@ export default function ImportRecipePage() {
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState('');
     const [isVideoImporting, setIsVideoImporting] = useState(false);
+    const [extractImages, setExtractImages] = useState(true); // NEW: Image extraction toggle
     const [videoImportProgress, setVideoImportProgress] = useState({
         stage: '',
         platform: '',
@@ -113,11 +116,11 @@ export default function ImportRecipePage() {
             const platform = detectPlatformFromUrl(trimmedUrl);
             const isSocial = isSocialMediaUrl(trimmedUrl);
 
-            console.log('🔍 Import analysis:', { platform, isSocial, url: trimmedUrl });
+            console.log('🔍 Import analysis:', { platform, isSocial, url: trimmedUrl, extractImages });
 
             if (isSocial) {
                 // Handle social media video extraction
-                console.log(`🎥 Processing ${platform} video...`);
+                console.log(`🎥 Processing ${platform} video with image extraction: ${extractImages}...`);
                 await handleVideoImport(trimmedUrl);
             } else {
                 // Handle website recipe scraping
@@ -150,16 +153,18 @@ export default function ImportRecipePage() {
                 message: `📥 Downloading ${platform} video content...`
             });
 
+            // ENHANCED: Include image extraction in API call
             const response = await apiPost('/api/recipes/video-extract', {
                 url: url,
-                platform: platform, // Pass platform to API
-                analysisType: 'ai_vision_enhanced'
+                platform: platform,
+                analysisType: 'ai_vision_enhanced',
+                extractImage: extractImages  // NEW: Pass image extraction flag
             });
 
             setVideoImportProgress({
                 stage: 'processing',
                 platform: platform,
-                message: `🤖 AI analyzing ${platform} video content...`
+                message: `🤖 AI analyzing ${platform} video content${extractImages ? ' and extracting image' : ''}...`
             });
 
             const data = await response.json();
@@ -170,6 +175,13 @@ export default function ImportRecipePage() {
                     platform: platform,
                     message: `✅ ${platform.charAt(0).toUpperCase() + platform.slice(1)} recipe extraction complete!`
                 });
+
+                // NEW: Log image extraction results
+                if (extractImages && data.recipe.extractedImage) {
+                    console.log('📸 Image successfully extracted from video');
+                } else if (extractImages) {
+                    console.log('📸 Image extraction was attempted but no image was extracted');
+                }
 
                 // Navigate to add page with the extracted recipe data
                 setTimeout(() => {
@@ -265,10 +277,12 @@ export default function ImportRecipePage() {
         <MobileOptimizedLayout>
             <VideoImportLoadingModal
                 isVisible={isVideoImporting}
-                platform={videoImportProgress.platform}
-                stage={videoImportProgress.stage}
-                message={videoImportProgress.message}
+                platform={videoImportProgress.platform || 'facebook'}
+                stage={videoImportProgress.stage || 'processing'}
+                message={videoImportProgress.message || 'Processing video...'}
                 videoUrl={urlInput}
+                onComplete={() => {}}
+                style={{zIndex: 9999}}
             />
 
             <div className="max-w-6xl mx-auto px-4 py-8">
@@ -286,23 +300,26 @@ export default function ImportRecipePage() {
                         </div>
                     </div>
 
-                    {/* Import method highlights */}
+                    {/* Enhanced import method highlights */}
                     <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                             <div>
                                 <div className="text-2xl mb-2">🎥</div>
-                                <h3 className="font-semibold text-purple-900">Social Media</h3>
+                                <h3 className="font-semibold text-purple-900">Social Media + AI</h3>
                                 <p className="text-sm text-purple-700">TikTok, Instagram, Facebook</p>
+                                <p className="text-xs text-purple-600 mt-1">With automatic image extraction</p>
                             </div>
                             <div>
                                 <div className="text-2xl mb-2">🌐</div>
                                 <h3 className="font-semibold text-blue-900">Recipe Websites</h3>
                                 <p className="text-sm text-blue-700">AllRecipes, Food Network, etc.</p>
+                                <p className="text-xs text-blue-600 mt-1">With existing recipe images</p>
                             </div>
                             <div>
                                 <div className="text-2xl mb-2">🤖</div>
                                 <h3 className="font-semibold text-green-900">AI Enhancement</h3>
                                 <p className="text-sm text-green-700">Comprehensive nutrition analysis</p>
+                                <p className="text-xs text-green-600 mt-1">Smart image processing</p>
                             </div>
                         </div>
                     </div>
@@ -326,7 +343,7 @@ export default function ImportRecipePage() {
                                     Paste any recipe URL - we'll automatically detect if it's from social media or a recipe website
                                 </p>
                                 <div className="text-xs text-gray-500">
-                                    <div className="mb-1"><strong>Social Media:</strong> TikTok, Instagram, Facebook</div>
+                                    <div className="mb-1"><strong>Social Media:</strong> TikTok, Instagram, Facebook (with AI image extraction)</div>
                                     <div><strong>Websites:</strong> AllRecipes, Food Network, Epicurious, etc.</div>
                                 </div>
                             </TouchEnhancedButton>
@@ -338,10 +355,10 @@ export default function ImportRecipePage() {
                                 <div className="text-3xl mb-3">📝</div>
                                 <h3 className="font-semibold text-gray-900 mb-2">Manual Import</h3>
                                 <p className="text-sm text-gray-600 mb-3">
-                                    Use our enhanced recipe form with text parsing and AI nutrition analysis
+                                    Use our enhanced recipe form with text parsing, image upload, and AI nutrition analysis
                                 </p>
                                 <div className="text-xs text-gray-500">
-                                    <div className="mb-1"><strong>Features:</strong> Text paste parsing, URL import, manual entry</div>
+                                    <div className="mb-1"><strong>Features:</strong> Text paste parsing, URL import, manual entry, image upload</div>
                                     <div><strong>AI:</strong> Complete nutrition analysis included</div>
                                 </div>
                             </TouchEnhancedButton>
@@ -388,7 +405,6 @@ export default function ImportRecipePage() {
                                         style={{minHeight: '48px'}}
                                         disabled={isImporting}
                                     />
-                                    <br/>
                                     <TouchEnhancedButton
                                         onClick={handleUrlImport}
                                         disabled={!urlInput.trim() || isImporting}
@@ -408,6 +424,37 @@ export default function ImportRecipePage() {
                                 </div>
                             </div>
 
+                            {/* NEW: Image Extraction Toggle for Social Media */}
+                            {isSocial && urlInput && (
+                                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <h4 className="text-sm font-medium text-purple-900">📸 AI Image Extraction</h4>
+                                            <p className="text-xs text-purple-700 mt-1">
+                                                Automatically extract the best food image from the video using AI
+                                            </p>
+                                        </div>
+                                        <label className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                checked={extractImages}
+                                                onChange={(e) => setExtractImages(e.target.checked)}
+                                                className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
+                                                disabled={isImporting}
+                                            />
+                                            <span className="ml-2 text-sm text-purple-900">
+                                                {extractImages ? 'Enabled' : 'Disabled'}
+                                            </span>
+                                        </label>
+                                    </div>
+                                    {extractImages && (
+                                        <div className="mt-3 text-xs text-purple-600">
+                                            ✨ AI will analyze video frames and select the most appetizing image for your recipe
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+
                             {importError && (
                                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                                     <div className="text-sm text-red-800">
@@ -422,11 +469,11 @@ export default function ImportRecipePage() {
                                     <strong>✨ Supported Sources:</strong>
                                     <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2 text-xs">
                                         <div>
-                                            <strong>🎥 Social Media (AI Video Extraction):</strong>
+                                            <strong>🎥 Social Media (AI Video + Image Extraction):</strong>
                                             <ul className="list-disc list-inside ml-2 mt-1">
-                                                <li>TikTok recipe videos</li>
-                                                <li>Instagram Reels & posts</li>
-                                                <li>Facebook cooking videos</li>
+                                                <li>TikTok recipe videos + auto image</li>
+                                                <li>Instagram Reels & posts + auto image</li>
+                                                <li>Facebook cooking videos + auto image</li>
                                             </ul>
                                         </div>
                                         <div>
@@ -435,7 +482,7 @@ export default function ImportRecipePage() {
                                                 <li>AllRecipes, Food Network</li>
                                                 <li>Epicurious, Simply Recipes</li>
                                                 <li>The Kitchn, Bon Appétit</li>
-                                                <li>Most recipe blogs & sites</li>
+                                                <li>Most recipe blogs & sites (with existing images)</li>
                                             </ul>
                                         </div>
                                     </div>
@@ -455,7 +502,7 @@ export default function ImportRecipePage() {
                                             </div>
                                             <div className="text-sm text-gray-600">
                                                 {isSocial
-                                                    ? 'AI video extraction will be used'
+                                                    ? `AI video + ${extractImages ? 'image extraction' : 'recipe extraction'} will be used`
                                                     : 'Website scraping will be used'
                                                 }
                                             </div>

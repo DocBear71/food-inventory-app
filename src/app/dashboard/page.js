@@ -233,6 +233,17 @@ export default function Dashboard() {
                             </Link>
 
                             <Link
+                                href="/dashboard/nutrition"
+                                className="flex items-center p-6 bg-emerald-50 rounded-lg hover:bg-emerald-100 transition-colors min-h-[100px]"
+                            >
+                                <div className="text-4xl mr-4 flex-shrink-0">🔬</div>
+                                <div className="min-w-0">
+                                    <div className="font-medium text-emerald-900 text-base">Nutrition Dashboard</div>
+                                    <div className="text-sm text-emerald-700">AI-powered nutrition analysis</div>
+                                </div>
+                            </Link>
+
+                            <Link
                                 href="/stores"
                                 className="flex items-center p-6 bg-teal-50 rounded-lg hover:bg-teal-100 transition-colors min-h-[100px]"
                             >

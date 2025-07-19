@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/video-extract/route.js v9 - MODAL FOR ALL PLATFORMS
+// file: /src/app/api/recipes/video-extract/route.js v10 - ENHANCED WITH IMAGE EXTRACTION
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
@@ -69,7 +69,7 @@ function detectVideoPlatform(url) {
     throw new Error('Unsupported video platform. Currently supports TikTok, Instagram, and Facebook. For YouTube videos, please copy the transcript and use the Text Paste option instead.');
 }
 
-// Transform Modal response to match MongoDB schema
+// ENHANCED: Transform Modal response with image data
 function transformModalDataToSchema(modalData, videoInfo) {
     console.log('🔄 [VERCEL] Transforming Modal data to schema format...');
 
@@ -78,9 +78,9 @@ function transformModalDataToSchema(modalData, videoInfo) {
 
     // Transform instructions: Modal format -> Schema format
     const transformedInstructions = (recipe.instructions || []).map(instruction => ({
-        text: instruction.instruction || instruction.text || instruction, // Handle string fallback
+        text: instruction.instruction || instruction.text || instruction,
         step: instruction.step || 1,
-        videoTimestamp: instruction.timestamp || null, // Modal uses 'timestamp', schema uses 'videoTimestamp'
+        videoTimestamp: instruction.timestamp || null,
         videoLink: instruction.videoLink || null
     }));
 
@@ -90,7 +90,6 @@ function transformModalDataToSchema(modalData, videoInfo) {
         amount: ingredient.amount || '',
         unit: ingredient.unit || '',
         optional: ingredient.optional || false,
-        // Add video fields if present
         ...(ingredient.timestamp && {
             videoTimestamp: ingredient.timestamp,
             videoLink: ingredient.videoLink
@@ -120,6 +119,17 @@ function transformModalDataToSchema(modalData, videoInfo) {
             fiber: null
         },
 
+        // NEW: Extracted image data (if present)
+        ...(recipe.extractedImage && {
+            extractedImage: {
+                data: recipe.extractedImage.data,
+                extractionMethod: recipe.extractedImage.extractionMethod,
+                frameCount: recipe.extractedImage.frameCount,
+                source: recipe.extractedImage.source || videoInfo.platform,
+                extractedAt: new Date()
+            }
+        }),
+
         // Video metadata - properly nested according to schema
         videoMetadata: {
             videoSource: recipe.videoSource || videoInfo.originalUrl,
@@ -131,7 +141,8 @@ function transformModalDataToSchema(modalData, videoInfo) {
             importedFrom: `${videoInfo.platform} video via Modal AI`,
             socialMediaOptimized: recipe.socialMediaOptimized || false,
             transcriptLength: recipe.transcriptLength || metadata?.transcriptLength || null,
-            processingTime: recipe.processingTime || metadata?.processingMethod || null
+            processingTime: recipe.processingTime || metadata?.processingMethod || null,
+            hasExtractedImage: !!(recipe.extractedImage)  // NEW: Flag for image presence
         },
 
         // Default values for required schema fields
@@ -140,71 +151,34 @@ function transformModalDataToSchema(modalData, videoInfo) {
     };
 
     console.log('✅ [VERCEL] Schema transformation complete');
+    if (transformedRecipe.extractedImage) {
+        console.log('📸 [VERCEL] Image data included in transformation');
+    }
     return transformedRecipe;
 }
 
-const handleFacebookVideo = async (videoUrl) => {
-    try {
-        console.log('📱 Processing Facebook video with text extraction...');
-
-        const response = await fetch(modalEndpoint, {
-            method: 'POST',
-            headers: { 'Authorization': `Bearer ${modalToken}` },
-            body: JSON.stringify({
-                video_url: videoUrl,
-                platform: 'facebook',
-                extraction_method: 'text_only'  // Signal to use text extraction
-            }),
-        });
-
-        const data = await response.json();
-
-        if (data.success) {
-            return {
-                success: true,
-                recipe: data.recipe,
-                extractionInfo: {
-                    method: 'facebook_text_extraction',
-                    note: 'Extracted from Facebook video text content - no video download required'
-                }
-            };
-        } else {
-            return {
-                success: false,
-                error: data.error || 'Facebook text extraction failed',
-                suggestion: 'Copy any recipe text from the video and use Text Paste instead'
-            };
-        }
-
-    } catch (error) {
-        return {
-            success: false,
-            error: 'Facebook processing failed - video may be private or contain no recipe text',
-            fallback: 'text_paste'
-        };
-    }
-};
-
-// Call Modal for video processing (ALL PLATFORMS) - NO AUTH REQUIRED
-async function callModalForVideoExtraction(videoInfo, analysisType = 'standard') {
+// ENHANCED: Call Modal for video processing with image extraction
+async function callModalForVideoExtraction(videoInfo, analysisType = 'standard', extractImage = false) {
     console.log(`🚀 [VERCEL] Calling Modal for ${videoInfo.platform} video extraction...`);
-    console.log('🔧 [VERCEL] Analysis type:', analysisType); // ADD debug log
+    console.log('🔧 [VERCEL] Analysis type:', analysisType);
+    console.log('📸 [VERCEL] Extract image:', extractImage);  // NEW: Log image flag
 
     try {
         const payload = {
             video_url: videoInfo.originalUrl,
             platform: videoInfo.platform,
-            analysis_type: analysisType
+            analysis_type: analysisType,
+            extract_image: extractImage  // NEW: Pass image extraction flag
         };
 
-        console.log('📦 [VERCEL] Modal payload:', payload); // ADD debug log
+        console.log('📦 [VERCEL] Modal payload:', payload);
 
         const modalResponse = await fetch(process.env.MODAL_ENDPOINT_URL, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify(payload) // CHANGED: Use the payload object
+            body: JSON.stringify(payload)
         });
 
         if (!modalResponse.ok) {
@@ -219,6 +193,11 @@ async function callModalForVideoExtraction(videoInfo, analysisType = 'standard')
         }
 
         console.log(`✅ [VERCEL] Modal ${videoInfo.platform} processing successful`);
+
+        // NEW: Log image extraction status
+        if (result.recipe?.extractedImage) {
+            console.log('📸 [VERCEL] Image successfully extracted from video');
+        }
 
         // Transform Modal data to match our MongoDB schema
         const transformedRecipe = transformModalDataToSchema(result, videoInfo);
@@ -237,7 +216,7 @@ async function callModalForVideoExtraction(videoInfo, analysisType = 'standard')
     }
 }
 
-// MAIN API ENDPOINT - SIMPLIFIED (Modal only)
+// MAIN API ENDPOINT - ENHANCED WITH IMAGE EXTRACTION
 export async function POST(request) {
     try {
         console.log('=== 🎬 [VERCEL] UNIFIED VIDEO RECIPE EXTRACTION START ===');
@@ -251,9 +230,10 @@ export async function POST(request) {
             );
         }
 
-        const { url, analysisType, platform } = await request.json(); // ADD platform parameter
+        const { url, analysisType, platform, extractImage } = await request.json(); // NEW: extractImage parameter
         console.log('🎬 [VERCEL] Analysis type requested:', analysisType);
-        console.log('🎬 [VERCEL] Platform hint provided:', platform); // ADD logging
+        console.log('🎬 [VERCEL] Platform hint provided:', platform);
+        console.log('📸 [VERCEL] Image extraction requested:', extractImage);  // NEW: Log image flag
 
         if (!url) {
             return NextResponse.json(
@@ -274,28 +254,33 @@ export async function POST(request) {
                 console.log(`🎯 [VERCEL] Using platform hint: ${platform}`);
                 videoInfo = {
                     platform: platform,
-                    videoId: url.split('/').pop(), // Simple ID extraction
+                    videoId: url.split('/').pop(),
                     originalUrl: url
                 };
             } else {
-                throw error; // Re-throw if no valid hint
+                throw error;
             }
         }
 
         console.log(`📺 [VERCEL] Video info: ${videoInfo.platform} - ${videoInfo.videoId}`);
 
-        // Use Modal for ALL platforms with platform-specific handling
-        const result = await callModalForVideoExtraction(videoInfo, analysisType);
+        // ENHANCED: Use Modal with image extraction support
+        const result = await callModalForVideoExtraction(
+            videoInfo,
+            analysisType,
+            extractImage || false  // NEW: Pass image extraction flag
+        );
 
         console.log('✅ [VERCEL] Extraction complete:', {
             platform: videoInfo.platform,
             method: result.extractionMethod,
             cost: result.cost,
             hasTimestamps: result.recipe.instructions.some(i => i.videoTimestamp),
+            hasImage: !!(result.recipe.extractedImage),  // NEW: Log image status
             title: result.recipe.title
         });
 
-        // Return schema-compatible data with platform info
+        // ENHANCED: Return schema-compatible data with image info
         return NextResponse.json({
             success: true,
             recipe: result.recipe, // Already transformed to match schema
@@ -312,12 +297,13 @@ export async function POST(request) {
                 metadata: result.metadata || null,
                 hasTimestamps: result.recipe.instructions.some(i => i.videoTimestamp) ||
                     result.recipe.ingredients.some(i => i.videoTimestamp),
+                hasExtractedImage: !!(result.recipe.extractedImage),  // NEW: Image status
                 instructionCount: result.recipe.instructions.length,
                 ingredientCount: result.recipe.ingredients.length,
                 videoDuration: result.recipe.videoMetadata?.videoDuration,
                 transcriptLength: result.recipe.videoMetadata?.transcriptLength
             },
-            message: `Recipe extracted from ${videoInfo.platform} using Modal AI processing`
+            message: `Recipe extracted from ${videoInfo.platform} using Modal AI processing${result.recipe.extractedImage ? ' with image' : ''}`  // NEW: Include image status
         });
 
     } catch (error) {

@@ -4,7 +4,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import connectDB from '@/lib/mongodb';
 import { RecipeCollection, Recipe } from '@/lib/models'; // FIXED: Correct import
 import mongoose from 'mongoose';

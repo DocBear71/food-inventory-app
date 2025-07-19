@@ -761,11 +761,11 @@ function InventoryContent() {
             };
         } else {
             return {
-                status: 'fresh',
+                status: 'good',
                 color: 'green',
                 bgColor: 'bg-green-50',
                 textColor: 'text-green-600',
-                label: `Fresh (${daysUntil} days left)`,
+                label: `Good (${daysUntil} days left)`,
                 icon: '✅'
             };
         }
@@ -887,7 +887,7 @@ function InventoryContent() {
                 switch (filterStatus) {
                     case 'expired': return status.status === 'expired';
                     case 'expiring': return ['expires-today', 'expires-soon', 'expires-week'].includes(status.status);
-                    case 'fresh': return status.status === 'fresh' || status.status === 'no-date';
+                    case 'good': return status.status === 'good' || status.status === 'no-date';
                     default: return true;
                 }
             });
@@ -905,7 +905,7 @@ function InventoryContent() {
             );
         }
 
-        // NEW: Price-based filters
+        // Price-based filters (keep existing logic)
         if (priceFilters.priceRange.min || priceFilters.priceRange.max) {
             filtered = filtered.filter(item => {
                 const price = item.currentBestPrice?.price || item.averagePrice;
@@ -944,9 +944,13 @@ function InventoryContent() {
             );
         }
 
-        // Enhanced sorting with price options
+        // FIXED: Enhanced sorting with all options properly implemented
         filtered.sort((a, b) => {
-            switch (priceFilters.sortBy !== 'price-asc' ? priceFilters.sortBy : sortBy) {
+            // Use price sort if it's selected, otherwise use regular sort
+            const currentSort = priceFilters.sortBy !== 'price-asc' ? sortBy : priceFilters.sortBy;
+
+            switch (currentSort) {
+                // Price-based sorting
                 case 'price-asc':
                     const priceA = a.currentBestPrice?.price || a.averagePrice || 0;
                     const priceB = b.currentBestPrice?.price || b.averagePrice || 0;
@@ -966,18 +970,77 @@ function InventoryContent() {
                     const dateB = b.priceHistory?.length ? new Date(b.priceHistory[b.priceHistory.length - 1].date) : new Date(0);
                     return dateB - dateA;
 
-                // Existing sort options
+                // FIXED: Regular sorting options
                 case 'expiration':
+                    // Priority sorting - expired first, then expiring soon, then by date
+                    const statusA = getExpirationStatus(a.expirationDate);
+                    const statusB = getExpirationStatus(b.expirationDate);
+
+                    // Priority order: expired > expires-today > expires-soon > expires-week > fresh > no-date
+                    const priorityOrder = {
+                        'expired': 1,
+                        'expires-today': 2,
+                        'expires-soon': 3,
+                        'expires-week': 4,
+                        'good': 5,
+                        'no-date': 6
+                    };
+
+                    const priorityA = priorityOrder[statusA.status] || 6;
+                    const priorityB = priorityOrder[statusB.status] || 6;
+
+                    if (priorityA !== priorityB) {
+                        return priorityA - priorityB;
+                    }
+
+                    // If same priority, sort by actual date
                     if (!a.expirationDate && !b.expirationDate) return 0;
                     if (!a.expirationDate) return 1;
                     if (!b.expirationDate) return -1;
                     return new Date(a.expirationDate) - new Date(b.expirationDate);
+
+                case 'expiration-date':
+                    // Simple date sorting
+                    if (!a.expirationDate && !b.expirationDate) return 0;
+                    if (!a.expirationDate) return 1;
+                    if (!b.expirationDate) return -1;
+                    return new Date(a.expirationDate) - new Date(b.expirationDate);
+
                 case 'name':
                     return a.name.localeCompare(b.name);
+
+                case 'brand':
+                    const brandA = a.brand || '';
+                    const brandB = b.brand || '';
+                    if (brandA === brandB) {
+                        return a.name.localeCompare(b.name); // Secondary sort by name
+                    }
+                    return brandA.localeCompare(brandB);
+
                 case 'category':
-                    return (a.category || 'Other').localeCompare(b.category || 'Other');
+                    const catA = a.category || 'Other';
+                    const catB = b.category || 'Other';
+                    if (catA === catB) {
+                        return a.name.localeCompare(b.name); // Secondary sort by name
+                    }
+                    return catA.localeCompare(catB);
+
                 case 'location':
+                    if (a.location === b.location) {
+                        return a.name.localeCompare(b.name); // Secondary sort by name
+                    }
                     return a.location.localeCompare(b.location);
+
+                case 'quantity':
+                    // Sort by quantity (high to low)
+                    return b.quantity - a.quantity;
+
+                case 'date-added':
+                    // FIXED: Recently added - sort by creation date
+                    const createdA = a.createdAt ? new Date(a.createdAt) : new Date(0);
+                    const createdB = b.createdAt ? new Date(b.createdAt) : new Date(0);
+                    return createdB - createdA; // Most recent first
+
                 default:
                     return 0;
             }
@@ -1022,6 +1085,9 @@ function InventoryContent() {
                 break;
             case 'expiring-soon':
                 setFilterStatus('expiring');
+                break;
+            case 'good':
+                setFilterStatus('good');
                 break;
             case 'pantry':
                 setFilterLocation('pantry');
@@ -1782,6 +1848,12 @@ function InventoryContent() {
                                     ⏰ Expiring Soon
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
+                                    onClick={() => applyQuickFilter('good')}
+                                    className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-full hover:bg-green-200 border border-green-300"
+                                >
+                                    ✅ Good Condition
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => applyQuickFilter('pantry')}
                                     className="px-3 py-1 text-xs bg-yellow-100 text-yellow-700 rounded-full hover:bg-yellow-200 border border-yellow-300"
                                 >
@@ -1838,8 +1910,8 @@ function InventoryContent() {
                                 <option value="expiring">⏰ Expiring Soon
                                     ({inventory.filter(item => ['expires-today', 'expires-soon', 'expires-week'].includes(getExpirationStatus(item.expirationDate).status)).length})
                                 </option>
-                                <option value="fresh">✅ Fresh
-                                    ({inventory.filter(item => ['fresh', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})
+                                <option value="good">✅ Good Condition
+                                    ({inventory.filter(item => ['good', 'no-date'].includes(getExpirationStatus(item.expirationDate).status)).length})
                                 </option>
                             </select>
                         </div>
@@ -2420,7 +2492,7 @@ function InventoryContent() {
                                                             className={`flex-1 text-green-700 font-medium rounded border transition-colors ${
                                                                 userPreferences.compactView ? 'text-xs py-1 px-1' : 'text-xs py-1.5 px-2'
                                                             } ${
-                                                                expirationInfo.status === 'fresh' || expirationInfo.status === 'no-date'
+                                                                expirationInfo.status === 'good' || expirationInfo.status === 'no-date'
                                                                     ? 'bg-white border-green-300 hover:bg-green-50 shadow-sm'
                                                                     : 'bg-green-50 border-green-200 hover:bg-green-100'
                                                             }`}

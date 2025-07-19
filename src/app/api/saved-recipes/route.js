@@ -2,7 +2,7 @@
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import connectDB, { connectWithRetry } from '@/lib/mongodb'; // Import both versions
 import { User, Recipe } from '@/lib/models';
 

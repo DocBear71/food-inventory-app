@@ -14,7 +14,7 @@ import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
-const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
+const AutoExpandingTextarea = ({value, onChange, placeholder, className, ...props}) => {
     const textareaRef = useRef(null);
 
     const adjustHeight = useCallback(() => {
@@ -44,7 +44,7 @@ const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...pro
             onInput={adjustHeight}
             placeholder={placeholder}
             className={`${className} resize-none overflow-hidden`}
-            style={{ minHeight: '48px' }}
+            style={{minHeight: '48px'}}
             {...props}
         />
     );
@@ -76,6 +76,10 @@ export default function EnhancedRecipeForm({
     const [showNutritionModal, setShowNutritionModal] = useState(false);
     const [showNutritionDetailsModal, setShowNutritionDetailsModal] = useState(false);
     const [videoImportPlatform, setVideoImportPlatform] = useState('video');
+    const [recipeImage, setRecipeImage] = useState(null);
+    const [imagePreview, setImagePreview] = useState(null);
+    const [imageSource, setImageSource] = useState(null); // 'upload', 'extracted', 'url'
+    const [isUploadingImage, setIsUploadingImage] = useState(false);
 
     const searchParams = useSearchParams();
 
@@ -191,6 +195,14 @@ export default function EnhancedRecipeForm({
         }
     });
 
+    useEffect(() => {
+        if (initialData?.extractedImage) {
+            setImagePreview(`data:image/jpeg;base64,${initialData.extractedImage.data}`);
+            setImageSource('extracted');
+            console.log('📸 Loaded extracted image from video import');
+        }
+    }, [initialData]);
+
     // 6. UPDATE: Auto-import useEffect to set platform
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
@@ -255,6 +267,32 @@ export default function EnhancedRecipeForm({
         carbs: {value: recipe.nutrition.carbs?.value || 0, unit: 'g'},
         fat: {value: recipe.nutrition.fat?.value || 0, unit: 'g'},
         fiber: {value: recipe.nutrition.fiber?.value || 0, unit: 'g'}
+    };
+
+    const handleImageUpload = async (file) => {
+        if (!file) return;
+
+        setIsUploadingImage(true);
+        try {
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setImagePreview(e.target.result);
+                setRecipeImage(file);
+                setImageSource('upload');
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Error uploading image:', error);
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
+    const removeImage = () => {
+        setRecipeImage(null);
+        setImagePreview(null);
+        setImageSource(null);
     };
 
     // Handle parsed recipe data
@@ -387,7 +425,7 @@ export default function EnhancedRecipeForm({
         }
     };
 
-        // Video import handler
+    // Video import handler
     const handleVideoImport = async (url) => {
 
         // Track start time
@@ -443,7 +481,8 @@ export default function EnhancedRecipeForm({
 
             const response = await apiPost('/api/recipes/video-extract', {
                 url: url.trim(),
-                analysisType: 'ai_vision_enhanced'
+                analysisType: 'ai_vision_enhanced',
+                extractImage: true
             });
 
             // Update progress when API completes
@@ -531,6 +570,15 @@ export default function EnhancedRecipeForm({
                     }
                 };
 
+                if (data.recipe.extractedImage) {
+                    setImagePreview(`data:image/jpeg;base64,${data.recipe.extractedImage.data}`);
+                    setImageSource('extracted');
+                    console.log('📸 Video image extracted successfully');
+
+                    // Add image info to videoRecipe object
+                    videoRecipe.extractedImage = data.recipe.extractedImage;
+                }
+
                 setRecipe(videoRecipe);
                 setTagsString(videoRecipe.tags.join(', '));
                 setVideoInfo({
@@ -567,10 +615,10 @@ export default function EnhancedRecipeForm({
 
             // Set a timer to hide after remaining time
             setTimeout(() => {
-                setVideoImportProgress({ stage: '', platform: '', message: '' });
+                setVideoImportProgress({stage: '', platform: '', message: ''});
             }, remainingTime);
         } else {
-            setVideoImportProgress({ stage: '', platform: '', message: '' });
+            setVideoImportProgress({stage: '', platform: '', message: ''});
         }
     };
 
@@ -756,9 +804,9 @@ export default function EnhancedRecipeForm({
                 if (i === index) {
                     // Always maintain the same object structure
                     if (typeof inst === 'object') {
-                        return { ...inst, instruction: value };
+                        return {...inst, instruction: value};
                     } else {
-                        return { step: index + 1, instruction: value };
+                        return {step: index + 1, instruction: value};
                     }
                 }
                 return inst;
@@ -848,6 +896,14 @@ export default function EnhancedRecipeForm({
                 // Add import source info
                 ...(importSource === 'video' && {
                     importedFrom: recipe._formMetadata?.importedFrom || 'video import'
+                }),
+
+                // NEW: Include image data if present
+                ...(recipeImage && {
+                    recipeImage: recipeImage // File object for new uploads
+                }),
+                ...(recipe.extractedImage && {
+                    extractedImage: recipe.extractedImage // Extracted image data
                 }),
 
                 // Remove form-specific metadata before saving
@@ -984,7 +1040,8 @@ export default function EnhancedRecipeForm({
                     stage={videoImportProgress.stage || 'processing'}
                     message={videoImportProgress.message || 'Processing video...'}
                     videoUrl={videoUrl}
-                    onComplete={() => {}}
+                    onComplete={() => {
+                    }}
                     style={{zIndex: 9999}}
                 />
 
@@ -1112,718 +1169,828 @@ export default function EnhancedRecipeForm({
     return (
         <div className="space-y-6">
 
-        {/* Input Method Selection */}
-        {!isEditing && !isImportMode && (
-            <div className="bg-white shadow rounded-lg p-6">
-                <h2 className="text-lg font-semibold text-gray-900 mb-4">
-                    How would you like to add this recipe?
-                </h2>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <TouchEnhancedButton
-                        onClick={() => setInputMethod('manual')}
-                        className={`p-4 border-2 rounded-lg text-left transition-colors min-h-[120px] ${
-                            inputMethod === 'manual'
-                                ? 'border-indigo-500 bg-indigo-50'
-                                : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                    >
-                        <div className="text-2xl mb-2">✏️</div>
-                        <h3 className="font-medium text-gray-900">Manual Entry</h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Enter recipe details step by step
-                        </p>
-                    </TouchEnhancedButton>
-
-                    <TouchEnhancedButton
-                        onClick={() => setShowParser(true)}
-                        className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
-                    >
-                        <div className="text-2xl mb-2">📝</div>
-                        <h3 className="font-medium text-gray-900">Parse Recipe Text</h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Paste recipe text and auto-extract details
-                        </p>
-                    </TouchEnhancedButton>
-
-                    {/* SINGLE IMPORT BUTTON */}
-                    <TouchEnhancedButton
-                        onClick={() => router.push('/recipes/import')}
-                        className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
-                    >
-                        <div className="text-2xl mb-2">🎯</div>
-                        <h3 className="font-medium text-gray-900">Import Recipe</h3>
-                        <p className="text-sm text-gray-600 mt-1">
-                            Import from social media, websites, or enhance with AI
-                        </p>
-                    </TouchEnhancedButton>
-                </div>
-
-                {inputMethod === 'manual' && (
-                    <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <p className="text-sm text-blue-800">
-                            💡 <strong>Tip:</strong> You can always switch to the text parser or import
-                            recipes from other sources!
-                        </p>
-                    </div>
-                )}
-            </div>
-        )
-    }
-
-    {/* Manual Recipe Form */
-    }
-    {
-        (inputMethod === 'manual' || isEditing) && (
-            <form onSubmit={handleSubmit} className="space-y-6">
-                {/* Basic Information */}
-                <div ref={basicInfoRef} className="bg-white shadow rounded-lg p-6">
-                    <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
-                        <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
-                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-                            <h4 className="text-sm font-medium text-blue-800">
-                                📝 Verify ingredients, instructions, and other information, then click "Create/Update Recipe" at the bottom.
-                            </h4>
-                        </div>
-                        {!isEditing && (
-                            <div className="flex flex-wrap gap-2">
-                                <TouchEnhancedButton
-                                    type="button"
-                                    onClick={() => setShowParser(true)}
-                                    className="text-sm text-indigo-600 hover:text-indigo-700 px-3 py-2 min-h-[44px]"
-                                >
-                                    📝 Text Parser
-                                </TouchEnhancedButton>
-                                <span className="text-gray-300 hidden sm:inline">|</span>
-                                <TouchEnhancedButton
-                                    type="button"
-                                    onClick={() => setShowUrlImport(true)}
-                                    className="text-sm text-indigo-600 hover:text-indigo-700 px-3 py-2 min-h-[44px]"
-                                >
-                                    🌐 URL Import
-                                </TouchEnhancedButton>
-                                <span className="text-gray-300 hidden sm:inline">|</span>
-                                {/* ADD THIS VIDEO IMPORT BUTTON */}
-                                <TouchEnhancedButton
-                                    type="button"
-                                    onClick={() => setShowVideoImport(true)}
-                                    className="text-sm text-purple-600 hover:text-purple-700 px-3 py-2 min-h-[44px]"
-                                >
-                                    🤖 Social Video Extract
-                                </TouchEnhancedButton>
-                            </div>
-                        )}
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Recipe Title *
-                            </label>
-                            <input
-                                type="text"
-                                required
-                                value={recipe.title}
-                                onChange={(e) => updateRecipe('title', e.target.value)}
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                                placeholder="Enter recipe title..."
-                            />
-                        </div>
-
-                        {/* Category Dropdown */}
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Category
-                            </label>
-                            <select
-                                value={recipe.category || 'entrees'}
-                                onChange={(e) => updateRecipe('category', e.target.value)}
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                            >
-                                {CATEGORY_OPTIONS.map(option => (
-                                    <option key={option.value} value={option.value}>
-                                        {option.label}
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Description */}
-                        <div className="md:col-span-2">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Description
-                            </label>
-                            <AutoExpandingTextarea
-                                value={recipe.description}
-                                onChange={(e) => updateRecipe('description', e.target.value)}
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                placeholder="Brief description of the recipe..."
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Prep Time (minutes)
-                            </label>
-                            <input
-                                type="number"
-                                value={extractNumber(recipe.prepTime)} // CHANGE THIS
-                                onChange={(e) => updateRecipe('prepTime', e.target.value)}
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                                placeholder="15"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Cook Time (minutes)
-                            </label>
-                            <input
-                                type="number"
-                                value={extractNumber(recipe.cookTime)} // CHANGE THIS
-                                onChange={(e) => updateRecipe('cookTime', e.target.value)}
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                                placeholder="30"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Servings
-                            </label>
-                            <input
-                                type="number"
-                                value={extractNumber(recipe.servings)} // CHANGE THIS
-                                onChange={(e) => updateRecipe('servings', e.target.value)}
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                                placeholder="4"
-                            />
-                        </div>
-
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Difficulty
-                            </label>
-                            <select
-                                value={recipe.difficulty}
-                                onChange={(e) => updateRecipe('difficulty', e.target.value)}
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                            >
-                                <option value="easy">Easy</option>
-                                <option value="medium">Medium</option>
-                                <option value="hard">Hard</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Ingredients - MOBILE RESPONSIVE */}
+            {/* Input Method Selection */}
+            {!isEditing && !isImportMode && (
                 <div className="bg-white shadow rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Ingredients ({recipe.ingredients.length})
-                    </h3>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">
+                        How would you like to add this recipe?
+                    </h2>
 
-                    <div className="space-y-4">
-                        {recipe.ingredients.map((ingredient, index) => (
-                            <div key={index} className="border border-gray-200 rounded-lg p-4">
-                                {/* Top row: Optional checkbox and Delete button */}
-                                <div className="flex items-center justify-between mb-3">
-                                    <label
-                                        className="flex items-center text-sm text-gray-600 pl-2"> {/* Add pl-2 for left padding */}
-                                        <input
-                                            type="checkbox"
-                                            checked={ingredient.optional}
-                                            onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
-                                            className="ingredient-checkbox h-4 w-4"
-                                        />
-                                        <span className="ml-3">Optional</span>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <TouchEnhancedButton
+                            onClick={() => setInputMethod('manual')}
+                            className={`p-4 border-2 rounded-lg text-left transition-colors min-h-[120px] ${
+                                inputMethod === 'manual'
+                                    ? 'border-indigo-500 bg-indigo-50'
+                                    : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                        >
+                            <div className="text-2xl mb-2">✏️</div>
+                            <h3 className="font-medium text-gray-900">Manual Entry</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                                Enter recipe details step by step
+                            </p>
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={() => setShowParser(true)}
+                            className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
+                        >
+                            <div className="text-2xl mb-2">📝</div>
+                            <h3 className="font-medium text-gray-900">Parse Recipe Text</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                                Paste recipe text and auto-extract details
+                            </p>
+                        </TouchEnhancedButton>
+
+                        {/* SINGLE IMPORT BUTTON */}
+                        <TouchEnhancedButton
+                            onClick={() => router.push('/recipes/import')}
+                            className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
+                        >
+                            <div className="text-2xl mb-2">🎯</div>
+                            <h3 className="font-medium text-gray-900">Import Recipe</h3>
+                            <p className="text-sm text-gray-600 mt-1">
+                                Import from social media, websites, or enhance with AI
+                            </p>
+                        </TouchEnhancedButton>
+                    </div>
+
+                    {inputMethod === 'manual' && (
+                        <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <p className="text-sm text-blue-800">
+                                💡 <strong>Tip:</strong> You can always switch to the text parser or import
+                                recipes from other sources!
+                            </p>
+                        </div>
+                    )}
+                </div>
+            )
+            }
+
+            {/* Manual Recipe Form */}
+            {(inputMethod === 'manual' || isEditing) && (
+                    <form onSubmit={handleSubmit} className="space-y-6">
+                        {/* Basic Information */}
+                        <div ref={basicInfoRef} className="bg-white shadow rounded-lg p-6">
+                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center mb-4 gap-3">
+                                <h3 className="text-lg font-semibold text-gray-900">Basic Information</h3>
+                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+                                    <h4 className="text-sm font-medium text-blue-800">
+                                        📝 Verify ingredients, instructions, and other information, then click "Create/Update
+                                        Recipe" at the bottom.
+                                    </h4>
+                                </div>
+                                {!isEditing && (
+                                    <div className="flex flex-wrap gap-2">
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => setShowParser(true)}
+                                            className="text-sm text-indigo-600 hover:text-indigo-700 px-3 py-2 min-h-[44px]"
+                                        >
+                                            📝 Text Parser
+                                        </TouchEnhancedButton>
+                                        <span className="text-gray-300 hidden sm:inline">|</span>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => setShowUrlImport(true)}
+                                            className="text-sm text-indigo-600 hover:text-indigo-700 px-3 py-2 min-h-[44px]"
+                                        >
+                                            🌐 URL Import
+                                        </TouchEnhancedButton>
+                                        <span className="text-gray-300 hidden sm:inline">|</span>
+                                        {/* ADD THIS VIDEO IMPORT BUTTON */}
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => setShowVideoImport(true)}
+                                            className="text-sm text-purple-600 hover:text-purple-700 px-3 py-2 min-h-[44px]"
+                                        >
+                                            🤖 Social Video Extract
+                                        </TouchEnhancedButton>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Recipe Title *
                                     </label>
-                                    <TouchEnhancedButton
-                                        type="button"
-                                        onClick={() => removeIngredient(index)}
-                                        className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                        disabled={recipe.ingredients.length === 1}
-                                    >
-                                        ✕
-                                    </TouchEnhancedButton>
+                                    <input
+                                        type="text"
+                                        required
+                                        value={recipe.title}
+                                        onChange={(e) => updateRecipe('title', e.target.value)}
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        style={{minHeight: '48px'}}
+                                        placeholder="Enter recipe title..."
+                                    />
                                 </div>
 
-                                {/* Input fields */}
-                                <div className="flex flex-col sm:flex-row gap-3">
-                                    {/* Amount and Unit row on mobile, side by side */}
-                                    <div className="flex gap-3 sm:w-auto">
-                                        <div className="flex-1 sm:w-24">
-                                            <label
-                                                className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
-                                                Amount
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={ingredient.amount}
-                                                onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
-                                                placeholder="1"
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{minHeight: '48px'}}
-                                            />
-                                        </div>
-                                        <div className="flex-1 sm:w-24">
-                                            <label
-                                                className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
-                                                Unit
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={ingredient.unit}
-                                                onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                                                placeholder="cup"
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{minHeight: '48px'}}
-                                            />
-                                        </div>
-                                    </div>
+                                {/* Category Dropdown */}
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Category
+                                    </label>
+                                    <select
+                                        value={recipe.category || 'entrees'}
+                                        onChange={(e) => updateRecipe('category', e.target.value)}
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        style={{minHeight: '48px'}}
+                                    >
+                                        {CATEGORY_OPTIONS.map(option => (
+                                            <option key={option.value} value={option.value}>
+                                                {option.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
 
-                                    {/* Ingredient name - full width on mobile */}
-                                    <div className="flex-1">
-                                        <label
-                                            className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
-                                            Ingredient
-                                        </label>
-                                        <input
-                                            type="text"
-                                            value={ingredient.name}
-                                            onChange={(e) => updateIngredient(index, 'name', e.target.value)}
-                                            placeholder="Ingredient name"
-                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
-                                            required
-                                        />
-                                    </div>
+                                {/* Description */}
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Description
+                                    </label>
+                                    <AutoExpandingTextarea
+                                        value={recipe.description}
+                                        onChange={(e) => updateRecipe('description', e.target.value)}
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="Brief description of the recipe..."
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Prep Time (minutes)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={extractNumber(recipe.prepTime)} // CHANGE THIS
+                                        onChange={(e) => updateRecipe('prepTime', e.target.value)}
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        style={{minHeight: '48px'}}
+                                        placeholder="15"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Cook Time (minutes)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={extractNumber(recipe.cookTime)} // CHANGE THIS
+                                        onChange={(e) => updateRecipe('cookTime', e.target.value)}
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        style={{minHeight: '48px'}}
+                                        placeholder="30"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Servings
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={extractNumber(recipe.servings)} // CHANGE THIS
+                                        onChange={(e) => updateRecipe('servings', e.target.value)}
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        style={{minHeight: '48px'}}
+                                        placeholder="4"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Difficulty
+                                    </label>
+                                    <select
+                                        value={recipe.difficulty}
+                                        onChange={(e) => updateRecipe('difficulty', e.target.value)}
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        style={{minHeight: '48px'}}
+                                    >
+                                        <option value="easy">Easy</option>
+                                        <option value="medium">Medium</option>
+                                        <option value="hard">Hard</option>
+                                    </select>
                                 </div>
                             </div>
-                        ))}
-                    </div>
+                        </div>
 
-                    <TouchEnhancedButton
-                        type="button"
-                        onClick={addIngredient}
-                        className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
-                    >
-                        + Add Ingredient
-                    </TouchEnhancedButton>
-                </div>
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                📸 Recipe Image
+                            </h3>
 
-                {/* Instructions Section - FIXED */}
-                <div className="bg-white shadow rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">
-                        Instructions ({recipe.instructions.length})
-                    </h3>
+                            {imagePreview ? (
+                                <div className="space-y-4">
+                                    {/* Image Preview */}
+                                    <div className="relative">
+                                        <img
+                                            src={imagePreview}
+                                            alt="Recipe preview"
+                                            className="w-full h-64 object-cover rounded-lg border border-gray-200"
+                                        />
+                                        <button
+                                            type="button"
+                                            onClick={removeImage}
+                                            className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                                        >
+                                            <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd"
+                                                      d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                                      clipRule="evenodd"/>
+                                            </svg>
+                                        </button>
+                                    </div>
 
-                    <div className="space-y-4">
-                        {recipe.instructions.map((instruction, index) => {
-                            // Get consistent values for rendering
-                            const instructionText = getInstructionText(instruction);
-                            const stepNumber = typeof instruction === 'object' ? instruction.step : index + 1;
-
-                            return (
-                                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                                    {/* Top row: Step number and Delete button */}
-                                    <div className="flex justify-between items-center mb-3">
-                                        <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
-                                            {stepNumber}
+                                    {/* Image Source Info */}
+                                    <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                        <div className="flex items-center text-sm text-gray-600">
+                                            {imageSource === 'extracted' && (
+                                                <>
+                                                    <span className="text-purple-600 mr-2">🤖</span>
+                                                    <span>AI-extracted from video ({videoImportPlatform})</span>
+                                                </>
+                                            )}
+                                            {imageSource === 'upload' && (
+                                                <>
+                                                    <span className="text-blue-600 mr-2">📁</span>
+                                                    <span>User uploaded</span>
+                                                </>
+                                            )}
+                                            {imageSource === 'url' && (
+                                                <>
+                                                    <span className="text-green-600 mr-2">🌐</span>
+                                                    <span>Imported from website</span>
+                                                </>
+                                            )}
                                         </div>
                                         <TouchEnhancedButton
                                             type="button"
-                                            onClick={() => removeInstruction(index)}
-                                            className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                            disabled={recipe.instructions.length === 1}
+                                            onClick={removeImage}
+                                            className="text-red-600 hover:text-red-800 text-sm"
                                         >
-                                            ✕
+                                            Remove Image
                                         </TouchEnhancedButton>
                                     </div>
-
-                                    {/* FIXED: Stable AutoExpandingTextarea */}
-                                    <AutoExpandingTextarea
-                                        value={instructionText}
-                                        onChange={(e) => updateInstruction(index, e.target.value)}
-                                        placeholder="Describe this step..."
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        required
-                                    />
                                 </div>
-                            );
-                        })}
-                    </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {/* Upload Area */}
+                                    <div
+                                        className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                                        <input
+                                            type="file"
+                                            accept="image/*"
+                                            onChange={(e) => handleImageUpload(e.target.files[0])}
+                                            className="hidden"
+                                            id="recipe-image-upload"
+                                            disabled={isUploadingImage}
+                                        />
+                                        <label
+                                            htmlFor="recipe-image-upload"
+                                            className="cursor-pointer flex flex-col items-center"
+                                        >
+                                            <svg className="w-8 h-8 text-gray-400 mb-3" fill="none" stroke="currentColor"
+                                                 viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                                      d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            </svg>
+                                            <span className="text-sm font-medium text-gray-700">
+                                {isUploadingImage ? 'Uploading...' : 'Click to upload recipe image'}
+                            </span>
+                                            <span className="text-xs text-gray-500 mt-1">
+                                PNG, JPG, GIF up to 10MB
+                            </span>
+                                        </label>
+                                    </div>
 
-                    <TouchEnhancedButton
-                        type="button"
-                        onClick={addInstruction}
-                        className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
-                    >
-                        + Add Step
-                    </TouchEnhancedButton>
-                </div>
+                                    {/* Video Import Note */}
+                                    {!isEditing && (
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                            <div className="flex items-start">
+                                                <span className="text-blue-600 mr-2 mt-0.5">💡</span>
+                                                <div className="text-sm text-blue-800">
+                                                    <strong>Tip:</strong> Import recipes from social media videos to
+                                                    automatically extract the best food image using AI!
+                                                    <div className="mt-2 text-xs text-blue-700">
+                                                        • TikTok, Instagram, and Facebook videos supported
+                                                        • AI selects the most appetizing frame
+                                                        • No manual image upload needed
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
 
-                {/* Tags - MOBILE RESPONSIVE */}
-                <div className="bg-white shadow rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
+                        {/* Ingredients - MOBILE RESPONSIVE */}
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                Ingredients ({recipe.ingredients.length})
+                            </h3>
 
-                    <div className="flex flex-wrap gap-2 mb-4">
-                        {recipe.tags.map((tag, index) => (
-                            <span
-                                key={index}
-                                className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-indigo-100 text-indigo-700 min-h-[36px]"
+                            <div className="space-y-4">
+                                {recipe.ingredients.map((ingredient, index) => (
+                                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                        {/* Top row: Optional checkbox and Delete button */}
+                                        <div className="flex items-center justify-between mb-3">
+                                            <label
+                                                className="flex items-center text-sm text-gray-600 pl-2"> {/* Add pl-2 for left padding */}
+                                                <input
+                                                    type="checkbox"
+                                                    checked={ingredient.optional}
+                                                    onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
+                                                    className="ingredient-checkbox h-4 w-4"
+                                                />
+                                                <span className="ml-3">Optional</span>
+                                            </label>
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={() => removeIngredient(index)}
+                                                className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                disabled={recipe.ingredients.length === 1}
+                                            >
+                                                ✕
+                                            </TouchEnhancedButton>
+                                        </div>
+
+                                        {/* Input fields */}
+                                        <div className="flex flex-col sm:flex-row gap-3">
+                                            {/* Amount and Unit row on mobile, side by side */}
+                                            <div className="flex gap-3 sm:w-auto">
+                                                <div className="flex-1 sm:w-24">
+                                                    <label
+                                                        className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                        Amount
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={ingredient.amount}
+                                                        onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
+                                                        placeholder="1"
+                                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                        style={{minHeight: '48px'}}
+                                                    />
+                                                </div>
+                                                <div className="flex-1 sm:w-24">
+                                                    <label
+                                                        className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                        Unit
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        value={ingredient.unit}
+                                                        onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
+                                                        placeholder="cup"
+                                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                        style={{minHeight: '48px'}}
+                                                    />
+                                                </div>
+                                            </div>
+
+                                            {/* Ingredient name - full width on mobile */}
+                                            <div className="flex-1">
+                                                <label
+                                                    className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                    Ingredient
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    value={ingredient.name}
+                                                    onChange={(e) => updateIngredient(index, 'name', e.target.value)}
+                                                    placeholder="Ingredient name"
+                                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{minHeight: '48px'}}
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={addIngredient}
+                                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
                             >
+                                + Add Ingredient
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Instructions Section - FIXED */}
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                                Instructions ({recipe.instructions.length})
+                            </h3>
+
+                            <div className="space-y-4">
+                                {recipe.instructions.map((instruction, index) => {
+                                    // Get consistent values for rendering
+                                    const instructionText = getInstructionText(instruction);
+                                    const stepNumber = typeof instruction === 'object' ? instruction.step : index + 1;
+
+                                    return (
+                                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                            {/* Top row: Step number and Delete button */}
+                                            <div className="flex justify-between items-center mb-3">
+                                                <div
+                                                    className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
+                                                    {stepNumber}
+                                                </div>
+                                                <TouchEnhancedButton
+                                                    type="button"
+                                                    onClick={() => removeInstruction(index)}
+                                                    className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                    disabled={recipe.instructions.length === 1}
+                                                >
+                                                    ✕
+                                                </TouchEnhancedButton>
+                                            </div>
+
+                                            {/* FIXED: Stable AutoExpandingTextarea */}
+                                            <AutoExpandingTextarea
+                                                value={instructionText}
+                                                onChange={(e) => updateInstruction(index, e.target.value)}
+                                                placeholder="Describe this step..."
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                required
+                                            />
+                                        </div>
+                                    );
+                                })}
+                            </div>
+
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={addInstruction}
+                                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
+                            >
+                                + Add Step
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Tags - MOBILE RESPONSIVE */}
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
+
+                            <div className="flex flex-wrap gap-2 mb-4">
+                                {recipe.tags.map((tag, index) => (
+                                    <span
+                                        key={index}
+                                        className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-indigo-100 text-indigo-700 min-h-[36px]"
+                                    >
                                     {tag}
-                                <TouchEnhancedButton
-                                    type="button"
-                                    onClick={() => removeTag(tag)}
-                                    className="ml-2 text-indigo-500 hover:text-indigo-700 min-h-[24px] min-w-[24px] flex items-center justify-center"
-                                >
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => removeTag(tag)}
+                                            className="ml-2 text-indigo-500 hover:text-indigo-700 min-h-[24px] min-w-[24px] flex items-center justify-center"
+                                        >
                                         ✕
                                     </TouchEnhancedButton>
                                 </span>
-                        ))}
-                    </div>
+                                ))}
+                            </div>
 
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Tags (comma-separated)
-                            </label>
-                            <input
-                                type="text"
-                                value={tagsString}
-                                onChange={(e) => handleTagsStringChange(e.target.value)}
-                                onBlur={handleTagsStringBlur}
-                                placeholder="italian, dinner, easy, comfort-food"
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                            />
-                            <p className="text-xs text-gray-500 mt-1">
-                                Enter tags separated by commas. Press Tab or click elsewhere to apply.
-                            </p>
-                        </div>
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Tags (comma-separated)
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={tagsString}
+                                        onChange={(e) => handleTagsStringChange(e.target.value)}
+                                        onBlur={handleTagsStringBlur}
+                                        placeholder="italian, dinner, easy, comfort-food"
+                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        style={{minHeight: '48px'}}
+                                    />
+                                    <p className="text-xs text-gray-500 mt-1">
+                                        Enter tags separated by commas. Press Tab or click elsewhere to apply.
+                                    </p>
+                                </div>
 
-                        <div className="border-t pt-4">
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Add individual tag
-                            </label>
-                            <div className="flex flex-col sm:flex-row gap-3">
-                                <input
-                                    type="text"
-                                    value={tagInput}
-                                    onChange={(e) => setTagInput(e.target.value)}
-                                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                                    placeholder="Add a tag..."
-                                    className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
-                                />
-                                <TouchEnhancedButton
-                                    type="button"
-                                    onClick={addTag}
-                                    className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
-                                >
-                                    + Add Tag
-                                </TouchEnhancedButton>
+                                <div className="border-t pt-4">
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Add individual tag
+                                    </label>
+                                    <div className="flex flex-col sm:flex-row gap-3">
+                                        <input
+                                            type="text"
+                                            value={tagInput}
+                                            onChange={(e) => setTagInput(e.target.value)}
+                                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                                            placeholder="Add a tag..."
+                                            className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{minHeight: '48px'}}
+                                        />
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={addTag}
+                                            className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
+                                        >
+                                            + Add Tag
+                                        </TouchEnhancedButton>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </div>
 
-                {/* Enhanced Nutrition Section - CLEANED UP */}
-                <div className="bg-white shadow rounded-lg p-6">
-                    <div className="flex justify-between items-center mb-6">
-                        <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
-                        <div className="flex gap-2">
-                            {/* View Details Button */}
-                            {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
-                                <TouchEnhancedButton
-                                    type="button"
-                                    onClick={() => setShowNutritionModal(true)}
-                                    className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
-                                >
-                                    View Details
-                                </TouchEnhancedButton>
-                            )}
-                        </div>
-                    </div>
+                        {/* Enhanced Nutrition Section - CLEANED UP */}
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <div className="flex justify-between items-center mb-6">
+                                <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
+                                <div className="flex gap-2">
+                                    {/* View Details Button */}
+                                    {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => setShowNutritionModal(true)}
+                                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                                        >
+                                            View Details
+                                        </TouchEnhancedButton>
+                                    )}
+                                </div>
+                            </div>
 
-                    {/* Current nutrition display - NO duplicate text */}
-                    {/* Current nutrition display - USE FULL STYLE like Image 2 */}
-                    {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
-                        <div className="mb-6">
-                            <NutritionFacts
-                                nutrition={nutritionForDisplay}
-                                servings={parseInt(recipe.servings) || 4}
-                                showPerServing={true}
-                                compact={false}
-                            />
+                            {/* Current nutrition display - NO duplicate text */}
+                            {/* Current nutrition display - USE FULL STYLE like Image 2 */}
+                            {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
+                                <div className="mb-6">
+                                    <NutritionFacts
+                                        nutrition={nutritionForDisplay}
+                                        servings={parseInt(recipe.servings) || 4}
+                                        showPerServing={true}
+                                        compact={false}
+                                    />
 
-                            {/* AI Analysis Info */}
-                            {recipe.nutrition.calculationMethod === 'ai_calculated' && (
-                                <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                    <div className="flex items-center text-blue-800 text-sm">
-                                        <span className="mr-2">🤖</span>
-                                        <span>Nutrition calculated by AI analysis</span>
-                                        {recipe.nutrition.confidence && (
-                                            <span className="ml-2 text-blue-600">
+                                    {/* AI Analysis Info */}
+                                    {recipe.nutrition.calculationMethod === 'ai_calculated' && (
+                                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                            <div className="flex items-center text-blue-800 text-sm">
+                                                <span className="mr-2">🤖</span>
+                                                <span>Nutrition calculated by AI analysis</span>
+                                                {recipe.nutrition.confidence && (
+                                                    <span className="ml-2 text-blue-600">
                             Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
                         </span>
-                                        )}
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ) : (
+                                <div className="text-center py-8 text-gray-500 mb-6">
+                                    <div className="text-4xl mb-2">📊</div>
+                                    <p className="font-medium">No nutrition information yet</p>
+                                    <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
+                                </div>
+                            )}
+
+                            {/* AI Nutrition Analysis Button - using your UpdateNutritionButton */}
+                            <UpdateNutritionButton
+                                recipe={{
+                                    ...recipe,
+                                    ingredients: recipe.ingredients,
+                                    servings: parseInt(recipe.servings) || 4
+                                }}
+                                onNutritionUpdate={(newNutrition) => {
+                                    setRecipe(prev => ({
+                                        ...prev,
+                                        nutrition: newNutrition
+                                    }));
+                                }}
+                                disabled={!recipe.ingredients.some(ing => ing.name && ing.name.trim())}
+                            />
+
+                            {/* Optional: Manual nutrition inputs for basic values */}
+                            {!isImportMode && (
+                                <div className="mt-6 pt-6 border-t">
+                                    <h4 className="text-sm font-medium text-gray-700 mb-4">Or enter basic nutrition
+                                        manually:</h4>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                                        <div>
+                                            <label
+                                                className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+                                            <input
+                                                type="number"
+                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('calories', e.target.value)}
+                                                placeholder="250"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{minHeight: '48px'}}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Protein
+                                                (g)</label>
+                                            <input
+                                                type="number"
+                                                value={extractNutritionValue(recipe.nutrition.protein)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('protein', e.target.value)}
+                                                placeholder="15"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{minHeight: '48px'}}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Carbs
+                                                (g)</label>
+                                            <input
+                                                type="number"
+                                                value={extractNutritionValue(recipe.nutrition.carbs)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('carbs', e.target.value)}
+                                                placeholder="30"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{minHeight: '48px'}}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Fat
+                                                (g)</label>
+                                            <input
+                                                type="number"
+                                                value={extractNutritionValue(recipe.nutrition.fat)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('fat', e.target.value)}
+                                                placeholder="10"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{minHeight: '48px'}}
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">Fiber
+                                                (g)</label>
+                                            <input
+                                                type="number"
+                                                value={extractNutritionValue(recipe.nutrition.fiber)} // CHANGE THIS
+                                                onChange={(e) => updateNutrition('fiber', e.target.value)}
+                                                placeholder="5"
+                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{minHeight: '48px'}}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             )}
                         </div>
-                    ) : (
-                        <div className="text-center py-8 text-gray-500 mb-6">
-                            <div className="text-4xl mb-2">📊</div>
-                            <p className="font-medium">No nutrition information yet</p>
-                            <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
-                        </div>
-                    )}
 
-                    {/* AI Nutrition Analysis Button - using your UpdateNutritionButton */}
-                    <UpdateNutritionButton
-                        recipe={{
-                            ...recipe,
-                            ingredients: recipe.ingredients,
-                            servings: parseInt(recipe.servings) || 4
-                        }}
-                        onNutritionUpdate={(newNutrition) => {
-                            setRecipe(prev => ({
-                                ...prev,
-                                nutrition: newNutrition
-                            }));
-                        }}
-                        disabled={!recipe.ingredients.some(ing => ing.name && ing.name.trim())}
-                    />
 
-                    {/* Optional: Manual nutrition inputs for basic values */}
-                    {!isImportMode && (
-                        <div className="mt-6 pt-6 border-t">
-                            <h4 className="text-sm font-medium text-gray-700 mb-4">Or enter basic nutrition
-                                manually:</h4>
-                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                        {/* Source - MOBILE RESPONSIVE */}
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Settings</h3>
+
+                            <div className="space-y-4">
                                 <div>
-                                    <label
-                                        className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Source (Optional)
+                                    </label>
                                     <input
-                                        type="number"
-                                        value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
-                                        onChange={(e) => updateNutrition('calories', e.target.value)}
-                                        placeholder="250"
+                                        type="text"
+                                        value={recipe.source}
+                                        onChange={(e) => updateRecipe('source', e.target.value)}
+                                        placeholder="Recipe source or URL..."
                                         className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         style={{minHeight: '48px'}}
                                     />
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Protein
-                                        (g)</label>
-                                    <input
-                                        type="number"
-                                        value={extractNutritionValue(recipe.nutrition.protein)} // CHANGE THIS
-                                        onChange={(e) => updateNutrition('protein', e.target.value)}
-                                        placeholder="15"
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Carbs
-                                        (g)</label>
-                                    <input
-                                        type="number"
-                                        value={extractNutritionValue(recipe.nutrition.carbs)} // CHANGE THIS
-                                        onChange={(e) => updateNutrition('carbs', e.target.value)}
-                                        placeholder="30"
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Fat
-                                        (g)</label>
-                                    <input
-                                        type="number"
-                                        value={extractNutritionValue(recipe.nutrition.fat)} // CHANGE THIS
-                                        onChange={(e) => updateNutrition('fat', e.target.value)}
-                                        placeholder="10"
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
-                                    />
-                                </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">Fiber
-                                        (g)</label>
-                                    <input
-                                        type="number"
-                                        value={extractNutritionValue(recipe.nutrition.fiber)} // CHANGE THIS
-                                        onChange={(e) => updateNutrition('fiber', e.target.value)}
-                                        placeholder="5"
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
-                                    />
+
+                                <div className="flex items-start">
+                                    <div className="flex items-center h-5 mt-3">
+                                        <input
+                                            id="isPublic"
+                                            type="checkbox"
+                                            checked={recipe.isPublic}
+                                            onChange={(e) => updateRecipe('isPublic', e.target.checked)}
+                                            className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
+                                        />
+                                    </div>
+                                    <div className="ml-3 text-sm">
+                                        <label htmlFor="isPublic" className="font-medium text-gray-700 block mb-1">
+                                            Make this recipe public
+                                        </label>
+                                        <p className="text-gray-500">
+                                            Public recipes can be viewed and rated by other users
+                                        </p>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    )}
-                </div>
 
-
-                {/* Source - MOBILE RESPONSIVE */}
-                <div className="bg-white shadow rounded-lg p-6">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Settings</h3>
-
-                    <div className="space-y-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Source (Optional)
-                            </label>
-                            <input
-                                type="text"
-                                value={recipe.source}
-                                onChange={(e) => updateRecipe('source', e.target.value)}
-                                placeholder="Recipe source or URL..."
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
-                            />
-                        </div>
-
-                        <div className="flex items-start">
-                            <div className="flex items-center h-5 mt-3">
-                                <input
-                                    id="isPublic"
-                                    type="checkbox"
-                                    checked={recipe.isPublic}
-                                    onChange={(e) => updateRecipe('isPublic', e.target.checked)}
-                                    className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
-                                />
-                            </div>
-                            <div className="ml-3 text-sm">
-                                <label htmlFor="isPublic" className="font-medium text-gray-700 block mb-1">
-                                    Make this recipe public
-                                </label>
-                                <p className="text-gray-500">
-                                    Public recipes can be viewed and rated by other users
-                                </p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Video Import Success Message - ADD THIS SECTION */}
-                {importSource === 'video' && videoInfo && (
-                    <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
-                        <h3 className="text-lg font-semibold text-purple-900 mb-4">
-                            🎥 Video Recipe Successfully Imported!
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-white rounded-lg p-3 text-center">
-                                <div className="text-2xl font-bold text-purple-600">
-                                    {recipe.ingredients.filter(i => i.videoTimestamp).length}
+                        {/* Video Import Success Message - ADD THIS SECTION */}
+                        {importSource === 'video' && videoInfo && (
+                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                                <h3 className="text-lg font-semibold text-purple-900 mb-4">
+                                    🎥 Video Recipe Successfully Imported!
+                                </h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="bg-white rounded-lg p-3 text-center">
+                                        <div className="text-2xl font-bold text-purple-600">
+                                            {recipe.ingredients.filter(i => i.videoTimestamp).length}
+                                        </div>
+                                        <div className="text-sm text-gray-600">Ingredients with video timestamps
+                                        </div>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-3 text-center">
+                                        <div className="text-2xl font-bold text-blue-600">
+                                            {recipe.instructions.filter(i => i.videoTimestamp).length}
+                                        </div>
+                                        <div className="text-sm text-gray-600">Instructions with video links</div>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-3 text-center">
+                                        <div className="text-lg font-bold text-green-600">
+                                            {videoInfo.platform?.toUpperCase()}
+                                        </div>
+                                        <div className="text-sm text-gray-600">Platform</div>
+                                    </div>
                                 </div>
-                                <div className="text-sm text-gray-600">Ingredients with video timestamps
-                                </div>
-                            </div>
-                            <div className="bg-white rounded-lg p-3 text-center">
-                                <div className="text-2xl font-bold text-blue-600">
-                                    {recipe.instructions.filter(i => i.videoTimestamp).length}
-                                </div>
-                                <div className="text-sm text-gray-600">Instructions with video links</div>
-                            </div>
-                            <div className="bg-white rounded-lg p-3 text-center">
-                                <div className="text-lg font-bold text-green-600">
-                                    {videoInfo.platform?.toUpperCase()}
-                                </div>
-                                <div className="text-sm text-gray-600">Platform</div>
-                            </div>
-                        </div>
 
-                        {/* DEBUG: Show actual timestamp data */}
-                        {process.env.NODE_ENV === 'development' && (
-                            <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded p-3">
-                                <strong>Debug Info:</strong><br/>
-                                <pre className="text-xs">{JSON.stringify({
-                                    totalIngredients: recipe.ingredients.length,
-                                    ingredientsWithTimestamps: recipe.ingredients.filter(i => i.videoTimestamp).length,
-                                    totalInstructions: recipe.instructions.length,
-                                    instructionsWithTimestamps: recipe.instructions.filter(i => i.videoTimestamp).length,
-                                    sampleIngredient: recipe.ingredients[0],
-                                    sampleInstruction: recipe.instructions[0]
-                                }, null, 2)}</pre>
+                                {/* DEBUG: Show actual timestamp data */}
+                                {process.env.NODE_ENV === 'development' && (
+                                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded p-3">
+                                        <strong>Debug Info:</strong><br/>
+                                        <pre className="text-xs">{JSON.stringify({
+                                            totalIngredients: recipe.ingredients.length,
+                                            ingredientsWithTimestamps: recipe.ingredients.filter(i => i.videoTimestamp).length,
+                                            totalInstructions: recipe.instructions.length,
+                                            instructionsWithTimestamps: recipe.instructions.filter(i => i.videoTimestamp).length,
+                                            sampleIngredient: recipe.ingredients[0],
+                                            sampleInstruction: recipe.instructions[0]
+                                        }, null, 2)}</pre>
+                                    </div>
+                                )}
+
+                                <div className="mt-4 flex items-center justify-between">
+                                    <p className="text-sm text-purple-700">
+                                        Recipe extracted from video transcript. Review and edit as needed before
+                                        saving.
+                                    </p>
+                                    <a
+                                        href={videoInfo.originalUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
+                                    >
+                                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M8 5v10l7-5-7-5z"/>
+                                        </svg>
+                                        Watch Original Video
+                                    </a>
+                                </div>
                             </div>
                         )}
 
-                        <div className="mt-4 flex items-center justify-between">
-                            <p className="text-sm text-purple-700">
-                                Recipe extracted from video transcript. Review and edit as needed before
-                                saving.
-                            </p>
-                            <a
-                                href={videoInfo.originalUrl}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
+                        {/* Submit Buttons - MOBILE RESPONSIVE */}
+                        <div
+                            className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 pb-8">
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={onCancel}
+                                className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 min-h-[48px] order-2 sm:order-1"
                             >
-                                <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path d="M8 5v10l7-5-7-5z"/>
-                                </svg>
-                                Watch Original Video
-                            </a>
+                                Cancel
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                type="submit"
+                                disabled={isSubmitting}
+                                className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center justify-center gap-2 min-h-[48px] order-1 sm:order-2"
+                            >
+                                {isSubmitting ? (
+                                    <>
+                                        <div
+                                            className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        {isEditing ? 'Updating...' : 'Creating...'}
+                                    </>
+                                ) : (
+                                    <>
+                                        {isEditing ? '💾 Update Recipe' : '✨ Create (Add) Recipe'}
+                                    </>
+                                )}
+                            </TouchEnhancedButton>
                         </div>
-                    </div>
-                )}
+                    </form>
+                )
+            }
 
-                {/* Submit Buttons - MOBILE RESPONSIVE */}
-                <div
-                    className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 pb-8">
-                    <TouchEnhancedButton
-                        type="button"
-                        onClick={onCancel}
-                        className="px-6 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 min-h-[48px] order-2 sm:order-1"
-                    >
-                        Cancel
-                    </TouchEnhancedButton>
-                    <TouchEnhancedButton
-                        type="submit"
-                        disabled={isSubmitting}
-                        className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center justify-center gap-2 min-h-[48px] order-1 sm:order-2"
-                    >
-                        {isSubmitting ? (
-                            <>
-                                <div
-                                    className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                {isEditing ? 'Updating...' : 'Creating...'}
-                            </>
-                        ) : (
-                            <>
-                                {isEditing ? '💾 Update Recipe' : '✨ Create (Add) Recipe'}
-                            </>
-                        )}
-                    </TouchEnhancedButton>
-                </div>
-            </form>
-        )
-    }
-
-    {/* Add your NutritionModal at the very end of the component, before the closing </div> */
-    }
-    <NutritionModal
-        nutrition={recipe.nutrition}
-        isOpen={showNutritionModal}
-        onClose={() => setShowNutritionModal(false)}
-        servings={parseInt(recipe.servings) || 4}
-        recipeTitle={recipe.title || "Recipe"}
-    />
+            {/* Add your NutritionModal at the very end of the component, before the closing </div> */
+            }
+            <NutritionModal
+                nutrition={recipe.nutrition}
+                isOpen={showNutritionModal}
+                onClose={() => setShowNutritionModal(false)}
+                servings={parseInt(recipe.servings) || 4}
+                recipeTitle={recipe.title || "Recipe"}
+            />
 
 
-</div>
-)
-    ;
+        </div>
+    )
+        ;
 }

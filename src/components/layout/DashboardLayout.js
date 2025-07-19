@@ -10,6 +10,7 @@ import Link from 'next/link';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {MobileHaptics} from "@/components/mobile/MobileHaptics";
 import VerificationBanner from '@/components/auth/VerificationBanner';
+import searchParams from "quagga";
 
 export default function DashboardLayout({children}) {
     const {data: session} = useSafeSession();
@@ -49,17 +50,30 @@ export default function DashboardLayout({children}) {
     }, [pathname]);
 
     const navigation = [
-        {name: 'Dashboard', href: '/dashboard', icon: '🏠'},
+        { name: 'Dashboard', href: '/dashboard', icon: '🏠' },
         {
             name: 'Inventory',
             href: '/inventory',
             icon: '📦',
             submenu: [
-                {name: 'View Inventory', href: '/inventory', icon: '📋'},
-                {name: 'Add Items to Shopping List', href: '/shopping/add-items', icon: '🛒'},
-                {name: 'Recently Used Items', href: '/shopping/add-items?tab=consumed', icon: '🔄'},
-                {name: 'Usage History', href: '/inventory/history', icon: '📊'},
-                {name: 'My Stores', href: '/stores', icon: '🏪'}
+                { name: 'View Inventory', href: '/inventory', icon: '📋' },
+                { name: 'Add Items to Shopping List', href: '/shopping/add-items', icon: '🛒' },
+                { name: 'Recently Used Items', href: '/shopping/add-items?tab=consumed', icon: '🔄' },
+                { name: 'Usage History', href: '/inventory/history', icon: '📊' },
+                { name: 'My Stores', href: '/stores', icon: '🏪' }
+            ]
+        },
+        // ADD THIS NEW NUTRITION SECTION
+        {
+            name: 'Nutrition',
+            href: '/dashboard/nutrition',
+            icon: '🔬',
+            submenu: [
+                { name: 'Nutrition Dashboard', href: '/dashboard/nutrition', icon: '📊' },
+                { name: 'AI Analysis', href: '/dashboard/nutrition?tab=inventory', icon: '🤖' },
+                { name: 'Meal Plan Nutrition', href: '/dashboard/nutrition?tab=mealplans', icon: '📅' },
+                { name: 'Goals Tracking', href: '/dashboard/nutrition?tab=goals', icon: '🎯' },
+                { name: 'System Status', href: '/dashboard/nutrition?tab=status', icon: '🔧' }
             ]
         },
         {
@@ -67,25 +81,26 @@ export default function DashboardLayout({children}) {
             href: '/recipes',
             icon: '🍳',
             submenu: [
-                {name: 'Browse Recipes', href: '/recipes', icon: '📖'},
-                {name: 'Add New Recipe', href: '/recipes/add', icon: '➕'}
+                { name: 'Browse Recipes', href: '/recipes', icon: '📖' },
+                { name: 'Add New Recipe', href: '/recipes/add', icon: '➕' }
             ]
         },
-        {name: 'Meal Planning', href: '/meal-planning', icon: '📅'},
+        { name: 'Meal Planning', href: '/meal-planning', icon: '📅' },
         {
             name: 'Shopping Lists',
             href: '/shopping',
             icon: '🛒',
             submenu: [
-                {name: 'Generate from Recipes', href: '/shopping', icon: '📝'},
-                {name: 'Add Items to List', href: '/shopping/add-items', icon: '➕'},
-                {name: 'Quick Add New Items', href: '/shopping/add-items?tab=manual', icon: '✏️'},
-                {name: 'Saved Shopping Lists', href: '/shopping/saved', icon: '💾'}
+                { name: 'Generate from Recipes', href: '/shopping', icon: '📝' },
+                { name: 'Add Items to List', href: '/shopping/add-items', icon: '➕' },
+                { name: 'Quick Add New Items', href: '/shopping/add-items?tab=manual', icon: '✏️' },
+                { name: 'Saved Shopping Lists', href: '/shopping/saved', icon: '💾' }
             ]
         },
-        {name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡'},
-        {name: 'Account Settings', href: '/account', icon: '👤'},
+        { name: 'What Can I Make?', href: '/recipes/suggestions', icon: '💡' },
+        { name: 'Account Settings', href: '/account', icon: '👤' },
     ];
+
 
     // ADMIN NAVIGATION - Only visible to admin users
     const adminNavigation = [
@@ -385,6 +400,43 @@ export default function DashboardLayout({children}) {
                                     <span>🍳 Recipes</span>
                                     <span>›</span>
                                     <span className="text-gray-900 font-medium">➕ Add New Recipe</span>
+                                </div>
+                            )}
+                            {pathname === '/dashboard/nutrition' && (
+                                <div className="flex items-center space-x-2">
+                                    <span className="text-gray-900 font-medium">🔬 Nutrition Dashboard</span>
+                                </div>
+                            )}
+
+                            {pathname.startsWith('/dashboard/nutrition') && searchParams.get('tab') === 'inventory' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🔬 Nutrition</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">📦 Inventory Analysis</span>
+                                </div>
+                            )}
+
+                            {pathname.startsWith('/dashboard/nutrition') && searchParams.get('tab') === 'mealplans' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🔬 Nutrition</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">📅 Meal Plan Nutrition</span>
+                                </div>
+                            )}
+
+                            {pathname.startsWith('/dashboard/nutrition') && searchParams.get('tab') === 'goals' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🔬 Nutrition</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">🎯 Goals Tracking</span>
+                                </div>
+                            )}
+
+                            {pathname.startsWith('/dashboard/nutrition') && searchParams.get('tab') === 'status' && (
+                                <div className="flex items-center space-x-2">
+                                    <span>🔬 Nutrition</span>
+                                    <span>›</span>
+                                    <span className="text-gray-900 font-medium">🔧 System Status</span>
                                 </div>
                             )}
                             {pathname === '/admin/users' && (

@@ -1,7 +1,7 @@
 // file: /src/lib/middleware/subscriptionMiddleware.js v2 - FIXED: Use proper feature gates
 
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import {

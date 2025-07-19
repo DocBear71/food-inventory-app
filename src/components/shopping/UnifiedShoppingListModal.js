@@ -7,6 +7,10 @@ import EmailSharingModal from '@/components/sharing/EmailSharingModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {StoreLayoutUtils} from '@/lib/storeLayouts';
+import ShoppingListTotals from '@/components/shopping/ShoppingListTotals';
+import PrintOptionsModal from '@/components/shopping/PrintOptionsModal';
+import { ShoppingListTotalsCalculator } from '@/lib/shoppingListTotals';
+
 
 export default function UnifiedShoppingListModal({
                                                      isOpen,
@@ -42,6 +46,18 @@ export default function UnifiedShoppingListModal({
     const [stores, setStores] = useState([]);
     const [showStoreSelector, setShowStoreSelector] = useState(false);
     const [routeMode, setRouteMode] = useState(false);
+    const [showTotals, setShowTotals] = useState(false);
+    const [userPreferences, setUserPreferences] = useState({
+        currency: 'USD',
+        currencySymbol: '$',
+        currencyPosition: 'before',
+        decimalPlaces: 2,
+        taxRate: 0.06, // Default Iowa tax rate
+        region: 'IA',
+        budget: null
+    });
+    const [showPrintModal, setShowPrintModal] = useState(false);
+    const [totalsCalculator] = useState(() => new ShoppingListTotalsCalculator());
 
     // Reset state when modal opens/closes
     useEffect(() => {
@@ -58,13 +74,60 @@ export default function UnifiedShoppingListModal({
             setDraggedCategory(null);
             setDragOverCategory(null);
             setDragOverIndex(null);
+            setShowTotals(false);
         } else {
             // Load saved preferences when modal opens
             loadCustomOrder();
             loadStorePreference();
             fetchStores();
+            loadUserPreferences();
         }
     }, [isOpen]);
+
+    const loadUserPreferences = () => {
+        try {
+            // Try to load from user session first
+            if (session?.user?.currencyPreferences) {
+                setUserPreferences(prev => ({
+                    ...prev,
+                    currency: session.user.currencyPreferences.currency || 'USD',
+                    currencySymbol: session.user.currencyPreferences.currencySymbol || '$',
+                    currencyPosition: session.user.currencyPreferences.currencyPosition || 'before',
+                    decimalPlaces: session.user.currencyPreferences.decimalPlaces || 2
+                }));
+            }
+
+            // Load from localStorage as fallback
+            const saved = localStorage.getItem('shopping-preferences');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setUserPreferences(prev => ({ ...prev, ...parsed }));
+                console.log('💰 Loaded shopping preferences:', parsed);
+            }
+        } catch (error) {
+            console.error('Error loading user preferences:', error);
+        }
+    };
+
+    const saveUserPreferences = (newPreferences) => {
+        try {
+            const updated = { ...userPreferences, ...newPreferences };
+            localStorage.setItem('shopping-preferences', JSON.stringify(updated));
+            setUserPreferences(updated);
+            console.log('💾 Saved shopping preferences:', updated);
+        } catch (error) {
+            console.error('Error saving user preferences:', error);
+        }
+    };
+
+    const handleBudgetChange = (budget) => {
+        saveUserPreferences({ budget });
+    };
+
+    const handleTaxRateChange = (taxRate) => {
+        saveUserPreferences({ taxRate });
+    };
+
 
     // 🆕 PHASE 1: Load/Save Custom Order Functions (from previous implementation)
     const loadCustomOrder = () => {
@@ -408,9 +471,29 @@ export default function UnifiedShoppingListModal({
         };
     };
 
-    // [Existing handleAdvancedPrint function remains the same]
     const handleAdvancedPrint = () => {
-        // ... existing implementation ...
+        console.log('🖨️ Opening print options modal...');
+        setShowPrintModal(true);
+    };
+
+    const calculatePrintTotals = () => {
+        if (!normalizedList.items || Object.keys(normalizedList.items).length === 0) {
+            return null;
+        }
+
+        try {
+            const calculations = totalsCalculator.calculateTotals(normalizedList, {
+                budget: userPreferences?.budget,
+                taxableCategories: ['Household Items', 'Personal Care', 'Cleaning Supplies'],
+                discounts: [],
+                coupons: []
+            });
+
+            return totalsCalculator.generateSummary(calculations);
+        } catch (error) {
+            console.error('Error calculating totals for print:', error);
+            return null;
+        }
     };
 
     // Determine list context for saving
@@ -1202,6 +1285,21 @@ export default function UnifiedShoppingListModal({
                                     🖨️<br/>Print
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
+                                    onClick={() => setShowTotals(!showTotals)}
+                                    style={{
+                                        backgroundColor: showTotals ? '#059669' : '#6366f1',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem',
+                                        fontSize: '0.65rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    💰<br/>{showTotals ? 'Hide' : 'Totals'}
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
                                     onClick={() => {
                                         const textContent = `Shopping List - ${title}\n\n` +
                                             Object.entries(groupedItems)
@@ -1240,6 +1338,25 @@ export default function UnifiedShoppingListModal({
                                     📝<br/>Text
                                 </TouchEnhancedButton>
                             </div>
+                        </div>
+                    )}
+
+                    {showTotals && (
+                        <div style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #e5e7eb',
+                            backgroundColor: '#f8fafc',
+                            flexShrink: 0
+                        }}>
+                            <ShoppingListTotals
+                                shoppingList={normalizedList}
+                                userPreferences={userPreferences}
+                                onBudgetChange={handleBudgetChange}
+                                onTaxRateChange={handleTaxRateChange}
+                                showBudgetTracker={true}
+                                showCategoryBreakdown={true}
+                                compact={false}
+                            />
                         </div>
                     )}
 
@@ -1679,6 +1796,22 @@ export default function UnifiedShoppingListModal({
                 contextName={listContext.contextName}
                 sourceRecipeIds={listContext.sourceRecipeIds}
                 sourceMealPlanId={listContext.sourceMealPlanId}
+            />
+
+            {/* Print Options Modal */}
+            <PrintOptionsModal
+                isOpen={showPrintModal}
+                onClose={() => setShowPrintModal(false)}
+                onPrint={() => {
+                    console.log('✅ Print completed successfully');
+                    setShowPrintModal(false);
+                }}
+                shoppingList={normalizedList}
+                title={title}
+                subtitle={subtitle}
+                storeName={selectedStore}
+                shoppingRoute={shoppingRoute}
+                totals={calculatePrintTotals()}
             />
 
             <style jsx>{`

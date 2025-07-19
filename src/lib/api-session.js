@@ -2,7 +2,7 @@
 // Fixed API session wrapper
 
 import { auth } from '@/lib/auth';
-// authOptions no longer needed in NextAuth v5
+
 import { NextResponse } from 'next/server';
 
 export async function requireApiSession(request) {

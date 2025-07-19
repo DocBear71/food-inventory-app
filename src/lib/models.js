@@ -1,4 +1,4 @@
-// file: /src/lib/models.js - v12 - FIXED with RecipeCollection model and proper exports - Updated for saved recipes fix
+// file: /src/lib/models.js - v14 - ENHANCED with image support for recipes
 
 import mongoose from 'mongoose';
 import { checkFeatureAccess, checkUsageLimit } from './subscription-config';
@@ -225,6 +225,144 @@ const NutritionSchema = new mongoose.Schema({
         warnings: [String] // Any warnings from the AI analysis
     }
 }, {_id: false});
+
+// NEW: Extracted image schema for video imports
+const ExtractedImageSchema = new mongoose.Schema({
+    data: { type: String, required: true }, // Base64 image data
+    extractionMethod: { type: String, required: true }, // 'video_frame_analysis', 'ai_selection', etc.
+    frameCount: { type: Number, default: 0 }, // Number of frames analyzed
+    source: { type: String, required: true }, // Platform: 'tiktok', 'instagram', 'facebook'
+    extractedAt: { type: Date, default: Date.now },
+    confidence: { type: Number, min: 0, max: 1 }, // AI confidence in image selection
+    metadata: {
+        originalFrameIndex: Number,
+        videoTimestamp: Number,
+        imageQuality: String,
+        processingTime: Number
+    }
+}, { _id: false });
+
+// Recipe Ingredient Schema - Enhanced with nutrition and video metadata
+const RecipeIngredientSchema = new mongoose.Schema({
+    name: {type: String, required: true},
+    amount: {type: mongoose.Schema.Types.Mixed}, // Updated to Mixed for flexible types
+    unit: String,
+    category: String,
+    alternatives: [String],
+    optional: {type: Boolean, default: false},
+    // NEW: Video timestamp support
+    videoTimestamp: { type: Number },
+    videoLink: { type: String },
+    // Nutrition data for this ingredient
+    fdcId: String, // USDA Food Data Central ID
+    nutrition: NutritionSchema
+}, { _id: false });
+
+// Enhanced Video Metadata Schema
+const VideoMetadataSchema = new mongoose.Schema({
+    videoSource: String,
+    videoPlatform: String,
+    videoId: String,
+    videoTitle: String,
+    videoDuration: Number,
+    extractionMethod: String,
+    importedFrom: String,
+    socialMediaOptimized: { type: Boolean, default: false },
+    transcriptLength: Number,
+    processingTime: String,
+    hasExtractedImageFlag: { type: Boolean, default: false }, // NEW: Flag for image presence
+    // NEW: Image extraction metadata
+    imageExtractionMetadata: {
+        framesAnalyzed: Number,
+        aiModelUsed: String,
+        selectionCriteria: [String],
+        processingCost: Number
+    }
+}, { _id: false });
+
+
+const RecipePhotoSchema = new mongoose.Schema({
+    recipeId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Recipe',
+        required: true,
+        index: true
+    },
+    filename: {
+        type: String,
+        required: true
+    },
+    originalName: String,
+    mimeType: {
+        type: String,
+        required: true,
+        enum: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
+    },
+    size: {
+        type: Number,
+        required: true,
+        max: 5242880 // 5MB limit
+    },
+    data: {
+        type: Buffer,
+        required: true
+    },
+    isPrimary: {
+        type: Boolean,
+        default: false
+    },
+    source: {
+        type: String,
+        enum: ['user_upload', 'video_extracted'], // SIMPLIFIED: Only 2 sources
+        default: 'user_upload'
+    },
+    // Video extraction metadata (for social media imports)
+    videoExtractionData: {
+        platform: { type: String, enum: ['tiktok', 'instagram', 'facebook'] },
+        videoUrl: String,
+        frameTimestamp: Number,
+        extractionMethod: String,
+        confidence: { type: Number, min: 0, max: 1 },
+        aiModelUsed: String
+    },
+    uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true
+    },
+    uploadedAt: {
+        type: Date,
+        default: Date.now
+    }
+});
+
+// Indexes for efficient queries
+RecipePhotoSchema.index({ recipeId: 1, isPrimary: 1 });
+RecipePhotoSchema.index({ uploadedBy: 1 });
+RecipePhotoSchema.index({ source: 1 });
+RecipePhotoSchema.index({ 'aiAnalysis.foodRelevanceScore': -1 });
+
+// Virtual for photo URL
+RecipePhotoSchema.virtual('url').get(function() {
+    return `/api/recipes/photos/${this._id}`;
+});
+
+// Method to get optimized photo data
+RecipePhotoSchema.methods.getOptimizedData = function(maxWidth = 800) {
+    // This would be used with image processing libraries like sharp
+    // For now, return original data
+    return this.data;
+};
+
+// Static method to get primary photo for recipe
+RecipePhotoSchema.statics.getPrimaryPhoto = async function(recipeId) {
+    return this.findOne({ recipeId, isPrimary: true });
+};
+
+// Static method to get all photos for recipe
+RecipePhotoSchema.statics.getRecipePhotos = async function(recipeId) {
+    return this.find({ recipeId }).sort({ isPrimary: -1, uploadedAt: -1 });
+};
 
 
 // NEW: Recipe Collection Schema - MISSING MODEL ADDED
@@ -1125,7 +1263,12 @@ const MealPlanSchema = new mongoose.Schema({
             simpleMealNames: [String], // Which simple meals need this
             inInventory: {type: Boolean, default: false},
             inventoryItemId: {type: mongoose.Schema.Types.ObjectId},
-            purchased: {type: Boolean, default: false}
+            purchased: {type: Boolean, default: false},
+            price: { type: Number },
+            unitPrice: { type: Number },
+            estimatedPrice: { type: Number },
+            priceSource: { type: String, enum: ['manual', 'estimated', 'inventory', 'lookup'] },
+            priceUpdatedAt: { type: Date }
         }]
     },
 
@@ -1423,7 +1566,12 @@ const SavedShoppingListSchema = new mongoose.Schema({
         needAmount: String,
         haveAmount: String,
         itemKey: String, // For checkbox tracking
-        notes: String // User can add notes to specific items
+        notes: String, // User can add notes to specific items
+        price: { type: Number },
+        unitPrice: { type: Number },
+        estimatedPrice: { type: Number },
+        priceSource: { type: String, enum: ['manual', 'estimated', 'inventory', 'lookup'] },
+        priceUpdatedAt: { type: Date }
     }],
 
     // Statistics (cached for performance)
@@ -1810,7 +1958,7 @@ const RecipeReviewSchema = new mongoose.Schema({
     }],
     createdAt: {type: Date, default: Date.now},
     updatedAt: {type: Date, default: Date.now}
-});
+}, { _id: false });
 
 // Inventory Item Schema with Kitchen Cabinets location
 const InventoryItemSchema = new mongoose.Schema({
@@ -2003,47 +2151,37 @@ const UserInventorySchema = new mongoose.Schema({
     lastUpdated: {type: Date, default: Date.now}
 });
 
-// Recipe Ingredient Schema - Enhanced with nutrition
-const RecipeIngredientSchema = new mongoose.Schema({
-    name: {type: String, required: true},
-    amount: {type: mongoose.Schema.Types.Mixed}, // Updated to Mixed for flexible types
-    unit: String,
-    category: String,
-    alternatives: [String],
-    optional: {type: Boolean, default: false},
-    // Nutrition data for this ingredient
-    fdcId: String, // USDA Food Data Central ID
-    nutrition: NutritionSchema
-});
 
-// Recipe Schema - Enhanced with rating, review system, and USER TRACKING
+
+// ENHANCED Recipe Schema with image support
 const RecipeSchema = new mongoose.Schema({
     title: {type: String, required: true},
-    description: {type: String, default: ''}, // Updated with default
+    description: {type: String, default: ''},
     ingredients: [RecipeIngredientSchema],
     instructions: {
-        type: [mongoose.Schema.Types.Mixed], // Allow both strings and objects
+        type: [mongoose.Schema.Types.Mixed], // Keep your existing Mixed type
         validate: {
             validator: function(instructions) {
                 if (!Array.isArray(instructions) || instructions.length === 0) {
                     return false;
                 }
 
-                // Check that each instruction is either a string or a valid object
                 return instructions.every(inst => {
                     if (typeof inst === 'string') {
                         return inst.trim().length > 0;
                     } else if (typeof inst === 'object' && inst !== null) {
-                        return inst.text && typeof inst.text === 'string' && inst.text.trim().length > 0;
+                        return (inst.text && typeof inst.text === 'string' && inst.text.trim().length > 0) ||
+                            (inst.instruction && typeof inst.instruction === 'string' && inst.instruction.trim().length > 0);
                     }
                     return false;
                 });
             },
-            message: 'Instructions must be an array of non-empty strings or objects with text property'
+            message: 'Instructions must be an array of non-empty strings or objects with text/instruction property'
         }
     },
-    cookTime: Number, // in minutes
-    prepTime: Number, // in minutes
+
+    cookTime: Number,
+    prepTime: Number,
     servings: Number,
     difficulty: {
         type: String,
@@ -2062,35 +2200,51 @@ const RecipeSchema = new mongoose.Schema({
     },
 
     tags: [String],
-    source: {type: String, default: ''}, // Updated with default
+    source: {type: String, default: ''},
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
 
-    // USER TRACKING FIELDS
     lastEditedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
     },
     importedFrom: {
         type: String,
-        default: null // e.g., "Doc Bear's Comfort Food Survival Guide Volume 1"
+        default: null
     },
 
     isPublic: {type: Boolean, default: false},
 
-    // Nutrition information
+    // UPDATED: Binary image storage (like user avatars)
+    uploadedImage: {
+        data: { type: String }, // Base64 encoded image
+        mimeType: { type: String, enum: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] },
+        size: { type: Number, max: 5242880 }, // 5MB limit
+        originalName: { type: String },
+        uploadedAt: { type: Date, default: Date.now },
+        source: { type: String, default: 'user_upload' }
+    },
+
+    // AI-extracted image from video (existing)
+    extractedImage: ExtractedImageSchema,
+
+    // Simple flags for quick queries
+    hasUserImage: { type: Boolean, default: false },
+    hasExtractedImage: { type: Boolean, default: false },
+
+    // Video-specific metadata
+    videoMetadata: VideoMetadataSchema,
+
+    // ... rest of your existing schema fields ...
     nutrition: NutritionSchema,
     nutritionCalculatedAt: Date,
-    nutritionCoverage: Number, // Percentage of ingredients with nutrition data
+    nutritionCoverage: Number,
     nutritionManuallySet: {type: Boolean, default: false},
 
-    // Rating and Review System
     reviews: [RecipeReviewSchema],
-
-    // Cached rating statistics for performance
     ratingStats: {
         averageRating: {type: Number, default: 0, min: 0, max: 5},
         totalRatings: {type: Number, default: 0},
@@ -2103,42 +2257,240 @@ const RecipeSchema = new mongoose.Schema({
         }
     },
 
-    // Recipe engagement metrics
     metrics: {
         viewCount: {type: Number, default: 0},
-        saveCount: {type: Number, default: 0}, // Future: users can save recipes
+        saveCount: {type: Number, default: 0},
         shareCount: {type: Number, default: 0},
         lastViewed: Date
     },
 
-    // Add to your recipe schema
-    videoMetadata: {
-        videoSource: String,
-        videoPlatform: String,
-        videoId: String,
-        videoTitle: String,
-        videoDuration: Number,
-        extractionMethod: String,
-        importedFrom: String,
-        socialMediaOptimized: Boolean,
-        transcriptLength: Number,
-        processingTime: String
+    aiAnalysis: {
+        nutritionGenerated: { type: Boolean, default: false },
+        nutritionMetadata: {
+            modelUsed: String,
+            processingTime: Number,
+            confidence: Number,
+            coverage: Number,
+            cost: Number
+        }
     },
 
     createdAt: {type: Date, default: Date.now},
     updatedAt: {type: Date, default: Date.now}
 }, {
-    timestamps: true // This will auto-update updatedAt
+    timestamps: true
 });
 
-// Pre-save middleware to update lastEditedBy on edits
-RecipeSchema.pre('save', function (next) {
+// UPDATED: Pre-save middleware to update image flags
+RecipeSchema.pre('save', function(next) {
     if (this.isModified() && !this.isNew) {
         this.updatedAt = new Date();
-        // Note: lastEditedBy should be set in your API routes when editing
     }
+
+    // Update image flags
+    this.hasUserImage = !!(this.uploadedImage?.data);
+    this.hasExtractedImageFlag = !!(this.extractedImage?.data);
+
+    // Update video metadata flag
+    if (this.videoMetadata && this.extractedImage) {
+        this.videoMetadata.hasExtractedImage = true;
+    }
+
     next();
 });
+
+
+// NEW: Instance methods for image handling
+RecipeSchema.methods.hasVideoSource = function() {
+    return !!(this.videoMetadata?.videoSource && this.videoMetadata?.videoPlatform);
+};
+
+RecipeSchema.methods.hasExtractedImageData = function() {
+    return !!(this.extractedImage?.data);
+};
+
+RecipeSchema.methods.hasAnyImage = function() {
+    return this.hasUserImage || this.hasExtractedImageData();
+};
+
+// NEW: Get image for display (extracted or uploaded)
+RecipeSchema.methods.getDisplayImage = function() {
+    // Priority: 1) User uploaded image, 2) AI-extracted from video
+    if (this.uploadedImage?.data) {
+        return {
+            type: 'uploaded',
+            data: `data:${this.uploadedImage.mimeType};base64,${this.uploadedImage.data}`,
+            source: 'user_upload',
+            method: 'manual_upload',
+            uploadedAt: this.uploadedImage.uploadedAt,
+            size: this.uploadedImage.size
+        };
+    }
+
+    if (this.extractedImage?.data) {
+        return {
+            type: 'extracted',
+            data: `data:image/jpeg;base64,${this.extractedImage.data}`,
+            source: this.extractedImage.source, // tiktok, instagram, facebook
+            method: 'ai_video_extraction',
+            extractedAt: this.extractedImage.extractedAt,
+            confidence: this.extractedImage.confidence
+        };
+    }
+
+    return null;
+};
+
+RecipeSchema.methods.getImageUrl = function() {
+    if (this.hasAnyImage()) {
+        return `/api/recipes/photos/upload?recipeId=${this._id}`;
+    }
+    return null;
+};
+
+// NEW: Remove uploaded image
+RecipeSchema.methods.removeUploadedImage = function() {
+    this.uploadedImage = undefined;
+    this.hasUserImage = false;
+    return this.save();
+};
+
+
+RecipeSchema.methods.getTimestampedIngredients = function() {
+    return this.ingredients.filter(ingredient => ingredient.videoTimestamp);
+};
+
+RecipeSchema.methods.getTimestampedInstructions = function() {
+    return this.instructions.filter(instruction => {
+        // Handle both string and object instructions
+        if (typeof instruction === 'object' && instruction !== null) {
+            return instruction.videoTimestamp;
+        }
+        return false; // Strings don't have timestamps
+    });
+};
+
+RecipeSchema.methods.getInstructionText = function(instruction) {
+    if (typeof instruction === 'string') {
+        return instruction;
+    }
+    if (typeof instruction === 'object' && instruction !== null) {
+        return instruction.text || instruction.instruction || '';
+    }
+    return '';
+};
+
+RecipeSchema.methods.hasInstructionVideoData = function(instruction) {
+    if (typeof instruction === 'object' && instruction !== null) {
+        return !!(instruction.videoTimestamp || instruction.videoLink);
+    }
+    return false;
+};
+
+// NEW: Get video platform display info
+RecipeSchema.methods.getVideoPlatformInfo = function() {
+    if (!this.videoMetadata?.videoPlatform) return null;
+
+    const platformInfo = {
+        tiktok: { icon: '🎵', name: 'TikTok', color: 'pink' },
+        instagram: { icon: '📸', name: 'Instagram', color: 'purple' },
+        facebook: { icon: '👥', name: 'Facebook', color: 'blue' },
+        youtube: { icon: '📺', name: 'YouTube', color: 'red' }
+    };
+
+    return platformInfo[this.videoMetadata.videoPlatform.toLowerCase()] || {
+        icon: '🎥',
+        name: 'Video',
+        color: 'gray'
+    };
+};
+
+// Static methods
+RecipeSchema.statics.findVideoRecipes = function(platform = null) {
+    const query = { 'videoMetadata.videoPlatform': { $exists: true } };
+    if (platform) {
+        query['videoMetadata.videoPlatform'] = platform;
+    }
+    return this.find(query);
+};
+
+// NEW: Find recipes with images
+RecipeSchema.statics.findRecipesWithImages = function(imageType = 'any') {
+    const query = {};
+
+    if (imageType === 'extracted') {
+        query['extractedImage.data'] = { $exists: true };
+    } else if (imageType === 'uploaded') {
+        query.imageUrl = { $exists: true };
+    } else if (imageType === 'any') {
+        query.$or = [
+            { 'extractedImage.data': { $exists: true } },
+            { imageUrl: { $exists: true } }
+        ];
+    }
+
+    return this.find(query);
+};
+
+// Static method to find recipes with specific image types
+RecipeSchema.statics.findByImageType = function(imageType = 'any') {
+    const query = {};
+
+    if (imageType === 'uploaded') {
+        query.hasUserImage = true;
+    } else if (imageType === 'extracted') {
+        query.hasExtractedImage = true;
+    } else if (imageType === 'any') {
+        query.$or = [
+            { hasUserImage: true },
+            { hasExtractedImage: true }
+        ];
+    } else if (imageType === 'none') {
+        query.hasUserImage = false;
+        query.hasExtractedImage = false;
+    }
+
+    return this.find(query);
+};
+
+
+RecipeSchema.statics.findByPlatform = function(platform) {
+    return this.find({ 'videoMetadata.videoPlatform': platform });
+};
+
+// Virtual for total time
+RecipeSchema.virtual('totalTime').get(function() {
+    const prep = this.prepTime || 0;
+    const cook = this.cookTime || 0;
+    return prep + cook;
+});
+
+// Virtual for checking if any image exists
+RecipeSchema.virtual('hasImage').get(function() {
+    return this.hasUserImage || this.hasExtractedImage;
+});
+
+// Ensure virtual fields are serialized
+RecipeSchema.set('toJSON', { virtuals: true });
+
+// Create indexes for better performance
+RecipeSchema.index({title: 'text', description: 'text'});
+RecipeSchema.index({tags: 1});
+RecipeSchema.index({isPublic: 1});
+RecipeSchema.index({createdBy: 1});
+RecipeSchema.index({'nutrition.calories.value': 1});
+RecipeSchema.index({nutritionCalculatedAt: 1});
+RecipeSchema.index({'ratingStats.averageRating': -1});
+RecipeSchema.index({'ratingStats.totalRatings': -1});
+RecipeSchema.index({'reviews.userId': 1});
+RecipeSchema.index({'metrics.viewCount': -1});
+RecipeSchema.index({ 'videoMetadata.videoPlatform': 1 }); // NEW: Index for video platform queries
+RecipeSchema.index({ 'extractedImage.source': 1 }); // NEW: Index for image source queries
+RecipeSchema.index({ 'videoMetadata.hasExtractedImage': 1 }); // NEW: Index for image queries
+RecipeSchema.index({ hasUserImage: 1 });
+RecipeSchema.index({ hasExtractedImage: 1 });
+RecipeSchema.index({ 'uploadedImage.uploadedAt': -1 });
+
 
 // UPDATED: Daily Nutrition Log Schema with new meal types
 const DailyNutritionLogSchema = new mongoose.Schema({
@@ -2933,18 +3285,6 @@ UserSchema.index({email: 1, passwordResetRequestedAt: 1}); // For rate limiting
 
 // Create indexes for better performance
 UserInventorySchema.index({userId: 1});
-RecipeSchema.index({title: 'text', description: 'text'});
-RecipeSchema.index({tags: 1});
-RecipeSchema.index({isPublic: 1});
-RecipeSchema.index({createdBy: 1});
-RecipeSchema.index({'nutrition.calories.value': 1}); // For nutrition-based filtering
-RecipeSchema.index({nutritionCalculatedAt: 1});
-
-// Rating and review indexes
-RecipeSchema.index({'ratingStats.averageRating': -1}); // For sorting by rating
-RecipeSchema.index({'ratingStats.totalRatings': -1}); // For sorting by popularity
-RecipeSchema.index({'reviews.userId': 1}); // For finding user's reviews
-RecipeSchema.index({'metrics.viewCount': -1}); // For trending recipes
 
 // Add expiration date index for efficient expiration queries
 InventoryItemSchema.index({expirationDate: 1});
@@ -3006,16 +3346,19 @@ CuratedMealSchema.index({estimatedTime: 1});
 CuratedMealSchema.index({difficulty: 1});
 
 // Declare variables first
-let User, UserInventory, InventoryItem, Store, Recipe, DailyNutritionLog, MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
-    ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate, MealPrepKnowledge, CuratedMeal, RecipeCollection;
+let User, Recipe, RecipePhoto,UserInventory, InventoryItem, Store, DailyNutritionLog,
+    MealPlan, MealPlanTemplate, Contact, EmailLog, SavedShoppingList,
+    ShoppingListTemplate, MealPrepSuggestion, MealPrepTemplate,
+    MealPrepKnowledge, CuratedMeal, RecipeCollection;
 
 try {
     // Export models (prevent re-compilation in development)
     User = mongoose.models.User || mongoose.model('User', UserSchema);
     UserInventory = mongoose.models.UserInventory || mongoose.model('UserInventory', UserInventorySchema);
-    InventoryItem = mongoose.models.InventoryItem || mongoose.model('InventoryItems', InventoryItemSchema);
+    InventoryItem = mongoose.models.InventoryItem || mongoose.model('InventoryItem', InventoryItemSchema);
     Store = mongoose.models.Store || mongoose.model('Store', StoreSchema);
     Recipe = mongoose.models.Recipe || mongoose.model('Recipe', RecipeSchema);
+    RecipePhoto = mongoose.models.RecipePhoto || mongoose.model('RecipePhoto', RecipePhotoSchema);
     DailyNutritionLog = mongoose.models.DailyNutritionLog || mongoose.model('DailyNutritionLog', DailyNutritionLogSchema);
     MealPlan = mongoose.models.MealPlan || mongoose.model('MealPlan', MealPlanSchema);
     MealPlanTemplate = mongoose.models.MealPlanTemplate || mongoose.model('MealPlanTemplate', MealPlanTemplateSchema);
@@ -3040,6 +3383,7 @@ try {
     InventoryItem = InventoryItem || emptyModel;
     Store = Store || emptyModel;
     Recipe = Recipe || emptyModel;
+    RecipePhoto = RecipePhoto || emptyModel;
     DailyNutritionLog = DailyNutritionLog || emptyModel;
     MealPlan = MealPlan || emptyModel;
     MealPlanTemplate = MealPlanTemplate || emptyModel;
@@ -3060,6 +3404,7 @@ export {
     InventoryItem,
     Store,
     Recipe,
+    RecipePhoto,
     DailyNutritionLog,
     NutritionSchema,
     MealPlan,

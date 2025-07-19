@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { SUPPORTED_CURRENCIES, formatCurrencyExample } from '@/lib/currency-utils';
+import {apiPut} from "@/lib/api-config.js";
 
 export default function CurrencySettings({ user, onUpdate }) {
     const [preferences, setPreferences] = useState({
@@ -36,10 +37,8 @@ export default function CurrencySettings({ user, onUpdate }) {
     const handleSave = async () => {
         setSaving(true);
         try {
-            const response = await fetch('/api/user/profile', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ currencyPreferences: preferences })
+            const response = await apiPut('/api/user/profile', {
+                preferences
             });
 
             if (response.ok) {

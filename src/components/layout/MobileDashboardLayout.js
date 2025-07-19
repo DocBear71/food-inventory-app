@@ -57,11 +57,11 @@ export default function MobileDashboardLayout({children}) {
     }, [pathname, searchParams]);
 
     const navigation = [
-        {name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/'},
-        {name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory'},
-        {name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes')},
-        {name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
-        {name: 'Shopping Lists', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping')},
+        { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/' },
+        { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory' },
+        { name: 'Nutrition', href: '/dashboard/nutrition', icon: '🔬', current: pathname.startsWith('/dashboard/nutrition') },
+        { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
+        { name: 'Shopping', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
     ];
 
 // Enhanced additional menu items for hamburger menu - UPDATED: Added Shopping List Features
@@ -90,6 +90,39 @@ export default function MobileDashboardLayout({children}) {
             current: pathname === '/stores',
             description: 'Manage your favorite stores for price tracking',
             section: 'Inventory'
+        },
+
+        {
+            name: 'Nutrition Dashboard',
+            href: '/dashboard/nutrition',
+            icon: '📊',
+            current: pathname === '/dashboard/nutrition',
+            description: 'AI-powered nutrition analysis and insights',
+            section: 'Nutrition'
+        },
+        {
+            name: 'AI Nutrition Analysis',
+            href: '/dashboard/nutrition?tab=inventory',
+            icon: '🤖',
+            current: pathname === '/dashboard/nutrition' && searchParams.get('tab') === 'inventory',
+            description: 'Analyze your inventory nutrition with AI',
+            section: 'Nutrition'
+        },
+        {
+            name: 'Meal Plan Nutrition',
+            href: '/dashboard/nutrition?tab=mealplans',
+            icon: '📅',
+            current: pathname === '/dashboard/nutrition' && searchParams.get('tab') === 'mealplans',
+            description: 'Track nutrition across your meal plans',
+            section: 'Nutrition'
+        },
+        {
+            name: 'Nutrition Goals',
+            href: '/dashboard/nutrition?tab=goals',
+            icon: '🎯',
+            current: pathname === '/dashboard/nutrition' && searchParams.get('tab') === 'goals',
+            description: 'Set and track your nutrition goals',
+            section: 'Nutrition'
         },
 
         // Shopping List Section - NEW
