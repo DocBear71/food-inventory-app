@@ -1,10 +1,9 @@
 'use client';
 
-// file: /src/components/meal-planning/SmartSuggestionsModal.js v1
+// file: /src/components/meal-planning/SmartSuggestionsModal.js v2 - Enhanced error handling
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import { apiPost } from '@/lib/api-config';
 
 export default function SmartSuggestionsModal({
                                                   isOpen,
@@ -13,7 +12,8 @@ export default function SmartSuggestionsModal({
                                                   onApplySuggestion,
                                                   isLoading = false,
                                                   mealPlan = null,
-                                                  onMealPlanUpdate = null
+                                                  onMealPlanUpdate = null,
+                                                  error = null // Add error prop
                                               }) {
     const [selectedSuggestion, setSelectedSuggestion] = useState(null);
     const [applyingIndex, setApplyingIndex] = useState(null);
@@ -170,7 +170,7 @@ export default function SmartSuggestionsModal({
                     </div>
 
                     {/* Summary Stats */}
-                    {suggestions.length > 0 && (
+                    {!isLoading && !error && suggestions.length > 0 && (
                         <div className="mt-4 flex flex-wrap gap-3 text-sm">
                             <div className="bg-green-100 text-green-800 px-3 py-2 rounded-full font-medium">
                                 💰 Total Potential Savings: {formatPrice(totalSavings)}
@@ -194,6 +194,24 @@ export default function SmartSuggestionsModal({
                             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600 mb-4"></div>
                             <h3 className="text-lg font-medium text-gray-900 mb-2">Analyzing Your Meal Plan</h3>
                             <p className="text-gray-600">Finding money-saving opportunities based on your inventory, dietary preferences, and current deals...</p>
+                        </div>
+                    ) : error ? (
+                        // Error state
+                        <div className="text-center py-12">
+                            <div className="text-6xl mb-4">⚠️</div>
+                            <h3 className="text-lg font-medium text-red-900 mb-2">Unable to Generate Suggestions</h3>
+                            <p className="text-red-600 mb-4">
+                                We encountered an error while analyzing your meal plan.
+                            </p>
+                            <div className="text-sm text-gray-600 bg-gray-50 p-4 rounded-lg mb-4">
+                                <strong>Error details:</strong> {error}
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={onClose}
+                                className="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg font-medium"
+                            >
+                                Close and Try Again
+                            </TouchEnhancedButton>
                         </div>
                     ) : suggestions.length === 0 ? (
                         <div className="text-center py-12">

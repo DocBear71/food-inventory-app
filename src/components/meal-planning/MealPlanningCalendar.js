@@ -213,11 +213,19 @@ export default function MealPlanningCalendar() {
             return;
         }
 
+        // Start loading state immediately
         setSuggestionsLoading(true);
-        setShowSmartSuggestions(true);
+        setShowSmartSuggestions(true); // Show modal first
         setSmartSuggestions([]); // Clear previous suggestions
 
         try {
+            console.log('Generating smart suggestions with:', {
+                mealPlanId: mealPlan._id,
+                inventoryCount: inventory.length,
+                dealCount: priceIntelligence.dealOpportunities.length,
+                budget: priceIntelligence.weeklyBudget
+            });
+
             const response = await apiPost('/api/meal-planning/smart-suggestions', {
                 mealPlanId: mealPlan._id,
                 inventory: inventory,
@@ -232,7 +240,16 @@ export default function MealPlanningCalendar() {
                 }
             });
 
+            console.log('API Response status:', response.status);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('API Error Response:', errorText);
+                throw new Error(`API Error: ${response.status} - ${errorText}`);
+            }
+
             const data = await response.json();
+            console.log('Smart suggestions response:', data);
 
             if (data.success) {
                 setSmartSuggestions(data.suggestions || []);
@@ -245,18 +262,25 @@ export default function MealPlanningCalendar() {
                     );
                 } else {
                     showToast('Your meal plan is already well optimized! 🎉', 'info');
+                    // Keep modal open to show the "well optimized" message
                 }
             } else {
                 throw new Error(data.error || 'Failed to generate suggestions');
             }
         } catch (error) {
             console.error('Error generating smart suggestions:', error);
-            showToast('Unable to generate suggestions right now', 'error');
-            setShowSmartSuggestions(false); // Close modal on error
+
+            // Show error in modal instead of closing it
+            setSmartSuggestions([]);
+            showToast(`Unable to generate suggestions: ${error.message}`, 'error');
+
+            // Don't close the modal - let user see the error state and close manually
         } finally {
             setSuggestionsLoading(false);
+            // Modal stays open regardless of success/failure
         }
     };
+
 
     const handleApplySuggestion = async (suggestion) => {
         try {

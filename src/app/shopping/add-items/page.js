@@ -280,6 +280,37 @@ export default function AddItemsPage() {
         setShowListChoice(true);
     };
 
+    const showToast = (message, type = 'success') => {
+        const toast = document.createElement('div');
+        const bgColor = type === 'success' ? 'bg-green-500' :
+            type === 'error' ? 'bg-red-500' :
+                type === 'warning' ? 'bg-orange-500' : 'bg-blue-500';
+
+        toast.className = `fixed top-4 right-4 ${bgColor} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-all duration-300 transform translate-x-full opacity-0`;
+        toast.innerHTML = `
+        <div class="flex items-center space-x-2">
+            <span>${message}</span>
+        </div>
+    `;
+
+        document.body.appendChild(toast);
+
+        // Animate in
+        setTimeout(() => {
+            toast.classList.remove('translate-x-full', 'opacity-0');
+        }, 100);
+
+        // Animate out and remove
+        setTimeout(() => {
+            toast.classList.add('translate-x-full', 'opacity-0');
+            setTimeout(() => {
+                if (document.body.contains(toast)) {
+                    document.body.removeChild(toast);
+                }
+            }, 300);
+        }, 3000);
+    };
+
     const createShoppingList = async () => {
         try {
             setLoading(true);
@@ -287,7 +318,7 @@ export default function AddItemsPage() {
 
             const itemsToAdd = [];
 
-            // Collect items based on active tab (same logic as above)
+            // Collect items based on active tab (same logic as before)
             if (activeTab === 'inventory') {
                 const selectedInventoryItems = getFilteredInventory().filter(item =>
                     selectedItems.has(item._id)
@@ -295,13 +326,17 @@ export default function AddItemsPage() {
 
                 selectedInventoryItems.forEach(item => {
                     itemsToAdd.push({
-                        name: item.name,
-                        category: item.category || 'Other',
-                        unit: item.unit,
+                        ingredient: item.name,
                         amount: '1',
-                        brand: item.brand || '',
-                        notes: `From inventory - ${item.location}`,
-                        source: 'inventory'
+                        category: item.category || 'Other',
+                        inInventory: true,
+                        purchased: false,
+                        recipes: [],
+                        originalName: item.name,
+                        needAmount: '1',
+                        haveAmount: `${item.quantity} ${item.unit}`,
+                        itemKey: `${item.name}-${item.category || 'Other'}`,
+                        notes: `From inventory - ${item.location}${item.brand ? ` (${item.brand})` : ''}`
                     });
                 });
             } else if (activeTab === 'consumed') {
@@ -310,13 +345,19 @@ export default function AddItemsPage() {
                 );
 
                 selectedConsumedItems.forEach(item => {
+                    const estimatedAmount = Math.ceil(item.totalConsumed / item.timesUsed) || 1;
                     itemsToAdd.push({
-                        name: item.name,
-                        category: item.category,
-                        unit: item.unit,
-                        amount: Math.ceil(item.totalConsumed / item.timesUsed) || 1,
-                        notes: `Used ${item.timesUsed} times in last ${selectedDays} days`,
-                        source: 'consumed_history'
+                        ingredient: item.name,
+                        amount: estimatedAmount.toString(),
+                        category: item.category || 'Other',
+                        inInventory: false,
+                        purchased: false,
+                        recipes: [],
+                        originalName: item.name,
+                        needAmount: estimatedAmount.toString(),
+                        haveAmount: '0',
+                        itemKey: `${item.name}-${item.category || 'Other'}`,
+                        notes: `Used ${item.timesUsed} times in last ${selectedDays} days`
                     });
                 });
             } else if (activeTab === 'manual') {
@@ -324,42 +365,69 @@ export default function AddItemsPage() {
 
                 validManualItems.forEach(item => {
                     itemsToAdd.push({
-                        name: item.name.trim(),
-                        category: item.category || 'Other',
-                        unit: item.unit,
+                        ingredient: item.name.trim(),
                         amount: item.amount || '1',
-                        notes: item.notes || '',
-                        source: 'manual'
+                        category: item.category || 'Other',
+                        inInventory: false,
+                        purchased: false,
+                        recipes: [],
+                        originalName: item.name.trim(),
+                        needAmount: item.amount || '1',
+                        haveAmount: '0',
+                        itemKey: `${item.name.trim()}-${item.category || 'Other'}`,
+                        notes: item.notes || ''
                     });
                 });
             }
 
+            if (itemsToAdd.length === 0) {
+                setError('Please select or add at least one item');
+                return;
+            }
+
             if (listChoice === 'new') {
-                // Create new list
-                const response = await apiPost('/api/shopping/custom', {
-                        name: newListName.trim(),
-                        items: itemsToAdd,
-                        listType: 'custom',
-                        description: `Shopping list with ${itemsToAdd.length} items`
+                // Create new saved shopping list using the correct API
+                const response = await apiPost('/api/shopping/saved', {
+                    name: newListName.trim(),
+                    description: `Shopping list with ${itemsToAdd.length} items`,
+                    listType: 'custom',
+                    contextName: newListName.trim(),
+                    sourceRecipeIds: [],
+                    sourceMealPlanId: null,
+                    items: itemsToAdd,
+                    tags: ['custom', 'manual'],
+                    color: '#3b82f6',
+                    isTemplate: false
                 });
 
                 const result = await response.json();
                 if (!response.ok) throw new Error(result.error);
 
-                alert(`✅ Created new shopping list: "${newListName}" with ${itemsToAdd.length} items!`);
+                showToast(`✅ Created new shopping list: "${newListName}" with ${itemsToAdd.length} items!`);
+
             } else {
-                // Add to existing list
-                const response = await apiPut('/api/shopping/custom', {
+                // Add to existing list - get current list first, then update
+                const getResponse = await apiGet(`/api/shopping/saved/${selectedExistingList}`);
+                const getResult = await getResponse.json();
 
-                        listId: selectedExistingList,
-                        items: itemsToAdd,
-                        mode: 'add'
+                if (!getResponse.ok) throw new Error(getResult.error);
+
+                const existingList = getResult.savedList;
+
+                // Merge items - avoid duplicates based on itemKey
+                const existingItemKeys = new Set(existingList.items.map(item => item.itemKey));
+                const newItems = itemsToAdd.filter(item => !existingItemKeys.has(item.itemKey));
+                const updatedItems = [...existingList.items, ...newItems];
+
+                // Update the list using apiPut
+                const updateResponse = await apiPut(`/api/shopping/saved/${selectedExistingList}`, {
+                    items: updatedItems
                 });
 
-                const result = await response.json();
-                if (!response.ok) throw new Error(result.error);
+                const updateResult = await updateResponse.json();
+                if (!updateResponse.ok) throw new Error(updateResult.error);
 
-                alert(`✅ Added ${itemsToAdd.length} items to existing shopping list!`);
+                showToast(`✅ Added ${newItems.length} new items to existing shopping list!`);
             }
 
             // Reset and redirect
@@ -378,6 +446,7 @@ export default function AddItemsPage() {
         } catch (error) {
             console.error('Error creating shopping list:', error);
             setError(error.message);
+            showToast(`Error: ${error.message}`, 'error');
         } finally {
             setLoading(false);
         }
