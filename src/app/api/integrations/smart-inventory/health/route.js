@@ -4,7 +4,7 @@ export async function GET() {
         const startTime = Date.now();
 
         // Test smart inventory service
-        const testResponse = await fetch(`${process.env.MODAL_INVENTORY_MANAGER_URL}/health`, {
+        const testResponse = await fetch(`https://docbear71--smart-inventory-manager-health.modal.run`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${process.env.MODAL_API_TOKEN}`
