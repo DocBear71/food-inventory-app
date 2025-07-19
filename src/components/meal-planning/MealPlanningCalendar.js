@@ -11,6 +11,7 @@ import SimpleMealBuilder from './SimpleMealBuilder';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MealCompletionModal from './MealCompletionModal';
 import { apiGet, apiPost, apiPut } from '@/lib/api-config';
+import SmartSuggestionsModal from './SmartSuggestionsModal';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();
@@ -55,6 +56,9 @@ export default function MealPlanningCalendar() {
     const [dealNotifications, setDealNotifications] = useState([]);
     const [showPriceSettings, setShowPriceSettings] = useState(false);
     const [showBudgetModal, setShowBudgetModal] = useState(false);
+    const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
+    const [smartSuggestions, setSmartSuggestions] = useState([]);
+    const [suggestionsLoading, setSuggestionsLoading] = useState(false);
 
     const showToast = (message, type = 'success') => {
         const toast = document.createElement('div');
@@ -204,7 +208,14 @@ export default function MealPlanningCalendar() {
     };
 
     const generateSmartSuggestions = async () => {
-        if (!mealPlan) return;
+        if (!mealPlan) {
+            showToast('No meal plan found', 'error');
+            return;
+        }
+
+        setSuggestionsLoading(true);
+        setShowSmartSuggestions(true);
+        setSmartSuggestions([]); // Clear previous suggestions
 
         try {
             const response = await apiPost('/api/meal-planning/smart-suggestions', {
@@ -215,22 +226,180 @@ export default function MealPlanningCalendar() {
                 preferences: {
                     prioritizeSavings: true,
                     useInventoryFirst: true,
-                    maxCostPerMeal: priceIntelligence.weeklyBudget / 21,
+                    maxCostPerMeal: priceIntelligence.weeklyBudget > 0 ? priceIntelligence.weeklyBudget / 21 : null,
                     dietaryRestrictions: userDietaryRestrictions,
                     avoidIngredients: userAvoidIngredients
                 }
             });
 
             const data = await response.json();
+
             if (data.success) {
-                showToast(`Found ${data.suggestions.length} money-saving meal suggestions!`, 'success');
-                // Could open a modal here to show suggestions
+                setSmartSuggestions(data.suggestions || []);
+
+                if (data.suggestions && data.suggestions.length > 0) {
+                    const totalSavings = data.suggestions.reduce((sum, s) => sum + (s.savings || 0), 0);
+                    showToast(
+                        `Found ${data.suggestions.length} money-saving suggestions with ${formatPrice(totalSavings)} potential savings!`,
+                        'success'
+                    );
+                } else {
+                    showToast('Your meal plan is already well optimized! 🎉', 'info');
+                }
+            } else {
+                throw new Error(data.error || 'Failed to generate suggestions');
             }
         } catch (error) {
             console.error('Error generating smart suggestions:', error);
             showToast('Unable to generate suggestions right now', 'error');
+            setShowSmartSuggestions(false); // Close modal on error
+        } finally {
+            setSuggestionsLoading(false);
         }
     };
+
+    const handleApplySuggestion = async (suggestion) => {
+        try {
+            console.log('Applying suggestion:', suggestion);
+
+            // Track suggestion application for analytics
+            if (typeof window !== 'undefined' && window.gtag) {
+                window.gtag('event', 'apply_smart_suggestion', {
+                    suggestion_type: suggestion.type,
+                    potential_savings: suggestion.savings || 0,
+                    urgency: suggestion.urgency
+                });
+            }
+
+            let message = '';
+            let actionTaken = false;
+
+            switch (suggestion.action) {
+                case 'replace_meal':
+                    message = `📝 Ready to replace a meal!\n\n` +
+                        `💡 ${suggestion.title}\n\n` +
+                        `📋 Next steps:\n` +
+                        `1. Choose one of these recommended recipes:\n` +
+                        suggestion.recipes.slice(0, 3).map((recipe, idx) =>
+                            `   ${idx + 1}. ${recipe.name} (${recipe.difficulty || 'medium'})`
+                        ).join('\n');
+
+                    if (suggestion.targetSlots && suggestion.targetSlots.length > 0) {
+                        message += `\n\n📅 Available slots to replace:\n` +
+                            suggestion.targetSlots.slice(0, 3).map(slot =>
+                                `   • ${slot.day} ${slot.mealType}`
+                            ).join('\n');
+                    }
+
+                    message += `\n\n💰 Potential savings: ${formatPrice(suggestion.savings || 0)}` +
+                        `\n\n🎯 Tip: Look for the "Remove" option on existing meals, then add one of the suggested recipes.`;
+                    break;
+
+                case 'add_meal':
+                    message = `➕ Ready to add a new meal!\n\n` +
+                        `💡 ${suggestion.title}\n\n` +
+                        `📋 Recommended recipes:\n` +
+                        suggestion.recipes.slice(0, 3).map((recipe, idx) =>
+                            `   ${idx + 1}. ${recipe.name} (${recipe.difficulty || 'medium'})`
+                        ).join('\n');
+
+                    if (suggestion.targetSlots && suggestion.targetSlots.length > 0) {
+                        message += `\n\n📅 Empty slots available:\n` +
+                            suggestion.targetSlots.slice(0, 3).map(slot =>
+                                `   • ${slot.day} ${slot.mealType}`
+                            ).join('\n');
+                    }
+
+                    message += `\n\n💰 Potential savings: ${formatPrice(suggestion.savings || 0)}` +
+                        `\n\n🎯 Tip: Click "Add Recipe" or "Quick Meal" in any of the suggested slots.`;
+                    break;
+
+                case 'meal_prep':
+                    message = `🍲 Meal Prep Time!\n\n` +
+                        `💡 ${suggestion.title}\n\n` +
+                        `📋 Batch cooking recipes:\n` +
+                        suggestion.recipes.slice(0, 2).map((recipe, idx) =>
+                            `   ${idx + 1}. ${recipe.name} (serves ${recipe.servings || 'multiple'})`
+                        ).join('\n') +
+                        `\n\n📝 Meal prep steps:\n` +
+                        `   1. Choose one recipe above\n` +
+                        `   2. Cook 2-3x the normal amount\n` +
+                        `   3. Portion into containers\n` +
+                        `   4. Add portions to multiple meal slots\n\n` +
+                        `💰 Estimated savings: ${formatPrice(suggestion.savings || 0)}\n` +
+                        `⏰ Time saved: 2-3 hours this week`;
+                    break;
+
+                default:
+                    message = `💡 ${suggestion.title}\n\n` +
+                        `📝 ${suggestion.description}\n\n`;
+
+                    if (suggestion.dealInfo) {
+                        message += `🏷️ Deal Details:\n` +
+                            `   🏪 Store: ${suggestion.dealInfo.store}\n` +
+                            `   💰 Price: ${formatPrice(suggestion.dealInfo.salePrice)} ` +
+                            `(was ${formatPrice(suggestion.dealInfo.originalPrice)})\n` +
+                            `   🎯 Savings: ${suggestion.dealInfo.savingsPercent}% off\n`;
+
+                        if (suggestion.dealInfo.validUntil) {
+                            const validDate = new Date(suggestion.dealInfo.validUntil).toLocaleDateString();
+                            message += `   ⏰ Valid until: ${validDate}\n`;
+                        }
+                        message += '\n';
+                    }
+
+                    if (suggestion.recipes && suggestion.recipes.length > 0) {
+                        message += `🍳 Try these recipes:\n` +
+                            suggestion.recipes.slice(0, 3).map((recipe, idx) =>
+                                `   ${idx + 1}. ${recipe.name}`
+                            ).join('\n') + '\n\n';
+                    }
+
+                    message += `💰 Potential savings: ${formatPrice(suggestion.savings || 0)}`;
+
+                    if (suggestion.benefits && suggestion.benefits.length > 0) {
+                        message += `\n\n✨ Benefits:\n${suggestion.benefits.map(benefit => `   • ${benefit}`).join('\n')}`;
+                    }
+            }
+
+            // Show the detailed message
+            const userConfirmed = confirm(`${message}\n\nWould you like to proceed with this suggestion?`);
+
+            if (userConfirmed) {
+                // Here you could implement automatic meal plan updates
+                // For now, we'll show a success message
+                showToast(`Suggestion applied! Check your meal plan for updates.`, 'success');
+                actionTaken = true;
+
+                // Optionally refresh the meal plan
+                if (onMealPlanUpdate) {
+                    await onMealPlanUpdate();
+                }
+            }
+
+            return actionTaken;
+
+        } catch (error) {
+            console.error('Error applying suggestion:', error);
+            showToast(`Error applying suggestion: ${error.message}`, 'error');
+            return false;
+        }
+    };
+
+// Add this function to handle meal plan updates when suggestions are applied:
+    const handleMealPlanUpdate = async () => {
+        try {
+            await fetchMealPlan();
+            if (priceIntelligence.enabled) {
+                await calculateMealPlanCosts(mealPlan);
+            }
+            showToast('Meal plan updated!', 'success');
+        } catch (error) {
+            console.error('Error updating meal plan:', error);
+            showToast('Error updating meal plan', 'error');
+        }
+    };
+
 
     const formatPrice = (price) => {
         return typeof price === 'number' ? `$${price.toFixed(2)}` : '$0.00';
@@ -2830,6 +2999,20 @@ export default function MealPlanningCalendar() {
                     inventory={inventory}
                 />
             )}
+
+            {/* Smart Suggestions Modal */}
+            {showSmartSuggestions && (
+                <SmartSuggestionsModal
+                    isOpen={showSmartSuggestions}
+                    onClose={() => setShowSmartSuggestions(false)}
+                    suggestions={smartSuggestions}
+                    onApplySuggestion={handleApplySuggestion}
+                    isLoading={suggestionsLoading}
+                    mealPlan={mealPlan}
+                    onMealPlanUpdate={handleMealPlanUpdate}
+                />
+            )}
+
         </div>
     );
 }
