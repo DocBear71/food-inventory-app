@@ -2941,6 +2941,34 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
+            {/* Meal Completion Modal */}
+            {showMealCompletion && selectedMealForCompletion && (
+                <MealCompletionModal
+                    isOpen={showMealCompletion}
+                    onClose={() => {
+                        setShowMealCompletion(false);
+                        setSelectedMealForCompletion(null);
+                    }}
+                    onComplete={handleMealCompletion}
+                    meal={selectedMealForCompletion.meal}
+                    selectedSlot={selectedMealForCompletion}
+                    inventory={inventory}
+                />
+            )}
+
+            {/* Smart Suggestions Modal */}
+            {showSmartSuggestions && (
+                <SmartSuggestionsModal
+                    isOpen={showSmartSuggestions}
+                    onClose={() => setShowSmartSuggestions(false)}
+                    suggestions={smartSuggestions}
+                    onApplySuggestion={handleApplySuggestion}
+                    isLoading={suggestionsLoading}
+                    mealPlan={mealPlan}
+                    onMealPlanUpdate={handleMealPlanUpdate}
+                />
+            )}
+
             {/* Simple Meal Builder Modal - Desktop */}
             {showSimpleMealBuilder && (
                 <SimpleMealBuilder
@@ -2985,33 +3013,7 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            {/* Meal Completion Modal */}
-            {showMealCompletion && selectedMealForCompletion && (
-                <MealCompletionModal
-                    isOpen={showMealCompletion}
-                    onClose={() => {
-                        setShowMealCompletion(false);
-                        setSelectedMealForCompletion(null);
-                    }}
-                    onComplete={handleMealCompletion}
-                    meal={selectedMealForCompletion.meal}
-                    selectedSlot={selectedMealForCompletion}
-                    inventory={inventory}
-                />
-            )}
 
-            {/* Smart Suggestions Modal */}
-            {showSmartSuggestions && (
-                <SmartSuggestionsModal
-                    isOpen={showSmartSuggestions}
-                    onClose={() => setShowSmartSuggestions(false)}
-                    suggestions={smartSuggestions}
-                    onApplySuggestion={handleApplySuggestion}
-                    isLoading={suggestionsLoading}
-                    mealPlan={mealPlan}
-                    onMealPlanUpdate={handleMealPlanUpdate}
-                />
-            )}
 
         </div>
     );

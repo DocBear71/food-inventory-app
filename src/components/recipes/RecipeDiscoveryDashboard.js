@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/RecipeDiscoveryDashboard.js v1 - Recipe discovery and collections
+// file: /src/components/recipes/RecipeDiscoveryDashboard.js v2 - Fixed mobile responsiveness
 
 import React, { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -10,7 +10,9 @@ import { StarRating } from '@/components/reviews/RecipeRating';
 export default function RecipeDiscoveryDashboard({
                                                      recipes = [],
                                                      onRecipeSelect = null,
-                                                     showCollections = true
+                                                     showCollections = true,
+                                                     isMobile = false,
+                                                     compactMode = false
                                                  }) {
     const [activeCollection, setActiveCollection] = useState('quickMeals');
     const [collections, setCollections] = useState({});
@@ -43,7 +45,7 @@ export default function RecipeDiscoveryDashboard({
         setLoading(false);
     };
 
-    // Collection generation methods (simplified versions of the search engine methods)
+    // Collection generation methods (same as before)
     const getQuickMeals = (recipes) => {
         return recipes
             .filter(recipe => {
@@ -88,7 +90,6 @@ export default function RecipeDiscoveryDashboard({
     const getHealthyRecipes = (recipes) => {
         return recipes
             .filter(recipe => {
-                // Look for healthy keywords or nutrition data
                 const text = `${recipe.title} ${recipe.description} ${(recipe.tags || []).join(' ')}`.toLowerCase();
                 const healthyKeywords = ['healthy', 'light', 'lean', 'fresh', 'salad', 'grilled'];
 
@@ -128,36 +129,43 @@ export default function RecipeDiscoveryDashboard({
     const collectionConfig = {
         quickMeals: {
             name: '⚡ Quick Meals',
+            shortName: '⚡ Quick',
             description: '30 minutes or less',
             color: 'bg-green-100 text-green-800 border-green-200'
         },
         highlyRated: {
             name: '⭐ Highly Rated',
+            shortName: '⭐ Rated',
             description: '4+ stars with reviews',
             color: 'bg-yellow-100 text-yellow-800 border-yellow-200'
         },
         recentlyAdded: {
             name: '🆕 Recently Added',
+            shortName: '🆕 New',
             description: 'Latest recipe additions',
             color: 'bg-blue-100 text-blue-800 border-blue-200'
         },
         comfortFood: {
             name: '🏠 Comfort Food',
+            shortName: '🏠 Comfort',
             description: 'Hearty and satisfying',
             color: 'bg-orange-100 text-orange-800 border-orange-200'
         },
         healthy: {
             name: '🥗 Healthy Options',
+            shortName: '🥗 Healthy',
             description: 'Light and nutritious',
             color: 'bg-emerald-100 text-emerald-800 border-emerald-200'
         },
         beginner: {
             name: '👨‍🍳 Beginner Friendly',
+            shortName: '👨‍🍳 Easy',
             description: 'Easy recipes to start with',
             color: 'bg-purple-100 text-purple-800 border-purple-200'
         },
         trending: {
             name: '🔥 Trending',
+            shortName: '🔥 Hot',
             description: 'Popular recipes right now',
             color: 'bg-red-100 text-red-800 border-red-200'
         }
@@ -173,33 +181,63 @@ export default function RecipeDiscoveryDashboard({
 
     if (!showCollections) return null;
 
-    return (
-        <div className="space-y-6">
-            {/* Collection Tabs */}
-            <div className="flex overflow-x-auto gap-2 pb-2">
-                {Object.entries(collectionConfig).map(([key, config]) => {
-                    const count = collections[key]?.length || 0;
-                    if (count === 0) return null;
+    // Get collections with recipes
+    const availableCollections = Object.entries(collectionConfig).filter(([key]) =>
+        collections[key]?.length > 0
+    );
 
-                    return (
-                        <TouchEnhancedButton
-                            key={key}
-                            onClick={() => setActiveCollection(key)}
-                            className={`flex-shrink-0 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                                activeCollection === key
-                                    ? config.color
-                                    : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
-                            }`}
-                        >
-                            <div className="flex flex-col items-center">
-                                <span>{config.name}</span>
-                                <span className="text-xs opacity-75">
-                                    {count} recipe{count !== 1 ? 's' : ''}
-                                </span>
-                            </div>
-                        </TouchEnhancedButton>
-                    );
-                })}
+    return (
+        <div className="space-y-4 w-full overflow-hidden">
+            {/* Collection Tabs - Mobile Responsive */}
+            <div className="w-full">
+                {/* Mobile: Dropdown */}
+                <div className="block md:hidden">
+                    <label htmlFor="collection-select" className="block text-sm font-medium text-gray-700 mb-2">
+                        Browse Collections
+                    </label>
+                    <select
+                        id="collection-select"
+                        value={activeCollection}
+                        onChange={(e) => setActiveCollection(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-md bg-white text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                    >
+                        {availableCollections.map(([key, config]) => {
+                            const count = collections[key]?.length || 0;
+                            return (
+                                <option key={key} value={key}>
+                                    {config.name} ({count} recipe{count !== 1 ? 's' : ''})
+                                </option>
+                            );
+                        })}
+                    </select>
+                </div>
+
+                {/* Desktop: Horizontal Tabs */}
+                <div className="hidden md:block">
+                    <div className="flex flex-wrap gap-2">
+                        {availableCollections.map(([key, config]) => {
+                            const count = collections[key]?.length || 0;
+                            return (
+                                <TouchEnhancedButton
+                                    key={key}
+                                    onClick={() => setActiveCollection(key)}
+                                    className={`px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                                        activeCollection === key
+                                            ? config.color
+                                            : 'bg-gray-100 text-gray-700 border-gray-200 hover:bg-gray-200'
+                                    }`}
+                                >
+                                    <div className="flex flex-col items-center">
+                                        <span>{config.name}</span>
+                                        <span className="text-xs opacity-75">
+                                            {count} recipe{count !== 1 ? 's' : ''}
+                                        </span>
+                                    </div>
+                                </TouchEnhancedButton>
+                            );
+                        })}
+                    </div>
+                </div>
             </div>
 
             {/* Collection Content */}
@@ -209,7 +247,7 @@ export default function RecipeDiscoveryDashboard({
                     <p className="mt-2 text-sm text-gray-600">Discovering recipes...</p>
                 </div>
             ) : (
-                <div>
+                <div className="w-full">
                     {/* Collection Header */}
                     {collections[activeCollection] && (
                         <div className="mb-4">
@@ -222,11 +260,15 @@ export default function RecipeDiscoveryDashboard({
                         </div>
                     )}
 
-                    {/* Recipe Grid */}
+                    {/* Recipe Grid - Responsive */}
                     {collections[activeCollection]?.length > 0 ? (
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                        <div className={`grid gap-4 w-full ${
+                            compactMode || isMobile
+                                ? 'grid-cols-1 sm:grid-cols-2'
+                                : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4'
+                        }`}>
                             {collections[activeCollection].map((recipe) => (
-                                <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
+                                <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow w-full">
                                     <div className="p-4">
                                         {/* Recipe Title */}
                                         <div className="mb-3">
@@ -252,12 +294,12 @@ export default function RecipeDiscoveryDashboard({
                                             )}
                                         </div>
 
-                                        {/* Recipe Info */}
+                                        {/* Recipe Info - Responsive Layout */}
                                         <div className="flex items-center justify-between text-xs text-gray-500 mb-3">
-                                            <div className="flex items-center space-x-3">
+                                            <div className="flex items-center space-x-2">
                                                 {recipe.servings && (
                                                     <span className="flex items-center space-x-1">
-                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                                                         </svg>
                                                         <span>{recipe.servings}</span>
@@ -265,15 +307,15 @@ export default function RecipeDiscoveryDashboard({
                                                 )}
                                                 {formatCookTime((recipe.cookTime || 0) + (recipe.prepTime || 0)) && (
                                                     <span className="flex items-center space-x-1">
-                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <svg className="w-3 h-3 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                                         </svg>
-                                                        <span>{formatCookTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}</span>
+                                                        <span className="truncate">{formatCookTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}</span>
                                                     </span>
                                                 )}
                                             </div>
                                             {recipe.difficulty && (
-                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium flex-shrink-0 ${
                                                     recipe.difficulty === 'easy' ? 'bg-green-100 text-green-800' :
                                                         recipe.difficulty === 'medium' ? 'bg-yellow-100 text-yellow-800' :
                                                             'bg-red-100 text-red-800'
@@ -283,20 +325,21 @@ export default function RecipeDiscoveryDashboard({
                                             )}
                                         </div>
 
-                                        {/* Tags */}
+                                        {/* Tags - Mobile Optimized */}
                                         {Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
-                                            <div className="flex flex-wrap gap-1">
-                                                {recipe.tags.slice(0, 2).map((tag, index) => (
+                                            <div className="flex flex-wrap gap-1 mb-2">
+                                                {recipe.tags.slice(0, isMobile || compactMode ? 1 : 2).map((tag, index) => (
                                                     <span
                                                         key={index}
-                                                        className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                                                        className="inline-flex items-center px-2 py-0.5 rounded-md text-xs font-medium bg-blue-100 text-blue-800 truncate max-w-20"
+                                                        title={tag}
                                                     >
                                                         {tag}
                                                     </span>
                                                 ))}
-                                                {recipe.tags.length > 2 && (
-                                                    <span className="text-xs text-gray-500">
-                                                        +{recipe.tags.length - 2}
+                                                {recipe.tags.length > (isMobile || compactMode ? 1 : 2) && (
+                                                    <span className="text-xs text-gray-500 flex-shrink-0">
+                                                        +{recipe.tags.length - (isMobile || compactMode ? 1 : 2)}
                                                     </span>
                                                 )}
                                             </div>
