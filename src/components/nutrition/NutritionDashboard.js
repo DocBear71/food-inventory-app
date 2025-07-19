@@ -4,6 +4,10 @@
 
 import React, { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import { NutritionOverview } from '@/components/integrations/NutritionOverview';
+import { InventoryNutritionSummary } from "@/components/integrations/InventoryNutritionSummary";
+import {MealPlanNutritionSummary} from "@/components/integrations/MealPlanNutritionSummary.js";
+import {NutritionGoalsTracking} from "@/components/integrations/NutritionGoalsTracking.js";
 
 export default function NutritionDashboard({ userId }) {
     const [dashboardData, setDashboardData] = useState(null);
@@ -99,9 +103,3 @@ export default function NutritionDashboard({ userId }) {
         </div>
     );
 }
-
-// Subcomponents for each tab would go here...
-// (NutritionOverview, InventoryNutritionSummary, etc.)
-
-// Export the integrated system
-export { IntegratedNutritionSystem };
