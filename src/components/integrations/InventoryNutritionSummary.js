@@ -550,70 +550,103 @@ export function InventoryNutritionSummary({ data, loading, onAnalyze }) {
                             </div>
                         )}
 
-                        {/* Pagination */}
+                        {/* ✅ FIXED: Mobile-Friendly Pagination */}
                         {totalPages > 1 && (
-                            <div className="flex justify-between items-center pt-4 border-t border-gray-200">
-                                <div className="flex items-center space-x-2">
-                                    <button
-                                        onClick={() => setCurrentPage(1)}
-                                        disabled={currentPage === 1}
-                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
-                                    >
-                                        First
-                                    </button>
+                            <div className="pt-4 border-t border-gray-200">
+                                {/* Mobile Pagination (Small Screens) */}
+                                <div className="flex sm:hidden justify-between items-center">
                                     <button
                                         onClick={() => setCurrentPage(currentPage - 1)}
                                         disabled={currentPage === 1}
-                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                        className="px-3 py-2 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50 flex items-center"
                                     >
-                                        Previous
+                                        ← Prev
                                     </button>
-                                </div>
 
-                                <div className="flex items-center space-x-1">
-                                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
-                                        let page;
-                                        if (totalPages <= 5) {
-                                            page = i + 1;
-                                        } else if (currentPage <= 3) {
-                                            page = i + 1;
-                                        } else if (currentPage >= totalPages - 2) {
-                                            page = totalPages - 4 + i;
-                                        } else {
-                                            page = currentPage - 2 + i;
-                                        }
+                                    <span className="text-sm text-gray-600 px-2">
+                                        {currentPage} of {totalPages}
+                                    </span>
 
-                                        return (
-                                            <button
-                                                key={page}
-                                                onClick={() => setCurrentPage(page)}
-                                                className={`px-3 py-1 text-sm border rounded ${
-                                                    currentPage === page
-                                                        ? 'bg-blue-600 text-white border-blue-600'
-                                                        : 'border-gray-300 hover:bg-gray-50'
-                                                }`}
-                                            >
-                                                {page}
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-
-                                <div className="flex items-center space-x-2">
                                     <button
                                         onClick={() => setCurrentPage(currentPage + 1)}
                                         disabled={currentPage === totalPages}
-                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                        className="px-3 py-2 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50 flex items-center"
                                     >
-                                        Next
+                                        Next →
                                     </button>
-                                    <button
-                                        onClick={() => setCurrentPage(totalPages)}
-                                        disabled={currentPage === totalPages}
-                                        className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
-                                    >
-                                        Last
-                                    </button>
+                                </div>
+
+                                {/* Desktop Pagination (Medium+ Screens) */}
+                                <div className="hidden sm:flex justify-between items-center">
+                                    <div className="flex items-center space-x-2">
+                                        <button
+                                            onClick={() => setCurrentPage(1)}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                        >
+                                            First
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentPage(currentPage - 1)}
+                                            disabled={currentPage === 1}
+                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                        >
+                                            Previous
+                                        </button>
+                                    </div>
+
+                                    <div className="flex items-center space-x-1">
+                                        {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                            let page;
+                                            if (totalPages <= 5) {
+                                                page = i + 1;
+                                            } else if (currentPage <= 3) {
+                                                page = i + 1;
+                                            } else if (currentPage >= totalPages - 2) {
+                                                page = totalPages - 4 + i;
+                                            } else {
+                                                page = currentPage - 2 + i;
+                                            }
+
+                                            return (
+                                                <button
+                                                    key={page}
+                                                    onClick={() => setCurrentPage(page)}
+                                                    className={`px-3 py-1 text-sm border rounded ${
+                                                        currentPage === page
+                                                            ? 'bg-blue-600 text-white border-blue-600'
+                                                            : 'border-gray-300 hover:bg-gray-50'
+                                                    }`}
+                                                >
+                                                    {page}
+                                                </button>
+                                            );
+                                        })}
+                                    </div>
+
+                                    <div className="flex items-center space-x-2">
+                                        <button
+                                            onClick={() => setCurrentPage(currentPage + 1)}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                        >
+                                            Next
+                                        </button>
+                                        <button
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                            className="px-3 py-1 text-sm border border-gray-300 rounded disabled:opacity-50 hover:bg-gray-50"
+                                        >
+                                            Last
+                                        </button>
+                                    </div>
+                                </div>
+
+                                {/* Page Info for Mobile */}
+                                <div className="mt-2 sm:hidden text-center">
+                                    <span className="text-xs text-gray-500">
+                                        Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredAndSortedItems.length)} of {filteredAndSortedItems.length} items
+                                    </span>
                                 </div>
                             </div>
                         )}

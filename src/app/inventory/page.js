@@ -2489,29 +2489,12 @@ function InventoryContent() {
 
                                     return (
                                         <>
-                                            {/* ✅ NEW: Pagination Controls - Top */}
+                                            {/* ✅ FIXED: Mobile-Friendly Pagination Controls - Top */}
                                             {getTotalPages(filteredInventory.length) > 1 && (
-                                                <div className="flex items-center justify-between mb-6 pb-4 border-b border-gray-200">
-                                                    <div className="text-sm text-gray-600">
-                                                        Showing {((currentPage - 1) * itemsPerPage) + 1} to{' '}
-                                                        {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of{' '}
-                                                        {filteredInventory.length} items
-                                                    </div>
-
-                                                    <div className="flex items-center space-x-2">
-                                                        <TouchEnhancedButton
-                                                            onClick={() => setCurrentPage(1)}
-                                                            disabled={currentPage === 1}
-                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
-                                                                currentPage === 1
-                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                                                            }`}
-                                                        >
-                                                            ⏮️ First
-                                                        </TouchEnhancedButton>
-
-                                                        <TouchEnhancedButton
+                                                <div className="mb-6 pb-4 border-b border-gray-200">
+                                                    {/* Mobile Pagination (Small Screens) */}
+                                                    <div className="flex sm:hidden justify-between items-center mb-3">
+                                                        <button
                                                             onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
                                                             disabled={currentPage === 1}
                                                             className={`px-3 py-2 text-sm font-medium rounded-md ${
@@ -2520,14 +2503,14 @@ function InventoryContent() {
                                                                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                                             }`}
                                                         >
-                                                            ⬅️ Previous
-                                                        </TouchEnhancedButton>
+                                                            ← Prev
+                                                        </button>
 
-                                                        <span className="px-4 py-2 text-sm text-gray-700 bg-indigo-50 border border-indigo-200 rounded-md">
+                                                        <span className="text-sm text-gray-700 px-2">
                                                             Page {currentPage} of {getTotalPages(filteredInventory.length)}
                                                         </span>
 
-                                                        <TouchEnhancedButton
+                                                        <button
                                                             onClick={() => setCurrentPage(prev => Math.min(getTotalPages(filteredInventory.length), prev + 1))}
                                                             disabled={currentPage === getTotalPages(filteredInventory.length)}
                                                             className={`px-3 py-2 text-sm font-medium rounded-md ${
@@ -2536,11 +2519,107 @@ function InventoryContent() {
                                                                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                                             }`}
                                                         >
-                                                            Next ➡️
-                                                        </TouchEnhancedButton>
+                                                            Next →
+                                                        </button>
+                                                    </div>
 
-                                                        <TouchEnhancedButton
-                                                            onClick={() => setCurrentPage(getTotalPages(filteredInventory.length))}
+                                                    {/* Desktop Pagination (Medium+ Screens) */}
+                                                    <div className="hidden sm:flex items-center justify-between">
+                                                        <div className="text-sm text-gray-600">
+                                                            Showing {((currentPage - 1) * itemsPerPage) + 1} to{' '}
+                                                            {Math.min(currentPage * itemsPerPage, filteredInventory.length)} of{' '}
+                                                            {filteredInventory.length} items
+                                                        </div>
+
+                                                        <div className="flex items-center space-x-2">
+                                                            <button
+                                                                onClick={() => setCurrentPage(1)}
+                                                                disabled={currentPage === 1}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === 1
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                ⏮️ First
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                                disabled={currentPage === 1}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === 1
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                ⬅️ Previous
+                                                            </button>
+
+                                                            <span className="px-4 py-2 text-sm text-gray-700 bg-indigo-50 border border-indigo-200 rounded-md">
+                                                                Page {currentPage} of {getTotalPages(filteredInventory.length)}
+                                                            </span>
+
+                                                            <button
+                                                                onClick={() => setCurrentPage(prev => Math.min(getTotalPages(filteredInventory.length), prev + 1))}
+                                                                disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === getTotalPages(filteredInventory.length)
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                Next ➡️
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => setCurrentPage(getTotalPages(filteredInventory.length))}
+                                                                disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === getTotalPages(filteredInventory.length)
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                Last ⏭️
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Mobile Items Info */}
+                                                    <div className="mt-2 sm:hidden text-center">
+                                                        <span className="text-xs text-gray-500">
+                                                            Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} items
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            )}
+
+                                            {/* ... Inventory Grid ... */}
+
+                                            {/* ✅ FIXED: Mobile-Friendly Pagination Controls - Bottom */}
+                                            {getTotalPages(filteredInventory.length) > 1 && (
+                                                <div className="mt-8 pt-6 border-t border-gray-200">
+                                                    {/* Mobile Pagination (Small Screens) */}
+                                                    <div className="flex sm:hidden justify-between items-center">
+                                                        <button
+                                                            onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                            disabled={currentPage === 1}
+                                                            className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                currentPage === 1
+                                                                    ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                    : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                            }`}
+                                                        >
+                                                            ← Prev
+                                                        </button>
+
+                                                        <span className="text-sm text-gray-700 px-2">
+                                                            Page {currentPage} of {getTotalPages(filteredInventory.length)}
+                                                        </span>
+
+                                                        <button
+                                                            onClick={() => setCurrentPage(prev => Math.min(getTotalPages(filteredInventory.length), prev + 1))}
                                                             disabled={currentPage === getTotalPages(filteredInventory.length)}
                                                             className={`px-3 py-2 text-sm font-medium rounded-md ${
                                                                 currentPage === getTotalPages(filteredInventory.length)
@@ -2548,8 +2627,72 @@ function InventoryContent() {
                                                                     : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
                                                             }`}
                                                         >
-                                                            Last ⏭️
-                                                        </TouchEnhancedButton>
+                                                            Next →
+                                                        </button>
+                                                    </div>
+
+                                                    {/* Desktop Pagination (Medium+ Screens) */}
+                                                    <div className="hidden sm:flex items-center justify-center">
+                                                        <div className="flex items-center space-x-2">
+                                                            <button
+                                                                onClick={() => setCurrentPage(1)}
+                                                                disabled={currentPage === 1}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === 1
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                ⏮️ First
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                                                                disabled={currentPage === 1}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === 1
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                ⬅️ Previous
+                                                            </button>
+
+                                                            <span className="px-4 py-2 text-sm text-gray-700 bg-indigo-50 border border-indigo-200 rounded-md">
+                                                                Page {currentPage} of {getTotalPages(filteredInventory.length)}
+                                                            </span>
+
+                                                            <button
+                                                                onClick={() => setCurrentPage(prev => Math.min(getTotalPages(filteredInventory.length), prev + 1))}
+                                                                disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === getTotalPages(filteredInventory.length)
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                Next ➡️
+                                                            </button>
+
+                                                            <button
+                                                                onClick={() => setCurrentPage(getTotalPages(filteredInventory.length))}
+                                                                disabled={currentPage === getTotalPages(filteredInventory.length)}
+                                                                className={`px-3 py-2 text-sm font-medium rounded-md ${
+                                                                    currentPage === getTotalPages(filteredInventory.length)
+                                                                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                                }`}
+                                                            >
+                                                                Last ⏭️
+                                                            </button>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Mobile Items Info */}
+                                                    <div className="mt-2 sm:hidden text-center">
+                                                        <span className="text-xs text-gray-500">
+                                                            Showing {((currentPage - 1) * itemsPerPage) + 1}-{Math.min(currentPage * itemsPerPage, filteredInventory.length)} of {filteredInventory.length} items
+                                                        </span>
                                                     </div>
                                                 </div>
                                             )}
