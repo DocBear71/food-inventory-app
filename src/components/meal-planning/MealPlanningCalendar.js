@@ -208,18 +208,28 @@ export default function MealPlanningCalendar() {
     };
 
     const generateSmartSuggestions = async () => {
+        console.log('🔍 generateSmartSuggestions called');
+
         if (!mealPlan) {
+            console.log('❌ No meal plan found');
             showToast('No meal plan found', 'error');
             return;
         }
 
+        console.log('🎯 Starting smart suggestions generation...');
+
         // Start loading state immediately
         setSuggestionsLoading(true);
+        console.log('⏳ Set suggestionsLoading to true');
+
         setShowSmartSuggestions(true); // Show modal first
+        console.log('🔓 Set showSmartSuggestions to true');
+
         setSmartSuggestions([]); // Clear previous suggestions
+        console.log('🧹 Cleared previous suggestions');
 
         try {
-            console.log('Generating smart suggestions with:', {
+            console.log('📡 Making API call with:', {
                 mealPlanId: mealPlan._id,
                 inventoryCount: inventory.length,
                 dealCount: priceIntelligence.dealOpportunities.length,
@@ -240,18 +250,19 @@ export default function MealPlanningCalendar() {
                 }
             });
 
-            console.log('API Response status:', response.status);
+            console.log('📨 API Response status:', response.status);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('API Error Response:', errorText);
+                console.error('❌ API Error Response:', errorText);
                 throw new Error(`API Error: ${response.status} - ${errorText}`);
             }
 
             const data = await response.json();
-            console.log('Smart suggestions response:', data);
+            console.log('✅ Smart suggestions response:', data);
 
             if (data.success) {
+                console.log(`🎯 Setting ${data.suggestions?.length || 0} suggestions`);
                 setSmartSuggestions(data.suggestions || []);
 
                 if (data.suggestions && data.suggestions.length > 0) {
@@ -268,7 +279,7 @@ export default function MealPlanningCalendar() {
                 throw new Error(data.error || 'Failed to generate suggestions');
             }
         } catch (error) {
-            console.error('Error generating smart suggestions:', error);
+            console.error('💥 Error generating smart suggestions:', error);
 
             // Show error in modal instead of closing it
             setSmartSuggestions([]);
@@ -276,6 +287,7 @@ export default function MealPlanningCalendar() {
 
             // Don't close the modal - let user see the error state and close manually
         } finally {
+            console.log('🏁 Setting suggestionsLoading to false');
             setSuggestionsLoading(false);
             // Modal stays open regardless of success/failure
         }
@@ -1635,6 +1647,18 @@ export default function MealPlanningCalendar() {
                                     💡 Money-Saving Ideas
                                 </TouchEnhancedButton>
                             )}
+
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    console.log('🧪 Testing modal manually');
+                                    setShowSmartSuggestions(true);
+                                    setSmartSuggestions([]);
+                                    setSuggestionsLoading(false);
+                                }}
+                                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg"
+                            >
+                                Test Modal
+                            </TouchEnhancedButton>
 
                             {mealPlan && (
                                 <MealPrepButton
