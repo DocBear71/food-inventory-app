@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { apiGet } from '@/lib/api-config';
+import {apiGet, apiPost} from '@/lib/api-config';
 
 // Import your nutrition dashboard components
 import { NutritionOverview } from '@/components/integrations/NutritionOverview';
@@ -39,6 +39,16 @@ export default function NutritionDashboard() {
         try {
             setLoading(true);
 
+            if (typeof apiGet !== 'function') {
+                console.error('apiGet is not a function, using fetch instead');
+                const response = await fetch('/api/integrations/nutrition-integration');
+                const data = await response.json();
+                if (data.success) {
+                    setDashboardData(data.data);
+                }
+                return;
+            }
+
             // Fetch nutrition dashboard data
             const response = await apiGet('/api/integrations/nutrition-integration');
             const data = await response.json();
@@ -60,10 +70,8 @@ export default function NutritionDashboard() {
             setLoading(true);
 
             // Trigger nutrition analysis
-            const response = await fetch('/api/integrations/nutrition-analysis', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ analysisLevel: 'comprehensive' })
+            const response = await apiPost('/api/integrations/nutrition-analysis', {
+               analysisLevel: 'comprehensive'
             });
 
             if (response.ok) {
