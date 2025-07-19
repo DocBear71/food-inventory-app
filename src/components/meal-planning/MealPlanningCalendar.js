@@ -2151,6 +2151,19 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
+                {/* Smart Suggestions Modal */}
+                {showSmartSuggestions && (
+                    <SmartSuggestionsModal
+                        isOpen={showSmartSuggestions}
+                        onClose={() => setShowSmartSuggestions(false)}
+                        suggestions={smartSuggestions}
+                        onApplySuggestion={handleApplySuggestion}
+                        isLoading={suggestionsLoading}
+                        mealPlan={mealPlan}
+                        onMealPlanUpdate={handleMealPlanUpdate}
+                    />
+                )}
+
                 {/* Simple Meal Builder Modal */}
                 {showSimpleMealBuilder && (
                     <SimpleMealBuilder
