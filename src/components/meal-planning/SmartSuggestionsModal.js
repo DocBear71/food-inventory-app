@@ -147,22 +147,22 @@ export default function SmartSuggestionsModal({
     const highPrioritySuggestions = suggestions.filter(s => s.urgency === 'high').length;
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2 sm:p-4">
+            <div className="bg-white rounded-lg w-full max-w-4xl max-h-[95vh] sm:max-h-[90vh] overflow-hidden flex flex-col mx-2 sm:mx-0">
                 {/* Header */}
-                <div className="p-6 border-b border-gray-200 flex-shrink-0">
-                    <div className="flex items-center justify-between">
-                        <div>
-                            <h2 className="text-2xl font-bold text-gray-900 flex items-center gap-2">
+                <div className="p-4 sm:p-6 border-b border-gray-200 flex-shrink-0">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                            <h2 className="text-xl sm:text-2xl font-bold text-gray-900 flex items-center gap-2">
                                 💡 Smart Money-Saving Ideas
                             </h2>
-                            <p className="text-gray-600 mt-1">
+                            <p className="text-gray-600 mt-1 text-sm sm:text-base">
                                 AI-powered suggestions to save money and reduce waste
                             </p>
                         </div>
                         <TouchEnhancedButton
                             onClick={onClose}
-                            className="text-gray-400 hover:text-gray-600 text-2xl leading-none p-2"
+                            className="text-gray-400 hover:text-gray-600 text-xl sm:text-2xl leading-none p-1 sm:p-2 flex-shrink-0"
                             title="Close suggestions"
                         >
                             ×
@@ -171,15 +171,15 @@ export default function SmartSuggestionsModal({
 
                     {/* Summary Stats */}
                     {!isLoading && !error && suggestions.length > 0 && (
-                        <div className="mt-4 flex flex-wrap gap-3 text-sm">
-                            <div className="bg-green-100 text-green-800 px-3 py-2 rounded-full font-medium">
-                                💰 Total Potential Savings: {formatPrice(totalSavings)}
+                        <div className="mt-4 flex flex-wrap gap-2 sm:gap-3 text-xs sm:text-sm">
+                            <div className="bg-green-100 text-green-800 px-2 sm:px-3 py-1 sm:py-2 rounded-full font-medium">
+                                💰 Total Savings: {formatPrice(totalSavings)}
                             </div>
-                            <div className="bg-blue-100 text-blue-800 px-3 py-2 rounded-full font-medium">
-                                📊 {suggestions.length} Suggestions Found
+                            <div className="bg-blue-100 text-blue-800 px-2 sm:px-3 py-1 sm:py-2 rounded-full font-medium">
+                                📊 {suggestions.length} Suggestions
                             </div>
                             {highPrioritySuggestions > 0 && (
-                                <div className="bg-red-100 text-red-800 px-3 py-2 rounded-full font-medium">
+                                <div className="bg-red-100 text-red-800 px-2 sm:px-3 py-1 sm:py-2 rounded-full font-medium">
                                     🚨 {highPrioritySuggestions} High Priority
                                 </div>
                             )}
@@ -188,7 +188,7 @@ export default function SmartSuggestionsModal({
                 </div>
 
                 {/* Content */}
-                <div className="flex-1 overflow-y-auto p-6">
+                <div className="flex-1 overflow-y-auto p-4 sm:p-6">
                     {isLoading ? (
                         <div className="text-center py-12">
                             <div className="inline-block animate-spin rounded-full h-12 w-12 border-b-4 border-indigo-600 mb-4"></div>
@@ -232,26 +232,32 @@ export default function SmartSuggestionsModal({
                                     key={index}
                                     className="border border-gray-200 rounded-lg p-5 hover:shadow-lg transition-all duration-200 bg-white"
                                 >
-                                    {/* Suggestion Header */}
-                                    <div className="flex items-start justify-between mb-4">
-                                        <div className="flex items-center gap-3 flex-1">
-                                            <span className="text-3xl">{getSuggestionIcon(suggestion.type)}</span>
-                                            <div className="flex-1">
-                                                <h3 className="font-semibold text-gray-900 text-lg">{suggestion.title}</h3>
-                                                <p className="text-gray-600 mt-1">{suggestion.description}</p>
-                                            </div>
-                                        </div>
-                                        <div className="flex items-center gap-3 flex-shrink-0">
-                                            {suggestion.urgency && (
-                                                <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getUrgencyColor(suggestion.urgency)}`}>
-                                                    {suggestion.urgency.charAt(0).toUpperCase() + suggestion.urgency.slice(1)} Priority
-                                                </span>
-                                            )}
-                                            {suggestion.savings && (
-                                                <div className="text-green-600 font-bold text-lg">
-                                                    Save {formatPrice(suggestion.savings)}
+                                    {/* Suggestion Header - Mobile Responsive */}
+                                    <div className="mb-4">
+                                        {/* Mobile: Stack vertically, Desktop: Side by side */}
+                                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
+                                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                                                <span className="text-2xl sm:text-3xl flex-shrink-0">{getSuggestionIcon(suggestion.type)}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <h3 className="font-semibold text-gray-900 text-base sm:text-lg leading-tight">{suggestion.title}</h3>
+                                                    <p className="text-gray-600 mt-1 text-sm sm:text-base">{suggestion.description}</p>
                                                 </div>
-                                            )}
+                                            </div>
+
+                                            {/* Priority and Savings - Mobile: Horizontal, Desktop: Vertical */}
+                                            <div className="flex flex-row sm:flex-col items-start sm:items-end gap-2 sm:gap-3 flex-shrink-0">
+                                                {suggestion.urgency && (
+                                                    <span className={`px-2 sm:px-3 py-1 rounded-full text-xs font-medium border ${getUrgencyColor(suggestion.urgency)}`}>
+                                                        <span className="sm:hidden">{suggestion.urgency.charAt(0).toUpperCase()}</span>
+                                                        <span className="hidden sm:inline">{suggestion.urgency.charAt(0).toUpperCase() + suggestion.urgency.slice(1)} Priority</span>
+                                                    </span>
+                                                )}
+                                                {suggestion.savings && (
+                                                    <div className="text-green-600 font-bold text-base sm:text-lg whitespace-nowrap">
+                                                        Save {formatPrice(suggestion.savings)}
+                                                    </div>
+                                                )}
+                                            </div>
                                         </div>
                                     </div>
 
@@ -359,33 +365,43 @@ export default function SmartSuggestionsModal({
                                         </div>
                                     )}
 
-                                    {/* Action Buttons */}
-                                    <div className="flex gap-3 mt-5 pt-4 border-t border-gray-100">
+                                    {/* Action Buttons - Mobile Responsive */}
+                                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-5 pt-4 border-t border-gray-100">
                                         <TouchEnhancedButton
                                             onClick={() => handleApplySuggestion(suggestion, index)}
                                             disabled={applyingIndex === index}
-                                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 flex-1 justify-center"
+                                            className="bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white px-4 sm:px-6 py-2 rounded-lg text-sm font-medium transition-colors flex items-center gap-2 justify-center flex-1"
                                         >
                                             {applyingIndex === index ? (
                                                 <>
                                                     <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                                    Applying...
+                                                    <span className="hidden sm:inline">Applying...</span>
+                                                    <span className="sm:hidden">...</span>
                                                 </>
                                             ) : (
                                                 <>
-                                                    {suggestion.action === 'replace_meal' ? '🔄 Replace Meal' :
-                                                        suggestion.action === 'add_meal' ? '➕ Add to Plan' :
-                                                            suggestion.action === 'meal_prep' ? '🍲 Start Meal Prep' :
-                                                                '✨ Apply Suggestion'}
+                                                    <span className="hidden sm:inline">
+                                                        {suggestion.action === 'replace_meal' ? '🔄 Replace Meal' :
+                                                            suggestion.action === 'add_meal' ? '➕ Add to Plan' :
+                                                                suggestion.action === 'meal_prep' ? '🍲 Start Meal Prep' :
+                                                                    '✨ Apply Suggestion'}
+                                                    </span>
+                                                    <span className="sm:hidden">
+                                                        {suggestion.action === 'replace_meal' ? '🔄 Replace' :
+                                                            suggestion.action === 'add_meal' ? '➕ Add' :
+                                                                suggestion.action === 'meal_prep' ? '🍲 Prep' :
+                                                                    '✨ Apply'}
+                                                    </span>
                                                 </>
                                             )}
                                         </TouchEnhancedButton>
 
                                         <TouchEnhancedButton
                                             onClick={() => setSelectedSuggestion(selectedSuggestion === index ? null : index)}
-                                            className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                                            className="border border-gray-300 hover:bg-gray-50 text-gray-700 px-3 sm:px-4 py-2 rounded-lg text-sm font-medium transition-colors"
                                         >
-                                            {selectedSuggestion === index ? 'Less Info' : 'More Info'}
+                                            <span className="hidden sm:inline">{selectedSuggestion === index ? 'Less Info' : 'More Info'}</span>
+                                            <span className="sm:hidden">{selectedSuggestion === index ? 'Less' : 'More'}</span>
                                         </TouchEnhancedButton>
                                     </div>
 
