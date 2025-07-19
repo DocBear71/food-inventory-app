@@ -3,15 +3,15 @@
 
 import {useState, useEffect} from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
-import ShoppingListGenerator from './ShoppingListGenerator';
-import MealPrepButton from './MealPrepButton';
-import NutritionAnalysisButton from '../nutrition/NutritionAnalysisButton';
-import TemplateLibraryButton from './TemplateLibraryButton';
-import SimpleMealBuilder from './SimpleMealBuilder';
+import ShoppingListGenerator from '@/components/meal-planning/ShoppingListGenerator';
+import MealPrepButton from '@/components/meal-planning/MealPrepButton';
+import NutritionAnalysisButton from '@/components/nutrition/NutritionAnalysisButton';
+import TemplateLibraryButton from '@/components/meal-planning/TemplateLibraryButton';
+import SimpleMealBuilder from '@/components/meal-planning/SimpleMealBuilder';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import MealCompletionModal from './MealCompletionModal';
+import MealCompletionModal from '@/components/meal-planning/MealCompletionModal';
 import { apiGet, apiPost, apiPut } from '@/lib/api-config';
-import SmartSuggestionsModal from './SmartSuggestionsModal';
+import SmartSuggestionsModal from '@/components/meal-planning/SmartSuggestionsModal';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();
