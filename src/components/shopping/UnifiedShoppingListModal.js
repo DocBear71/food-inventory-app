@@ -1,5 +1,6 @@
 'use client';
-// file: /src/components/shopping/UnifiedShoppingListModal.js v4 - Enhanced with Category Reordering + Store Layout Templates
+
+// file: /src/components/shopping/UnifiedShoppingListModal.js v5 - Auto-applies store category orders
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -10,7 +11,6 @@ import {StoreLayoutUtils} from '@/lib/storeLayouts';
 import ShoppingListTotals from '@/components/shopping/ShoppingListTotals';
 import PrintOptionsModal from '@/components/shopping/PrintOptionsModal';
 import { ShoppingListTotalsCalculator } from '@/lib/shoppingListTotals';
-
 
 export default function UnifiedShoppingListModal({
                                                      isOpen,
@@ -30,7 +30,7 @@ export default function UnifiedShoppingListModal({
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
-    // 🆕 PHASE 1: Drag & Drop State (Items)
+    // Drag & Drop State (Items only)
     const [draggedItem, setDraggedItem] = useState(null);
     const [draggedCategory, setDraggedCategory] = useState(null);
     const [dragOverCategory, setDragOverCategory] = useState(null);
@@ -38,13 +38,7 @@ export default function UnifiedShoppingListModal({
     const [customOrder, setCustomOrder] = useState({});
     const [reorderMode, setReorderMode] = useState(false);
 
-    // 🆕 NEW: Category Drag & Drop State
-    const [categoryReorderMode, setCategoryReorderMode] = useState(false);
-    const [draggedCategoryName, setDraggedCategoryName] = useState(null);
-    const [dragOverCategoryName, setDragOverCategoryName] = useState(null);
-    const [customCategoryOrder, setCustomCategoryOrder] = useState([]);
-
-    // 🆕 PHASE 2: Store Layout State
+    // Store Layout State
     const [selectedStore, setSelectedStore] = useState('');
     const [storeLayoutMode, setStoreLayoutMode] = useState(false);
     const [currentStoreLayout, setCurrentStoreLayout] = useState(null);
@@ -58,12 +52,16 @@ export default function UnifiedShoppingListModal({
         currencySymbol: '$',
         currencyPosition: 'before',
         decimalPlaces: 2,
-        taxRate: 0.06, // Default Iowa tax rate
+        taxRate: 0.06,
         region: 'IA',
         budget: null
     });
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [totalsCalculator] = useState(() => new ShoppingListTotalsCalculator());
+
+    // 🆕 NEW: Store-specific category orders
+    const [storeCategoryOrders, setStoreCategoryOrders] = useState({});
+    const [appliedCategoryOrder, setAppliedCategoryOrder] = useState([]);
 
     // Reset state when modal opens/closes
     useEffect(() => {
@@ -76,27 +74,58 @@ export default function UnifiedShoppingListModal({
             setReorderMode(false);
             setStoreLayoutMode(false);
             setRouteMode(false);
-            setCategoryReorderMode(false); // NEW: Reset category reorder mode
             setDraggedItem(null);
             setDraggedCategory(null);
             setDragOverCategory(null);
             setDragOverIndex(null);
-            setDraggedCategoryName(null); // NEW: Reset category drag state
-            setDragOverCategoryName(null);
             setShowTotals(false);
         } else {
-            // Load saved preferences when modal opens
             loadCustomOrder();
-            loadCustomCategoryOrder(); // NEW: Load category order
             loadStorePreference();
             fetchStores();
             loadUserPreferences();
+            loadStoreCategoryOrders(); // 🆕 NEW: Load store category orders
         }
     }, [isOpen]);
 
+    // 🆕 NEW: Load store-specific category orders
+    const loadStoreCategoryOrders = () => {
+        try {
+            const saved = localStorage.getItem('store-category-orders');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setStoreCategoryOrders(parsed);
+                console.log('📂 Loaded store category orders:', parsed);
+
+                // Auto-apply if a store is already selected
+                if (selectedStore) {
+                    applyStoreCategoryOrder(selectedStore);
+                }
+            }
+        } catch (error) {
+            console.error('Error loading store category orders:', error);
+        }
+    };
+
+    // 🆕 NEW: Apply category order for specific store
+    const applyStoreCategoryOrder = (storeName) => {
+        const storeData = Object.values(storeCategoryOrders).find(
+            store => store.storeName === storeName
+        );
+
+        if (storeData && storeData.categories.length > 0) {
+            setAppliedCategoryOrder(storeData.categories);
+            console.log(`📂 Applied category order for ${storeName}:`, storeData.categories);
+        } else {
+            // Fall back to default store layout order
+            const layout = StoreLayoutUtils.getStoreLayout(storeName);
+            setAppliedCategoryOrder(layout.categoryOrder || []);
+            console.log(`📂 Using default layout order for ${storeName}`);
+        }
+    };
+
     const loadUserPreferences = () => {
         try {
-            // Try to load from user session first
             if (session?.user?.currencyPreferences) {
                 setUserPreferences(prev => ({
                     ...prev,
@@ -107,7 +136,6 @@ export default function UnifiedShoppingListModal({
                 }));
             }
 
-            // Load from localStorage as fallback
             const saved = localStorage.getItem('shopping-preferences');
             if (saved) {
                 const parsed = JSON.parse(saved);
@@ -138,7 +166,7 @@ export default function UnifiedShoppingListModal({
         saveUserPreferences({ taxRate });
     };
 
-    // 🆕 PHASE 1: Load/Save Custom Order Functions (Items)
+    // Load/Save Custom Order Functions (Items within categories)
     const loadCustomOrder = () => {
         try {
             const saved = localStorage.getItem('shopping-list-custom-order');
@@ -162,36 +190,7 @@ export default function UnifiedShoppingListModal({
         }
     };
 
-    // 🆕 NEW: Load/Save Custom Category Order Functions
-    const loadCustomCategoryOrder = () => {
-        try {
-            const storeKey = selectedStore || 'default';
-            const saved = localStorage.getItem(`shopping-category-order-${storeKey}`);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setCustomCategoryOrder(parsed);
-                console.log('📂 Loaded custom category order for', storeKey, ':', parsed);
-            } else {
-                setCustomCategoryOrder([]);
-            }
-        } catch (error) {
-            console.error('Error loading custom category order:', error);
-            setCustomCategoryOrder([]);
-        }
-    };
-
-    const saveCustomCategoryOrder = (newOrder) => {
-        try {
-            const storeKey = selectedStore || 'default';
-            localStorage.setItem(`shopping-category-order-${storeKey}`, JSON.stringify(newOrder));
-            setCustomCategoryOrder(newOrder);
-            console.log('💾 Saved custom category order for', storeKey, ':', newOrder);
-        } catch (error) {
-            console.error('Error saving custom category order:', error);
-        }
-    };
-
-    // 🆕 PHASE 2: Store Layout Functions
+    // Store Layout Functions
     const loadStorePreference = () => {
         try {
             const saved = localStorage.getItem('preferred-shopping-store');
@@ -208,8 +207,8 @@ export default function UnifiedShoppingListModal({
         try {
             localStorage.setItem('preferred-shopping-store', storeName);
             setSelectedStore(storeName);
-            // Reload category order for new store
-            setTimeout(loadCustomCategoryOrder, 100);
+            // 🆕 NEW: Apply category order when store changes
+            applyStoreCategoryOrder(storeName);
             console.log('💾 Saved preferred store:', storeName);
         } catch (error) {
             console.error('Error saving store preference:', error);
@@ -231,13 +230,11 @@ export default function UnifiedShoppingListModal({
     const applyStoreLayout = () => {
         if (!selectedStore || !normalizedList.items) return;
 
-        // Find store details
         const storeDetails = stores.find(store => store.name === selectedStore);
         const storeChain = storeDetails?.chain || '';
 
         console.log(`🏪 Applying store layout for: ${selectedStore} (${storeChain})`);
 
-        // Apply store layout
         const layoutResult = StoreLayoutUtils.applyStoreLayout(
             normalizedList.items,
             selectedStore,
@@ -246,7 +243,6 @@ export default function UnifiedShoppingListModal({
 
         setCurrentStoreLayout(layoutResult);
 
-        // Generate shopping route
         const route = StoreLayoutUtils.generateShoppingRoute(
             normalizedList.items,
             selectedStore,
@@ -268,13 +264,12 @@ export default function UnifiedShoppingListModal({
         saveStorePreference(storeName);
         setShowStoreSelector(false);
 
-        // Auto-apply layout if in layout mode
         if (storeLayoutMode) {
             setTimeout(applyStoreLayout, 100);
         }
     };
 
-    // 🆕 PHASE 1: Apply Custom Ordering (Items)
+    // Apply Custom Ordering (Items within categories)
     const applyCustomOrdering = (items, category) => {
         const categoryOrder = customOrder[category];
         if (!categoryOrder) return items;
@@ -282,7 +277,6 @@ export default function UnifiedShoppingListModal({
         const orderedItems = [];
         const unorderedItems = [...items];
 
-        // First, add items in custom order
         categoryOrder.forEach(itemName => {
             const index = unorderedItems.findIndex(item =>
                 (item.ingredient || item.name) === itemName
@@ -292,29 +286,27 @@ export default function UnifiedShoppingListModal({
             }
         });
 
-        // Then add any remaining items
         orderedItems.push(...unorderedItems);
-
         return orderedItems;
     };
 
-    // 🆕 NEW: Apply Custom Category Ordering
+    // 🆕 UPDATED: Apply Store-Specific Category Ordering
     const applyCategoryOrdering = (categorizedItems) => {
-        if (!customCategoryOrder.length) {
+        if (!appliedCategoryOrder.length) {
             return categorizedItems; // Return as-is if no custom order
         }
 
         const orderedCategories = {};
         const allCategories = Object.keys(categorizedItems);
 
-        // First, add categories in custom order
-        customCategoryOrder.forEach(categoryName => {
+        // First, add categories in the store-specific order
+        appliedCategoryOrder.forEach(categoryName => {
             if (categorizedItems[categoryName]) {
                 orderedCategories[categoryName] = categorizedItems[categoryName];
             }
         });
 
-        // Then add any categories not in custom order
+        // Then add any categories not in the store-specific order
         allCategories.forEach(categoryName => {
             if (!orderedCategories[categoryName]) {
                 orderedCategories[categoryName] = categorizedItems[categoryName];
@@ -324,7 +316,7 @@ export default function UnifiedShoppingListModal({
         return orderedCategories;
     };
 
-    // 🆕 PHASE 1: Drag and Drop Handlers (Items)
+    // Drag and Drop Handlers (Items only)
     const handleDragStart = (e, item, category, index) => {
         if (!reorderMode) return;
 
@@ -395,93 +387,11 @@ export default function UnifiedShoppingListModal({
         console.log(`🔄 Reordered ${draggedItemName} in ${targetCategory}:`, newOrder);
     };
 
-    // 🆕 NEW: Category Drag and Drop Handlers
-    const handleCategoryDragStart = (e, categoryName) => {
-        if (!categoryReorderMode) return;
-
-        setDraggedCategoryName(categoryName);
-        e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', categoryName);
-
-        // Add visual feedback
-        setTimeout(() => {
-            e.target.style.opacity = '0.6';
-            e.target.style.transform = 'rotate(2deg)';
-        }, 0);
-    };
-
-    const handleCategoryDragEnd = (e) => {
-        // Reset visual feedback
-        e.target.style.opacity = '1';
-        e.target.style.transform = 'none';
-        setDraggedCategoryName(null);
-        setDragOverCategoryName(null);
-    };
-
-    const handleCategoryDragOver = (e) => {
-        e.preventDefault();
-        e.dataTransfer.dropEffect = 'move';
-    };
-
-    const handleCategoryDragEnter = (e, categoryName) => {
-        e.preventDefault();
-        if (draggedCategoryName && draggedCategoryName !== categoryName) {
-            setDragOverCategoryName(categoryName);
-        }
-    };
-
-    const handleCategoryDragLeave = (e) => {
-        // Only clear if we're leaving the category container entirely
-        if (!e.currentTarget.contains(e.relatedTarget)) {
-            setDragOverCategoryName(null);
-        }
-    };
-
-    const handleCategoryDrop = (e, targetCategoryName) => {
-        e.preventDefault();
-
-        if (!draggedCategoryName || draggedCategoryName === targetCategoryName) {
-            return;
-        }
-
-        const currentOrder = customCategoryOrder.length > 0
-            ? [...customCategoryOrder]
-            : Object.keys(getItemsForDisplay());
-
-        // Remove dragged category from current position
-        const draggedIndex = currentOrder.indexOf(draggedCategoryName);
-        if (draggedIndex !== -1) {
-            currentOrder.splice(draggedIndex, 1);
-        }
-
-        // Insert at new position
-        const targetIndex = currentOrder.indexOf(targetCategoryName);
-        if (targetIndex !== -1) {
-            currentOrder.splice(targetIndex, 0, draggedCategoryName);
-        } else {
-            // If target not found, add at end
-            currentOrder.push(draggedCategoryName);
-        }
-
-        saveCustomCategoryOrder(currentOrder);
-        console.log(`🔄 Reordered categories: ${draggedCategoryName} moved to position of ${targetCategoryName}`);
-    };
-
     const resetCustomOrder = () => {
         if (confirm('Reset custom order to default? This cannot be undone.')) {
             localStorage.removeItem('shopping-list-custom-order');
             setCustomOrder({});
             console.log('🔄 Reset custom order to default');
-        }
-    };
-
-    // 🆕 NEW: Reset Category Order
-    const resetCustomCategoryOrder = () => {
-        if (confirm('Reset category order to default? This cannot be undone.')) {
-            const storeKey = selectedStore || 'default';
-            localStorage.removeItem(`shopping-category-order-${storeKey}`);
-            setCustomCategoryOrder([]);
-            console.log('🔄 Reset custom category order to default for', storeKey);
         }
     };
 
@@ -584,7 +494,7 @@ export default function UnifiedShoppingListModal({
         return normalizedList.items;
     };
 
-    // 🆕 UPDATED: Group items by category with BOTH item and category ordering
+    // 🆕 UPDATED: Group items by category with store-specific category ordering
     const getGroupedItems = () => {
         const itemsToShow = getItemsForDisplay();
         if (!itemsToShow) return {};
@@ -593,13 +503,12 @@ export default function UnifiedShoppingListModal({
         Object.entries(itemsToShow).forEach(([category, items]) => {
             const filtered = getFilteredItems(items);
             if (filtered.length > 0) {
-                // Apply custom ordering if not in store layout mode
                 const ordered = storeLayoutMode ? filtered : applyCustomOrdering(filtered, category);
                 grouped[category] = ordered;
             }
         });
 
-        // 🆕 NEW: Apply category ordering if not in route mode
+        // Apply store-specific category ordering if not in route mode
         if (!routeMode) {
             grouped = applyCategoryOrdering(grouped);
         }
@@ -687,6 +596,23 @@ export default function UnifiedShoppingListModal({
         console.log('Shopping list saved successfully:', savedList);
     };
 
+    // 🆕 NEW: Get current store category info for display
+    const getCurrentStoreInfo = () => {
+        if (!selectedStore) return null;
+
+        const storeData = Object.values(storeCategoryOrders).find(
+            store => store.storeName === selectedStore
+        );
+
+        return {
+            hasCustomOrder: !!storeData,
+            categoryCount: storeData?.categories.length || 0,
+            lastModified: storeData?.lastModified
+        };
+    };
+
+    const storeInfo = getCurrentStoreInfo();
+
     return (
         <>
             <div style={{
@@ -745,16 +671,6 @@ export default function UnifiedShoppingListModal({
                                         📋 Reorder Mode
                                     </span>
                                 )}
-                                {categoryReorderMode && (
-                                    <span style={{
-                                        marginLeft: '0.5rem',
-                                        fontSize: '0.8rem',
-                                        color: '#7c3aed',
-                                        fontWeight: '500'
-                                    }}>
-                                        📂 Category Reorder
-                                    </span>
-                                )}
                                 {storeLayoutMode && selectedStore && (
                                     <span style={{
                                         marginLeft: '0.5rem',
@@ -773,6 +689,17 @@ export default function UnifiedShoppingListModal({
                                         fontWeight: '500'
                                     }}>
                                         🗺️ Route Mode
+                                    </span>
+                                )}
+                                {/* 🆕 NEW: Store Category Order Indicator */}
+                                {selectedStore && storeInfo?.hasCustomOrder && !storeLayoutMode && (
+                                    <span style={{
+                                        marginLeft: '0.5rem',
+                                        fontSize: '0.8rem',
+                                        color: '#7c3aed',
+                                        fontWeight: '500'
+                                    }}>
+                                        📂 Custom Order
                                     </span>
                                 )}
                             </h2>
@@ -879,7 +806,7 @@ export default function UnifiedShoppingListModal({
                             </div>
                         </div>
 
-                        {/* 🆕 NEW: Shopping Route Stats */}
+                        {/* Shopping Route Stats */}
                         {routeMode && shoppingRoute && (
                             <div style={{
                                 marginTop: '0.5rem',
@@ -921,9 +848,25 @@ export default function UnifiedShoppingListModal({
                                 </div>
                             </div>
                         )}
+
+                        {/* 🆕 NEW: Store Category Order Status */}
+                        {selectedStore && storeInfo?.hasCustomOrder && !routeMode && !storeLayoutMode && (
+                            <div style={{
+                                marginTop: '0.5rem',
+                                padding: '0.5rem',
+                                backgroundColor: '#f3e8ff',
+                                borderRadius: '6px',
+                                border: '1px solid #c4b5fd',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{fontSize: '0.75rem', color: '#5b21b6', fontWeight: '500'}}>
+                                    📂 Using custom category order for {selectedStore} ({storeInfo.categoryCount} categories)
+                                </div>
+                            </div>
+                        )}
                     </div>
 
-                    {/* Enhanced Controls with Store Layout + Category Reordering */}
+                    {/* Enhanced Controls with Store Layout */}
                     <div style={{
                         padding: '0.75rem 1rem',
                         borderBottom: '1px solid #f3f4f6',
@@ -938,16 +881,16 @@ export default function UnifiedShoppingListModal({
                         <select
                             value={filter}
                             onChange={(e) => setFilter(e.target.value)}
-                            disabled={reorderMode || routeMode || categoryReorderMode}
+                            disabled={reorderMode || routeMode}
                             style={{
                                 padding: '0.375rem 0.5rem',
                                 border: '1px solid #d1d5db',
                                 borderRadius: '4px',
                                 fontSize: '0.75rem',
-                                backgroundColor: (reorderMode || routeMode || categoryReorderMode) ? '#f3f4f6' : 'white',
+                                backgroundColor: (reorderMode || routeMode) ? '#f3f4f6' : 'white',
                                 flex: '1',
                                 minWidth: '80px',
-                                opacity: (reorderMode || routeMode || categoryReorderMode) ? 0.6 : 1
+                                opacity: (reorderMode || routeMode) ? 0.6 : 1
                             }}
                         >
                             <option value="all">All ({stats.totalItems})</option>
@@ -956,10 +899,10 @@ export default function UnifiedShoppingListModal({
                             <option value="purchased">Bought ({stats.purchased})</option>
                         </select>
 
-                        {/* 🆕 NEW: Store Layout Toggle */}
+                        {/* Store Layout Toggle */}
                         <TouchEnhancedButton
                             onClick={() => selectedStore ? toggleStoreLayoutMode() : setShowStoreSelector(true)}
-                            disabled={reorderMode || routeMode || categoryReorderMode}
+                            disabled={reorderMode || routeMode}
                             style={{
                                 backgroundColor: storeLayoutMode ? '#059669' : '#6b7280',
                                 color: 'white',
@@ -967,20 +910,20 @@ export default function UnifiedShoppingListModal({
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (reorderMode || routeMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
+                                cursor: (reorderMode || routeMode) ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
-                                opacity: (reorderMode || routeMode || categoryReorderMode) ? 0.6 : 1
+                                opacity: (reorderMode || routeMode) ? 0.6 : 1
                             }}
                             title={selectedStore ? `Toggle ${selectedStore} layout` : 'Select store for layout'}
                         >
                             {storeLayoutMode ? '🏪 Layout On' : '🏪 Store'}
                         </TouchEnhancedButton>
 
-                        {/* 🆕 NEW: Route Mode Toggle */}
+                        {/* Route Mode Toggle */}
                         {storeLayoutMode && shoppingRoute && (
                             <TouchEnhancedButton
                                 onClick={() => setRouteMode(!routeMode)}
-                                disabled={reorderMode || categoryReorderMode}
+                                disabled={reorderMode}
                                 style={{
                                     backgroundColor: routeMode ? '#dc2626' : '#7c3aed',
                                     color: 'white',
@@ -988,9 +931,9 @@ export default function UnifiedShoppingListModal({
                                     borderRadius: '4px',
                                     padding: '0.375rem 0.5rem',
                                     fontSize: '0.75rem',
-                                    cursor: (reorderMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
+                                    cursor: reorderMode ? 'not-allowed' : 'pointer',
                                     fontWeight: '500',
-                                    opacity: (reorderMode || categoryReorderMode) ? 0.6 : 1
+                                    opacity: reorderMode ? 0.6 : 1
                                 }}
                                 title={routeMode ? 'Exit route mode' : 'Show shopping route'}
                             >
@@ -998,30 +941,10 @@ export default function UnifiedShoppingListModal({
                             </TouchEnhancedButton>
                         )}
 
-                        {/* 🆕 NEW: Category Reorder Mode Toggle */}
-                        <TouchEnhancedButton
-                            onClick={() => setCategoryReorderMode(!categoryReorderMode)}
-                            disabled={storeLayoutMode || routeMode || reorderMode}
-                            style={{
-                                backgroundColor: categoryReorderMode ? '#ef4444' : '#7c3aed',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.375rem 0.5rem',
-                                fontSize: '0.75rem',
-                                cursor: (storeLayoutMode || routeMode || reorderMode) ? 'not-allowed' : 'pointer',
-                                fontWeight: '500',
-                                opacity: (storeLayoutMode || routeMode || reorderMode) ? 0.6 : 1
-                            }}
-                            title={categoryReorderMode ? 'Exit category reorder mode' : 'Reorder categories'}
-                        >
-                            {categoryReorderMode ? '✓ Done' : '📂 Categories'}
-                        </TouchEnhancedButton>
-
-                        {/* 🆕 PHASE 1: Reorder Mode Toggle */}
+                        {/* Reorder Mode Toggle */}
                         <TouchEnhancedButton
                             onClick={() => setReorderMode(!reorderMode)}
-                            disabled={storeLayoutMode || routeMode || categoryReorderMode}
+                            disabled={storeLayoutMode || routeMode}
                             style={{
                                 backgroundColor: reorderMode ? '#ef4444' : '#3b82f6',
                                 color: 'white',
@@ -1029,9 +952,9 @@ export default function UnifiedShoppingListModal({
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (storeLayoutMode || routeMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
+                                cursor: (storeLayoutMode || routeMode) ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
-                                opacity: (storeLayoutMode || routeMode || categoryReorderMode) ? 0.6 : 1
+                                opacity: (storeLayoutMode || routeMode) ? 0.6 : 1
                             }}
                             title={reorderMode ? 'Exit reorder mode' : 'Enter reorder mode'}
                         >
@@ -1039,7 +962,7 @@ export default function UnifiedShoppingListModal({
                         </TouchEnhancedButton>
 
                         {/* Quick Actions - Disabled in special modes */}
-                        {!reorderMode && !routeMode && !categoryReorderMode && (
+                        {!reorderMode && !routeMode && (
                             <>
                                 <TouchEnhancedButton
                                     onClick={markAllAsPurchased}
@@ -1077,7 +1000,7 @@ export default function UnifiedShoppingListModal({
                         {/* More Actions Toggle */}
                         <TouchEnhancedButton
                             onClick={() => setShowActions(!showActions)}
-                            disabled={reorderMode || routeMode || categoryReorderMode}
+                            disabled={reorderMode || routeMode}
                             style={{
                                 backgroundColor: '#374151',
                                 color: 'white',
@@ -1085,9 +1008,9 @@ export default function UnifiedShoppingListModal({
                                 borderRadius: '4px',
                                 padding: '0.375rem 0.5rem',
                                 fontSize: '0.75rem',
-                                cursor: (reorderMode || routeMode || categoryReorderMode) ? 'not-allowed' : 'pointer',
+                                cursor: (reorderMode || routeMode) ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
-                                opacity: (reorderMode || routeMode || categoryReorderMode) ? 0.6 : 1
+                                opacity: (reorderMode || routeMode) ? 0.6 : 1
                             }}
                         >
                             {showActions ? '⌄ Less' : '⋯ More'}
@@ -1144,44 +1067,68 @@ export default function UnifiedShoppingListModal({
                                             maxHeight: '200px',
                                             overflow: 'auto'
                                         }}>
-                                            {stores.map(store => (
-                                                <TouchEnhancedButton
-                                                    key={store._id}
-                                                    onClick={() => handleStoreSelection(store.name)}
-                                                    style={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center',
-                                                        padding: '0.75rem',
-                                                        backgroundColor: selectedStore === store.name ? '#dbeafe' : '#f9fafb',
-                                                        border: selectedStore === store.name ? '2px solid #3b82f6' : '1px solid #e5e7eb',
-                                                        borderRadius: '8px',
-                                                        cursor: 'pointer',
-                                                        textAlign: 'left'
-                                                    }}
-                                                >
-                                                    <div>
-                                                        <div style={{
-                                                            fontWeight: '500',
-                                                            color: '#111827',
-                                                            fontSize: '0.875rem'
-                                                        }}>
-                                                            {store.name}
-                                                        </div>
-                                                        {store.chain && (
+                                            {stores.map(store => {
+                                                const storeHasCustomOrder = Object.values(storeCategoryOrders).some(
+                                                    s => s.storeName === store.name
+                                                );
+
+                                                return (
+                                                    <TouchEnhancedButton
+                                                        key={store._id}
+                                                        onClick={() => handleStoreSelection(store.name)}
+                                                        style={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center',
+                                                            padding: '0.75rem',
+                                                            backgroundColor: selectedStore === store.name ? '#dbeafe' : '#f9fafb',
+                                                            border: selectedStore === store.name ? '2px solid #3b82f6' : '1px solid #e5e7eb',
+                                                            borderRadius: '8px',
+                                                            cursor: 'pointer',
+                                                            textAlign: 'left'
+                                                        }}
+                                                    >
+                                                        <div>
                                                             <div style={{
-                                                                fontSize: '0.75rem',
-                                                                color: '#6b7280'
+                                                                fontWeight: '500',
+                                                                color: '#111827',
+                                                                fontSize: '0.875rem'
                                                             }}>
-                                                                {store.chain}
+                                                                {store.name}
+                                                                {storeHasCustomOrder && (
+                                                                    <span style={{
+                                                                        marginLeft: '0.5rem',
+                                                                        fontSize: '0.75rem',
+                                                                        color: '#7c3aed'
+                                                                    }}>
+                                                                        📂
+                                                                    </span>
+                                                                )}
                                                             </div>
-                                                        )}
-                                                    </div>
-                                                    <div style={{fontSize: '1.25rem'}}>
-                                                        🏪
-                                                    </div>
-                                                </TouchEnhancedButton>
-                                            ))}
+                                                            {store.chain && (
+                                                                <div style={{
+                                                                    fontSize: '0.75rem',
+                                                                    color: '#6b7280'
+                                                                }}>
+                                                                    {store.chain}
+                                                                </div>
+                                                            )}
+                                                            {storeHasCustomOrder && (
+                                                                <div style={{
+                                                                    fontSize: '0.75rem',
+                                                                    color: '#7c3aed',
+                                                                    fontStyle: 'italic'
+                                                                }}>
+                                                                    Custom category order set
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        <div style={{fontSize: '1.25rem'}}>
+                                                            🏪
+                                                        </div>
+                                                    </TouchEnhancedButton>
+                                                );
+                                            })}
                                         </div>
                                     </div>
                                 )}
@@ -1304,45 +1251,6 @@ export default function UnifiedShoppingListModal({
                         </div>
                     )}
 
-                    {/* NEW: Category Reorder Mode Instructions */}
-                    {categoryReorderMode && (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            backgroundColor: '#f3e8ff',
-                            borderBottom: '1px solid #7c3aed',
-                            flexShrink: 0
-                        }}>
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.5rem',
-                                fontSize: '0.75rem',
-                                color: '#5b21b6'
-                            }}>
-                                <span>📂</span>
-                                <span style={{fontWeight: '500'}}>
-                                    Drag category headers to reorder them for {selectedStore || 'default'} store
-                                </span>
-                                <TouchEnhancedButton
-                                    onClick={resetCustomCategoryOrder}
-                                    style={{
-                                        marginLeft: 'auto',
-                                        backgroundColor: '#ef4444',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        padding: '0.25rem 0.5rem',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer'
-                                    }}
-                                    title="Reset category order to default"
-                                >
-                                    🔄 Reset Categories
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
-                    )}
-
                     {storeLayoutMode && currentStoreLayout && (
                         <div style={{
                             padding: '0.75rem 1rem',
@@ -1431,8 +1339,52 @@ export default function UnifiedShoppingListModal({
                         </div>
                     )}
 
+                    {/* 🆕 NEW: Store Category Order Info Banner */}
+                    {selectedStore && storeInfo?.hasCustomOrder && !storeLayoutMode && !routeMode && !reorderMode && (
+                        <div style={{
+                            padding: '0.75rem 1rem',
+                            backgroundColor: '#f3e8ff',
+                            borderBottom: '1px solid #7c3aed',
+                            flexShrink: 0
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.5rem',
+                                fontSize: '0.75rem',
+                                color: '#5b21b6'
+                            }}>
+                                <span>📂</span>
+                                <span style={{fontWeight: '500'}}>
+                                    Categories organized using your custom order for {selectedStore}
+                                </span>
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        // Open stores page to manage category order
+                                        if (confirm('Would you like to edit the category order for this store?')) {
+                                            window.open('/stores', '_blank');
+                                        }
+                                    }}
+                                    style={{
+                                        marginLeft: 'auto',
+                                        backgroundColor: '#7c3aed',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.25rem 0.5rem',
+                                        fontSize: '0.7rem',
+                                        cursor: 'pointer'
+                                    }}
+                                    title="Edit category order"
+                                >
+                                    ✏️ Edit
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    )}
+
                     {/* Expandable Actions Panel */}
-                    {showActions && !reorderMode && !routeMode && !categoryReorderMode && (
+                    {showActions && !reorderMode && !routeMode && (
                         <div style={{
                             padding: '0.5rem 1rem',
                             borderBottom: '1px solid #f3f4f6',
@@ -1603,7 +1555,7 @@ export default function UnifiedShoppingListModal({
                                 <p>No items match the current filter</p>
                             </div>
                         ) : routeMode && shoppingRoute ? (
-                            // 🆕 NEW: Route Mode Display
+                            // Route Mode Display (same as before)
                             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                                 <div style={{
                                     textAlign: 'center',
@@ -1772,65 +1724,26 @@ export default function UnifiedShoppingListModal({
                                 )}
                             </div>
                         ) : (
-                            // 🆕 UPDATED: Category-based Display with Category Drag & Drop
+                            // 🆕 UPDATED: Category-based Display with Store-Specific Category Ordering
                             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
                                 {Object.entries(groupedItems).map(([category, items]) => (
                                     <div key={category}>
-                                        {/* 🆕 NEW: Enhanced Category Header with Drag & Drop */}
-                                        <h3
-                                            draggable={categoryReorderMode}
-                                            onDragStart={(e) => handleCategoryDragStart(e, category)}
-                                            onDragEnd={handleCategoryDragEnd}
-                                            onDragOver={handleCategoryDragOver}
-                                            onDragEnter={(e) => handleCategoryDragEnter(e, category)}
-                                            onDragLeave={handleCategoryDragLeave}
-                                            onDrop={(e) => handleCategoryDrop(e, category)}
-                                            style={{
-                                                fontSize: '1rem',
-                                                fontWeight: '600',
-                                                color: '#374151',
-                                                margin: '0 0 0.75rem 0',
-                                                padding: '0.5rem 0',
-                                                display: 'flex',
-                                                justifyContent: 'space-between',
-                                                alignItems: 'center',
-                                                backgroundColor: categoryReorderMode
-                                                    ? (dragOverCategoryName === category ? '#f3e8ff' : '#faf5ff')
-                                                    : (storeLayoutMode ? '#f0fdf4' : 'transparent'),
-                                                paddingLeft: categoryReorderMode || storeLayoutMode ? '1rem' : '0',
-                                                borderLeft: categoryReorderMode
-                                                    ? '4px solid #7c3aed'
-                                                    : (storeLayoutMode ? '4px solid #059669' : 'none'),
-                                                cursor: categoryReorderMode ? 'grab' : 'default',
-                                                transition: 'all 0.2s ease',
-                                                borderRadius: categoryReorderMode ? '6px' : '0',
-                                                border: categoryReorderMode
-                                                    ? (dragOverCategoryName === category
-                                                        ? '2px dashed #7c3aed'
-                                                        : '1px solid #e5e7eb')
-                                                    : 'none',
-                                                borderBottom: !categoryReorderMode ? '2px solid #e5e7eb' : 'none',
-                                                marginBottom: categoryReorderMode ? '0.5rem' : '0.75rem'
-                                            }}
-                                        >
-                                            <span style={{
-                                                display: 'flex',
-                                                alignItems: 'center',
-                                                gap: '0.5rem'
-                                            }}>
-                                                {/* 🆕 NEW: Drag handle for category reorder mode */}
-                                                {categoryReorderMode && (
-                                                    <div style={{
-                                                        color: '#7c3aed',
-                                                        fontSize: '1.2rem',
-                                                        cursor: 'grab',
-                                                        userSelect: 'none'
-                                                    }}>
-                                                        ⋮⋮
-                                                    </div>
-                                                )}
-                                                {category}
-                                            </span>
+                                        {/* Category Header - Simplified (no drag & drop) */}
+                                        <h3 style={{
+                                            fontSize: '1rem',
+                                            fontWeight: '600',
+                                            color: '#374151',
+                                            margin: '0 0 0.75rem 0',
+                                            padding: '0.5rem 0',
+                                            borderBottom: '2px solid #e5e7eb',
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center',
+                                            backgroundColor: storeLayoutMode ? '#f0fdf4' : 'transparent',
+                                            paddingLeft: storeLayoutMode ? '1rem' : '0',
+                                            borderLeft: storeLayoutMode ? '4px solid #059669' : 'none'
+                                        }}>
+                                            <span>{category}</span>
                                             <span style={{
                                                 fontSize: '0.75rem',
                                                 fontWeight: '400',
@@ -1893,7 +1806,7 @@ export default function UnifiedShoppingListModal({
                                                         )}
 
                                                         {/* Checkbox (hidden in reorder mode) */}
-                                                        {!reorderMode && !categoryReorderMode && (
+                                                        {!reorderMode && (
                                                             <input
                                                                 type="checkbox"
                                                                 checked={isPurchased}
@@ -1965,21 +1878,6 @@ export default function UnifiedShoppingListModal({
                                                                     📋 Custom order: {customOrder[category].indexOf(item.ingredient || item.name) + 1}
                                                                 </div>
                                                             )}
-
-                                                            {/* 🆕 NEW: Category Order Status */}
-                                                            {categoryReorderMode && customCategoryOrder.length > 0 && (
-                                                                <div style={{
-                                                                    fontSize: '0.7rem',
-                                                                    color: '#7c3aed',
-                                                                    backgroundColor: '#f3e8ff',
-                                                                    padding: '0.25rem 0.5rem',
-                                                                    borderRadius: '4px',
-                                                                    border: '1px solid #c4b5fd',
-                                                                    marginTop: '0.25rem'
-                                                                }}>
-                                                                    📂 Category position: {customCategoryOrder.indexOf(category) + 1 || 'end'}
-                                                                </div>
-                                                            )}
                                                         </div>
 
                                                         {/* Drag Position Indicator */}
@@ -2029,10 +1927,10 @@ export default function UnifiedShoppingListModal({
                                     📋 Custom order saved for {Object.keys(customOrder).length} categories
                                 </div>
                             )}
-                            {/* 🆕 NEW: Category Order Status */}
-                            {customCategoryOrder.length > 0 && (
+                            {/* Store Category Order Status */}
+                            {selectedStore && storeInfo?.hasCustomOrder && (
                                 <div style={{marginTop: '0.25rem'}}>
-                                    📂 Custom category order: {customCategoryOrder.length} categories for {selectedStore || 'default'}
+                                    📂 Custom category order: {storeInfo.categoryCount} categories for {selectedStore}
                                 </div>
                             )}
                             {selectedStore && (
@@ -2098,277 +1996,6 @@ export default function UnifiedShoppingListModal({
                 shoppingRoute={shoppingRoute}
                 totals={calculatePrintTotals()}
             />
-
-            <style jsx>{`
-                @keyframes spin {
-                    0% {
-                        transform: rotate(0deg);
-                    }
-                    100% {
-                        transform: rotate(360deg);
-                    }
-                }
-                
-                /* Drag and Drop Styles for Items */
-                [draggable="true"]:active {
-                    cursor: grabbing !important;
-                }
-                
-                [draggable="true"]:hover {
-                    transform: scale(1.01);
-                    transition: transform 0.1s ease;
-                }
-                
-                /* Enhanced drag visual feedback */
-                .drag-item {
-                    transition: all 0.2s ease;
-                    position: relative;
-                }
-                
-                .drag-item:hover {
-                    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
-                }
-                
-                .drag-over {
-                    background-color: #e0f2fe !important;
-                    border-color: #0284c7 !important;
-                }
-                
-                .drag-placeholder {
-                    background-color: #f1f5f9 !important;
-                    border: 2px dashed #94a3b8 !important;
-                    opacity: 0.5;
-                }
-
-                /* 🆕 NEW: Category Drag & Drop Styles */
-                .category-dragging {
-                    opacity: 0.6;
-                    transform: rotate(2deg);
-                    box-shadow: 0 8px 20px rgba(0,0,0,0.15);
-                    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
-                    border: 2px dashed #7c3aed !important;
-                }
-
-                .category-drag-over {
-                    background: linear-gradient(135deg, #f3e8ff 0%, #e9d5ff 100%);
-                    border: 2px dashed #7c3aed !important;
-                    transform: scale(1.02);
-                }
-
-                .category-reorder-mode h3 {
-                    background: linear-gradient(90deg, #faf5ff 0%, #f3e8ff 100%);
-                    border-left: 4px solid #7c3aed;
-                    padding-left: 1rem;
-                    border-radius: 6px;
-                    cursor: grab;
-                    transition: all 0.2s ease;
-                }
-
-                .category-reorder-mode h3:hover {
-                    background: linear-gradient(90deg, #f3e8ff 0%, #e9d5ff 100%);
-                    transform: translateY(-1px);
-                    box-shadow: 0 4px 8px rgba(124, 58, 237, 0.1);
-                }
-                
-                /* Store Layout Mode Styles */
-                .store-layout-mode {
-                    background: linear-gradient(135deg, #ecfccb 0%, #f0fdf4 100%);
-                    border-left: 4px solid #059669;
-                }
-                
-                .store-section-header {
-                    background: linear-gradient(90deg, #f0fdf4 0%, #dcfce7 100%);
-                    border-left: 4px solid #059669;
-                    padding-left: 1rem;
-                }
-                
-                /* Route Mode Styles */
-                .route-section {
-                    border: 2px solid #e2e8f0;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    margin-bottom: 1rem;
-                }
-                
-                .route-section-header {
-                    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
-                    color: white;
-                    padding: 1rem;
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-                }
-                
-                .route-step-number {
-                    background: #3b82f6;
-                    color: white;
-                    border-radius: 50%;
-                    width: 2rem;
-                    height: 2rem;
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    font-size: 0.875rem;
-                    font-weight: bold;
-                }
-                
-                /* Mobile touch optimization */
-                @media (max-width: 768px) {
-                    [draggable="true"] {
-                        touch-action: pan-y;
-                        -webkit-touch-callout: none;
-                        -webkit-user-select: none;
-                        user-select: none;
-                    }
-                    
-                    /* Larger drag handles on mobile */
-                    .drag-handle {
-                        font-size: 1.5rem;
-                        padding: 0.5rem;
-                    }
-                    
-                    /* Enhanced touch targets */
-                    .reorder-item, .category-header {
-                        min-height: 60px;
-                        padding: 1rem;
-                    }
-                    
-                    /* Store selector touch optimization */
-                    .store-selector-item {
-                        min-height: 48px;
-                        padding: 0.75rem;
-                    }
-                }
-                
-                /* Improved accessibility */
-                [draggable="true"]:focus {
-                    outline: 2px solid #3b82f6;
-                    outline-offset: 2px;
-                }
-                
-                /* Custom order indicator animation */
-                .custom-order-badge {
-                    animation: fadeIn 0.3s ease-in-out;
-                }
-
-                /* 🆕 NEW: Category order indicator animation */
-                .category-order-badge {
-                    animation: slideInLeft 0.3s ease-out;
-                }
-                
-                @keyframes fadeIn {
-                    from {
-                        opacity: 0;
-                        transform: translateY(-10px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateY(0);
-                    }
-                }
-
-                @keyframes slideInLeft {
-                    from {
-                        opacity: 0;
-                        transform: translateX(-20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(0);
-                    }
-                }
-                
-                /* Store layout indicator animation */
-                .store-layout-indicator {
-                    animation: slideInRight 0.3s ease-out;
-                }
-                
-                @keyframes slideInRight {
-                    from {
-                        opacity: 0;
-                        transform: translateX(20px);
-                    }
-                    to {
-                        opacity: 1;
-                        transform: translateX(0);
-                    }
-                }
-                
-                /* Drag preview styling */
-                .drag-preview {
-                    opacity: 0.8;
-                    transform: rotate(2deg);
-                    box-shadow: 0 8px 20px rgba(0,0,0,0.2);
-                }
-                
-                /* Reorder mode styling */
-                .reorder-mode {
-                    background: linear-gradient(135deg, #dbeafe 0%, #e0f2fe 100%);
-                    border: 2px dashed #3b82f6;
-                }
-                
-                .reorder-mode:hover {
-                    border-color: #1d4ed8;
-                    background: linear-gradient(135deg, #bfdbfe 0%, #dbeafe 100%);
-                    transform: translateY(-1px);
-                }
-                
-                /* Safe area support for mobile devices */
-                @supports (padding: max(0px)) {
-                    .modal-container {
-                        padding-top: max(env(safe-area-inset-top), 0px);
-                        padding-bottom: max(env(safe-area-inset-bottom), 0px);
-                        padding-left: max(env(safe-area-inset-left), 0px);
-                        padding-right: max(env(safe-area-inset-right), 0px);
-                    }
-                }
-                
-                /* Dark mode support (future enhancement) */
-                @media (prefers-color-scheme: dark) {
-                    .dark-mode-ready {
-                        background-color: #1f2937;
-                        color: #f9fafb;
-                        border-color: #374151;
-                    }
-                }
-                
-                /* High contrast mode support */
-                @media (prefers-contrast: high) {
-                    .high-contrast {
-                        border-width: 2px;
-                        font-weight: 600;
-                    }
-                    
-                    .drag-handle {
-                        background-color: #000000;
-                        color: #ffffff;
-                    }
-                }
-                
-                /* Reduced motion support */
-                @media (prefers-reduced-motion: reduce) {
-                    .drag-item,
-                    .category-header,
-                    .reorder-mode {
-                        transition: none;
-                        animation: none;
-                    }
-                }
-                
-                /* Print-specific styles */
-                @media print {
-                    .no-print {
-                        display: none !important;
-                    }
-                    
-                    .print-optimized {
-                        background: white !important;
-                        color: black !important;
-                        border: 1px solid black !important;
-                        box-shadow: none !important;
-                    }
-                }
-            `}</style>
         </>
     );
 }
