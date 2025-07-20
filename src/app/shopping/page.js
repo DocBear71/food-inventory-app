@@ -4,7 +4,7 @@
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
 import { redirect } from 'next/navigation';
-import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
+import EnhancedAIShoppingListModal from '@/components/shopping/EnhancedAIShoppingListModal';
 import SavedShoppingListsButton from '@/components/shopping/SavedShoppingListsButton';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -13,6 +13,7 @@ import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate, { SubscriptionIndicator } from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiGet, apiPost } from '@/lib/api-config';
+import EnhancedAIShoppingListModal from "@/components/shopping/EnhancedAIShoppingListModal.js";
 
 export default function ShoppingPage() {
     const {data: session, status} = useSafeSession();
@@ -404,7 +405,7 @@ export default function ShoppingPage() {
     if (showShoppingList && shoppingList) {
         return (
             <MobileOptimizedLayout>
-                <UnifiedShoppingListModal
+                <EnhancedAIShoppingListModal
                     isOpen={showShoppingList}
                     onClose={closeShoppingList}
                     shoppingList={shoppingList}

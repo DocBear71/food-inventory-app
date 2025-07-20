@@ -3,7 +3,7 @@
 
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useEffect, useState} from 'react';
-import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
+import EnhancedAIShoppingListModal from '@/components/shopping/EnhancedAIShoppingListModal';
 import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -1934,7 +1934,7 @@ export default function RecipeSuggestions() {
 
                 {/* Shopping List Modal */}
                 {showShoppingList && (
-                    <UnifiedShoppingListModal
+                    <EnhancedAIShoppingListModal
                         isOpen={true}
                         onClose={() => setShowShoppingList(null)}
                         shoppingList={showShoppingList.shoppingListData}

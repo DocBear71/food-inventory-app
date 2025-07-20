@@ -2,7 +2,7 @@
 // file: /src/components/recipes/RecipeShoppingList.js v9 - Updated to use unified shopping list modal
 
 import { useState, useEffect } from 'react';
-import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
+import EnhancedAIShoppingListModal from '@/components/shopping/EnhancedAIShoppingListModal';
 import { apiPost } from '@/lib/api-config';
 
 export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
@@ -143,7 +143,7 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
 
     // Show unified shopping list modal when data is loaded
     return (
-        <UnifiedShoppingListModal
+        <EnhancedAIShoppingListModal
             isOpen={!!shoppingList}
             onClose={onClose}
             shoppingList={shoppingList}
