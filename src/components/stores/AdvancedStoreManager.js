@@ -550,7 +550,7 @@ function StoreDetailsModal({ store, onClose, onUpdate }) {
                                 onClick={() => {/* Navigate to AI shopping */}}
                                 className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700"
                             >
-                                🤖 Start AI Shopping
+                                🎯 Start Smart Shopping
                             </TouchEnhancedButton>
                         </div>
                     </div>

@@ -1,20 +1,22 @@
 'use client';
-// file: /src/components/shopping/EnhancedAIShoppingListModal.js v1 - AI Shopping with category management and item moving
+// file: /src/components/shopping/EnhancedAIShoppingListModal.js v3 - Added expandable actions panel, print functionality, totals, and user preferences
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
 import EmailSharingModal from '@/components/sharing/EmailSharingModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
-import {StoreLayoutUtils} from '@/lib/storeLayouts';
 import {getAIOptimizedRoute, provideLearningFeedback, createAIShoppingSystem} from '@/lib/aiShoppingOptimizer';
 import {CategoryUtils, GROCERY_CATEGORIES, suggestCategoryForItem} from '@/lib/groceryCategories';
+import ShoppingListTotals from '@/components/shopping/ShoppingListTotals';
+import PrintOptionsModal from '@/components/shopping/PrintOptionsModal';
+import { ShoppingListTotalsCalculator } from '@/lib/shoppingListTotals';
 
 export default function EnhancedAIShoppingListModal({
                                                         isOpen,
                                                         onClose,
                                                         shoppingList,
-                                                        title = '🛒 AI Shopping Assistant',
+                                                        title = '🛒 Smart Shopping Assistant',
                                                         subtitle = null,
                                                         sourceRecipeIds = [],
                                                         sourceMealPlanId = null,
@@ -58,6 +60,23 @@ export default function EnhancedAIShoppingListModal({
         routeDeviations: []
     });
 
+    // NEW: Added missing state from Unified version
+    const [showTotals, setShowTotals] = useState(false);
+    const [userPreferences, setUserPreferences] = useState({
+        currency: 'USD',
+        currencySymbol: '$',
+        currencyPosition: 'before',
+        decimalPlaces: 2,
+        taxRate: 0.06,
+        region: 'IA',
+        budget: null
+    });
+    const [showPrintModal, setShowPrintModal] = useState(false);
+    const [totalsCalculator] = useState(() => new ShoppingListTotalsCalculator());
+
+    // FIXED: Use state for shopping list items to trigger re-renders
+    const [currentShoppingList, setCurrentShoppingList] = useState(null);
+
     // Reset state when modal opens/closes
     useEffect(() => {
         if (!isOpen) {
@@ -71,13 +90,19 @@ export default function EnhancedAIShoppingListModal({
             setShowAiPanel(false);
             setShowCategoryManager(false);
             setMovingItem(null);
+            setCurrentShoppingList(null);
+            setShowTotals(false);
+            setShowPrintModal(false);
         } else {
             loadPreferences();
             fetchStores();
             initializeAISystem();
             loadCustomCategories();
+            loadUserPreferences(); // NEW: Load user preferences
+            // FIXED: Set shopping list to state
+            setCurrentShoppingList(shoppingList);
         }
-    }, [isOpen]);
+    }, [isOpen, shoppingList]);
 
     const loadPreferences = () => {
         try {
@@ -91,12 +116,68 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    const loadCustomCategories = () => {
+    // NEW: Load user preferences for totals and currency
+    const loadUserPreferences = () => {
         try {
+            if (session?.user?.currencyPreferences) {
+                setUserPreferences(prev => ({
+                    ...prev,
+                    currency: session.user.currencyPreferences.currency || 'USD',
+                    currencySymbol: session.user.currencyPreferences.currencySymbol || '$',
+                    currencyPosition: session.user.currencyPreferences.currencyPosition || 'before',
+                    decimalPlaces: session.user.currencyPreferences.decimalPlaces || 2
+                }));
+            }
+
+            const saved = localStorage.getItem('shopping-preferences');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setUserPreferences(prev => ({ ...prev, ...parsed }));
+                console.log('💰 Loaded shopping preferences:', parsed);
+            }
+        } catch (error) {
+            console.error('Error loading user preferences:', error);
+        }
+    };
+
+    // NEW: Save user preferences
+    const saveUserPreferences = (newPreferences) => {
+        try {
+            const updated = { ...userPreferences, ...newPreferences };
+            localStorage.setItem('shopping-preferences', JSON.stringify(updated));
+            setUserPreferences(updated);
+            console.log('💾 Saved shopping preferences:', updated);
+        } catch (error) {
+            console.error('Error saving user preferences:', error);
+        }
+    };
+
+    // NEW: Handle budget changes
+    const handleBudgetChange = (budget) => {
+        saveUserPreferences({ budget });
+    };
+
+    // NEW: Handle tax rate changes
+    const handleTaxRateChange = (taxRate) => {
+        saveUserPreferences({ taxRate });
+    };
+
+    const loadCustomCategories = async () => {
+        try {
+            // Load from API first
+            const response = await fetch('/api/categories/custom');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setCustomCategories(data.customCategories || {});
+                }
+            }
+
+            // Fallback to localStorage for backwards compatibility
             const saved = localStorage.getItem(`custom-categories-${session?.user?.id}`);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                setCustomCategories(parsed);
+                setCustomCategories(prev => ({ ...parsed, ...prev })); // API takes precedence
             }
 
             // Get store-specific categories if available
@@ -113,12 +194,34 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    const saveCustomCategories = (categories) => {
+    const saveCustomCategories = async (categories) => {
         try {
+            // Save to API
+            const response = await fetch('/api/categories/custom', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ customCategories: categories })
+            });
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    setCustomCategories(data.customCategories);
+                    console.log('✅ Custom categories saved to database');
+                }
+            } else {
+                throw new Error('Failed to save to database');
+            }
+
+            // Also save to localStorage for offline access
             localStorage.setItem(`custom-categories-${session?.user?.id}`, JSON.stringify(categories));
-            setCustomCategories(categories);
         } catch (error) {
             console.error('Error saving custom categories:', error);
+            // Fallback to localStorage only
+            localStorage.setItem(`custom-categories-${session?.user?.id}`, JSON.stringify(categories));
+            setCustomCategories(categories);
         }
     };
 
@@ -142,7 +245,7 @@ export default function EnhancedAIShoppingListModal({
             const learningStatus = aiSystem.getLearningStatus();
             setLearningProgress(learningStatus);
 
-            console.log('🤖 AI Shopping System initialized:', learningStatus);
+            console.log('Smart Shopping Assistant System initialized:', learningStatus);
         } catch (error) {
             console.error('Error initializing AI system:', error);
         }
@@ -190,14 +293,15 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // Category Management Functions
+    // FIXED: Category Management Functions
     const handleMoveItemToCategory = (item, fromCategory, toCategory) => {
         if (fromCategory === toCategory) return;
 
         console.log(`🔄 Moving ${item.ingredient || item.name} from ${fromCategory} to ${toCategory}`);
 
-        // Update the shopping list items
-        const updatedItems = { ...normalizedList.items };
+        // FIXED: Create a deep copy of the current shopping list
+        const updatedShoppingList = { ...currentShoppingList };
+        const updatedItems = { ...updatedShoppingList.items };
 
         // Remove from old category
         if (updatedItems[fromCategory]) {
@@ -219,16 +323,16 @@ export default function EnhancedAIShoppingListModal({
         const updatedItem = { ...item, category: toCategory };
         updatedItems[toCategory].push(updatedItem);
 
-        // Update the normalized list
-        normalizedList.items = updatedItems;
+        // Update the shopping list state
+        updatedShoppingList.items = updatedItems;
+        setCurrentShoppingList(updatedShoppingList);
 
         // Save user preference for this item type
         saveItemCategoryPreference(item.ingredient || item.name, toCategory);
 
         setMovingItem(null);
 
-        // Force re-render
-        setFilter(filter + '');
+        console.log('✅ Item moved successfully');
     };
 
     const saveItemCategoryPreference = (itemName, category) => {
@@ -267,6 +371,7 @@ export default function EnhancedAIShoppingListModal({
         if (!normalizedList.items) return;
 
         let moveCount = 0;
+        const updatedShoppingList = { ...currentShoppingList };
         const updatedItems = {};
 
         Object.entries(normalizedList.items).forEach(([category, items]) => {
@@ -291,32 +396,60 @@ export default function EnhancedAIShoppingListModal({
         });
 
         if (moveCount > 0) {
-            normalizedList.items = updatedItems;
-            setFilter(filter + ''); // Force re-render
+            updatedShoppingList.items = updatedItems;
+            setCurrentShoppingList(updatedShoppingList);
             alert(`🤖 AI moved ${moveCount} items to better categories!`);
         } else {
             alert('🎯 All items are already in optimal categories!');
         }
     };
 
-    // Normalize shopping list structure
+    // NEW: Advanced print function
+    const handleAdvancedPrint = () => {
+        console.log('🖨️ Opening print options modal...');
+        setShowPrintModal(true);
+    };
+
+    // NEW: Calculate print totals
+    const calculatePrintTotals = () => {
+        if (!normalizedList.items || Object.keys(normalizedList.items).length === 0) {
+            return null;
+        }
+
+        try {
+            const calculations = totalsCalculator.calculateTotals(normalizedList, {
+                budget: userPreferences?.budget,
+                taxableCategories: ['Household Items', 'Personal Care', 'Cleaning Supplies'],
+                discounts: [],
+                coupons: []
+            });
+
+            return totalsCalculator.generateSummary(calculations);
+        } catch (error) {
+            console.error('Error calculating totals for print:', error);
+            return null;
+        }
+    };
+
+    // Normalize shopping list structure - FIXED: Use currentShoppingList state
     const normalizeShoppingList = (list) => {
-        if (!list) return {items: {}, summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}};
+        const listToUse = list || currentShoppingList;
+        if (!listToUse) return {items: {}, summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}};
 
         let normalizedItems = {};
-        let summary = list.summary || list.stats || {};
+        let summary = listToUse.summary || listToUse.stats || {};
 
-        if (list.items) {
-            if (Array.isArray(list.items)) {
-                list.items.forEach(item => {
+        if (listToUse.items) {
+            if (Array.isArray(listToUse.items)) {
+                listToUse.items.forEach(item => {
                     const category = item.category || 'Other';
                     if (!normalizedItems[category]) {
                         normalizedItems[category] = [];
                     }
                     normalizedItems[category].push(item);
                 });
-            } else if (typeof list.items === 'object') {
-                normalizedItems = list.items;
+            } else if (typeof listToUse.items === 'object') {
+                normalizedItems = listToUse.items;
             }
         }
 
@@ -328,12 +461,12 @@ export default function EnhancedAIShoppingListModal({
                 inInventory: summary.inInventory || summary.alreadyHave || 0,
                 purchased: summary.purchased || 0
             },
-            generatedAt: list.generatedAt || new Date().toISOString(),
-            recipes: list.recipes || []
+            generatedAt: listToUse.generatedAt || new Date().toISOString(),
+            recipes: listToUse.recipes || []
         };
     };
 
-    const normalizedList = normalizeShoppingList(shoppingList);
+    const normalizedList = normalizeShoppingList();
 
     // Item interaction handlers
     const handleItemToggle = (itemKey) => {
@@ -384,14 +517,6 @@ export default function EnhancedAIShoppingListModal({
             default:
                 return itemsWithStatus;
         }
-    };
-
-    // Get items for display based on mode
-    const getItemsForDisplay = () => {
-        if (aiMode === 'ai-optimized' && aiOptimization) {
-            return aiOptimization.optimizedRoute;
-        }
-        return normalizedList.items;
     };
 
     // Group items by category for display
@@ -449,7 +574,7 @@ export default function EnhancedAIShoppingListModal({
         loadCustomCategories(); // Reload categories for new store
     };
 
-    if (!isOpen || !shoppingList) {
+    if (!isOpen || !currentShoppingList) {
         return null;
     }
 
@@ -511,7 +636,7 @@ export default function EnhancedAIShoppingListModal({
                                         color: '#0369a1',
                                         fontWeight: '500'
                                     }}>
-                                        🤖 AI Optimized
+                                        🎯 Smart Optimized
                                     </span>
                                 )}
                                 {editingCategories && (
@@ -664,6 +789,25 @@ export default function EnhancedAIShoppingListModal({
                             </TouchEnhancedButton>
                         )}
 
+                        {/* Custom Categories Button */}
+                        {editingCategories && (
+                            <TouchEnhancedButton
+                                onClick={() => setShowCategoryManager(true)}
+                                style={{
+                                    backgroundColor: '#059669',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.375rem 0.5rem',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                🔧 Manage
+                            </TouchEnhancedButton>
+                        )}
+
                         {/* Quick Actions */}
                         {!editingCategories && (
                             <>
@@ -699,6 +843,25 @@ export default function EnhancedAIShoppingListModal({
                                 </TouchEnhancedButton>
                             </>
                         )}
+
+                        {/* NEW: More Actions Toggle - Added from Unified version */}
+                        {!editingCategories && (
+                            <TouchEnhancedButton
+                                onClick={() => setShowActions(!showActions)}
+                                style={{
+                                    backgroundColor: '#374151',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.375rem 0.5rem',
+                                    fontSize: '0.75rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                {showActions ? '⌄ Less' : '⋯ More'}
+                            </TouchEnhancedButton>
+                        )}
                     </div>
 
                     {/* Category Management Instructions */}
@@ -718,9 +881,161 @@ export default function EnhancedAIShoppingListModal({
                             }}>
                                 <span>📂</span>
                                 <span style={{fontWeight: '500'}}>
-                                    Tap "Move to..." on any item to reorganize categories. Use "Smart Fix" for AI suggestions.
+                                    Tap "Move to..." on any item to reorganize categories. Use "Smart Fix" for AI suggestions. Click "Manage" to add/remove custom categories.
                                 </span>
                             </div>
+                        </div>
+                    )}
+
+                    {/* NEW: Expandable Actions Panel - Added from Unified version */}
+                    {showActions && !editingCategories && (
+                        <div style={{
+                            padding: '0.5rem 1rem',
+                            borderBottom: '1px solid #f3f4f6',
+                            backgroundColor: '#f1f5f9',
+                            flexShrink: 0
+                        }}>
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+                                gap: '0.5rem'
+                            }}>
+                                {showRefresh && onRefresh && (
+                                    <TouchEnhancedButton
+                                        onClick={onRefresh}
+                                        style={{
+                                            backgroundColor: '#6b7280',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '0.5rem',
+                                            fontSize: '0.65rem',
+                                            cursor: 'pointer',
+                                            textAlign: 'center'
+                                        }}
+                                    >
+                                        🔄<br/>Refresh
+                                    </TouchEnhancedButton>
+                                )}
+                                <TouchEnhancedButton
+                                    onClick={() => setShowSaveModal(true)}
+                                    style={{
+                                        backgroundColor: '#8b5cf6',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem',
+                                        fontSize: '0.65rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    💾<br/>Save
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowEmailModal(true)}
+                                    style={{
+                                        backgroundColor: '#16a34a',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem',
+                                        fontSize: '0.65rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    📧<br/>Share
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={handleAdvancedPrint}
+                                    style={{
+                                        backgroundColor: '#2563eb',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem',
+                                        fontSize: '0.65rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    🖨️<br/>Print
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowTotals(!showTotals)}
+                                    style={{
+                                        backgroundColor: showTotals ? '#059669' : '#6366f1',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem',
+                                        fontSize: '0.65rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    💰<br/>{showTotals ? 'Hide' : 'Totals'}
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        const textContent = `Shopping List - ${title}\n\n` +
+                                            Object.entries(groupedItems)
+                                                .map(([category, items]) => {
+                                                    const categoryItems = items.map(item => {
+                                                        const checkbox = item.purchased ? '☑' : '☐';
+                                                        const status = item.purchased ? ' [PURCHASED]' :
+                                                            item.inInventory ? ' [IN INVENTORY]' : '';
+                                                        const recipes = item.recipes && item.recipes.length > 0 ?
+                                                            ` (${item.recipes.join(', ')})` : '';
+                                                        return `  ${checkbox} ${item.amount ? `${item.amount} ` : ''}${item.ingredient || item.name}${status}${recipes}`;
+                                                    });
+                                                    return `${category}:\n${categoryItems.join('\n')}`;
+                                                })
+                                                .join('\n\n');
+
+                                        const blob = new Blob([textContent], {type: 'text/plain'});
+                                        const url = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = url;
+                                        a.download = `shopping-list-${title.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+                                        a.click();
+                                        URL.revokeObjectURL(url);
+                                    }}
+                                    style={{
+                                        backgroundColor: '#0891b2',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem',
+                                        fontSize: '0.65rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    📝<br/>Text
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* NEW: Totals Panel - Added from Unified version */}
+                    {showTotals && (
+                        <div style={{
+                            padding: '1rem',
+                            borderBottom: '1px solid #e5e7eb',
+                            backgroundColor: '#f8fafc',
+                            flexShrink: 0
+                        }}>
+                            <ShoppingListTotals
+                                shoppingList={normalizedList}
+                                userPreferences={userPreferences}
+                                onBudgetChange={handleBudgetChange}
+                                onTaxRateChange={handleTaxRateChange}
+                                showBudgetTracker={true}
+                                showCategoryBreakdown={true}
+                                compact={false}
+                            />
                         </div>
                     )}
 
@@ -1100,6 +1415,17 @@ export default function EnhancedAIShoppingListModal({
                 </div>
             )}
 
+            {/* Custom Category Manager Modal */}
+            {showCategoryManager && (
+                <CustomCategoryManager
+                    isOpen={showCategoryManager}
+                    onClose={() => setShowCategoryManager(false)}
+                    customCategories={customCategories}
+                    onSave={saveCustomCategories}
+                    userId={session?.user?.id}
+                />
+            )}
+
             {/* Store Selection Modal */}
             {showStoreSelector && (
                 <div style={{
@@ -1259,7 +1585,7 @@ export default function EnhancedAIShoppingListModal({
                 onClose={() => setShowEmailModal(false)}
                 shoppingList={normalizedList}
                 context="ai-shopping-enhanced"
-                contextName={`Enhanced AI Shopping List - ${selectedStore || 'Store'}`}
+                contextName={`Enhanced Smart Shopping Assistant List - ${selectedStore || 'Store'}`}
             />
 
             {/* Save Shopping List Modal */}
@@ -1267,11 +1593,11 @@ export default function EnhancedAIShoppingListModal({
                 isOpen={showSaveModal}
                 onClose={() => setShowSaveModal(false)}
                 onSave={(savedList) => {
-                    console.log('Enhanced AI Shopping list saved successfully:', savedList);
+                    console.log('Enhanced Smart Shopping Assistant list saved successfully:', savedList);
                 }}
                 shoppingList={normalizedList}
                 listType="ai-enhanced"
-                contextName={`Enhanced AI Shopping List - ${selectedStore || 'Store'}`}
+                contextName={`Enhanced Smart Shopping Assistant List - ${selectedStore || 'Store'}`}
                 sourceRecipeIds={sourceRecipeIds}
                 sourceMealPlanId={sourceMealPlanId}
                 metadata={{
@@ -1282,6 +1608,417 @@ export default function EnhancedAIShoppingListModal({
                     categoryManagement: true
                 }}
             />
+
+            {/* NEW: Print Options Modal - Added from Unified version */}
+            <PrintOptionsModal
+                isOpen={showPrintModal}
+                onClose={() => setShowPrintModal(false)}
+                onPrint={() => {
+                    console.log('✅ Print completed successfully');
+                    setShowPrintModal(false);
+                }}
+                shoppingList={normalizedList}
+                title={title}
+                subtitle={subtitle}
+                storeName={selectedStore}
+                shoppingRoute={null} // AI mode doesn't use shopping routes like Unified
+                totals={calculatePrintTotals()}
+            />
         </>
+    );
+}
+
+// NEW: Custom Category Manager Component (already exists in original)
+function CustomCategoryManager({ isOpen, onClose, customCategories, onSave, userId }) {
+    const [categories, setCategories] = useState({});
+    const [newCategoryName, setNewCategoryName] = useState('');
+    const [newCategoryIcon, setNewCategoryIcon] = useState('📦');
+    const [newCategorySection, setNewCategorySection] = useState('Other');
+    const [editingCategory, setEditingCategory] = useState(null);
+
+    useEffect(() => {
+        if (isOpen) {
+            // Merge default categories with custom ones
+            const merged = CategoryUtils.mergeWithCustomCategories(customCategories);
+            setCategories(merged);
+        }
+    }, [isOpen, customCategories]);
+
+    const addCustomCategory = () => {
+        if (!newCategoryName.trim()) return;
+
+        const categoryName = newCategoryName.trim();
+
+        // Check for duplicates
+        if (categories[categoryName]) {
+            alert('A category with this name already exists');
+            return;
+        }
+
+        const newCategory = CategoryUtils.createCustomCategory(
+            categoryName,
+            newCategoryIcon,
+            '#6366f1', // Default purple color
+            newCategorySection
+        );
+
+        const updatedCategories = {
+            ...categories,
+            [categoryName]: newCategory
+        };
+
+        setCategories(updatedCategories);
+
+        // Reset form
+        setNewCategoryName('');
+        setNewCategoryIcon('📦');
+        setNewCategorySection('Other');
+    };
+
+    const removeCustomCategory = (categoryName) => {
+        if (!categories[categoryName]?.custom) {
+            alert('Cannot remove default categories');
+            return;
+        }
+
+        if (!confirm(`Remove category "${categoryName}"?`)) return;
+
+        const updatedCategories = { ...categories };
+        delete updatedCategories[categoryName];
+        setCategories(updatedCategories);
+    };
+
+    const hideDefaultCategory = (categoryName) => {
+        const updatedCategories = {
+            ...categories,
+            [categoryName]: {
+                ...categories[categoryName],
+                hidden: !categories[categoryName].hidden
+            }
+        };
+        setCategories(updatedCategories);
+    };
+
+    const saveChanges = () => {
+        // Extract only custom categories for saving
+        const customOnly = {};
+        Object.entries(categories).forEach(([name, category]) => {
+            if (category.custom) {
+                customOnly[name] = category;
+            }
+        });
+
+        onSave(customOnly);
+        onClose();
+    };
+
+    if (!isOpen) return null;
+
+    const defaultCategories = Object.entries(categories).filter(([_, cat]) => !cat.custom);
+    const customCategoriesOnly = Object.entries(categories).filter(([_, cat]) => cat.custom);
+
+    return (
+        <div style={{
+            position: 'fixed',
+            top: '0',
+            left: '0',
+            right: '0',
+            bottom: '0',
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1200,
+            padding: '1rem'
+        }}>
+            <div style={{
+                backgroundColor: 'white',
+                borderRadius: '12px',
+                padding: '1.5rem',
+                maxWidth: '600px',
+                width: '100%',
+                maxHeight: '85vh',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column'
+            }}>
+                <h3 style={{
+                    margin: '0 0 1rem 0',
+                    fontSize: '1.25rem',
+                    fontWeight: '600',
+                    color: '#111827'
+                }}>
+                    🔧 Manage Categories
+                </h3>
+
+                <div style={{ flex: 1, overflow: 'auto', marginBottom: '1rem' }}>
+                    {/* Add New Category */}
+                    <div style={{
+                        backgroundColor: '#f0f9ff',
+                        border: '1px solid #0ea5e9',
+                        borderRadius: '8px',
+                        padding: '1rem',
+                        marginBottom: '1.5rem'
+                    }}>
+                        <h4 style={{
+                            margin: '0 0 0.75rem 0',
+                            fontSize: '1rem',
+                            fontWeight: '500',
+                            color: '#0c4a6e'
+                        }}>
+                            ➕ Add Custom Category
+                        </h4>
+
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr auto auto',
+                            gap: '0.5rem',
+                            alignItems: 'end'
+                        }}>
+                            <div>
+                                <label style={{
+                                    display: 'block',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    color: '#374151',
+                                    marginBottom: '0.25rem'
+                                }}>
+                                    Category Name
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newCategoryName}
+                                    onChange={(e) => setNewCategoryName(e.target.value)}
+                                    placeholder="e.g., International Foods"
+                                    style={{
+                                        width: '100%',
+                                        padding: '0.5rem',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px',
+                                        fontSize: '0.875rem'
+                                    }}
+                                    maxLength={30}
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{
+                                    display: 'block',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    color: '#374151',
+                                    marginBottom: '0.25rem'
+                                }}>
+                                    Icon
+                                </label>
+                                <input
+                                    type="text"
+                                    value={newCategoryIcon}
+                                    onChange={(e) => setNewCategoryIcon(e.target.value)}
+                                    style={{
+                                        width: '3rem',
+                                        padding: '0.5rem',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px',
+                                        fontSize: '0.875rem',
+                                        textAlign: 'center'
+                                    }}
+                                    maxLength={2}
+                                />
+                            </div>
+
+                            <TouchEnhancedButton
+                                onClick={addCustomCategory}
+                                disabled={!newCategoryName.trim()}
+                                style={{
+                                    padding: '0.5rem 1rem',
+                                    backgroundColor: newCategoryName.trim() ? '#0ea5e9' : '#9ca3af',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    cursor: newCategoryName.trim() ? 'pointer' : 'not-allowed',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                Add
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+
+                    {/* Custom Categories */}
+                    {customCategoriesOnly.length > 0 && (
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <h4 style={{
+                                margin: '0 0 0.75rem 0',
+                                fontSize: '1rem',
+                                fontWeight: '500',
+                                color: '#374151'
+                            }}>
+                                🎨 Your Custom Categories ({customCategoriesOnly.length})
+                            </h4>
+
+                            <div style={{ display: 'grid', gap: '0.5rem' }}>
+                                {customCategoriesOnly.map(([name, category]) => (
+                                    <div key={name} style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '0.75rem',
+                                        backgroundColor: '#fef3c7',
+                                        border: '1px solid #f59e0b',
+                                        borderRadius: '6px'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                            <span style={{ fontSize: '1.25rem' }}>{category.icon}</span>
+                                            <span style={{ fontWeight: '500', color: '#92400e' }}>{name}</span>
+                                            <span style={{ fontSize: '0.75rem', color: '#d97706' }}>
+                                                (Custom)
+                                            </span>
+                                        </div>
+
+                                        <TouchEnhancedButton
+                                            onClick={() => removeCustomCategory(name)}
+                                            style={{
+                                                padding: '0.25rem 0.5rem',
+                                                backgroundColor: '#dc2626',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                cursor: 'pointer',
+                                                fontSize: '0.75rem'
+                                            }}
+                                            title="Remove custom category"
+                                        >
+                                            🗑️ Remove
+                                        </TouchEnhancedButton>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Default Categories */}
+                    <div>
+                        <h4 style={{
+                            margin: '0 0 0.75rem 0',
+                            fontSize: '1rem',
+                            fontWeight: '500',
+                            color: '#374151'
+                        }}>
+                            📋 Default Categories ({defaultCategories.length})
+                        </h4>
+                        <p style={{
+                            fontSize: '0.875rem',
+                            color: '#6b7280',
+                            margin: '0 0 0.75rem 0'
+                        }}>
+                            You can hide default categories you don't use. Hidden categories won't appear in the category list.
+                        </p>
+
+                        <div style={{
+                            display: 'grid',
+                            gap: '0.25rem',
+                            maxHeight: '200px',
+                            overflow: 'auto',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '6px',
+                            padding: '0.5rem'
+                        }}>
+                            {defaultCategories.map(([name, category]) => (
+                                <div key={name} style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '0.5rem',
+                                    backgroundColor: category.hidden ? '#f3f4f6' : 'white',
+                                    borderRadius: '4px',
+                                    opacity: category.hidden ? 0.6 : 1
+                                }}>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                        <span style={{ fontSize: '1rem' }}>{category.icon}</span>
+                                        <span style={{
+                                            fontSize: '0.875rem',
+                                            color: category.hidden ? '#6b7280' : '#374151',
+                                            textDecoration: category.hidden ? 'line-through' : 'none'
+                                        }}>
+                                            {name}
+                                        </span>
+                                        {category.section && (
+                                            <span style={{
+                                                fontSize: '0.75rem',
+                                                color: '#9ca3af',
+                                                backgroundColor: '#f3f4f6',
+                                                padding: '0.125rem 0.375rem',
+                                                borderRadius: '12px'
+                                            }}>
+                                                {category.section}
+                                            </span>
+                                        )}
+                                    </div>
+
+                                    <TouchEnhancedButton
+                                        onClick={() => hideDefaultCategory(name)}
+                                        style={{
+                                            padding: '0.25rem 0.5rem',
+                                            backgroundColor: category.hidden ? '#10b981' : '#f59e0b',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            cursor: 'pointer',
+                                            fontSize: '0.75rem'
+                                        }}
+                                        title={category.hidden ? 'Show category' : 'Hide category'}
+                                    >
+                                        {category.hidden ? '👁️ Show' : '🙈 Hide'}
+                                    </TouchEnhancedButton>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* Footer */}
+                <div style={{
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem',
+                    paddingTop: '1rem',
+                    borderTop: '1px solid #e5e7eb'
+                }}>
+                    <TouchEnhancedButton
+                        onClick={onClose}
+                        style={{
+                            flex: 1,
+                            padding: '0.75rem',
+                            backgroundColor: '#f3f4f6',
+                            color: '#374151',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        Cancel
+                    </TouchEnhancedButton>
+
+                    <TouchEnhancedButton
+                        onClick={saveChanges}
+                        style={{
+                            flex: 1,
+                            padding: '0.75rem',
+                            backgroundColor: '#059669',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        💾 Save Changes
+                    </TouchEnhancedButton>
+                </div>
+            </div>
+        </div>
     );
 }

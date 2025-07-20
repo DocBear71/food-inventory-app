@@ -1025,6 +1025,43 @@ const UserSchema = new mongoose.Schema({
             endDate: Date
         }]
     },
+    customCategories: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+        validate: {
+            validator: function(categories) {
+                // Validate structure of custom categories
+                if (!categories || typeof categories !== 'object') return true; // Allow empty/null
+
+                for (const [name, category] of Object.entries(categories)) {
+                    if (!category.name || !category.icon || !category.custom) {
+                        return false;
+                    }
+
+                    // Check lengths
+                    if (name.length > 50 || category.name.length > 50 || category.icon.length > 10) {
+                        return false;
+                    }
+                }
+                return true;
+            },
+            message: 'Invalid custom categories structure'
+        }
+    },
+
+// Category preferences for better AI suggestions
+    categoryPreferences: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+        // Store user preferences like: { "chicken breast": "Fresh Poultry", "tomato": "Fresh Produce" }
+    },
+
+// Store-specific category orders
+    storeCategories: {
+        type: mongoose.Schema.Types.Mixed,
+        default: {},
+        // Store layouts like: { "walmart-123": { storeName: "Walmart", categories: [...] } }
+    },
 });
 
 UserSchema.pre('save', function(next) {
