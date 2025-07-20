@@ -1,10 +1,18 @@
 'use client';
 
-// file: /src/components/integrations/NutritionOverview.js v1
+// file: /src/components/integrations/NutritionOverview.js v2 - Enhanced with missing functionality
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useModalIntegration } from '@/hooks/useModalIntegration';
+import { useSession } from 'next-auth/react';
 
 export function NutritionOverview({ data, loading, onAnalyze }) {
+    const { data: session } = useSession();
+    const {
+        performSmartInventoryAction,
+        loading: integrationLoading
+    } = useModalIntegration();
+
     const [insights, setInsights] = useState(null);
 
     useEffect(() => {
@@ -50,6 +58,75 @@ export function NutritionOverview({ data, loading, onAnalyze }) {
 
         return Math.round(score);
     };
+
+    // Quick Action Helper Functions
+    const generateSmartShoppingList = useCallback(async () => {
+        try {
+            if (!data?.inventory?.items?.length) {
+                alert('❌ No inventory items found. Add items to your inventory first.');
+                return;
+            }
+
+            const result = await performSmartInventoryAction('generate_shopping_list', {
+                preferences: session?.user?.preferences || {},
+                budget: null
+            });
+
+            if (result.success) {
+                let message = '🛒 Smart Shopping List Generated!\n\n';
+
+                if (result.shoppingList?.length > 0) {
+                    message += `📝 Items suggested: ${result.shoppingList.length}\n`;
+
+                    if (result.estimatedCost) {
+                        message += `💰 Estimated cost: ${result.estimatedCost}\n`;
+                    }
+
+                    message += '\n🏪 View full list in Shopping section?';
+
+                    if (confirm(message)) {
+                        window.location.href = '/shopping/saved';
+                    }
+                } else {
+                    alert('✅ Your inventory looks well-stocked! No urgent shopping needed.');
+                }
+            } else {
+                throw new Error(result.error || 'Shopping list generation failed');
+            }
+        } catch (error) {
+            console.error('Error generating smart shopping list:', error);
+            alert(`❌ Error generating shopping list: ${error.message}`);
+        }
+    }, [data, performSmartInventoryAction, session]);
+
+    const navigateToMealPlanning = useCallback(() => {
+        if (!data?.inventory?.items?.length) {
+            if (confirm('❌ No inventory items found.\n\nWould you like to add some items first, or go to meal planning anyway?')) {
+                window.location.href = '/meal-planning';
+            } else {
+                window.location.href = '/inventory?action=add';
+            }
+            return;
+        }
+
+        // Show meal planning preview
+        const availableIngredients = data.inventory.items.length;
+        const nutritionCoverage = Math.round((data.inventory.items.filter(item => item.nutrition).length / data.inventory.items.length) * 100);
+
+        const message = `🍽️ Meal Planning Ready!\n\n` +
+            `📦 Available ingredients: ${availableIngredients}\n` +
+            `📊 Nutrition data: ${nutritionCoverage}% coverage\n` +
+            `🤖 AI will suggest meals based on your inventory\n\n` +
+            `Ready to create your meal plan?`;
+
+        if (confirm(message)) {
+            window.location.href = '/meal-planning';
+        }
+    }, [data]);
+
+    const navigateToRecipes = useCallback(() => {
+        window.location.href = '/recipes';
+    }, []);
 
     if (loading && !data) {
         return (
@@ -119,13 +196,13 @@ export function NutritionOverview({ data, loading, onAnalyze }) {
                 ))}
             </div>
 
-            {/* Quick Actions */}
+            {/* Quick Actions - Enhanced with Working Functionality */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">🚀 Quick Actions</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <button
                         onClick={onAnalyze}
-                        disabled={loading}
+                        disabled={loading || integrationLoading}
                         className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-center"
                     >
                         <div className="text-lg mb-1">🔬</div>
@@ -133,19 +210,29 @@ export function NutritionOverview({ data, loading, onAnalyze }) {
                         <div className="text-xs opacity-90">AI-powered analysis</div>
                     </button>
 
-                    <button className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors text-center">
+                    <button
+                        onClick={navigateToRecipes}
+                        className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors text-center"
+                    >
                         <div className="text-lg mb-1">🍳</div>
                         <div className="font-medium">Recipe Ideas</div>
                         <div className="text-xs opacity-90">From your inventory</div>
                     </button>
 
-                    <button className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors text-center">
+                    <button
+                        onClick={generateSmartShoppingList}
+                        disabled={integrationLoading || !data?.inventory?.items?.length}
+                        className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-center"
+                    >
                         <div className="text-lg mb-1">🛒</div>
                         <div className="font-medium">Smart Shopping</div>
                         <div className="text-xs opacity-90">Optimized lists</div>
                     </button>
 
-                    <button className="bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 transition-colors text-center">
+                    <button
+                        onClick={navigateToMealPlanning}
+                        className="bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 transition-colors text-center"
+                    >
                         <div className="text-lg mb-1">📋</div>
                         <div className="font-medium">Meal Planning</div>
                         <div className="text-xs opacity-90">AI suggestions</div>
@@ -184,21 +271,31 @@ export function NutritionOverview({ data, loading, onAnalyze }) {
                     <h3 className="text-lg font-semibold text-gray-900 mb-4">📈 Nutrition Summary</h3>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-blue-600">{data.overview.inventoryCount}</div>
+                            <div className="text-2xl font-bold text-blue-600">{data.overview.totalInventoryItems || 0}</div>
                             <div className="text-sm text-gray-600">Total Items</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-green-600">{data.overview.itemsWithNutrition}</div>
+                            <div className="text-2xl font-bold text-green-600">{data.overview.itemsWithNutrition || 0}</div>
                             <div className="text-sm text-gray-600">With Nutrition</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-purple-600">{data.overview.personalRecipes}</div>
+                            <div className="text-2xl font-bold text-purple-600">{data.overview.totalRecipes || 0}</div>
                             <div className="text-sm text-gray-600">Personal Recipes</div>
                         </div>
                         <div className="text-center">
-                            <div className="text-2xl font-bold text-orange-600">{data.overview.recentMealPlans}</div>
+                            <div className="text-2xl font-bold text-orange-600">{data.mealPlans?.activePlans || 0}</div>
                             <div className="text-sm text-gray-600">Active Meal Plans</div>
                         </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Loading indicator for integration actions */}
+            {integrationLoading && (
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                    <div className="flex items-center justify-center space-x-2">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
+                        <span className="text-blue-800 font-medium">Processing smart action...</span>
                     </div>
                 </div>
             )}
