@@ -54,27 +54,55 @@ export default function NutritionDashboard() {
             // Load comprehensive dashboard data
             const [inventoryData, nutritionGoals, recentAnalyses] = await Promise.all([
                 fetch('/api/inventory').then(res => res.json()),
-                fetch('/api/nutrition/goals').then(res => res.json()),
-                fetch('/api/nutrition/recent-analyses').then(res => res.json())
+                fetch('/api/nutrition/goals').then(res => res.json()).catch(() => ({ goals: {} })),
+                fetch('/api/nutrition/recent-analyses').then(res => res.json()).catch(() => ({ analyses: [] }))
             ]);
 
-            // Get smart inventory insights
             if (inventoryData.success && inventoryData.inventory?.length > 0) {
-                const insights = await performSmartInventoryAction('suggest_recipes', {
-                    inventory: inventoryData.inventory,
-                    preferences: session.user.preferences || {}
-                });
+                // Get smart inventory insights using the real API
+                try {
+                    const insights = await performSmartInventoryAction('suggest_recipes', {
+                        inventory: inventoryData.inventory,
+                        preferences: session?.user?.preferences || {}
+                    });
 
+                    setDashboardData({
+                        inventory: inventoryData.inventory,
+                        nutritionGoals: nutritionGoals.goals || {},
+                        recentAnalyses: recentAnalyses.analyses || [],
+                        smartInsights: insights.suggestions || [],
+                        inventoryUtilization: insights.inventoryUtilization || {}
+                    });
+                } catch (smartInventoryError) {
+                    console.error('Smart inventory insights failed:', smartInventoryError);
+                    // Set dashboard data without smart insights
+                    setDashboardData({
+                        inventory: inventoryData.inventory,
+                        nutritionGoals: nutritionGoals.goals || {},
+                        recentAnalyses: recentAnalyses.analyses || [],
+                        smartInsights: [],
+                        inventoryUtilization: {}
+                    });
+                }
+            } else {
+                // No inventory data
                 setDashboardData({
-                    inventory: inventoryData.inventory,
+                    inventory: [],
                     nutritionGoals: nutritionGoals.goals || {},
                     recentAnalyses: recentAnalyses.analyses || [],
-                    smartInsights: insights.suggestions || [],
-                    inventoryUtilization: insights.utilization || {}
+                    smartInsights: [],
+                    inventoryUtilization: {}
                 });
             }
         } catch (error) {
             console.error('Error loading dashboard data:', error);
+            setDashboardData({
+                inventory: [],
+                nutritionGoals: {},
+                recentAnalyses: [],
+                smartInsights: [],
+                inventoryUtilization: {}
+            });
         } finally {
             setRefreshing(false);
         }
@@ -89,24 +117,31 @@ export default function NutritionDashboard() {
             const nutritionQuery = parseVoiceNutritionQuery(transcript);
 
             if (nutritionQuery.action === 'analyze_item') {
-                // Find matching inventory item
-                const matchingItem = dashboardData?.inventory?.find(item =>
-                    item.name.toLowerCase().includes(nutritionQuery.itemName.toLowerCase())
-                );
+                const result = await analyzeSingleItem(nutritionQuery.itemName);
 
-                if (matchingItem) {
-                    const result = await analyzeNutrition('inventory_item', {
-                        itemId: matchingItem._id,
-                        name: matchingItem.name,
-                        brand: matchingItem.brand,
-                        category: matchingItem.category
-                    });
+                setShowVoiceNutrition(false);
 
-                    setShowVoiceNutrition(false);
-                    alert(`✅ Nutrition analysis for ${matchingItem.name}:\n\nCalories: ${result.nutrition?.calories?.value || 'N/A'}\nProtein: ${result.nutrition?.protein?.value || 'N/A'}g\nCarbs: ${result.nutrition?.carbs?.value || 'N/A'}g\nFat: ${result.nutrition?.fat?.value || 'N/A'}g`);
-                } else {
-                    alert(`❌ Item "${nutritionQuery.itemName}" not found in inventory`);
+                const nutrition = result.nutrition;
+                const fromCache = result.fromCache;
+
+                let message = `${fromCache ? '📊' : '🔬'} Nutrition for ${result.item.name}:\n\n`;
+                message += `Calories: ${nutrition.calories?.value || 'N/A'} kcal\n`;
+                message += `Protein: ${nutrition.protein?.value?.toFixed(1) || 'N/A'}g\n`;
+                message += `Carbs: ${nutrition.carbs?.value?.toFixed(1) || 'N/A'}g\n`;
+                message += `Fat: ${nutrition.fat?.value?.toFixed(1) || 'N/A'}g\n`;
+
+                if (nutrition.fiber?.value) {
+                    message += `Fiber: ${nutrition.fiber.value.toFixed(1)}g\n`;
                 }
+
+                message += `\n${fromCache ? '📋 From existing data' : '🤖 Fresh AI analysis'}`;
+
+                if (nutrition.confidence) {
+                    message += `\nConfidence: ${Math.round(nutrition.confidence * 100)}%`;
+                }
+
+                alert(message);
+
             } else if (nutritionQuery.action === 'get_suggestions') {
                 setActiveTab('recipes');
                 setShowVoiceNutrition(false);
@@ -118,11 +153,11 @@ export default function NutritionDashboard() {
             }
         } catch (error) {
             console.error('Error processing voice nutrition:', error);
-            alert('❌ Error processing voice nutrition query');
+            alert(`❌ ${error.message}`);
         } finally {
             setProcessingVoiceNutrition(false);
         }
-    }, [dashboardData, analyzeNutrition, setActiveTab]);
+    }, [analyzeSingleItem, setActiveTab]);
 
     const handleVoiceNutritionError = useCallback((error) => {
         console.error('Voice nutrition error:', error);
@@ -162,7 +197,39 @@ export default function NutritionDashboard() {
                 return;
             }
 
-            // Analyze expiring items and missing nutrition categories
+            setRefreshing(true);
+
+            // Use the real smart inventory API
+            const result = await performSmartInventoryAction('generate_shopping_list', {
+                preferences: session?.user?.preferences || {},
+                budget: null // Could be added as a user setting later
+            });
+
+            if (result.success) {
+                let message = '🛒 Smart Shopping List Generated!\n\n';
+
+                if (result.shoppingList?.length > 0) {
+                    message += `📝 Items suggested: ${result.shoppingList.length}\n`;
+
+                    if (result.estimatedCost) {
+                        message += `💰 Estimated cost: ${result.estimatedCost}\n`;
+                    }
+
+                    message += '\n🏪 View full list in Shopping section?';
+
+                    if (confirm(message)) {
+                        window.location.href = '/shopping/saved';
+                    }
+                } else {
+                    alert('✅ Your inventory looks well-stocked! No urgent shopping needed.');
+                }
+            } else {
+                throw new Error(result.error || 'Shopping list generation failed');
+            }
+        } catch (error) {
+            console.error('Error generating smart shopping list:', error);
+
+            // Fallback to basic analysis
             const expiringItems = dashboardData.inventory.filter(item => {
                 if (!item.expirationDate) return false;
                 const expDate = new Date(item.expirationDate);
@@ -174,44 +241,27 @@ export default function NutritionDashboard() {
                 item.quantity <= 1 || (item.quantity <= 2 && item.unit === 'item')
             );
 
-            // Get nutritional gaps
-            const currentCategories = [...new Set(dashboardData.inventory.map(item => item.category))];
-            const recommendedCategories = [
-                'Fresh Fruits', 'Fresh Vegetables', 'Dairy', 'Fresh/Frozen Poultry',
-                'Grains', 'Beans', 'Fresh Spices'
-            ];
-            const missingCategories = recommendedCategories.filter(cat => !currentCategories.includes(cat));
-
-            // Generate shopping recommendations
-            const recommendations = [
-                ...lowStockItems.map(item => `${item.name} (running low)`),
-                ...missingCategories.map(cat => `${cat} (nutritional variety)`),
-                'High-protein items (greek yogurt, lean meats)',
-                'Fiber-rich foods (whole grains, vegetables)',
-                'Omega-3 sources (salmon, walnuts, flax seeds)'
-            ];
-
-            let message = '🛒 Smart Shopping Recommendations:\n\n';
+            let message = '🛒 Basic Shopping Recommendations:\n\n';
 
             if (expiringItems.length > 0) {
-                message += `⚠️ URGENT - Use first:\n${expiringItems.map(item => `• ${item.name}`).join('\n')}\n\n`;
+                message += `⚠️ USE FIRST - ${expiringItems.length} items expiring soon\n`;
             }
 
             if (lowStockItems.length > 0) {
-                message += `📉 Low Stock:\n${lowStockItems.map(item => `• ${item.name}`).join('\n')}\n\n`;
+                message += `📉 LOW STOCK - Consider restocking:\n`;
+                message += lowStockItems.slice(0, 5).map(item => `• ${item.name}`).join('\n');
+                message += '\n\n';
             }
 
-            message += `💡 Nutritional Recommendations:\n${recommendations.slice(0, 5).map(rec => `• ${rec}`).join('\n')}\n\n`;
-            message += 'Would you like to navigate to the shopping list feature?';
+            message += 'Navigate to shopping section?';
 
             if (confirm(message)) {
                 window.location.href = '/shopping';
             }
-        } catch (error) {
-            console.error('Error generating shopping list:', error);
-            alert('❌ Error generating shopping recommendations. Please try again.');
+        } finally {
+            setRefreshing(false);
         }
-    }, [dashboardData]);
+    }, [dashboardData, performSmartInventoryAction, session]);
 
     const navigateToMealPlanning = useCallback(() => {
         if (!dashboardData?.inventory?.length) {
@@ -237,38 +287,184 @@ export default function NutritionDashboard() {
             window.location.href = '/meal-planning';
         }
     }, [dashboardData]);
-    const analyzeInventoryNutrition = async () => {
-        if (!dashboardData?.inventory?.length) return;
+
+    const analyzeInventoryNutrition = useCallback(async () => {
+        if (!dashboardData?.inventory?.length) {
+            alert('❌ No inventory items found. Add items to your inventory first.');
+            return;
+        }
 
         try {
-            const results = await Promise.all(
-                dashboardData.inventory.slice(0, 10).map(async (item) => {
-                    if (item.nutrition) return {item, nutrition: item.nutrition, fromCache: true};
+            setRefreshing(true);
+
+            // Get items that don't have nutrition data yet
+            const itemsToAnalyze = dashboardData.inventory.filter(item => !item.nutrition);
+            const itemsWithNutrition = dashboardData.inventory.filter(item => item.nutrition);
+
+            if (itemsToAnalyze.length === 0) {
+                alert('✅ All items already have nutrition data!');
+                return;
+            }
+
+            const results = [];
+            let successCount = 0;
+            let errorCount = 0;
+
+            // Add existing nutrition data to results
+            itemsWithNutrition.forEach(item => {
+                results.push({
+                    item,
+                    nutrition: item.nutrition,
+                    fromCache: true
+                });
+            });
+
+            // Analyze items without nutrition data (limit to 10 for performance)
+            const itemsToProcess = itemsToAnalyze.slice(0, 10);
+
+            for (const item of itemsToProcess) {
+                try {
+                    console.log(`Analyzing nutrition for: ${item.name}`);
 
                     const result = await analyzeNutrition('inventory_item', {
                         itemId: item._id,
                         name: item.name,
-                        brand: item.brand,
-                        category: item.category,
-                        quantity: item.quantity,
-                        unit: item.unit
+                        brand: item.brand || '',
+                        category: item.category || '',
+                        quantity: item.quantity || 1,
+                        unit: item.unit || 'item'
                     });
 
-                    return {item, nutrition: result.nutrition, fromCache: false};
-                })
-            );
+                    if (result.success) {
+                        results.push({
+                            item: {
+                                ...item,
+                                nutrition: result.nutrition
+                            },
+                            nutrition: result.nutrition,
+                            fromCache: false
+                        });
+                        successCount++;
+                    } else {
+                        console.error(`Failed to analyze ${item.name}:`, result.error);
+                        results.push({
+                            item,
+                            nutrition: null,
+                            error: result.error,
+                            fromCache: false
+                        });
+                        errorCount++;
+                    }
+                } catch (error) {
+                    console.error(`Error analyzing ${item.name}:`, error);
+                    results.push({
+                        item,
+                        nutrition: null,
+                        error: error.message,
+                        fromCache: false
+                    });
+                    errorCount++;
+                }
+            }
 
             // Update dashboard with new nutrition data
+            const updatedInventory = dashboardData.inventory.map(item => {
+                const result = results.find(r => r.item._id === item._id);
+                if (result && result.nutrition) {
+                    return {
+                        ...item,
+                        nutrition: result.nutrition
+                    };
+                }
+                return item;
+            });
+
             setDashboardData(prev => ({
                 ...prev,
+                inventory: updatedInventory,
                 nutritionAnalyses: results,
                 lastAnalyzed: new Date()
             }));
 
+            // Show results summary
+            let message = '🔬 Nutrition Analysis Complete!\n\n';
+            message += `✅ Successfully analyzed: ${successCount} items\n`;
+            message += `📊 Already had data: ${itemsWithNutrition.length} items\n`;
+
+            if (errorCount > 0) {
+                message += `❌ Failed to analyze: ${errorCount} items\n`;
+            }
+
+            if (itemsToAnalyze.length > 10) {
+                message += `\n⏳ Remaining items will be analyzed in future runs`;
+            }
+
+            alert(message);
+
         } catch (error) {
-            console.error('Error analyzing inventory nutrition:', error);
+            console.error('Error in batch nutrition analysis:', error);
+            alert(`❌ Error analyzing nutrition: ${error.message}`);
+        } finally {
+            setRefreshing(false);
         }
-    };
+    }, [dashboardData, analyzeNutrition]);
+
+    // Function to analyze a single item (for voice commands)
+    const analyzeSingleItem = useCallback(async (itemName) => {
+        if (!dashboardData?.inventory?.length) {
+            throw new Error('No inventory items found');
+        }
+
+        const item = dashboardData.inventory.find(item =>
+            item.name.toLowerCase().includes(itemName.toLowerCase())
+        );
+
+        if (!item) {
+            throw new Error(`Item "${itemName}" not found in inventory`);
+        }
+
+        if (item.nutrition) {
+            return {
+                item,
+                nutrition: item.nutrition,
+                fromCache: true
+            };
+        }
+
+        try {
+            const result = await analyzeNutrition('inventory_item', {
+                itemId: item._id,
+                name: item.name,
+                brand: item.brand || '',
+                category: item.category || '',
+                quantity: item.quantity || 1,
+                unit: item.unit || 'item'
+            });
+
+            if (result.success) {
+                // Update the item in dashboard data
+                setDashboardData(prev => ({
+                    ...prev,
+                    inventory: prev.inventory.map(invItem =>
+                        invItem._id === item._id
+                            ? { ...invItem, nutrition: result.nutrition }
+                            : invItem
+                    )
+                }));
+
+                return {
+                    item: { ...item, nutrition: result.nutrition },
+                    nutrition: result.nutrition,
+                    fromCache: false
+                };
+            } else {
+                throw new Error(result.error || 'Analysis failed');
+            }
+        } catch (error) {
+            console.error(`Error analyzing ${item.name}:`, error);
+            throw error;
+        }
+    }, [dashboardData, analyzeNutrition]);
 
     if (!session) {
         return (
