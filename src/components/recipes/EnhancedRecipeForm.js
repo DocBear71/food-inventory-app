@@ -12,6 +12,7 @@ import {useSearchParams, useRouter} from 'next/navigation'; // Add useRouter her
 import NutritionFacts from '@/components/nutrition/NutritionFacts'; // ADD THIS
 import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
+import { VoiceInput } from '@/components/mobile/VoiceInput';
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
 const AutoExpandingTextarea = ({value, onChange, placeholder, className, ...props}) => {
@@ -80,6 +81,13 @@ export default function EnhancedRecipeForm({
     const [imagePreview, setImagePreview] = useState(null);
     const [imageSource, setImageSource] = useState(null); // 'upload', 'extracted', 'url'
     const [isUploadingImage, setIsUploadingImage] = useState(false);
+    // NEW: Voice Input State
+    const [showVoiceTitle, setShowVoiceTitle] = useState(false);
+    const [showVoiceDescription, setShowVoiceDescription] = useState(false);
+    const [showVoiceIngredients, setShowVoiceIngredients] = useState(false);
+    const [showVoiceInstructions, setShowVoiceInstructions] = useState(false);
+    const [processingVoice, setProcessingVoice] = useState(false);
+    const [voiceResults, setVoiceResults] = useState('');
 
     const searchParams = useSearchParams();
 
@@ -755,6 +763,191 @@ export default function EnhancedRecipeForm({
             .replace(/⅞/g, '7/8');
     };
 
+    // NEW: Voice Input Functions
+    const handleVoiceTitle = async (transcript, confidence) => {
+        console.log('🎤 Voice title received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            updateRecipe('title', transcript.trim());
+            setShowVoiceTitle(false);
+            setVoiceResults('');
+            alert(`✅ Title added: "${transcript.trim()}"`);
+        } catch (error) {
+            console.error('Error processing voice title:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceDescription = async (transcript, confidence) => {
+        console.log('🎤 Voice description received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            updateRecipe('description', transcript.trim());
+            setShowVoiceDescription(false);
+            setVoiceResults('');
+            alert(`✅ Description added: "${transcript.slice(0, 50)}..."`);
+        } catch (error) {
+            console.error('Error processing voice description:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceIngredients = async (transcript, confidence) => {
+        console.log('🎤 Voice ingredients received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            const newIngredients = parseVoiceIngredients(transcript);
+
+            if (newIngredients.length > 0) {
+                // Add to existing ingredients
+                setRecipe(prev => ({
+                    ...prev,
+                    ingredients: [...prev.ingredients, ...newIngredients]
+                }));
+
+                setShowVoiceIngredients(false);
+                setVoiceResults('');
+                alert(`✅ Added ${newIngredients.length} ingredient${newIngredients.length > 1 ? 's' : ''} from voice input!`);
+            } else {
+                alert('❌ Could not understand any ingredients. Try saying items like "2 cups flour, 1 egg, half cup milk"');
+            }
+        } catch (error) {
+            console.error('Error processing voice ingredients:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceInstructions = async (transcript, confidence) => {
+        console.log('🎤 Voice instructions received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            const newInstructions = parseVoiceInstructions(transcript);
+
+            if (newInstructions.length > 0) {
+                // Add to existing instructions with proper step numbering
+                setRecipe(prev => {
+                    const currentStepCount = prev.instructions.length;
+                    const numberedInstructions = newInstructions.map((inst, index) => ({
+                        step: currentStepCount + index + 1,
+                        instruction: inst.instruction
+                    }));
+
+                    return {
+                        ...prev,
+                        instructions: [...prev.instructions, ...numberedInstructions]
+                    };
+                });
+
+                setShowVoiceInstructions(false);
+                setVoiceResults('');
+                alert(`✅ Added ${newInstructions.length} instruction step${newInstructions.length > 1 ? 's' : ''} from voice input!`);
+            } else {
+                alert('❌ Could not understand any instructions. Try speaking step-by-step cooking directions.');
+            }
+        } catch (error) {
+            console.error('Error processing voice instructions:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceError = (error) => {
+        console.error('🎤 Voice input error:', error);
+        setProcessingVoice(false);
+
+        // Show user-friendly error message
+        let userMessage = 'Voice input failed. ';
+        if (error.includes('not-allowed') || error.includes('denied')) {
+            userMessage += 'Please allow microphone access in your browser settings.';
+        } else if (error.includes('network')) {
+            userMessage += 'Voice recognition requires an internet connection.';
+        } else {
+            userMessage += 'Please try again.';
+        }
+
+        alert(`🎤 ${userMessage}`);
+    };
+
+    const parseVoiceIngredients = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return [];
+
+        // Clean up the transcript
+        const cleanTranscript = transcript.toLowerCase()
+            .replace(/[.!?]/g, '') // Remove punctuation
+            .replace(/\b(add|ingredients|include|need|use|get)\b/g, '') // Remove command words
+            .trim();
+
+        // Split by common separators
+        const itemTexts = cleanTranscript
+            .split(/[,;]|\band\b|\bthen\b|\balso\b|\bplus\b/)
+            .map(item => item.trim())
+            .filter(item => item.length > 0);
+
+        const parsedIngredients = [];
+
+        itemTexts.forEach(itemText => {
+            if (itemText.length < 2) return; // Skip very short items
+
+            const parsed = parseIngredientLine(itemText);
+            if (parsed && parsed.name) {
+                parsedIngredients.push(parsed);
+            }
+        });
+
+        console.log('🎤 Parsed voice ingredients:', parsedIngredients);
+        return parsedIngredients;
+    };
+
+    const parseVoiceInstructions = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return [];
+
+        // Clean up the transcript
+        const cleanTranscript = transcript
+            .replace(/[.!?]/g, '.') // Normalize sentence endings
+            .replace(/\b(then|next|after that|step|now)\b/gi, '.') // Replace transition words with periods
+            .trim();
+
+        // Split by periods or natural pauses
+        const stepTexts = cleanTranscript
+            .split(/[.]|\bthen\b|\bnext\b|\bafter that\b/i)
+            .map(step => step.trim())
+            .filter(step => step.length > 5); // Filter out very short segments
+
+        const parsedInstructions = [];
+
+        stepTexts.forEach((stepText, index) => {
+            const cleanStep = stepText
+                .replace(/^(step\s*\d*[:.]?\s*)/i, '') // Remove "Step X:" prefixes
+                .replace(/^\d+\.\s*/, '') // Remove numbered prefixes
+                .trim();
+
+            if (cleanStep.length > 5) {
+                parsedInstructions.push({
+                    step: index + 1,
+                    instruction: cleanStep
+                });
+            }
+        });
+
+        console.log('🎤 Parsed voice instructions:', parsedInstructions);
+        return parsedInstructions;
+    };
+
     // Original manual form handlers
     const updateRecipe = (field, value) => {
         setRecipe(prev => ({...prev, [field]: value}));
@@ -1273,9 +1466,18 @@ export default function EnhancedRecipeForm({
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Recipe Title *
-                                    </label>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Recipe Title *
+                                        </label>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => setShowVoiceTitle(true)}
+                                            className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
+                                        >
+                                            🎤 Voice
+                                        </TouchEnhancedButton>
+                                    </div>
                                     <input
                                         type="text"
                                         required
@@ -1308,9 +1510,18 @@ export default function EnhancedRecipeForm({
 
                                 {/* Description */}
                                 <div className="md:col-span-2">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Description
-                                    </label>
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="block text-sm font-medium text-gray-700">
+                                            Description
+                                        </label>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={() => setShowVoiceDescription(true)}
+                                            className="text-purple-600 hover:text-purple-700 text-sm flex items-center gap-1"
+                                        >
+                                            🎤 Voice
+                                        </TouchEnhancedButton>
+                                    </div>
                                     <AutoExpandingTextarea
                                         value={recipe.description}
                                         onChange={(e) => updateRecipe('description', e.target.value)}
@@ -1490,10 +1701,17 @@ export default function EnhancedRecipeForm({
                         </div>
 
                         {/* Ingredients - MOBILE RESPONSIVE */}
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
                                 Ingredients ({recipe.ingredients.length})
                             </h3>
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={() => setShowVoiceIngredients(true)}
+                                className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
+                            >
+                                🎤 Add by Voice
+                            </TouchEnhancedButton>
 
                             <div className="space-y-4">
                                 {recipe.ingredients.map((ingredient, index) => (
@@ -1585,10 +1803,17 @@ export default function EnhancedRecipeForm({
                         </div>
 
                         {/* Instructions Section - FIXED */}
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                        <div className="flex items-center justify-between mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">
                                 Instructions ({recipe.instructions.length})
                             </h3>
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={() => setShowVoiceInstructions(true)}
+                                className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
+                            >
+                                🎤 Add by Voice
+                            </TouchEnhancedButton>
 
                             <div className="space-y-4">
                                 {recipe.instructions.map((instruction, index) => {
@@ -1989,6 +2214,140 @@ export default function EnhancedRecipeForm({
                 recipeTitle={recipe.title || "Recipe"}
             />
 
+            {/* NEW: Voice Input Modals */}
+            {/* Title Voice Modal */}
+            {showVoiceTitle && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Recipe Title</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceTitle(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceTitle}
+                                onError={handleVoiceError}
+                                placeholder="Say the recipe title..."
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800">
+                                💡 <strong>Example:</strong> "Grandma's famous chocolate chip cookies"
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Description Voice Modal */}
+            {showVoiceDescription && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Recipe Description</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceDescription(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceDescription}
+                                onError={handleVoiceError}
+                                placeholder="Describe the recipe..."
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800">
+                                💡 <strong>Example:</strong> "A classic comfort food that's perfect for family dinners. Takes about 30 minutes and serves 4 people."
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Ingredients Voice Modal */}
+            {showVoiceIngredients && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Add Ingredients</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceIngredients(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceIngredients}
+                                onError={handleVoiceError}
+                                placeholder="Say ingredients with amounts..."
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800 mb-2">
+                                💡 <strong>Voice Ingredients Examples:</strong>
+                            </p>
+                            <ul className="text-sm text-blue-700 space-y-1">
+                                <li>• "2 cups flour, 1 egg, half cup milk"</li>
+                                <li>• "1 pound chicken breast, 2 tablespoons olive oil"</li>
+                                <li>• "3 cloves garlic, 1 medium onion, salt to taste"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Instructions Voice Modal */}
+            {showVoiceInstructions && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Add Instructions</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceInstructions(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceInstructions}
+                                onError={handleVoiceError}
+                                placeholder="Say cooking instructions step by step..."
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800 mb-2">
+                                💡 <strong>Voice Instructions Examples:</strong>
+                            </p>
+                            <ul className="text-sm text-blue-700 space-y-1">
+                                <li>• "Heat oil in pan. Add onions and cook until soft. Then add garlic and cook 1 minute."</li>
+                                <li>• "Mix flour and eggs in bowl. Gradually add milk while whisking."</li>
+                                <li>• "Bake at 350 degrees for 25 minutes until golden brown."</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     )

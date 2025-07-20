@@ -2,9 +2,10 @@
 
 // file: /src/components/integrations/NutritionDashboard.js v1 - Unified nutrition dashboard
 
-import React, {useState, useEffect} from 'react';
+import React, {useState, useEffect, useCallback} from 'react';
 import {useSession} from 'next-auth/react';
 import {useModalIntegration} from '@/hooks/useModalIntegration';
+import { VoiceInput } from '@/components/mobile/VoiceInput';
 
 export default function NutritionDashboard() {
     const {data: session} = useSession();
@@ -20,11 +21,31 @@ export default function NutritionDashboard() {
     const [activeTab, setActiveTab] = useState('overview');
     const [refreshing, setRefreshing] = useState(false);
 
+    // Voice nutrition state
+    const [showVoiceNutrition, setShowVoiceNutrition] = useState(false);
+    const [processingVoiceNutrition, setProcessingVoiceNutrition] = useState(false);
+
     useEffect(() => {
         if (session?.user?.id) {
             loadDashboardData();
         }
     }, [session]);
+
+    // Expose functions to sub-components via window object
+    // useEffect(() => {
+    //     window.setNutritionActiveTab = setActiveTab;
+    //     window.generateSmartShoppingList = generateSmartShoppingList;
+    //     window.navigateToMealPlanning = navigateToMealPlanning;
+    //     window.setShowVoiceNutrition = setShowVoiceNutrition;
+    //
+    //     return () => {
+    //         // Cleanup
+    //         delete window.setNutritionActiveTab;
+    //         delete window.generateSmartShoppingList;
+    //         delete window.navigateToMealPlanning;
+    //         delete window.setShowVoiceNutrition;
+    //     };
+    // }, [generateSmartShoppingList, navigateToMealPlanning]);
 
     const loadDashboardData = async () => {
         try {
@@ -59,6 +80,163 @@ export default function NutritionDashboard() {
         }
     };
 
+    // Voice nutrition analysis functions
+    const handleVoiceNutrition = useCallback(async (transcript, confidence) => {
+        console.log('🎤 Voice nutrition query:', transcript);
+        setProcessingVoiceNutrition(true);
+
+        try {
+            const nutritionQuery = parseVoiceNutritionQuery(transcript);
+
+            if (nutritionQuery.action === 'analyze_item') {
+                // Find matching inventory item
+                const matchingItem = dashboardData?.inventory?.find(item =>
+                    item.name.toLowerCase().includes(nutritionQuery.itemName.toLowerCase())
+                );
+
+                if (matchingItem) {
+                    const result = await analyzeNutrition('inventory_item', {
+                        itemId: matchingItem._id,
+                        name: matchingItem.name,
+                        brand: matchingItem.brand,
+                        category: matchingItem.category
+                    });
+
+                    setShowVoiceNutrition(false);
+                    alert(`✅ Nutrition analysis for ${matchingItem.name}:\n\nCalories: ${result.nutrition?.calories?.value || 'N/A'}\nProtein: ${result.nutrition?.protein?.value || 'N/A'}g\nCarbs: ${result.nutrition?.carbs?.value || 'N/A'}g\nFat: ${result.nutrition?.fat?.value || 'N/A'}g`);
+                } else {
+                    alert(`❌ Item "${nutritionQuery.itemName}" not found in inventory`);
+                }
+            } else if (nutritionQuery.action === 'get_suggestions') {
+                setActiveTab('recipes');
+                setShowVoiceNutrition(false);
+                alert('✅ Switched to Recipe Suggestions tab');
+            } else if (nutritionQuery.action === 'optimization') {
+                setActiveTab('optimization');
+                setShowVoiceNutrition(false);
+                alert('✅ Switched to Smart Optimization tab');
+            }
+        } catch (error) {
+            console.error('Error processing voice nutrition:', error);
+            alert('❌ Error processing voice nutrition query');
+        } finally {
+            setProcessingVoiceNutrition(false);
+        }
+    }, [dashboardData, analyzeNutrition, setActiveTab]);
+
+    const handleVoiceNutritionError = useCallback((error) => {
+        console.error('Voice nutrition error:', error);
+        alert('🎤 Voice input failed. Please try again.');
+        setProcessingVoiceNutrition(false);
+    }, []);
+
+    const parseVoiceNutritionQuery = useCallback((transcript) => {
+        const cleanTranscript = transcript.toLowerCase().trim();
+
+        if (cleanTranscript.includes('analyze') || cleanTranscript.includes('nutrition')) {
+            const itemMatch = cleanTranscript.match(/(?:analyze|nutrition for|about)\s+(.+?)(?:\s|$)/);
+            if (itemMatch) {
+                return {
+                    action: 'analyze_item',
+                    itemName: itemMatch[1].trim()
+                };
+            }
+        }
+
+        if (cleanTranscript.includes('recipe') || cleanTranscript.includes('suggest')) {
+            return { action: 'get_suggestions' };
+        }
+
+        if (cleanTranscript.includes('optim') || cleanTranscript.includes('improve')) {
+            return { action: 'optimization' };
+        }
+
+        return { action: 'analyze_item', itemName: cleanTranscript };
+    }, []);
+
+    // Quick Action Helper Functions
+    const generateSmartShoppingList = useCallback(async () => {
+        try {
+            if (!dashboardData?.inventory?.length) {
+                alert('❌ No inventory items found. Add items to your inventory first.');
+                return;
+            }
+
+            // Analyze expiring items and missing nutrition categories
+            const expiringItems = dashboardData.inventory.filter(item => {
+                if (!item.expirationDate) return false;
+                const expDate = new Date(item.expirationDate);
+                const daysLeft = Math.ceil((expDate - new Date()) / (1000 * 60 * 60 * 24));
+                return daysLeft <= 7 && daysLeft >= 0;
+            });
+
+            const lowStockItems = dashboardData.inventory.filter(item =>
+                item.quantity <= 1 || (item.quantity <= 2 && item.unit === 'item')
+            );
+
+            // Get nutritional gaps
+            const currentCategories = [...new Set(dashboardData.inventory.map(item => item.category))];
+            const recommendedCategories = [
+                'Fresh Fruits', 'Fresh Vegetables', 'Dairy', 'Fresh/Frozen Poultry',
+                'Grains', 'Beans', 'Fresh Spices'
+            ];
+            const missingCategories = recommendedCategories.filter(cat => !currentCategories.includes(cat));
+
+            // Generate shopping recommendations
+            const recommendations = [
+                ...lowStockItems.map(item => `${item.name} (running low)`),
+                ...missingCategories.map(cat => `${cat} (nutritional variety)`),
+                'High-protein items (greek yogurt, lean meats)',
+                'Fiber-rich foods (whole grains, vegetables)',
+                'Omega-3 sources (salmon, walnuts, flax seeds)'
+            ];
+
+            let message = '🛒 Smart Shopping Recommendations:\n\n';
+
+            if (expiringItems.length > 0) {
+                message += `⚠️ URGENT - Use first:\n${expiringItems.map(item => `• ${item.name}`).join('\n')}\n\n`;
+            }
+
+            if (lowStockItems.length > 0) {
+                message += `📉 Low Stock:\n${lowStockItems.map(item => `• ${item.name}`).join('\n')}\n\n`;
+            }
+
+            message += `💡 Nutritional Recommendations:\n${recommendations.slice(0, 5).map(rec => `• ${rec}`).join('\n')}\n\n`;
+            message += 'Would you like to navigate to the shopping list feature?';
+
+            if (confirm(message)) {
+                window.location.href = '/shopping';
+            }
+        } catch (error) {
+            console.error('Error generating shopping list:', error);
+            alert('❌ Error generating shopping recommendations. Please try again.');
+        }
+    }, [dashboardData]);
+
+    const navigateToMealPlanning = useCallback(() => {
+        if (!dashboardData?.inventory?.length) {
+            if (confirm('❌ No inventory items found.\n\nWould you like to add some items first, or go to meal planning anyway?')) {
+                window.location.href = '/meal-planning';
+            } else {
+                window.location.href = '/inventory?action=add';
+            }
+            return;
+        }
+
+        // Show meal planning preview
+        const availableIngredients = dashboardData.inventory.length;
+        const nutritionCoverage = Math.round((dashboardData.inventory.filter(item => item.nutrition).length / dashboardData.inventory.length) * 100);
+
+        const message = `🍽️ Meal Planning Ready!\n\n` +
+            `📦 Available ingredients: ${availableIngredients}\n` +
+            `📊 Nutrition data: ${nutritionCoverage}% coverage\n` +
+            `🤖 AI will suggest meals based on your inventory\n\n` +
+            `Ready to create your meal plan?`;
+
+        if (confirm(message)) {
+            window.location.href = '/meal-planning';
+        }
+    }, [dashboardData]);
     const analyzeInventoryNutrition = async () => {
         if (!dashboardData?.inventory?.length) return;
 
@@ -180,6 +358,10 @@ export default function NutritionDashboard() {
                         data={dashboardData}
                         loading={loading || refreshing}
                         onAnalyze={analyzeInventoryNutrition}
+                        setActiveTab={setActiveTab}
+                        generateSmartShoppingList={generateSmartShoppingList}
+                        navigateToMealPlanning={navigateToMealPlanning}
+                        setShowVoiceNutrition={setShowVoiceNutrition}
                     />
                 )}
 
@@ -215,6 +397,58 @@ export default function NutritionDashboard() {
                     />
                 )}
             </div>
+
+            {/* Voice Nutrition Modal */}
+            {showVoiceNutrition && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Nutrition Analysis</h3>
+                            <button
+                                onClick={() => setShowVoiceNutrition(false)}
+                                disabled={processingVoiceNutrition}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </button>
+                        </div>
+
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceNutrition}
+                                onError={(error) => {
+                                    console.error('Voice nutrition error:', error);
+                                    alert('🎤 Voice input failed. Please try again.');
+                                    setProcessingVoiceNutrition(false);
+                                }}
+                                placeholder="Ask about nutrition for any item..."
+                            />
+                        </div>
+
+                        {processingVoiceNutrition && (
+                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                                <div className="text-blue-800 font-medium">
+                                    🤖 Analyzing nutrition data...
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800 mb-2">
+                                💡 <strong>Voice Nutrition Examples:</strong>
+                            </p>
+                            <ul className="text-sm text-blue-700 space-y-1">
+                                <li>• "Analyze nutrition for ground beef"</li>
+                                <li>• "What's the protein in chicken breast"</li>
+                                <li>• "Get nutrition for bananas"</li>
+                                <li>• "Show me recipe suggestions"</li>
+                                <li>• "Run optimization analysis"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 }
@@ -308,13 +542,13 @@ function NutritionOverview({data, loading, onAnalyze}) {
                 ))}
             </div>
 
-            {/* Quick Actions */}
+            {/* Enhanced Quick Actions - Fixed */}
             <div className="bg-white rounded-lg border border-gray-200 p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-4">🚀 Quick Actions</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
                     <button
                         onClick={onAnalyze}
-                        disabled={loading}
+                        disabled={loading || !data?.inventory?.length}
                         className="bg-blue-600 text-white px-4 py-3 rounded-lg hover:bg-blue-700 disabled:opacity-50 transition-colors text-center"
                     >
                         <div className="text-lg mb-1">🔬</div>
@@ -323,24 +557,40 @@ function NutritionOverview({data, loading, onAnalyze}) {
                     </button>
 
                     <button
-                        className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors text-center">
+                        onClick={() => setActiveTab('recipes')}
+                        className="bg-purple-600 text-white px-4 py-3 rounded-lg hover:bg-purple-700 transition-colors text-center"
+                    >
                         <div className="text-lg mb-1">🍳</div>
                         <div className="font-medium">Recipe Ideas</div>
                         <div className="text-xs opacity-90">From your inventory</div>
                     </button>
 
                     <button
-                        className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 transition-colors text-center">
+                        onClick={generateSmartShoppingList}
+                        disabled={!data?.inventory?.length}
+                        className="bg-green-600 text-white px-4 py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-center"
+                    >
                         <div className="text-lg mb-1">🛒</div>
                         <div className="font-medium">Smart Shopping</div>
                         <div className="text-xs opacity-90">Optimized lists</div>
                     </button>
 
                     <button
-                        className="bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 transition-colors text-center">
+                        onClick={navigateToMealPlanning}
+                        className="bg-orange-600 text-white px-4 py-3 rounded-lg hover:bg-orange-700 transition-colors text-center"
+                    >
                         <div className="text-lg mb-1">📋</div>
                         <div className="font-medium">Meal Planning</div>
                         <div className="text-xs opacity-90">AI suggestions</div>
+                    </button>
+
+                    <button
+                        onClick={() => setShowVoiceNutrition(true)}
+                        className="bg-indigo-600 text-white px-4 py-3 rounded-lg hover:bg-indigo-700 transition-colors text-center"
+                    >
+                        <div className="text-lg mb-1">🎤</div>
+                        <div className="font-medium">Voice Nutrition</div>
+                        <div className="text-xs opacity-90">Ask about items</div>
                     </button>
                 </div>
             </div>

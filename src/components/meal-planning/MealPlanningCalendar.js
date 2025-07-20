@@ -12,6 +12,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MealCompletionModal from '@/components/meal-planning/MealCompletionModal';
 import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 import SmartSuggestionsModal from '@/components/meal-planning/SmartSuggestionsModal';
+import { VoiceInput } from '@/components/mobile/VoiceInput';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();
@@ -59,6 +60,10 @@ export default function MealPlanningCalendar() {
     const [showSmartSuggestions, setShowSmartSuggestions] = useState(false);
     const [smartSuggestions, setSmartSuggestions] = useState([]);
     const [suggestionsLoading, setSuggestionsLoading] = useState(false);
+    // NEW: Voice Input State for Meal Planning
+    const [showVoiceMealPlanning, setShowVoiceMealPlanning] = useState(false);
+    const [processingVoiceMeal, setProcessingVoiceMeal] = useState(false);
+    const [voiceMealResults, setVoiceMealResults] = useState('');
 
     const showToast = (message, type = 'success') => {
         const toast = document.createElement('div');
@@ -439,6 +444,237 @@ export default function MealPlanningCalendar() {
 
     const formatPrice = (price) => {
         return typeof price === 'number' ? `$${price.toFixed(2)}` : '$0.00';
+    };
+
+    // NEW: Voice Functions for Meal Planning
+    const handleVoiceMealPlanning = async (transcript, confidence) => {
+        console.log('🎤 Voice meal planning received:', transcript);
+        setVoiceMealResults(transcript);
+        setProcessingVoiceMeal(true);
+
+        try {
+            const mealPlan = parseVoiceMealPlanning(transcript);
+
+            if (mealPlan && mealPlan.actions.length > 0) {
+                // Process the meal planning actions
+                let successCount = 0;
+                let errorCount = 0;
+
+                for (const action of mealPlan.actions) {
+                    try {
+                        await processMealPlanningAction(action);
+                        successCount++;
+                    } catch (error) {
+                        console.error('Error processing meal action:', error);
+                        errorCount++;
+                    }
+                }
+
+                setShowVoiceMealPlanning(false);
+                setVoiceMealResults('');
+
+                if (successCount > 0) {
+                    showToast(`✅ Successfully planned ${successCount} meal${successCount > 1 ? 's' : ''}!`, 'success');
+                    // Refresh meal plan
+                    await fetchMealPlan();
+                } else if (errorCount > 0) {
+                    showToast(`❌ Had trouble planning meals. Please try again.`, 'error');
+                }
+            } else {
+                alert('❌ Could not understand meal planning request. Try saying something like "Add spaghetti to Monday dinner"');
+            }
+        } catch (error) {
+            console.error('Error processing voice meal planning:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoiceMeal(false);
+        }
+    };
+
+    const handleVoiceMealError = (error) => {
+        console.error('🎤 Voice meal planning error:', error);
+        setProcessingVoiceMeal(false);
+
+        let userMessage = 'Voice meal planning failed. ';
+        if (error.includes('not-allowed') || error.includes('denied')) {
+            userMessage += 'Please allow microphone access in your browser settings.';
+        } else if (error.includes('network')) {
+            userMessage += 'Voice recognition requires an internet connection.';
+        } else {
+            userMessage += 'Please try again.';
+        }
+
+        alert(`🎤 ${userMessage}`);
+    };
+
+    const parseVoiceMealPlanning = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return null;
+
+        const cleanTranscript = transcript.toLowerCase().trim();
+        console.log('🎤 Parsing meal planning:', cleanTranscript);
+
+        const actions = [];
+
+        // Split by connectors to handle multiple actions
+        const segments = cleanTranscript.split(/\band\b|\bthen\b|\balso\b/);
+
+        segments.forEach(segment => {
+            segment = segment.trim();
+            if (segment.length < 5) return;
+
+            const action = parseSingleMealAction(segment);
+            if (action) {
+                actions.push(action);
+            }
+        });
+
+        return actions.length > 0 ? { actions } : null;
+    };
+
+    const parseSingleMealAction = (segment) => {
+        // Remove command words
+        let cleanSegment = segment.replace(/^(add|put|schedule|plan|make)\s+/i, '');
+
+        // Extract day
+        const dayMap = {
+            'monday': 'monday',
+            'tuesday': 'tuesday',
+            'wednesday': 'wednesday',
+            'thursday': 'thursday',
+            'friday': 'friday',
+            'saturday': 'saturday',
+            'sunday': 'sunday',
+            'today': getTodayAsDay(),
+            'tomorrow': getTomorrowAsDay()
+        };
+
+        let day = null;
+        for (const [keyword, dayValue] of Object.entries(dayMap)) {
+            if (cleanSegment.includes(keyword)) {
+                day = dayValue;
+                cleanSegment = cleanSegment.replace(keyword, '').trim();
+                break;
+            }
+        }
+
+        // Extract meal type
+        const mealTypeMap = {
+            'breakfast': 'Breakfast',
+            'lunch': 'Lunch',
+            'dinner': 'Dinner',
+            'snack': 'PM Snack',
+            'morning snack': 'AM Snack',
+            'afternoon snack': 'Afternoon Snack'
+        };
+
+        let mealType = 'Dinner'; // Default
+        for (const [keyword, mealValue] of Object.entries(mealTypeMap)) {
+            if (cleanSegment.includes(keyword)) {
+                mealType = mealValue;
+                cleanSegment = cleanSegment.replace(keyword, '').trim();
+                break;
+            }
+        }
+
+        // Extract recipe name
+        cleanSegment = cleanSegment.replace(/\b(to|for|on)\b/gi, '').trim();
+
+        if (cleanSegment.length > 0 && day) {
+            return {
+                type: 'add_recipe',
+                day: day,
+                mealType: mealType,
+                recipeName: cleanSegment,
+                originalText: segment
+            };
+        }
+
+        return null;
+    };
+
+    const getTodayAsDay = () => {
+        const today = new Date();
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        return days[today.getDay()];
+    };
+
+    const getTomorrowAsDay = () => {
+        const tomorrow = new Date();
+        tomorrow.setDate(tomorrow.getDate() + 1);
+        const days = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+        return days[tomorrow.getDay()];
+    };
+
+    const processMealPlanningAction = async (action) => {
+        if (action.type === 'add_recipe') {
+            // Find matching recipe
+            const matchingRecipe = findBestRecipeMatch(action.recipeName);
+
+            if (matchingRecipe) {
+                // Add the recipe to the meal plan
+                await addMealToSlot(action.day, action.mealType, matchingRecipe);
+                console.log(`✅ Added ${matchingRecipe.title} to ${action.day} ${action.mealType}`);
+            } else {
+                // Create a simple meal instead
+                const simpleMeal = {
+                    entryType: 'simple',
+                    mealType: action.mealType,
+                    simpleMeal: {
+                        name: action.recipeName,
+                        description: `Voice-added meal: ${action.recipeName}`,
+                        items: [{
+                            itemName: action.recipeName,
+                            quantity: '1',
+                            unit: 'serving'
+                        }],
+                        totalEstimatedTime: 30
+                    },
+                    servings: 1,
+                    notes: 'Added via voice input',
+                    createdAt: new Date()
+                };
+
+                await addSimpleMealToSlot(action.day, action.mealType, simpleMeal);
+                console.log(`✅ Added simple meal "${action.recipeName}" to ${action.day} ${action.mealType}`);
+            }
+        }
+    };
+
+    const findBestRecipeMatch = (recipeName) => {
+        if (!recipes || recipes.length === 0) return null;
+
+        const queryLower = recipeName.toLowerCase();
+
+        // Exact title match
+        let match = recipes.find(recipe =>
+            recipe.title.toLowerCase() === queryLower
+        );
+        if (match) return match;
+
+        // Partial title match
+        match = recipes.find(recipe =>
+            recipe.title.toLowerCase().includes(queryLower) ||
+            queryLower.includes(recipe.title.toLowerCase())
+        );
+        if (match) return match;
+
+        // Tag match
+        match = recipes.find(recipe =>
+                recipe.tags && recipe.tags.some(tag =>
+                    tag.toLowerCase().includes(queryLower) ||
+                    queryLower.includes(tag.toLowerCase())
+                )
+        );
+        if (match) return match;
+
+        // Description match
+        match = recipes.find(recipe =>
+            recipe.description &&
+            recipe.description.toLowerCase().includes(queryLower)
+        );
+        if (match) return match;
+
+        return null;
     };
 
     const getMealCostIndicator = (day, mealType, recipeId) => {
@@ -1648,6 +1884,15 @@ export default function MealPlanningCalendar() {
                                 </TouchEnhancedButton>
                             )}
 
+                            {/* NEW: Voice Meal Planning Button */}
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceMealPlanning(true)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
+                                title="Plan meals using voice commands"
+                            >
+                                🎤 Voice Meal Planning
+                            </TouchEnhancedButton>
+
                             {mealPlan && (
                                 <MealPrepButton
                                     mealPlanId={mealPlan._id}
@@ -2139,6 +2384,83 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
+                {/* NEW: Voice Meal Planning Modal */}
+                {showVoiceMealPlanning && (
+                    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                        <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Meal Planning</h3>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowVoiceMealPlanning(false)}
+                                    disabled={processingVoiceMeal}
+                                    className="text-gray-400 hover:text-gray-600"
+                                >
+                                    ×
+                                </TouchEnhancedButton>
+                            </div>
+
+                            <div className="mb-4">
+                                <VoiceInput
+                                    onResult={handleVoiceMealPlanning}
+                                    onError={handleVoiceMealError}
+                                    placeholder="Say what meals you want to plan..."
+                                />
+                            </div>
+
+                            {/* Processing Status */}
+                            {processingVoiceMeal && (
+                                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                                    <div className="text-blue-800 font-medium">
+                                        🤖 Processing meal plan...
+                                    </div>
+                                    <div className="text-sm text-blue-600 mt-1">
+                                        Finding recipes and scheduling meals
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recent Voice Results */}
+                            {voiceMealResults && !processingVoiceMeal && (
+                                <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                    <div className="text-sm font-medium text-green-800 mb-1">
+                                        Last voice command:
+                                    </div>
+                                    <div className="text-green-700 italic">
+                                        "{voiceMealResults}"
+                                    </div>
+                                </div>
+                            )}
+
+                            <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                                <p className="text-sm text-blue-800 mb-2">
+                                    💡 <strong>Voice Meal Planning Examples:</strong>
+                                </p>
+                                <ul className="text-sm text-blue-700 space-y-1">
+                                    <li>• "Add spaghetti to Monday dinner"</li>
+                                    <li>• "Plan chicken salad for Tuesday lunch"</li>
+                                    <li>• "Schedule pancakes for Sunday breakfast"</li>
+                                    <li>• "Put pizza on Friday dinner and tacos on Saturday"</li>
+                                    <li>• "Add soup to today's lunch"</li>
+                                    <li>• "Plan stir fry for tomorrow dinner"</li>
+                                </ul>
+                            </div>
+
+                            {/* Tips */}
+                            <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                <div className="text-xs text-yellow-800">
+                                    <strong>💡 Tips:</strong>
+                                    <ul className="mt-1 space-y-1">
+                                        <li>• Say the day (Monday, Tuesday, etc.) or "today"/"tomorrow"</li>
+                                        <li>• Include meal type (breakfast, lunch, dinner, snack)</li>
+                                        <li>• Use recipe names you have, or describe simple meals</li>
+                                        <li>• You can plan multiple meals in one command</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Smart Suggestions Modal */}
                 {showSmartSuggestions && (
                     <SmartSuggestionsModal
@@ -2321,6 +2643,15 @@ export default function MealPlanningCalendar() {
                                 💡 Money-Saving Ideas
                             </TouchEnhancedButton>
                         )}
+
+                        {/* NEW: Voice Meal Planning Button */}
+                        <TouchEnhancedButton
+                            onClick={() => setShowVoiceMealPlanning(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
+                            title="Plan meals using voice commands"
+                        >
+                            🎤 Voice Meal Planning
+                        </TouchEnhancedButton>
 
                         {mealPlan && (
                             <MealPrepButton
@@ -3041,6 +3372,83 @@ export default function MealPlanningCalendar() {
                     onClose={() => setShowShoppingList(false)}
                     priceIntelligence={priceIntelligence.enabled} // 💰 NEW: Pass price intelligence flag
                 />
+            )}
+
+            {/* NEW: Voice Meal Planning Modal */}
+            {showVoiceMealPlanning && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Meal Planning</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceMealPlanning(false)}
+                                disabled={processingVoiceMeal}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceMealPlanning}
+                                onError={handleVoiceMealError}
+                                placeholder="Say what meals you want to plan..."
+                            />
+                        </div>
+
+                        {/* Processing Status */}
+                        {processingVoiceMeal && (
+                            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg text-center">
+                                <div className="text-blue-800 font-medium">
+                                    🤖 Processing meal plan...
+                                </div>
+                                <div className="text-sm text-blue-600 mt-1">
+                                    Finding recipes and scheduling meals
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Recent Voice Results */}
+                        {voiceMealResults && !processingVoiceMeal && (
+                            <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
+                                <div className="text-sm font-medium text-green-800 mb-1">
+                                    Last voice command:
+                                </div>
+                                <div className="text-green-700 italic">
+                                    "{voiceMealResults}"
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800 mb-2">
+                                💡 <strong>Voice Meal Planning Examples:</strong>
+                            </p>
+                            <ul className="text-sm text-blue-700 space-y-1">
+                                <li>• "Add spaghetti to Monday dinner"</li>
+                                <li>• "Plan chicken salad for Tuesday lunch"</li>
+                                <li>• "Schedule pancakes for Sunday breakfast"</li>
+                                <li>• "Put pizza on Friday dinner and tacos on Saturday"</li>
+                                <li>• "Add soup to today's lunch"</li>
+                                <li>• "Plan stir fry for tomorrow dinner"</li>
+                            </ul>
+                        </div>
+
+                        {/* Tips */}
+                        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                            <div className="text-xs text-yellow-800">
+                                <strong>💡 Tips:</strong>
+                                <ul className="mt-1 space-y-1">
+                                    <li>• Say the day (Monday, Tuesday, etc.) or "today"/"tomorrow"</li>
+                                    <li>• Include meal type (breakfast, lunch, dinner, snack)</li>
+                                    <li>• Use recipe names you have, or describe simple meals</li>
+                                    <li>• You can plan multiple meals in one command</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
             {/* Empty State */}

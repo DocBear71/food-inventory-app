@@ -21,6 +21,7 @@ import AddToShoppingListModal from '@/components/shopping/AddToShoppingListModal
 import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashboard';
 import MobilePriceTrackingModal from '@/components/inventory/MobilePriceTrackingModal';
 import AdvancedPriceSearch from '@/components/inventory/AdvancedPriceSearch';
+import { VoiceInput } from '@/components/mobile/VoiceInput';
 
 // Import smart display utilities
 import {
@@ -238,6 +239,11 @@ function InventoryContent() {
     const [priceTrackingModal, setPriceTrackingModal] = useState(false);
     const [stores, setStores] = useState([]);
     const [activeTab, setActiveTab] = useState('inventory');
+    // NEW: Voice Input State
+    const [showVoiceAddItem, setShowVoiceAddItem] = useState(false);
+    const [showVoiceSearch, setShowVoiceSearch] = useState(false);
+    const [processingVoice, setProcessingVoice] = useState(false);
+    const [voiceResults, setVoiceResults] = useState('');
 
     // ✅ NEW: Pagination states
     const [currentPage, setCurrentPage] = useState(1);
@@ -590,6 +596,299 @@ function InventoryContent() {
         {id: 'inventory', name: 'Inventory', icon: '📦'},
         {id: 'analytics', name: 'Price Analytics', icon: '📊'}
     ];
+
+    // NEW: Voice Functions for Inventory
+    const handleVoiceAddItem = async (transcript, confidence) => {
+        console.log('🎤 Voice add item received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            const parsedItem = parseVoiceInventoryItem(transcript);
+
+            if (parsedItem) {
+                // Auto-fill the form with parsed data
+                setFormData(prev => ({
+                    ...prev,
+                    name: parsedItem.name,
+                    brand: parsedItem.brand || prev.brand,
+                    quantity: parsedItem.quantity || prev.quantity,
+                    unit: parsedItem.unit || prev.unit,
+                    location: parsedItem.location || prev.location,
+                    category: parsedItem.category || prev.category
+                }));
+
+                setShowVoiceAddItem(false);
+                setShowAddForm(true); // Open the form for user to review
+                setVoiceResults('');
+
+                alert(`✅ Added item details: "${parsedItem.name}"\n\nPlease review and save the item.`);
+
+                // Auto-scroll to form
+                setTimeout(() => {
+                    const formElement = document.querySelector('form');
+                    if (formElement) {
+                        formElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                }, 100);
+            } else {
+                alert('❌ Could not understand the item. Try saying something like "2 pounds ground beef in the freezer"');
+            }
+        } catch (error) {
+            console.error('Error processing voice add item:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceSearch = async (transcript, confidence) => {
+        console.log('🎤 Voice search received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            const searchCriteria = parseVoiceSearchCriteria(transcript);
+
+            // Apply search query
+            if (searchCriteria.query) {
+                setSearchQuery(searchCriteria.query);
+            }
+
+            // Apply filters
+            if (searchCriteria.location) {
+                setFilterLocation(searchCriteria.location);
+            }
+
+            if (searchCriteria.category) {
+                setFilterCategory(searchCriteria.category);
+            }
+
+            if (searchCriteria.status) {
+                setFilterStatus(searchCriteria.status);
+            }
+
+            setShowVoiceSearch(false);
+            setVoiceResults('');
+
+            alert(`✅ Applied search: "${transcript}"`);
+        } catch (error) {
+            console.error('Error processing voice search:', error);
+            alert('❌ Error processing voice search. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceError = (error) => {
+        console.error('🎤 Voice input error:', error);
+        setProcessingVoice(false);
+
+        let userMessage = 'Voice input failed. ';
+        if (error.includes('not-allowed') || error.includes('denied')) {
+            userMessage += 'Please allow microphone access in your browser settings.';
+        } else if (error.includes('network')) {
+            userMessage += 'Voice recognition requires an internet connection.';
+        } else {
+            userMessage += 'Please try again.';
+        }
+
+        alert(`🎤 ${userMessage}`);
+    };
+
+    const parseVoiceInventoryItem = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return null;
+
+        const cleanTranscript = transcript.toLowerCase().trim();
+        console.log('🎤 Parsing inventory item:', cleanTranscript);
+
+        let parsed = {
+            name: '',
+            quantity: 1,
+            unit: 'item',
+            location: 'pantry',
+            brand: '',
+            category: ''
+        };
+
+        // Extract quantity and unit
+        const quantityMatch = cleanTranscript.match(/(\d+(?:\.\d+)?)\s+(pounds?|lbs?|ounces?|oz|grams?|g|kilograms?|kg|cups?|tbsp|tsp|tablespoons?|teaspoons?|liters?|l|ml|milliliters?|cans?|packages?|bottles?|boxes?|bags?|items?)/i);
+        if (quantityMatch) {
+            parsed.quantity = parseFloat(quantityMatch[1]);
+            const rawUnit = quantityMatch[2].toLowerCase();
+
+            // Map units to your dropdown options
+            const unitMap = {
+                'pound': 'lbs', 'pounds': 'lbs', 'lb': 'lbs', 'lbs': 'lbs',
+                'ounce': 'oz', 'ounces': 'oz', 'oz': 'oz',
+                'gram': 'g', 'grams': 'g', 'g': 'g',
+                'kilogram': 'kg', 'kilograms': 'kg', 'kg': 'kg',
+                'cup': 'cup', 'cups': 'cup',
+                'tablespoon': 'tbsp', 'tablespoons': 'tbsp', 'tbsp': 'tbsp',
+                'teaspoon': 'tsp', 'teaspoons': 'tsp', 'tsp': 'tsp',
+                'liter': 'l', 'liters': 'l', 'l': 'l',
+                'milliliter': 'ml', 'milliliters': 'ml', 'ml': 'ml',
+                'can': 'can', 'cans': 'can',
+                'package': 'package', 'packages': 'package',
+                'bottle': 'package', 'bottles': 'package',
+                'box': 'package', 'boxes': 'package',
+                'bag': 'package', 'bags': 'package',
+                'item': 'item', 'items': 'item'
+            };
+
+            parsed.unit = unitMap[rawUnit] || 'item';
+        } else {
+            // Try to extract just a number
+            const numberMatch = cleanTranscript.match(/(\d+(?:\.\d+)?)/);
+            if (numberMatch) {
+                parsed.quantity = parseFloat(numberMatch[1]);
+            }
+        }
+
+        // Extract location
+        const locationKeywords = {
+            'fridge': 'fridge',
+            'refrigerator': 'fridge',
+            'freezer': 'fridge-freezer',
+            'deep freezer': 'deep-freezer',
+            'pantry': 'pantry',
+            'kitchen': 'kitchen',
+            'garage': 'garage'
+        };
+
+        for (const [keyword, location] of Object.entries(locationKeywords)) {
+            if (cleanTranscript.includes(keyword)) {
+                parsed.location = location;
+                break;
+            }
+        }
+
+        // Extract category (basic mapping)
+        const categoryKeywords = {
+            'meat': 'Fresh/Frozen Beef',
+            'beef': 'Fresh/Frozen Beef',
+            'chicken': 'Fresh/Frozen Poultry',
+            'pork': 'Fresh/Frozen Pork',
+            'fish': 'Fresh/Frozen Fish & Seafood',
+            'milk': 'Dairy',
+            'cheese': 'Cheese',
+            'bread': 'Breads',
+            'pasta': 'Pasta',
+            'rice': 'Grains',
+            'apple': 'Fresh Fruits',
+            'banana': 'Fresh Fruits',
+            'tomato': 'Fresh Vegetables',
+            'onion': 'Fresh Vegetables',
+            'carrot': 'Fresh Vegetables'
+        };
+
+        for (const [keyword, category] of Object.entries(categoryKeywords)) {
+            if (cleanTranscript.includes(keyword)) {
+                parsed.category = category;
+                break;
+            }
+        }
+
+        // Extract item name (remove quantity, unit, location phrases)
+        let itemName = cleanTranscript;
+
+        // Remove quantity and unit
+        if (quantityMatch) {
+            itemName = itemName.replace(quantityMatch[0], '').trim();
+        }
+
+        // Remove location phrases
+        const locationPhrases = ['in the fridge', 'in the freezer', 'in the pantry', 'in the kitchen', 'in the garage', 'from the store'];
+        locationPhrases.forEach(phrase => {
+            itemName = itemName.replace(phrase, '').trim();
+        });
+
+        // Remove common connecting words
+        itemName = itemName.replace(/^(add|put|store|bought|got|have)\s+/i, '');
+        itemName = itemName.replace(/\s+(to|in|from|at)\s+.*$/i, '');
+
+        // Clean up the name
+        itemName = itemName.replace(/\s+/g, ' ').trim();
+
+        if (itemName.length > 0) {
+            parsed.name = itemName.charAt(0).toUpperCase() + itemName.slice(1);
+        }
+
+        console.log('🎤 Parsed item:', parsed);
+
+        return parsed.name ? parsed : null;
+    };
+
+    const parseVoiceSearchCriteria = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return {};
+
+        const cleanTranscript = transcript.toLowerCase().trim();
+        let criteria = {};
+
+        // Location searches
+        const locationMap = {
+            'fridge': 'fridge',
+            'refrigerator': 'fridge',
+            'freezer': 'fridge-freezer',
+            'pantry': 'pantry',
+            'kitchen': 'kitchen'
+        };
+
+        for (const [keyword, location] of Object.entries(locationMap)) {
+            if (cleanTranscript.includes(keyword)) {
+                criteria.location = location;
+                break;
+            }
+        }
+
+        // Status searches
+        if (cleanTranscript.includes('expired')) {
+            criteria.status = 'expired';
+        } else if (cleanTranscript.includes('expiring') || cleanTranscript.includes('expire soon')) {
+            criteria.status = 'expiring';
+        } else if (cleanTranscript.includes('good') || cleanTranscript.includes('fresh')) {
+            criteria.status = 'good';
+        }
+
+        // Category searches
+        const categoryMap = {
+            'meat': 'Fresh/Frozen Beef',
+            'dairy': 'Dairy',
+            'vegetables': 'Fresh Vegetables',
+            'fruits': 'Fresh Fruits',
+            'bread': 'Breads'
+        };
+
+        for (const [keyword, category] of Object.entries(categoryMap)) {
+            if (cleanTranscript.includes(keyword)) {
+                criteria.category = category;
+                break;
+            }
+        }
+
+        // Extract search terms (remove command words)
+        let searchQuery = cleanTranscript;
+        searchQuery = searchQuery.replace(/^(find|search|show|look for|where is)\s+/i, '');
+        searchQuery = searchQuery.replace(/\s+(in the|from the|that are)\s+.*$/i, '');
+
+        // Remove location/status words from search query
+        Object.keys(locationMap).forEach(word => {
+            searchQuery = searchQuery.replace(new RegExp(`\\b${word}\\b`, 'gi'), '');
+        });
+
+        ['expired', 'expiring', 'good', 'fresh'].forEach(word => {
+            searchQuery = searchQuery.replace(new RegExp(`\\b${word}\\b`, 'gi'), '');
+        });
+
+        searchQuery = searchQuery.replace(/\s+/g, ' ').trim();
+
+        if (searchQuery.length > 0 && !criteria.location && !criteria.status && !criteria.category) {
+            criteria.query = searchQuery;
+        }
+
+        console.log('🎤 Parsed search criteria:', criteria);
+        return criteria;
+    };
 
     const fetchUserPreferences = async () => {
         try {
@@ -1647,11 +1946,28 @@ function InventoryContent() {
                         return null;
                     })()}
 
-                    {/* Action Buttons Row - Mobile Responsive */}
+                    {/* Enhanced Action Buttons Row with Voice - Mobile Responsive */}
                     <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                         {/* Left side buttons */}
                         <div className="flex gap-2 flex-1">
-                            {/* Common Items Wizard Button - Priority placement for new users */}
+                            {/* Voice Buttons */}
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceAddItem(true)}
+                                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-purple-300 text-sm font-medium rounded-md shadow-sm text-purple-700 bg-purple-50 hover:bg-purple-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-purple-500"
+                            >
+                                <span className="hidden sm:inline">🎤 Voice Add</span>
+                                <span className="sm:hidden">🎤 Add</span>
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceSearch(true)}
+                                className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                            >
+                                <span className="hidden sm:inline">🎤 Voice Search</span>
+                                <span className="sm:hidden">🎤 Search</span>
+                            </TouchEnhancedButton>
+
+                            {/* Existing buttons... */}
                             {inventory.length === 0 && (
                                 <FeatureGate
                                     feature={FEATURE_GATES.COMMON_ITEMS_WIZARD}
@@ -2860,6 +3176,85 @@ function InventoryContent() {
                             </div>
                         </div>
                     </div>
+
+                    {/* NEW: Voice Input Modals */}
+                    {/* Voice Add Item Modal */}
+                    {showVoiceAddItem && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Add Inventory Item</h3>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowVoiceAddItem(false)}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        ×
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                <div className="mb-4">
+                                    <VoiceInput
+                                        onResult={handleVoiceAddItem}
+                                        onError={handleVoiceError}
+                                        placeholder="Say what you want to add to inventory..."
+                                    />
+                                </div>
+
+                                <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                                    <p className="text-sm text-blue-800 mb-2">
+                                        💡 <strong>Voice Add Examples:</strong>
+                                    </p>
+                                    <ul className="text-sm text-blue-700 space-y-1">
+                                        <li>• "2 pounds ground beef in the freezer"</li>
+                                        <li>• "1 gallon milk in the fridge"</li>
+                                        <li>• "3 cans tomato sauce in the pantry"</li>
+                                        <li>• "1 bag rice in the kitchen"</li>
+                                        <li>• "2 bottles olive oil"</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Voice Search Modal */}
+                    {showVoiceSearch && (
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Search Inventory</h3>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowVoiceSearch(false)}
+                                        className="text-gray-400 hover:text-gray-600"
+                                    >
+                                        ×
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                <div className="mb-4">
+                                    <VoiceInput
+                                        onResult={handleVoiceSearch}
+                                        onError={handleVoiceError}
+                                        placeholder="Say what you want to find..."
+                                    />
+                                </div>
+
+                                <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                                    <p className="text-sm text-blue-800 mb-2">
+                                        💡 <strong>Voice Search Examples:</strong>
+                                    </p>
+                                    <ul className="text-sm text-blue-700 space-y-1">
+                                        <li>• "Find milk in the fridge"</li>
+                                        <li>• "Show me expired items"</li>
+                                        <li>• "Search for meat in the freezer"</li>
+                                        <li>• "What's expiring soon"</li>
+                                        <li>• "Find vegetables in the pantry"</li>
+                                        <li>• "Show me dairy products"</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+
                 </div>
             )}
 

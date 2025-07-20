@@ -23,6 +23,7 @@ import { FEATURE_GATES } from "@/lib/subscription-config";
 import FeatureGate from "@/components/subscription/FeatureGate";
 import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 import { RecipeSearchEngine } from '@/lib/recipeSearch';
+import { VoiceInput } from '@/components/mobile/VoiceInput';
 
 function RecipesContent() {
     const { data: session, status } = useSafeSession();
@@ -68,6 +69,10 @@ function RecipesContent() {
 
     const [allTags, setAllTags] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
+    // NEW: Voice Search State
+    const [showVoiceSearch, setShowVoiceSearch] = useState(false);
+    const [voiceSearchResults, setVoiceSearchResults] = useState('');
+    const [processingVoiceSearch, setProcessingVoiceSearch] = useState(false);
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -319,6 +324,149 @@ function RecipesContent() {
         setCurrentPage(prev => prev + 1);
     };
 
+    // NEW: Voice Search Functions
+    const handleVoiceSearchResult = async (transcript, confidence) => {
+        console.log('🎤 Voice search received:', transcript, 'Confidence:', confidence);
+        setVoiceSearchResults(transcript);
+        setProcessingVoiceSearch(true);
+
+        try {
+            // Parse voice input for search criteria
+            const parsedCriteria = parseVoiceSearchCriteria(transcript);
+
+            // Apply the search criteria
+            setSearchFilters(prev => ({
+                ...prev,
+                ...parsedCriteria
+            }));
+
+            // Switch to appropriate tab if needed
+            if (parsedCriteria.searchTarget) {
+                setActiveTab(parsedCriteria.searchTarget);
+            }
+
+            setShowVoiceSearch(false);
+            setVoiceSearchResults('');
+
+            // Show success feedback
+            const searchType = parsedCriteria.query ? 'search' : 'filter';
+            alert(`✅ Applied voice ${searchType}: "${transcript}"`);
+
+        } catch (error) {
+            console.error('Error processing voice search:', error);
+            alert('❌ Error processing voice search. Please try again.');
+        } finally {
+            setProcessingVoiceSearch(false);
+        }
+    };
+
+    const handleVoiceSearchError = (error) => {
+        console.error('🎤 Voice search error:', error);
+        setProcessingVoiceSearch(false);
+
+        // Show user-friendly error message
+        let userMessage = 'Voice search failed. ';
+        if (error.includes('not-allowed') || error.includes('denied')) {
+            userMessage += 'Please allow microphone access in your browser settings.';
+        } else if (error.includes('network')) {
+            userMessage += 'Voice recognition requires an internet connection.';
+        } else {
+            userMessage += 'Please try again.';
+        }
+
+        alert(`🎤 ${userMessage}`);
+    };
+
+    const parseVoiceSearchCriteria = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return {};
+
+        const cleanTranscript = transcript.toLowerCase().trim();
+        let criteria = {};
+
+        // Extract search queries
+        const searchMatch = cleanTranscript.match(/(?:search for|find|look for|show me)\s+(.+?)(?:\s+(?:recipes?|that|with|under|in|for)|\s*$)/);
+        if (searchMatch) {
+            criteria.query = searchMatch[1].trim();
+        } else if (!cleanTranscript.includes('show me') && !cleanTranscript.includes('filter')) {
+            // Treat the whole transcript as a search query if no specific commands
+            criteria.query = cleanTranscript;
+        }
+
+        // Extract time constraints
+        const timeMatch = cleanTranscript.match(/(?:under|less than|within)\s+(\d+)\s*(?:minutes?|mins?)/);
+        if (timeMatch) {
+            criteria.maxCookTime = parseInt(timeMatch[1]);
+        }
+
+        // Extract difficulty
+        if (cleanTranscript.includes('easy') || cleanTranscript.includes('simple') || cleanTranscript.includes('beginner')) {
+            criteria.difficulty = 'easy';
+        } else if (cleanTranscript.includes('medium') || cleanTranscript.includes('intermediate')) {
+            criteria.difficulty = 'medium';
+        } else if (cleanTranscript.includes('hard') || cleanTranscript.includes('difficult') || cleanTranscript.includes('advanced')) {
+            criteria.difficulty = 'hard';
+        }
+
+        // Extract dietary restrictions
+        const dietaryTags = [];
+        if (cleanTranscript.includes('vegetarian')) dietaryTags.push('vegetarian');
+        if (cleanTranscript.includes('vegan')) dietaryTags.push('vegan');
+        if (cleanTranscript.includes('gluten free') || cleanTranscript.includes('gluten-free')) dietaryTags.push('gluten-free');
+        if (cleanTranscript.includes('healthy')) dietaryTags.push('healthy');
+        if (cleanTranscript.includes('low carb') || cleanTranscript.includes('keto')) dietaryTags.push('low-carb');
+
+        if (dietaryTags.length > 0) {
+            criteria.tags = dietaryTags;
+        }
+
+        // Extract categories
+        const categoryKeywords = {
+            'breakfast': 'breakfast',
+            'lunch': 'entrees',
+            'dinner': 'entrees',
+            'dessert': 'desserts',
+            'desserts': 'desserts',
+            'soup': 'soups',
+            'soups': 'soups',
+            'salad': 'side-dishes',
+            'appetizer': 'appetizers',
+            'appetizers': 'appetizers',
+            'drinks': 'beverages',
+            'beverages': 'beverages'
+        };
+
+        for (const [keyword, category] of Object.entries(categoryKeywords)) {
+            if (cleanTranscript.includes(keyword)) {
+                criteria.category = category;
+                break;
+            }
+        }
+
+        // Extract sorting preferences
+        if (cleanTranscript.includes('popular') || cleanTranscript.includes('trending')) {
+            criteria.sortBy = 'popular';
+        } else if (cleanTranscript.includes('highest rated') || cleanTranscript.includes('best rated')) {
+            criteria.sortBy = 'rating';
+        } else if (cleanTranscript.includes('newest') || cleanTranscript.includes('recent')) {
+            criteria.sortBy = 'newest';
+        } else if (cleanTranscript.includes('quick') || cleanTranscript.includes('fast')) {
+            criteria.sortBy = 'quickest';
+        }
+
+        // Determine target tab
+        if (cleanTranscript.includes('my recipes') || cleanTranscript.includes('my recipe')) {
+            criteria.searchTarget = 'my-recipes';
+        } else if (cleanTranscript.includes('public') || cleanTranscript.includes('community')) {
+            criteria.searchTarget = 'public-recipes';
+        } else if (criteria.query || Object.keys(criteria).length > 0) {
+            // Default to public recipes for general searches
+            criteria.searchTarget = 'public-recipes';
+        }
+
+        console.log('🎤 Parsed voice criteria:', criteria);
+        return criteria;
+    };
+
     // Tab counts logic (keeping your existing logic)
     const getTabCounts = () => {
         const recipesArray = Array.isArray(recipes) ? recipes : [];
@@ -489,8 +637,15 @@ function RecipesContent() {
                         <p className="text-gray-600 mt-1">Discover, search, and organize your recipes</p>
                     </div>
 
-                    {/* View Mode Toggle */}
+                    {/* View Mode Toggle with Voice Search */}
                     <div className="flex items-center space-x-2">
+                        <TouchEnhancedButton
+                            onClick={() => setShowVoiceSearch(true)}
+                            className="px-3 py-2 rounded-md text-sm font-medium transition-colors bg-purple-600 text-white hover:bg-purple-700"
+                            title="Voice Search"
+                        >
+                            🎤 Voice
+                        </TouchEnhancedButton>
                         <TouchEnhancedButton
                             onClick={() => setShowAdvancedSearch(!showAdvancedSearch)}
                             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -1100,6 +1255,238 @@ function RecipesContent() {
                         )}
                     </>
                 )}
+
+                {/* NEW: Voice Search Modal */}
+                {showVoiceSearch && (
+                    <div style={{
+                        position: 'fixed',
+                        top: '0',
+                        left: '0',
+                        right: '0',
+                        bottom: '0',
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1300,
+                        padding: '1rem'
+                    }}>
+                        <div style={{
+                            backgroundColor: 'white',
+                            borderRadius: '12px',
+                            padding: '1.5rem',
+                            maxWidth: '500px',
+                            width: '100%',
+                            maxHeight: '80vh',
+                            overflow: 'auto'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '1.5rem'
+                            }}>
+                                <h3 style={{
+                                    margin: 0,
+                                    fontSize: '1.25rem',
+                                    fontWeight: '600',
+                                    color: '#111827'
+                                }}>
+                                    🎤 Voice Recipe Search
+                                </h3>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowVoiceSearch(false)}
+                                    disabled={processingVoiceSearch}
+                                    style={{
+                                        background: 'none',
+                                        border: 'none',
+                                        fontSize: '1.5rem',
+                                        color: '#6b7280',
+                                        cursor: processingVoiceSearch ? 'not-allowed' : 'pointer',
+                                        opacity: processingVoiceSearch ? 0.6 : 1
+                                    }}
+                                >
+                                    ×
+                                </TouchEnhancedButton>
+                            </div>
+
+                            {/* Instructions */}
+                            <div style={{
+                                marginBottom: '1.5rem',
+                                padding: '1rem',
+                                backgroundColor: '#f0f9ff',
+                                borderRadius: '8px',
+                                border: '1px solid #0ea5e9'
+                            }}>
+                                <h4 style={{
+                                    margin: '0 0 0.5rem 0',
+                                    fontSize: '1rem',
+                                    fontWeight: '500',
+                                    color: '#0c4a6e'
+                                }}>
+                                    💡 Voice Search Examples
+                                </h4>
+                                <ul style={{
+                                    margin: 0,
+                                    paddingLeft: '1.25rem',
+                                    fontSize: '0.875rem',
+                                    color: '#0369a1',
+                                    lineHeight: '1.4'
+                                }}>
+                                    <li>"Find chicken recipes under 30 minutes"</li>
+                                    <li>"Show me easy vegetarian meals"</li>
+                                    <li>"Search for popular desserts"</li>
+                                    <li>"Find healthy breakfast recipes"</li>
+                                    <li>"Show me my pasta recipes"</li>
+                                    <li>"Find quick dinner ideas"</li>
+                                </ul>
+                            </div>
+
+                            {/* Voice Input Component */}
+                            <div style={{
+                                marginBottom: '1.5rem'
+                            }}>
+                                <VoiceInput
+                                    onResult={handleVoiceSearchResult}
+                                    onError={handleVoiceSearchError}
+                                    placeholder="Say what you want to find: 'chicken recipes under 30 minutes'..."
+                                />
+                            </div>
+
+                            {/* Processing Status */}
+                            {processingVoiceSearch && (
+                                <div style={{
+                                    marginBottom: '1.5rem',
+                                    padding: '1rem',
+                                    backgroundColor: '#fef3c7',
+                                    borderRadius: '8px',
+                                    border: '1px solid #f59e0b',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        fontSize: '1rem',
+                                        fontWeight: '500',
+                                        color: '#92400e',
+                                        marginBottom: '0.5rem'
+                                    }}>
+                                        🤖 Processing voice search...
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.875rem',
+                                        color: '#d97706'
+                                    }}>
+                                        Understanding your search criteria
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Recent Voice Results */}
+                            {voiceSearchResults && !processingVoiceSearch && (
+                                <div style={{
+                                    marginBottom: '1.5rem',
+                                    padding: '1rem',
+                                    backgroundColor: '#f0fdf4',
+                                    borderRadius: '8px',
+                                    border: '1px solid #16a34a'
+                                }}>
+                                    <div style={{
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        color: '#14532d',
+                                        marginBottom: '0.5rem'
+                                    }}>
+                                        Last voice search:
+                                    </div>
+                                    <div style={{
+                                        fontSize: '1rem',
+                                        color: '#166534',
+                                        fontStyle: 'italic'
+                                    }}>
+                                        "{voiceSearchResults}"
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Action Buttons */}
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                gap: '0.75rem'
+                            }}>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowVoiceSearch(false)}
+                                    disabled={processingVoiceSearch}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.75rem',
+                                        backgroundColor: '#f3f4f6',
+                                        color: '#374151',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        cursor: processingVoiceSearch ? 'not-allowed' : 'pointer',
+                                        opacity: processingVoiceSearch ? 0.6 : 1
+                                    }}
+                                >
+                                    Close
+                                </TouchEnhancedButton>
+
+                                <TouchEnhancedButton
+                                    onClick={() => {
+                                        setVoiceSearchResults('');
+                                        // Reset voice search state for next use
+                                    }}
+                                    disabled={processingVoiceSearch || !voiceSearchResults}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.75rem',
+                                        backgroundColor: voiceSearchResults && !processingVoiceSearch ? '#3b82f6' : '#9ca3af',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '0.875rem',
+                                        fontWeight: '500',
+                                        cursor: (processingVoiceSearch || !voiceSearchResults) ? 'not-allowed' : 'pointer'
+                                    }}
+                                >
+                                    Clear & Try Again
+                                </TouchEnhancedButton>
+                            </div>
+
+                            {/* Voice Search Tips */}
+                            <div style={{
+                                marginTop: '1rem',
+                                padding: '0.75rem',
+                                backgroundColor: '#eff6ff',
+                                borderRadius: '6px',
+                                border: '1px solid #bfdbfe'
+                            }}>
+                                <div style={{
+                                    fontSize: '0.75rem',
+                                    color: '#1e40af',
+                                    fontWeight: '500',
+                                    marginBottom: '0.25rem'
+                                }}>
+                                    💡 Voice Search Tips:
+                                </div>
+                                <ul style={{
+                                    fontSize: '0.75rem',
+                                    color: '#1e40af',
+                                    marginLeft: '1rem',
+                                    lineHeight: '1.4',
+                                    margin: '0 0 0 1rem'
+                                }}>
+                                    <li>Be specific: "chicken pasta" vs just "pasta"</li>
+                                    <li>Include time: "under 30 minutes", "quick"</li>
+                                    <li>Mention diet: "vegetarian", "gluten free"</li>
+                                    <li>Use natural language like you're talking to a friend</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
             </div>
             <Footer/>
         </MobileOptimizedLayout>

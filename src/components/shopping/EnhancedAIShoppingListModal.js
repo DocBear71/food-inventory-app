@@ -11,6 +11,7 @@ import {CategoryUtils, GROCERY_CATEGORIES, suggestCategoryForItem} from '@/lib/g
 import ShoppingListTotals from '@/components/shopping/ShoppingListTotals';
 import PrintOptionsModal from '@/components/shopping/PrintOptionsModal';
 import { ShoppingListTotalsCalculator } from '@/lib/shoppingListTotals';
+import { VoiceInput } from '@/components/mobile/VoiceInput';
 
 export default function EnhancedAIShoppingListModal({
                                                         isOpen,
@@ -73,6 +74,10 @@ export default function EnhancedAIShoppingListModal({
     });
     const [showPrintModal, setShowPrintModal] = useState(false);
     const [totalsCalculator] = useState(() => new ShoppingListTotalsCalculator());
+    // NEW: Voice Input State
+    const [showVoiceInput, setShowVoiceInput] = useState(false);
+    const [voiceResults, setVoiceResults] = useState('');
+    const [processingVoice, setProcessingVoice] = useState(false);
 
     // FIXED: Use state for shopping list items to trigger re-renders
     const [currentShoppingList, setCurrentShoppingList] = useState(null);
@@ -93,6 +98,9 @@ export default function EnhancedAIShoppingListModal({
             setCurrentShoppingList(null);
             setShowTotals(false);
             setShowPrintModal(false);
+            setShowVoiceInput(false);
+            setVoiceResults('');
+            setProcessingVoice(false);
         } else {
             loadPreferences();
             fetchStores();
@@ -160,6 +168,149 @@ export default function EnhancedAIShoppingListModal({
     // NEW: Handle tax rate changes
     const handleTaxRateChange = (taxRate) => {
         saveUserPreferences({ taxRate });
+    };
+
+    // NEW: Voice Input Functions
+    const handleVoiceResult = async (transcript, confidence) => {
+        console.log('🎤 Voice input received:', transcript, 'Confidence:', confidence);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            // Parse voice input and add items to shopping list
+            const newItems = parseVoiceInputToItems(transcript);
+
+            if (newItems.length > 0) {
+                await addVoiceItemsToList(newItems);
+                setShowVoiceInput(false);
+                setVoiceResults('');
+
+                // Show success feedback
+                alert(`✅ Added ${newItems.length} item${newItems.length > 1 ? 's' : ''} from voice input!`);
+            } else {
+                alert('❌ Could not understand any items from voice input. Try saying items like "milk, eggs, bread"');
+            }
+        } catch (error) {
+            console.error('Error processing voice input:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceError = (error) => {
+        console.error('🎤 Voice input error:', error);
+        setProcessingVoice(false);
+
+        // Show user-friendly error message
+        let userMessage = 'Voice input failed. ';
+        if (error.includes('not-allowed') || error.includes('denied')) {
+            userMessage += 'Please allow microphone access in your browser settings.';
+        } else if (error.includes('network')) {
+            userMessage += 'Voice recognition requires an internet connection.';
+        } else {
+            userMessage += 'Please try again.';
+        }
+
+        alert(`🎤 ${userMessage}`);
+    };
+
+    const parseVoiceInputToItems = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return [];
+
+        // Clean up the transcript
+        const cleanTranscript = transcript.toLowerCase()
+            .replace(/[.!?]/g, '') // Remove punctuation
+            .replace(/\b(add|to|shopping|list|please|i|need|want|buy|get|pick|up)\b/g, '') // Remove common command words
+            .trim();
+
+        // Split by common separators
+        const itemTexts = cleanTranscript
+            .split(/[,;]|\band\b|\bthen\b|\balso\b|\bplus\b/)
+            .map(item => item.trim())
+            .filter(item => item.length > 0);
+
+        const parsedItems = [];
+
+        itemTexts.forEach(itemText => {
+            if (itemText.length < 2) return; // Skip very short items
+
+            // Extract quantity and item name
+            const quantityMatch = itemText.match(/^(\d+(?:\.\d+)?)\s*(.+)$/);
+            let amount = '';
+            let itemName = itemText;
+
+            if (quantityMatch) {
+                amount = quantityMatch[1];
+                itemName = quantityMatch[2];
+            }
+
+            // Clean up item name
+            itemName = itemName
+                .replace(/\b(of|the|a|an)\b/g, '') // Remove articles
+                .trim();
+
+            if (itemName.length > 1) {
+                // Use AI category suggestion
+                const suggestedCategory = getAISuggestedCategory(itemName);
+
+                parsedItems.push({
+                    ingredient: itemName,
+                    name: itemName,
+                    amount: amount,
+                    category: suggestedCategory,
+                    addedViaVoice: true,
+                    addedAt: new Date().toISOString()
+                });
+            }
+        });
+
+        console.log('🎤 Parsed voice items:', parsedItems);
+        return parsedItems;
+    };
+
+    const addVoiceItemsToList = async (newItems) => {
+        if (!currentShoppingList || newItems.length === 0) return;
+
+        const updatedShoppingList = { ...currentShoppingList };
+        const updatedItems = { ...updatedShoppingList.items };
+
+        // Add each new item to the appropriate category
+        newItems.forEach(item => {
+            const category = item.category || 'Other';
+
+            if (!updatedItems[category]) {
+                updatedItems[category] = [];
+            }
+
+            // Check for duplicates
+            const existingItem = updatedItems[category].find(
+                existingItem => (existingItem.ingredient || existingItem.name)?.toLowerCase() ===
+                    (item.ingredient || item.name)?.toLowerCase()
+            );
+
+            if (!existingItem) {
+                updatedItems[category].push(item);
+                console.log(`✅ Added "${item.ingredient}" to ${category}`);
+            } else {
+                console.log(`⚠️ Item "${item.ingredient}" already exists in ${category}`);
+            }
+        });
+
+        // Update the shopping list state
+        updatedShoppingList.items = updatedItems;
+
+        // Update summary counts
+        const totalItems = Object.values(updatedItems).flat().length;
+        updatedShoppingList.summary = {
+            ...updatedShoppingList.summary,
+            totalItems: totalItems,
+            needToBuy: (updatedShoppingList.summary?.needToBuy || 0) + newItems.length
+        };
+
+        setCurrentShoppingList(updatedShoppingList);
+
+        console.log('🎤 Updated shopping list with voice items:', updatedShoppingList);
     };
 
     const loadCustomCategories = async () => {
@@ -1015,6 +1166,23 @@ export default function EnhancedAIShoppingListModal({
                                 >
                                     📝<br/>Text
                                 </TouchEnhancedButton>
+
+                                <TouchEnhancedButton
+                                    onClick={() => setShowVoiceInput(true)}
+                                    style={{
+                                        backgroundColor: '#7c3aed',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.5rem',
+                                        fontSize: '0.65rem',
+                                        cursor: 'pointer',
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    🎤<br/>Voice
+                                </TouchEnhancedButton>
+
                             </div>
                         </div>
                     )}
@@ -1624,6 +1792,237 @@ export default function EnhancedAIShoppingListModal({
                 shoppingRoute={null} // AI mode doesn't use shopping routes like Unified
                 totals={calculatePrintTotals()}
             />
+
+            {/* NEW: Voice Input Modal */}
+            {showVoiceInput && (
+                <div style={{
+                    position: 'fixed',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1300,
+                    padding: '1rem'
+                }}>
+                    <div style={{
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        padding: '1.5rem',
+                        maxWidth: '500px',
+                        width: '100%',
+                        maxHeight: '80vh',
+                        overflow: 'auto'
+                    }}>
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            marginBottom: '1.5rem'
+                        }}>
+                            <h3 style={{
+                                margin: 0,
+                                fontSize: '1.25rem',
+                                fontWeight: '600',
+                                color: '#111827'
+                            }}>
+                                🎤 Voice Add Items
+                            </h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceInput(false)}
+                                disabled={processingVoice}
+                                style={{
+                                    background: 'none',
+                                    border: 'none',
+                                    fontSize: '1.5rem',
+                                    color: '#6b7280',
+                                    cursor: processingVoice ? 'not-allowed' : 'pointer',
+                                    opacity: processingVoice ? 0.6 : 1
+                                }}
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Instructions */}
+                        <div style={{
+                            marginBottom: '1.5rem',
+                            padding: '1rem',
+                            backgroundColor: '#f0f9ff',
+                            borderRadius: '8px',
+                            border: '1px solid #0ea5e9'
+                        }}>
+                            <h4 style={{
+                                margin: '0 0 0.5rem 0',
+                                fontSize: '1rem',
+                                fontWeight: '500',
+                                color: '#0c4a6e'
+                            }}>
+                                💡 How to use Voice Input
+                            </h4>
+                            <ul style={{
+                                margin: 0,
+                                paddingLeft: '1.25rem',
+                                fontSize: '0.875rem',
+                                color: '#0369a1',
+                                lineHeight: '1.4'
+                            }}>
+                                <li>Speak clearly and at normal speed</li>
+                                <li>Say items separated by "and" or commas</li>
+                                <li>Include quantities: "2 pounds chicken"</li>
+                                <li>Examples: "milk, eggs, and 3 bananas"</li>
+                                <li>The AI will automatically categorize items</li>
+                            </ul>
+                        </div>
+
+                        {/* Voice Input Component */}
+                        <div style={{
+                            marginBottom: '1.5rem'
+                        }}>
+                            <VoiceInput
+                                onResult={handleVoiceResult}
+                                onError={handleVoiceError}
+                                placeholder="Say items to add: 'milk, eggs, 2 pounds chicken'..."
+                            />
+                        </div>
+
+                        {/* Processing Status */}
+                        {processingVoice && (
+                            <div style={{
+                                marginBottom: '1.5rem',
+                                padding: '1rem',
+                                backgroundColor: '#fef3c7',
+                                borderRadius: '8px',
+                                border: '1px solid #f59e0b',
+                                textAlign: 'center'
+                            }}>
+                                <div style={{
+                                    fontSize: '1rem',
+                                    fontWeight: '500',
+                                    color: '#92400e',
+                                    marginBottom: '0.5rem'
+                                }}>
+                                    🤖 Processing voice input...
+                                </div>
+                                <div style={{
+                                    fontSize: '0.875rem',
+                                    color: '#d97706'
+                                }}>
+                                    Parsing items and adding to your list
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Recent Voice Results */}
+                        {voiceResults && !processingVoice && (
+                            <div style={{
+                                marginBottom: '1.5rem',
+                                padding: '1rem',
+                                backgroundColor: '#f0fdf4',
+                                borderRadius: '8px',
+                                border: '1px solid #16a34a'
+                            }}>
+                                <div style={{
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    color: '#14532d',
+                                    marginBottom: '0.5rem'
+                                }}>
+                                    Last voice input:
+                                </div>
+                                <div style={{
+                                    fontSize: '1rem',
+                                    color: '#166534',
+                                    fontStyle: 'italic'
+                                }}>
+                                    "{voiceResults}"
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div style={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: '0.75rem'
+                        }}>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceInput(false)}
+                                disabled={processingVoice}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.75rem',
+                                    backgroundColor: '#f3f4f6',
+                                    color: '#374151',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    cursor: processingVoice ? 'not-allowed' : 'pointer',
+                                    opacity: processingVoice ? 0.6 : 1
+                                }}
+                            >
+                                Close
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    setVoiceResults('');
+                                    // Reset voice input state for next use
+                                }}
+                                disabled={processingVoice || !voiceResults}
+                                style={{
+                                    flex: 1,
+                                    padding: '0.75rem',
+                                    backgroundColor: voiceResults && !processingVoice ? '#3b82f6' : '#9ca3af',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '6px',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    cursor: (processingVoice || !voiceResults) ? 'not-allowed' : 'pointer'
+                                }}
+                            >
+                                Clear & Try Again
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Voice Tips */}
+                        <div style={{
+                            marginTop: '1rem',
+                            padding: '0.75rem',
+                            backgroundColor: '#eff6ff',
+                            borderRadius: '6px',
+                            border: '1px solid #bfdbfe'
+                        }}>
+                            <div style={{
+                                fontSize: '0.75rem',
+                                color: '#1e40af',
+                                fontWeight: '500',
+                                marginBottom: '0.25rem'
+                            }}>
+                                💡 Voice Tips:
+                            </div>
+                            <ul style={{
+                                fontSize: '0.75rem',
+                                color: '#1e40af',
+                                marginLeft: '1rem',
+                                lineHeight: '1.4',
+                                margin: '0 0 0 1rem'
+                            }}>
+                                <li>Speak in a quiet environment for best results</li>
+                                <li>Use natural speech - don't spell out words</li>
+                                <li>If items aren't recognized, try speaking more clearly</li>
+                                <li>Check microphone permissions if voice input fails</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </>
     );
 }

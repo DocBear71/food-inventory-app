@@ -61,7 +61,7 @@ export default function MobileDashboardLayout({children}) {
         { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory' },
         { name: 'Nutrition', href: '/dashboard/nutrition', icon: '🔬', current: pathname.startsWith('/dashboard/nutrition') },
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
-        {name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
+        { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
         { name: 'Shopping', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
     ];
 
@@ -618,39 +618,37 @@ export default function MobileDashboardLayout({children}) {
                 </div>
             </main>
 
-            {/* Bottom Navigation */}
+            {/* Bottom Navigation - FIXED */}
             <nav className="fixed left-0 right-0 bg-white border-t shadow-lg z-30"
                  style={{
                      bottom: '0',
                      paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0px)'
                  }}
             >
-                {/* Your navigation content with proper padding */}
-                <div className="flex justify-around items-center" style={{
-                    height: '60px', // Fixed height for the nav items
+                {/* Fixed navigation content with proper flex layout */}
+                <div className="flex justify-around items-center px-2" style={{
+                    height: '64px', // Slightly taller for better touch targets
+                    minHeight: '64px'
                 }}>
-                    <div className="grid grid-cols-5 h-16">
-                        {navigation.map((item) => (
-                            <TouchEnhancedButton
-                                key={item.name}
-                                onClick={() => handleNavigation(item.href)}
-                                className={`flex flex-col items-center justify-center space-y-1 transition-all touch-friendly ${
-                                    item.current
-                                        ? 'text-indigo-600 bg-indigo-50'
-                                        : 'text-gray-400 hover:text-gray-600 active:bg-gray-100'
-                                }`}
-                            >
-                                <span className="text-lg">{item.icon}</span>
-                                <span className="text-xs font-medium truncate max-w-full px-1">
+                    {navigation.map((item) => (
+                        <TouchEnhancedButton
+                            key={item.name}
+                            onClick={() => handleNavigation(item.href)}
+                            className={`relative flex flex-col items-center justify-center space-y-1 px-2 py-2 rounded-lg transition-all touch-friendly min-w-0 flex-1 ${
+                                item.current
+                                    ? 'text-indigo-600 bg-indigo-50'
+                                    : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
+                            }`}
+                        >
+                            <span className="text-xl leading-none">{item.icon}</span>
+                            <span className="text-xs font-medium leading-tight text-center max-w-full truncate px-1">
                                 {item.name}
                             </span>
-                                {item.current && (
-                                    <div
-                                        className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full"/>
-                                )}
-                            </TouchEnhancedButton>
-                        ))}
-                    </div>
+                            {item.current && (
+                                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-indigo-600 rounded-t-full"/>
+                            )}
+                        </TouchEnhancedButton>
+                    ))}
                 </div>
             </nav>
             {/* PWA Install Banner - back at bottom */}
