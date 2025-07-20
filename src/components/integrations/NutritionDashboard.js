@@ -525,27 +525,31 @@ export default function NutritionDashboard() {
                 </div>
             )}
 
-            {/* Tab Navigation */}
-            <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg mb-6">
-                {[
-                    {id: 'overview', label: '📊 Overview', icon: '📊'},
-                    {id: 'inventory', label: '🥫 Inventory Nutrition', icon: '🥫'},
-                    {id: 'recipes', label: '🍳 Recipe Suggestions', icon: '🍳'},
-                    {id: 'optimization', label: '⚡ Smart Optimization', icon: '⚡'},
-                    {id: 'goals', label: '🎯 Nutrition Goals', icon: '🎯'}
-                ].map(tab => (
-                    <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
-                        className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${
-                            activeTab === tab.id
-                                ? 'bg-white text-blue-600 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-900'
-                        }`}
-                    >
-                        {tab.icon} {tab.label}
-                    </button>
-                ))}
+            {/* Tab Navigation - Mobile Optimized */}
+            <div className="bg-gray-100 p-1 rounded-lg mb-6 overflow-x-auto">
+                <div className="flex space-x-1 min-w-fit">
+                    {[
+                        {id: 'overview', label: 'Overview', icon: '📊', shortLabel: 'Overview'},
+                        {id: 'inventory', label: 'Inventory', icon: '🥫', shortLabel: 'Inventory'},
+                        {id: 'recipes', label: 'Recipes', icon: '🍳', shortLabel: 'Recipes'},
+                        {id: 'optimization', label: 'Optimize', icon: '⚡', shortLabel: 'Optimize'},
+                        {id: 'goals', label: 'Goals', icon: '🎯', shortLabel: 'Goals'}
+                    ].map(tab => (
+                        <button
+                            key={tab.id}
+                            onClick={() => setActiveTab(tab.id)}
+                            className={`flex-shrink-0 py-2 px-3 rounded-md text-xs font-medium transition-colors min-w-[60px] flex flex-col items-center sm:flex-row sm:min-w-fit sm:px-4 sm:text-sm ${
+                                activeTab === tab.id
+                                    ? 'bg-white text-blue-600 shadow-sm'
+                                    : 'text-gray-600 hover:text-gray-900'
+                            }`}
+                        >
+                            <span className="text-base sm:text-sm sm:mr-1">{tab.icon}</span>
+                            <span className="hidden sm:inline">{tab.label}</span>
+                            <span className="sm:hidden text-xs mt-1">{tab.shortLabel}</span>
+                        </button>
+                    ))}
+                </div>
             </div>
 
             {/* Tab Content */}
