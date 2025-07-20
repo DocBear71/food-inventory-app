@@ -1,12 +1,12 @@
 // file: /public/sw.js v2 - Enhanced Service Worker for Doc Bear's Comfort Kitchen with Voice & Price Intelligence
 
-const CACHE_NAME = 'comfort-kitchen-v1.3.0';
+const CACHE_NAME = 'comfort-kitchen-v1.3.1';
 const CACHE_NAMES = {
-    STATIC: 'comfort-kitchen-static-v1.3.0',
-    API: 'comfort-kitchen-api-v1.3.0',
-    IMAGES: 'comfort-kitchen-images-v1.3.0',
-    VOICE: 'comfort-kitchen-voice-v1.3.0',
-    PRICE: 'comfort-kitchen-price-v1.3.0'
+    STATIC: 'comfort-kitchen-static-v1.3.1',
+    API: 'comfort-kitchen-api-v1.3.1',
+    IMAGES: 'comfort-kitchen-images-v1.3.1',
+    VOICE: 'comfort-kitchen-voice-v1.3.1',
+    PRICE: 'comfort-kitchen-price-v1.3.1'
 };
 
 const STATIC_CACHE_URLS = [
@@ -515,4 +515,4 @@ self.addEventListener('message', (event) => {
     }
 });
 
-console.log('🐻 Doc Bear\'s Comfort Kitchen Service Worker v1.3.0 loaded with Voice & Price Intelligence support!');
+console.log('🐻 Doc Bear\'s Comfort Kitchen Service Worker v1.3.1 loaded with Voice & Price Intelligence support!');

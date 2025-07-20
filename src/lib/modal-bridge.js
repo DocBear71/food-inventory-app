@@ -9,7 +9,7 @@ class ModalServiceBridge {
 
         this.defaultHeaders = {
             'Content-Type': 'application/json',
-            'User-Agent': 'DocBearsComfortKitchen/1.3.0'
+            'User-Agent': 'DocBearsComfortKitchen/1.3.1'
         };
     }
 
