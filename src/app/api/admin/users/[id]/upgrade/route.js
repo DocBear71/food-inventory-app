@@ -1,5 +1,5 @@
-// file: /src/app/api/admin/users/[id]/upgrade/route.js
-// UPDATED - Admin User Upgrade API with Email Notifications
+// file: /src/app/api/admin/users/[id]/upgrade/route.js v2 - FIXED: Handle old user schema migration
+// UPDATED - Admin User Upgrade API with Email Notifications and Old User Schema Support
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
@@ -7,6 +7,57 @@ import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import { sendSubscriptionUpgradeEmail } from '@/lib/email';
+
+// Helper function to safely migrate old user schema
+function migrateUserSubscriptionSchema(user) {
+    const now = new Date();
+
+    // If user doesn't have subscription object at all, create it
+    if (!user.subscription) {
+        console.log(`🔧 Creating subscription schema for old user: ${user.email}`);
+        user.subscription = {
+            tier: 'free',
+            status: 'free',
+            billingCycle: null,
+            startDate: now,
+            endDate: null,
+            trialStartDate: null,
+            trialEndDate: null,
+            hasUsedFreeTrial: false,
+            paymentMethod: null,
+            stripeCustomerId: null,
+            lastPaymentDate: null,
+            nextBillingDate: null,
+            adminUpgradeHistory: []
+        };
+    }
+
+    // Ensure all required fields exist
+    const requiredFields = {
+        tier: 'free',
+        status: 'free',
+        billingCycle: null,
+        startDate: now,
+        endDate: null,
+        trialStartDate: null,
+        trialEndDate: null,
+        hasUsedFreeTrial: false,
+        paymentMethod: null,
+        stripeCustomerId: null,
+        lastPaymentDate: null,
+        nextBillingDate: null,
+        adminUpgradeHistory: []
+    };
+
+    // Add any missing fields with defaults
+    for (const [field, defaultValue] of Object.entries(requiredFields)) {
+        if (user.subscription[field] === undefined) {
+            user.subscription[field] = defaultValue;
+        }
+    }
+
+    return user;
+}
 
 export async function POST(request, { params }) {
     try {
@@ -56,13 +107,16 @@ export async function POST(request, { params }) {
         }
 
         // Get target user
-        const user = await User.findById(userId);
+        let user = await User.findById(userId);
         if (!user) {
             return NextResponse.json(
                 { error: 'User not found' },
                 { status: 404 }
             );
         }
+
+        // FIXED: Migrate old user schema before processing
+        user = migrateUserSubscriptionSchema(user);
 
         // Store previous subscription for comparison and audit
         const previousTier = user.subscription?.tier || 'free';
@@ -98,13 +152,13 @@ export async function POST(request, { params }) {
             reason: reason || 'Admin upgrade'
         };
 
-        // Update user subscription
+        // Update user subscription - FIXED: Properly handle old schema
         user.subscription = {
             ...user.subscription,
             ...subscriptionUpdate,
-            // Keep trial history
-            trialStartDate: user.subscription?.trialStartDate,
-            trialEndDate: user.subscription?.trialEndDate,
+            // Keep trial history (if exists)
+            trialStartDate: user.subscription?.trialStartDate || null,
+            trialEndDate: user.subscription?.trialEndDate || null,
             hasUsedFreeTrial: user.subscription?.hasUsedFreeTrial || false,
             // Add audit trail
             adminUpgradeHistory: [
@@ -113,7 +167,39 @@ export async function POST(request, { params }) {
             ].slice(-10) // Keep last 10 changes
         };
 
-        await user.save();
+        // FIXED: Also ensure other required fields exist for old users
+        if (!user.usageTracking) {
+            user.usageTracking = {
+                currentMonth: now.getMonth(),
+                currentYear: now.getFullYear(),
+                monthlyUPCScans: 0,
+                monthlyReceiptScans: 0,
+                totalInventoryItems: 0,
+                totalPersonalRecipes: 0,
+                totalSavedRecipes: 0,
+                totalPublicRecipes: 0,
+                totalRecipeCollections: 0,
+                lastUpdated: now
+            };
+        }
+
+        if (!user.accountStatus) {
+            user.accountStatus = {
+                status: 'active',
+                suspensionHistory: []
+            };
+        }
+
+        // Save with error handling
+        try {
+            await user.save();
+        } catch (saveError) {
+            console.error('❌ Error saving user after migration:', saveError);
+            return NextResponse.json(
+                { error: 'Failed to save user data after migration. Please try again.' },
+                { status: 500 }
+            );
+        }
 
         console.log('✅ User subscription updated successfully:', {
             userId,
@@ -121,7 +207,8 @@ export async function POST(request, { params }) {
             newTier: tier,
             previousTier: previousTier,
             endDate: endDate || 'none',
-            isUpgrade
+            isUpgrade,
+            wasMigrated: true
         });
 
         // Send email notification if requested
@@ -166,11 +253,26 @@ export async function POST(request, { params }) {
             previousSubscription,
             emailSent: sendNotification,
             emailResult: emailResult,
-            isUpgrade: isUpgrade
+            isUpgrade: isUpgrade,
+            migrationPerformed: true
         });
 
     } catch (error) {
         console.error('❌ Admin user upgrade API error:', error);
+
+        // Enhanced error logging for debugging
+        if (error.name === 'ValidationError') {
+            console.error('Validation Error Details:', error.errors);
+            return NextResponse.json(
+                {
+                    error: 'User data validation failed',
+                    details: Object.keys(error.errors).join(', '),
+                    validationErrors: error.errors
+                },
+                { status: 400 }
+            );
+        }
+
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }
@@ -178,7 +280,7 @@ export async function POST(request, { params }) {
     }
 }
 
-// Bulk upgrade endpoint for Google Play testers - UPDATED with email notifications
+// Bulk upgrade endpoint for Google Play testers - UPDATED with schema migration
 export async function PATCH(request, { params }) {
     try {
         const session = await auth();
@@ -249,12 +351,21 @@ export async function PATCH(request, { params }) {
             successful: [],
             failed: [],
             notFound: [],
-            emailResults: []
+            emailResults: [],
+            migrated: []
         };
 
         // Process each user
         for (const user of users) {
             try {
+                // FIXED: Migrate old user schema
+                const wasMigrated = !user.subscription;
+                migrateUserSubscriptionSchema(user);
+
+                if (wasMigrated) {
+                    results.migrated.push(user.email);
+                }
+
                 const previousTier = user.subscription?.tier || 'free';
                 const isUpgrade = (tier === 'platinum' && previousTier !== 'platinum') ||
                     (tier === 'gold' && previousTier === 'free');
@@ -286,6 +397,22 @@ export async function PATCH(request, { params }) {
                     ].slice(-10)
                 };
 
+                // Ensure other required fields for old users
+                if (!user.usageTracking) {
+                    user.usageTracking = {
+                        currentMonth: now.getMonth(),
+                        currentYear: now.getFullYear(),
+                        monthlyUPCScans: 0,
+                        monthlyReceiptScans: 0,
+                        totalInventoryItems: 0,
+                        totalPersonalRecipes: 0,
+                        totalSavedRecipes: 0,
+                        totalPublicRecipes: 0,
+                        totalRecipeCollections: 0,
+                        lastUpdated: now
+                    };
+                }
+
                 await user.save();
 
                 const userResult = {
@@ -293,7 +420,8 @@ export async function PATCH(request, { params }) {
                     name: user.name,
                     previousTier,
                     newTier: tier,
-                    isUpgrade
+                    isUpgrade,
+                    wasMigrated
                 };
 
                 results.successful.push(userResult);
@@ -349,6 +477,7 @@ export async function PATCH(request, { params }) {
             successful: results.successful.length,
             failed: results.failed.length,
             notFound: results.notFound.length,
+            migrated: results.migrated.length,
             emailsSent: results.emailResults.filter(r => r.success).length,
             emailsFailed: results.emailResults.filter(r => !r.success).length
         });
@@ -362,6 +491,7 @@ export async function PATCH(request, { params }) {
                 successful: results.successful.length,
                 failed: results.failed.length,
                 notFound: results.notFound.length,
+                migrated: results.migrated.length,
                 emailsSent: sendNotifications ? results.emailResults.filter(r => r.success).length : 0,
                 emailsFailed: sendNotifications ? results.emailResults.filter(r => !r.success).length : 0
             }

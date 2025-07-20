@@ -1,17 +1,14 @@
 'use client';
 
-// file: /src/app/layout.js v10 - FIXED: Multi-platform share handler
+// file: /src/app/layout.js v12 - SIMPLIFIED: Let PlatformAwareWrapper handle platform detection
 
 import {Inter} from 'next/font/google';
 import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
-import PWAWrapper from '@/components/PWAWrapper';
 import CapacitorAuthProvider from '@/components/providers/CapacitorAuthProvider';
-import NativeAuthHandler from '@/components/NativeAuthHandler';
 import {SubscriptionProvider} from '@/hooks/useSubscription';
 import ViewportHandler from '@/components/ViewportHandler';
 import PlatformAwareWrapper from '@/components/PlatformAwareWrapper';
-import GlobalShareHandler from '@/components/GlobalShareHandler';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
