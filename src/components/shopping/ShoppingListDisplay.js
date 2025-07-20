@@ -1,7 +1,7 @@
 'use client';
-// file: /src/components/shopping/ShoppingListDisplay.js v10 - Updated to use unified shopping list modal
+// file: /src/components/shopping/ShoppingListDisplay.js v11 - Updated to use enhanced AI shopping modal with category management
 
-import UnifiedShoppingListModal from '@/components/shopping/UnifiedShoppingListModal';
+import EnhancedAIShoppingListModal from '@/components/shopping/EnhancedAIShoppingListModal';
 
 export default function ShoppingListDisplay({
                                                 shoppingList,
@@ -12,15 +12,15 @@ export default function ShoppingListDisplay({
                                                 sourceRecipeIds = [],
                                                 sourceMealPlanId = null
                                             }) {
-    // This component now simply wraps the UnifiedShoppingListModal
+    // This component now uses the enhanced AI shopping modal with category management
     // for backward compatibility with existing code
 
     return (
-        <UnifiedShoppingListModal
+        <EnhancedAIShoppingListModal
             isOpen={!!shoppingList}
             onClose={onClose}
             shoppingList={shoppingList}
-            title={title || '🛒 Shopping List'}
+            title={title || '🛒 Smart Shopping List'}
             subtitle={subtitle}
             sourceRecipeIds={sourceRecipeIds}
             sourceMealPlanId={sourceMealPlanId}

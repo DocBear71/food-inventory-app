@@ -1,6 +1,6 @@
 // file: /src/lib/aiShoppingOptimizer.js - AI-Powered Shopping Route Optimization (COMPLETE)
 
-import { StoreLayoutUtils } from './storeLayouts';
+import { StoreLayoutUtils } from '@/lib/storeLayouts';
 
 /**
  * AI Shopping Optimization System - Phase 3 Implementation

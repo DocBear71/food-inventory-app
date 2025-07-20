@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/stores/page.js - Enhanced with category ordering preferences
+// file: /src/app/stores/page.js v2 - Updated with new comprehensive grocery categories system
 
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -8,7 +8,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiDelete, apiPost, apiPut } from "@/lib/api-config.js";
-import { StoreLayoutUtils } from '@/lib/storeLayouts';
+import { CategoryUtils, GROCERY_CATEGORIES } from '@/lib/groceryCategories';
 
 export default function StoresPage() {
     const { data: session, status } = useSafeSession();
@@ -19,7 +19,6 @@ export default function StoresPage() {
     const [filterChain, setFilterChain] = useState('');
     const [showAddStore, setShowAddStore] = useState(false);
     const [editingStore, setEditingStore] = useState(null);
-    const [showCategoryOrder, setShowCategoryOrder] = useState(null); // Store ID for category ordering
     const [newStore, setNewStore] = useState({
         name: '',
         chain: '',
@@ -29,7 +28,7 @@ export default function StoresPage() {
         zipCode: ''
     });
 
-    // 🆕 NEW: Category ordering state
+    // Category ordering state
     const [categoryOrderModal, setCategoryOrderModal] = useState(null);
     const [storeCategories, setStoreCategories] = useState({});
 
@@ -64,10 +63,10 @@ export default function StoresPage() {
         }
     };
 
-    // 🆕 NEW: Load category orders for all stores
+    // Load category orders for all stores
     const loadStoreCategoryOrders = () => {
         try {
-            const saved = localStorage.getItem('store-category-orders');
+            const saved = localStorage.getItem(`store-categories-${session?.user?.id}`);
             if (saved) {
                 const parsed = JSON.parse(saved);
                 setStoreCategories(parsed);
@@ -78,7 +77,7 @@ export default function StoresPage() {
         }
     };
 
-    // 🆕 NEW: Save category order for specific store
+    // Save category order for specific store
     const saveStoreCategoryOrder = (storeId, storeName, categoryOrder) => {
         try {
             const updated = {
@@ -89,7 +88,7 @@ export default function StoresPage() {
                     lastModified: new Date().toISOString()
                 }
             };
-            localStorage.setItem('store-category-orders', JSON.stringify(updated));
+            localStorage.setItem(`store-categories-${session?.user?.id}`, JSON.stringify(updated));
             setStoreCategories(updated);
             console.log(`💾 Saved category order for ${storeName}:`, categoryOrder);
         } catch (error) {
@@ -160,10 +159,10 @@ export default function StoresPage() {
             if (data.success) {
                 setStores(prev => prev.filter(store => store._id !== storeId));
 
-                // 🆕 NEW: Clean up category orders for deleted store
+                // Clean up category orders for deleted store
                 const updated = { ...storeCategories };
                 delete updated[storeId];
-                localStorage.setItem('store-category-orders', JSON.stringify(updated));
+                localStorage.setItem(`store-categories-${session?.user?.id}`, JSON.stringify(updated));
                 setStoreCategories(updated);
             } else {
                 alert(data.error || 'Failed to delete store');
@@ -208,7 +207,7 @@ export default function StoresPage() {
                             <div>
                                 <h1 className="text-3xl font-bold text-gray-900">🏪 My Stores</h1>
                                 <p className="text-gray-600 mt-1">
-                                    Manage your favorite grocery stores and customize shopping layouts
+                                    Manage your favorite grocery stores and customize shopping categories
                                 </p>
                             </div>
                             <TouchEnhancedButton
@@ -263,7 +262,7 @@ export default function StoresPage() {
                                 <h3 className="text-lg font-medium text-gray-900 mb-2">No Stores Found</h3>
                                 <p className="text-gray-500 mb-4">
                                     {stores.length === 0
-                                        ? "Start adding your favorite grocery stores to track prices more efficiently."
+                                        ? "Start adding your favorite grocery stores to organize your shopping better."
                                         : "Try adjusting your search or filter criteria."
                                     }
                                 </p>
@@ -325,7 +324,7 @@ export default function StoresPage() {
                                             <span>Added {new Date(store.createdAt).toLocaleDateString()}</span>
                                         </div>
 
-                                        {/* 🆕 NEW: Category Order Status */}
+                                        {/* Category Order Status */}
                                         {storeCategories[store._id] && (
                                             <div className="flex items-center">
                                                 <span className="mr-2">📂</span>
@@ -337,7 +336,7 @@ export default function StoresPage() {
                                     </div>
 
                                     <div className="mt-4 pt-4 border-t border-gray-200 space-y-2">
-                                        {/* 🆕 NEW: Category Order Button */}
+                                        {/* Category Order Button */}
                                         <TouchEnhancedButton
                                             onClick={() => setCategoryOrderModal(store)}
                                             className="w-full bg-purple-50 hover:bg-purple-100 text-purple-700 py-2 px-3 rounded-md text-sm font-medium border border-purple-200 flex items-center justify-center gap-2"
@@ -360,9 +359,9 @@ export default function StoresPage() {
                         )}
                     </div>
 
-                    {/* 🆕 NEW: Category Order Modal */}
+                    {/* Enhanced Category Order Modal */}
                     {categoryOrderModal && (
-                        <CategoryOrderModal
+                        <EnhancedCategoryOrderModal
                             store={categoryOrderModal}
                             currentOrder={storeCategories[categoryOrderModal._id]?.categories || []}
                             onSave={(categoryOrder) => {
@@ -627,7 +626,7 @@ export default function StoresPage() {
                                     <div className="text-3xl font-bold text-orange-600">
                                         {Object.keys(storeCategories).length}
                                     </div>
-                                    <div className="text-sm text-gray-600">Custom Layouts</div>
+                                    <div className="text-sm text-gray-600">Custom Category Orders</div>
                                 </div>
                             </div>
                         </div>
@@ -640,29 +639,29 @@ export default function StoresPage() {
     );
 }
 
-// 🆕 NEW: Category Order Modal Component
-function CategoryOrderModal({ store, currentOrder, onSave, onClose }) {
-    // Get the store layout to show available categories
-    const layout = StoreLayoutUtils.getStoreLayout(store.name, store.chain);
-    const availableCategories = layout.categoryOrder || [];
+// Enhanced Category Order Modal Component with New Category System
+function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
+    // Use the new comprehensive category system
+    const defaultCategories = CategoryUtils.getDefaultCategoryOrder();
 
     const [categoryOrder, setCategoryOrder] = useState(() => {
         if (currentOrder.length > 0) {
             // Use existing order and add any new categories
             const existing = [...currentOrder];
-            availableCategories.forEach(cat => {
+            defaultCategories.forEach(cat => {
                 if (!existing.includes(cat)) {
                     existing.push(cat);
                 }
             });
             return existing;
         } else {
-            // Use default store layout order
-            return [...availableCategories];
+            // Use default category order
+            return [...defaultCategories];
         }
     });
 
     const [selectedCategory, setSelectedCategory] = useState(null);
+    const [searchTerm, setSearchTerm] = useState('');
 
     const moveCategory = (fromIndex, toIndex) => {
         const newOrder = [...categoryOrder];
@@ -684,53 +683,30 @@ function CategoryOrderModal({ store, currentOrder, onSave, onClose }) {
     };
 
     const resetToDefault = () => {
-        setCategoryOrder([...availableCategories]);
+        setCategoryOrder([...defaultCategories]);
     };
 
     const handleSave = () => {
         onSave(categoryOrder);
     };
 
-    const getCategoryDisplayName = (category) => {
-        // Clean up category names for display
-        return category.replace(/([A-Z])/g, ' $1')
-            .replace(/^./, str => str.toUpperCase())
-            .replace(/\//g, ' / ');
+    const getCategoryInfo = (categoryName) => {
+        return GROCERY_CATEGORIES[categoryName] || {
+            name: categoryName,
+            icon: '📦',
+            color: '#6b7280',
+            section: 'Other'
+        };
     };
 
-    const getCategoryIcon = (category) => {
-        const iconMap = {
-            'Fresh Fruits': '🍎',
-            'Fresh Vegetables': '🥬',
-            'Dairy': '🥛',
-            'Fresh/Frozen Beef': '🥩',
-            'Fresh/Frozen Poultry': '🐔',
-            'Fresh/Frozen Fish & Seafood': '🐟',
-            'Frozen Items': '🧊',
-            'Frozen Meals': '🍽️',
-            'Frozen Vegetables': '❄️🥬',
-            'Frozen Fruit': '❄️🍓',
-            'Breads': '🍞',
-            'Canned/Jarred Vegetables': '🥫',
-            'Canned/Jarred Tomatoes': '🍅',
-            'Canned/Jarred Sauces': '🫙',
-            'Canned/Jarred Meals': '🥫',
-            'Pasta': '🍝',
-            'Grains': '🌾',
-            'Baking & Cooking Ingredients': '🧁',
-            'Seasonings': '🧂',
-            'Spices': '🌶️',
-            'Condiments': '🧂',
-            'Beverages': '🥤',
-            'Snacks': '🍿',
-            'Other': '🛒'
-        };
-        return iconMap[category] || '📦';
-    };
+    // Filter categories based on search
+    const filteredCategories = categoryOrder.filter(category =>
+        category.toLowerCase().includes(searchTerm.toLowerCase())
+    );
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
                 {/* Header */}
                 <div className="bg-purple-600 text-white p-4">
                     <div className="flex items-center justify-between">
@@ -756,96 +732,144 @@ function CategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                             <p className="text-sm text-purple-700">
                                 Arrange categories in the order you prefer to shop through {store.name}.
                                 This will automatically organize your shopping lists for optimal efficiency.
+                                Based on food safety: non-perishables → refrigerated → frozen → fresh produce.
                             </p>
                         </div>
                     </div>
                 </div>
 
-                {/* Category List */}
-                <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: '60vh' }}>
-                    <div className="space-y-3">
-                        {categoryOrder.map((category, index) => (
-                            <div
-                                key={category}
-                                className={`flex items-center justify-between p-4 bg-gray-50 rounded-lg border-2 transition-all ${
-                                    selectedCategory === category
-                                        ? 'border-purple-300 bg-purple-50 shadow-md'
-                                        : 'border-gray-200 hover:border-gray-300'
-                                }`}
-                                onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
-                            >
-                                <div className="flex items-center gap-3 flex-1">
-                                    <div className="flex items-center justify-center w-8 h-8 bg-purple-100 text-purple-600 rounded-full font-bold text-sm">
-                                        {index + 1}
-                                    </div>
-                                    <div className="text-2xl">
-                                        {getCategoryIcon(category)}
-                                    </div>
-                                    <div className="flex-1">
-                                        <div className="font-medium text-gray-900">
-                                            {getCategoryDisplayName(category)}
-                                        </div>
-                                        <div className="text-sm text-gray-500">
-                                            Position {index + 1} of {categoryOrder.length}
-                                        </div>
-                                    </div>
-                                </div>
+                {/* Search Bar */}
+                <div className="p-4 border-b border-gray-200">
+                    <div className="relative">
+                        <input
+                            type="text"
+                            placeholder="Search categories..."
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                        />
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-gray-400">🔍</span>
+                        </div>
+                    </div>
+                    <div className="mt-2 text-sm text-gray-600">
+                        {filteredCategories.length} of {categoryOrder.length} categories
+                        {searchTerm && ` matching "${searchTerm}"`}
+                    </div>
+                </div>
 
-                                {/* Mobile-Friendly Controls */}
-                                <div className="flex items-center gap-2">
-                                    <TouchEnhancedButton
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            moveCategoryUp(index);
-                                        }}
-                                        disabled={index === 0}
-                                        className={`p-2 rounded-lg border ${
-                                            index === 0
-                                                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                                : 'border-purple-200 text-purple-600 hover:bg-purple-50 active:bg-purple-100'
-                                        }`}
-                                        title="Move up"
-                                    >
-                                        ⬆️
-                                    </TouchEnhancedButton>
-                                    <TouchEnhancedButton
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            moveCategoryDown(index);
-                                        }}
-                                        disabled={index === categoryOrder.length - 1}
-                                        className={`p-2 rounded-lg border ${
-                                            index === categoryOrder.length - 1
-                                                ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                                : 'border-purple-200 text-purple-600 hover:bg-purple-50 active:bg-purple-100'
-                                        }`}
-                                        title="Move down"
-                                    >
-                                        ⬇️
-                                    </TouchEnhancedButton>
+                {/* Category List */}
+                <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: '50vh' }}>
+                    <div className="space-y-3">
+                        {filteredCategories.map((category, index) => {
+                            const actualIndex = categoryOrder.indexOf(category);
+                            const categoryInfo = getCategoryInfo(category);
+
+                            return (
+                                <div
+                                    key={category}
+                                    className={`flex items-center justify-between p-4 bg-gray-50 rounded-lg border-2 transition-all ${
+                                        selectedCategory === category
+                                            ? 'border-purple-300 bg-purple-50 shadow-md'
+                                            : 'border-gray-200 hover:border-gray-300'
+                                    }`}
+                                    onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
+                                >
+                                    <div className="flex items-center gap-3 flex-1">
+                                        <div className="flex items-center justify-center w-10 h-10 bg-purple-100 text-purple-600 rounded-full font-bold text-sm">
+                                            {actualIndex + 1}
+                                        </div>
+                                        <div className="text-2xl">
+                                            {categoryInfo.icon}
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="font-medium text-gray-900">
+                                                {categoryInfo.name}
+                                            </div>
+                                            <div className="text-sm text-gray-500">
+                                                {categoryInfo.section} • Position {actualIndex + 1} of {categoryOrder.length}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Mobile-Friendly Controls */}
+                                    <div className="flex items-center gap-2">
+                                        <TouchEnhancedButton
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                moveCategoryUp(actualIndex);
+                                            }}
+                                            disabled={actualIndex === 0}
+                                            className={`p-2 rounded-lg border ${
+                                                actualIndex === 0
+                                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                                    : 'border-purple-200 text-purple-600 hover:bg-purple-50 active:bg-purple-100'
+                                            }`}
+                                            title="Move up"
+                                        >
+                                            ⬆️
+                                        </TouchEnhancedButton>
+                                        <TouchEnhancedButton
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                moveCategoryDown(actualIndex);
+                                            }}
+                                            disabled={actualIndex === categoryOrder.length - 1}
+                                            className={`p-2 rounded-lg border ${
+                                                actualIndex === categoryOrder.length - 1
+                                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                                    : 'border-purple-200 text-purple-600 hover:bg-purple-50 active:bg-purple-100'
+                                            }`}
+                                            title="Move down"
+                                        >
+                                            ⬇️
+                                        </TouchEnhancedButton>
+                                    </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
 
                     {/* Shopping Flow Preview */}
                     <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-2">🗺️ Your Shopping Flow</h4>
+                        <h4 className="font-semibold text-blue-900 mb-2">🗺️ Your Shopping Flow Preview</h4>
                         <div className="text-sm text-blue-700">
                             <div className="flex flex-wrap gap-2">
-                                {categoryOrder.slice(0, 5).map((category, index) => (
-                                    <span key={category} className="flex items-center gap-1">
-                                        <span>{getCategoryIcon(category)}</span>
-                                        <span>{getCategoryDisplayName(category).split(' ')[0]}</span>
-                                        {index < Math.min(4, categoryOrder.length - 1) && (
-                                            <span className="text-blue-500 mx-1">→</span>
-                                        )}
-                                    </span>
-                                ))}
-                                {categoryOrder.length > 5 && (
-                                    <span className="text-blue-500">... +{categoryOrder.length - 5} more</span>
+                                {categoryOrder.slice(0, 8).map((category, index) => {
+                                    const categoryInfo = getCategoryInfo(category);
+                                    return (
+                                        <span key={category} className="flex items-center gap-1">
+                                            <span>{categoryInfo.icon}</span>
+                                            <span>{category.split(' ')[0]}</span>
+                                            {index < Math.min(7, categoryOrder.length - 1) && (
+                                                <span className="text-blue-500 mx-1">→</span>
+                                            )}
+                                        </span>
+                                    );
+                                })}
+                                {categoryOrder.length > 8 && (
+                                    <span className="text-blue-500">... +{categoryOrder.length - 8} more</span>
                                 )}
                             </div>
+                            <div className="mt-2 text-xs text-blue-600">
+                                💡 Food Safety Tip: Non-perishables first, frozen foods minimize thaw time, produce last to prevent crushing
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Category Sections Summary */}
+                    <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                        <h4 className="font-semibold text-green-900 mb-2">📊 Category Breakdown</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            {Object.entries(CategoryUtils.getCategoriesBySection()).map(([section, categories]) => {
+                                const sectionCount = categories.filter(cat => categoryOrder.includes(cat.key)).length;
+                                return (
+                                    <div key={section} className="text-center">
+                                        <div className="font-bold text-green-800">{sectionCount}</div>
+                                        <div className="text-green-600">{section}</div>
+                                    </div>
+                                );
+                            })}
                         </div>
                     </div>
                 </div>
@@ -858,7 +882,7 @@ function CategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                             onClick={resetToDefault}
                             className="sm:w-auto bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 text-sm font-medium"
                         >
-                            🔄 Reset to Default
+                            🔄 Reset to Food Safety Default
                         </TouchEnhancedButton>
 
                         <div className="flex gap-3 sm:ml-auto">
@@ -872,7 +896,7 @@ function CategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                 onClick={handleSave}
                                 className="flex-1 sm:flex-none bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 font-medium"
                             >
-                                💾 Save Order
+                                💾 Save Order ({categoryOrder.length} categories)
                             </TouchEnhancedButton>
                         </div>
                     </div>
@@ -884,6 +908,9 @@ function CategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                         ) : (
                             <span className="text-blue-600">🆕 Setting up category order for the first time</span>
                         )}
+                        <div className="mt-1 text-xs">
+                            💡 Your category order will be used in AI-enhanced shopping lists for {store.name}
+                        </div>
                     </div>
                 </div>
             </div>
