@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/integrations/NutritionDashboard.js v1 - Unified nutrition dashboard
+// file: /src/components/integrations/NutritionDashboard.js v2 - Fixed Enhanced Quick Actions and API calls
 
 import React, {useState, useEffect, useCallback} from 'react';
 import {useSession} from 'next-auth/react';
@@ -157,7 +157,7 @@ export default function NutritionDashboard() {
         } finally {
             setProcessingVoiceNutrition(false);
         }
-    }, [analyzeSingleItem, setActiveTab]);
+    }, [setActiveTab]);
 
     const handleVoiceNutritionError = useCallback((error) => {
         console.error('Voice nutrition error:', error);
@@ -326,6 +326,7 @@ export default function NutritionDashboard() {
                 try {
                     console.log(`Analyzing nutrition for: ${item.name}`);
 
+                    // Fixed: Pass the correct data structure to the API
                     const result = await analyzeNutrition('inventory_item', {
                         itemId: item._id,
                         name: item.name,
@@ -587,7 +588,7 @@ export default function NutritionDashboard() {
 
                 {activeTab === 'goals' && (
                     <NutritionGoalsTracking
-                        datadata={dashboardData}
+                        data={dashboardData}
                         loading={loading}
                         onGoalsUpdate={loadDashboardData}
                     />
@@ -653,7 +654,7 @@ export default function NutritionDashboard() {
 // DASHBOARD SUB-COMPONENTS
 // =============================================================================
 
-function NutritionOverview({data, loading, onAnalyze}) {
+function NutritionOverview({data, loading, onAnalyze, setActiveTab, generateSmartShoppingList, navigateToMealPlanning, setShowVoiceNutrition}) {
     if (loading && !data) {
         return (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -1193,7 +1194,7 @@ function InventoryOptimization({data, loading, performAction}) {
         try {
             setOptimizing(true);
 
-            const result = await performAction('inventory_optimization', {
+            const result = await performAction('optimize_inventory', {
                 inventory: data.inventory,
                 goals: ['reduce_waste', 'save_money', 'improve_nutrition']
             });
