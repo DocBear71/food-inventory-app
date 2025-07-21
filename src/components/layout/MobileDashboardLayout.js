@@ -112,9 +112,7 @@ export default function MobileDashboardLayout({children}) {
     const navigation = [
         { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/' },
         { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory' },
-        { name: 'Nutrition', href: '/dashboard/nutrition', icon: '🔬', current: pathname.startsWith('/dashboard/nutrition') },
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
-        { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
         { name: 'Shopping', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
     ];
 
@@ -362,10 +360,10 @@ export default function MobileDashboardLayout({children}) {
 
                     {/* Right side: Action buttons + Profile */}
                     <div className="flex items-center space-x-2">
-                        {/* FIXED: Modern action buttons with consistent style */}
+                        {/* FIXED: Softer action buttons with rounded edges */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory/receipt-scan')}
-                            className="p-2.5 rounded-xl bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2.5 rounded-full bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Scan receipt"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,7 +374,7 @@ export default function MobileDashboardLayout({children}) {
 
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/shopping/add-items')}
-                            className="p-2.5 rounded-xl bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2.5 rounded-full bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Add to shopping list"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -387,7 +385,7 @@ export default function MobileDashboardLayout({children}) {
 
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add&scroll=form')}
-                            className="p-2.5 rounded-xl bg-green-600 text-white shadow-sm hover:bg-green-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2.5 rounded-full bg-green-600 text-white shadow-sm hover:bg-green-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Quick add item"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -396,10 +394,10 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* FIXED: Modern profile button */}
+                        {/* FIXED: Completely round profile button */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
-                            className="w-10 h-10 bg-indigo-100 rounded-xl flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden relative"
+                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden relative"
                             aria-label="Go to profile"
                             title="Profile"
                         >
@@ -407,7 +405,7 @@ export default function MobileDashboardLayout({children}) {
                                 <img
                                     src={getApiUrl(`/api/user/avatar/${session.user.avatar}`)}
                                     alt="Profile"
-                                    className="absolute inset-0 w-full h-full object-cover rounded-xl"
+                                    className="absolute inset-0 w-full h-full object-cover rounded-full"
                                     onError={(e) => {
                                         e.target.style.display = 'none';
                                         e.target.parentElement.classList.add('show-fallback');
