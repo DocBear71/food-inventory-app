@@ -126,40 +126,71 @@ function migrateUserSubscriptionSchema(user) {
         fieldsAdded = true;
     }
 
-    // FIXED: Add missing mealPlanningPreferences
+    // FIXED: Add missing mealPlanningPreferences with CORRECT schema values
     if (!user.mealPlanningPreferences) {
         console.log(`🔧 Adding mealPlanningPreferences to user ${user.email}`);
         user.mealPlanningPreferences = {
-            defaultMealTypes: ['breakfast', 'lunch', 'dinner'],
-            planningHorizon: 7,
-            allowDuplicateRecipes: true,
-            autoGenerateShoppingList: true,
-            includeSnacks: false,
-            servingsPerMeal: 2,
+            defaultMealTypes: ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'], // From schema default
+            planningHorizon: 'week',
+            shoppingDay: 'sunday',
+            mealPrepDays: ['sunday'],
             dietaryRestrictions: [],
             avoidIngredients: [],
             preferredCuisines: [],
-            mealPrepStyle: 'flexible'
+            cookingTimePreference: 'any',
+            weekStartDay: 'monday'
+        };
+        fieldsAdded = true;
+    } else if (!user.mealPlanningPreferences.defaultMealTypes || !Array.isArray(user.mealPlanningPreferences.defaultMealTypes)) {
+        // Fix existing but invalid defaultMealTypes
+        console.log(`🔧 Fixing defaultMealTypes for user ${user.email}`);
+        user.mealPlanningPreferences.defaultMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
+        fieldsAdded = true;
+    }
+
+    // FIXED: Add missing nutritionGoals (separate from nutritionPreferences)
+    if (!user.nutritionGoals) {
+        console.log(`🔧 Adding nutritionGoals to user ${user.email}`);
+        user.nutritionGoals = {
+            dailyCalories: 2000,
+            protein: 150, // grams
+            fat: 65, // grams
+            carbs: 250, // grams
+            fiber: 25, // grams
+            sodium: 2300 // mg
         };
         fieldsAdded = true;
     }
 
-    // FIXED: Add missing nutritionPreferences
-    if (!user.nutritionPreferences) {
-        console.log(`🔧 Adding nutritionPreferences to user ${user.email}`);
-        user.nutritionPreferences = {
-            trackNutrition: false,
-            dailyCalorieGoal: 2000,
-            macroTargets: {
-                protein: 25,
-                carbs: 45,
-                fat: 30
-            },
-            dietaryGoals: [],
-            allergens: [],
-            nutritionDisplayUnits: 'metric',
-            showNutritionOnRecipes: true
+    // FIXED: Add missing profile
+    if (!user.profile) {
+        console.log(`🔧 Adding profile to user ${user.email}`);
+        user.profile = {
+            bio: '',
+            cookingLevel: 'beginner',
+            favoritesCuisines: [],
+            reviewCount: 0,
+            averageRatingGiven: 0
         };
+        fieldsAdded = true;
+    }
+
+    // FIXED: Add missing customCategories and categoryPreferences
+    if (!user.customCategories) {
+        console.log(`🔧 Adding customCategories to user ${user.email}`);
+        user.customCategories = {};
+        fieldsAdded = true;
+    }
+
+    if (!user.categoryPreferences) {
+        console.log(`🔧 Adding categoryPreferences to user ${user.email}`);
+        user.categoryPreferences = {};
+        fieldsAdded = true;
+    }
+
+    if (!user.storeCategories) {
+        console.log(`🔧 Adding storeCategories to user ${user.email}`);
+        user.storeCategories = {};
         fieldsAdded = true;
     }
 
@@ -324,23 +355,70 @@ export async function POST(request, { params }) {
         } catch (saveError) {
             console.error('❌ Error saving user after migration:', saveError);
 
-            // Provide detailed error information
+            // ENHANCED: More detailed validation error handling
             if (saveError.name === 'ValidationError') {
-                console.error('Validation errors:', Object.keys(saveError.errors));
+                console.error('Validation errors details:', saveError.errors);
+
+                // Try to fix meal type validation by using correct schema values
+                if (saveError.errors['mealPlanningPreferences.defaultMealTypes.0']) {
+                    console.log('🔧 Attempting to fix meal types with correct schema values...');
+                    user.mealPlanningPreferences.defaultMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
+
+                    try {
+                        await user.save();
+                        console.log('✅ Fixed meal types with correct schema values');
+                    } catch (secondSaveError) {
+                        console.error('❌ Still failed with correct values, trying empty array:', secondSaveError);
+
+                        // Try empty array
+                        user.mealPlanningPreferences.defaultMealTypes = [];
+
+                        try {
+                            await user.save();
+                            console.log('✅ Fixed meal types with empty array');
+                        } catch (thirdSaveError) {
+                            console.error('❌ Failed with empty array, removing mealPlanningPreferences entirely...');
+
+                            // Last resort: remove the entire mealPlanningPreferences
+                            user.mealPlanningPreferences = undefined;
+
+                            try {
+                                await user.save();
+                                console.log('✅ Saved without mealPlanningPreferences');
+                            } catch (fourthSaveError) {
+                                console.error('❌ Failed even without mealPlanningPreferences:', fourthSaveError);
+                                return NextResponse.json(
+                                    {
+                                        error: 'User schema validation failed - unable to migrate old user data',
+                                        details: 'Multiple migration attempts failed',
+                                        originalError: saveError.message,
+                                        migrationPerformed: migrationPerformed
+                                    },
+                                    { status: 400 }
+                                );
+                            }
+                        }
+                    }
+                } else {
+                    // Other validation errors
+                    return NextResponse.json(
+                        {
+                            error: 'User data validation failed after migration',
+                            details: Object.keys(saveError.errors).join(', '),
+                            validationErrors: Object.fromEntries(
+                                Object.entries(saveError.errors).map(([key, err]) => [key, err.message])
+                            ),
+                            migrationPerformed: migrationPerformed
+                        },
+                        { status: 400 }
+                    );
+                }
+            } else {
                 return NextResponse.json(
-                    {
-                        error: 'User data validation failed after migration',
-                        details: Object.keys(saveError.errors).join(', '),
-                        migrationPerformed: migrationPerformed
-                    },
-                    { status: 400 }
+                    { error: 'Failed to save user data after migration. Please try again.' },
+                    { status: 500 }
                 );
             }
-
-            return NextResponse.json(
-                { error: 'Failed to save user data after migration. Please try again.' },
-                { status: 500 }
-            );
         }
 
         console.log('✅ User subscription updated successfully:', {
