@@ -1,16 +1,16 @@
-// file: /src/app/api/admin/users/[id]/upgrade/route.js v2 - FIXED: Handle old user schema migration
+// file: /src/app/api/admin/users/[id]/upgrade/route.js v3 - COMPLETE FIX: Handle old user schema migration
 // UPDATED - Admin User Upgrade API with Email Notifications and Old User Schema Support
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
-import { sendSubscriptionUpgradeEmail } from '@/lib/email';
 
 // Helper function to safely migrate old user schema
 function migrateUserSubscriptionSchema(user) {
     const now = new Date();
+
+    console.log(`🔧 Checking user schema for: ${user.email}`);
 
     // If user doesn't have subscription object at all, create it
     if (!user.subscription) {
@@ -30,6 +30,7 @@ function migrateUserSubscriptionSchema(user) {
             nextBillingDate: null,
             adminUpgradeHistory: []
         };
+        return true; // Indicate migration occurred
     }
 
     // Ensure all required fields exist
@@ -49,14 +50,83 @@ function migrateUserSubscriptionSchema(user) {
         adminUpgradeHistory: []
     };
 
+    let fieldsAdded = false;
+
     // Add any missing fields with defaults
     for (const [field, defaultValue] of Object.entries(requiredFields)) {
         if (user.subscription[field] === undefined) {
+            console.log(`🔧 Adding missing field ${field} to user ${user.email}`);
             user.subscription[field] = defaultValue;
+            fieldsAdded = true;
         }
     }
 
-    return user;
+    // Ensure other required user fields exist for old users
+    if (!user.usageTracking) {
+        console.log(`🔧 Adding usageTracking to user ${user.email}`);
+        user.usageTracking = {
+            currentMonth: now.getMonth(),
+            currentYear: now.getFullYear(),
+            monthlyUPCScans: 0,
+            monthlyReceiptScans: 0,
+            totalInventoryItems: 0,
+            totalPersonalRecipes: 0,
+            totalSavedRecipes: 0,
+            totalPublicRecipes: 0,
+            totalRecipeCollections: 0,
+            lastUpdated: now
+        };
+        fieldsAdded = true;
+    }
+
+    if (!user.accountStatus) {
+        console.log(`🔧 Adding accountStatus to user ${user.email}`);
+        user.accountStatus = {
+            status: 'active',
+            suspensionHistory: []
+        };
+        fieldsAdded = true;
+    }
+
+    if (!user.inventoryPreferences) {
+        console.log(`🔧 Adding inventoryPreferences to user ${user.email}`);
+        user.inventoryPreferences = {
+            defaultSortBy: 'expiration',
+            defaultFilterStatus: 'all',
+            defaultFilterLocation: 'all',
+            showQuickFilters: true,
+            itemsPerPage: 'all',
+            compactView: false
+        };
+        fieldsAdded = true;
+    }
+
+    if (!user.currencyPreferences) {
+        console.log(`🔧 Adding currencyPreferences to user ${user.email}`);
+        user.currencyPreferences = {
+            currency: 'USD',
+            currencySymbol: '$',
+            currencyPosition: 'before',
+            showCurrencyCode: false,
+            decimalPlaces: 2
+        };
+        fieldsAdded = true;
+    }
+
+    if (!user.priceTrackingPreferences) {
+        console.log(`🔧 Adding priceTrackingPreferences to user ${user.email}`);
+        user.priceTrackingPreferences = {
+            defaultStore: null,
+            priceAlertFrequency: 'daily',
+            trackPricesAutomatically: true,
+            showPriceHistory: true,
+            preferredCurrency: 'USD',
+            roundPricesToCents: true
+        };
+        fieldsAdded = true;
+    }
+
+    return fieldsAdded;
 }
 
 export async function POST(request, { params }) {
@@ -115,8 +185,16 @@ export async function POST(request, { params }) {
             );
         }
 
+        console.log(`📋 Found user: ${user.email}, checking schema...`);
+
         // FIXED: Migrate old user schema before processing
-        user = migrateUserSubscriptionSchema(user);
+        const migrationPerformed = migrateUserSubscriptionSchema(user);
+
+        if (migrationPerformed) {
+            console.log(`✅ Schema migration completed for user: ${user.email}`);
+        } else {
+            console.log(`✅ User schema already up to date: ${user.email}`);
+        }
 
         // Store previous subscription for comparison and audit
         const previousTier = user.subscription?.tier || 'free';
@@ -167,34 +245,26 @@ export async function POST(request, { params }) {
             ].slice(-10) // Keep last 10 changes
         };
 
-        // FIXED: Also ensure other required fields exist for old users
-        if (!user.usageTracking) {
-            user.usageTracking = {
-                currentMonth: now.getMonth(),
-                currentYear: now.getFullYear(),
-                monthlyUPCScans: 0,
-                monthlyReceiptScans: 0,
-                totalInventoryItems: 0,
-                totalPersonalRecipes: 0,
-                totalSavedRecipes: 0,
-                totalPublicRecipes: 0,
-                totalRecipeCollections: 0,
-                lastUpdated: now
-            };
-        }
-
-        if (!user.accountStatus) {
-            user.accountStatus = {
-                status: 'active',
-                suspensionHistory: []
-            };
-        }
-
         // Save with error handling
         try {
             await user.save();
+            console.log('💾 User saved successfully after upgrade');
         } catch (saveError) {
             console.error('❌ Error saving user after migration:', saveError);
+
+            // Provide detailed error information
+            if (saveError.name === 'ValidationError') {
+                console.error('Validation errors:', Object.keys(saveError.errors));
+                return NextResponse.json(
+                    {
+                        error: 'User data validation failed after migration',
+                        details: Object.keys(saveError.errors).join(', '),
+                        migrationPerformed: migrationPerformed
+                    },
+                    { status: 400 }
+                );
+            }
+
             return NextResponse.json(
                 { error: 'Failed to save user data after migration. Please try again.' },
                 { status: 500 }
@@ -208,7 +278,7 @@ export async function POST(request, { params }) {
             previousTier: previousTier,
             endDate: endDate || 'none',
             isUpgrade,
-            wasMigrated: true
+            migrationPerformed
         });
 
         // Send email notification if requested
@@ -217,18 +287,30 @@ export async function POST(request, { params }) {
             try {
                 console.log('📧 Sending subscription upgrade notification email...');
 
-                const emailData = {
-                    userName: user.name,
-                    userEmail: user.email,
-                    newTier: tier,
-                    previousTier: previousTier,
-                    endDate: endDate,
-                    upgradeReason: reason,
-                    isUpgrade: isUpgrade
-                };
+                // Try to import and use the email function
+                try {
+                    const { sendSubscriptionUpgradeEmail } = await import('@/lib/email');
 
-                emailResult = await sendSubscriptionUpgradeEmail(emailData);
-                console.log('✅ Subscription upgrade email sent successfully:', emailResult.messageId);
+                    const emailData = {
+                        userName: user.name,
+                        userEmail: user.email,
+                        newTier: tier,
+                        previousTier: previousTier,
+                        endDate: endDate,
+                        upgradeReason: reason,
+                        isUpgrade: isUpgrade
+                    };
+
+                    emailResult = await sendSubscriptionUpgradeEmail(emailData);
+                    console.log('✅ Subscription upgrade email sent successfully:', emailResult.messageId);
+                } catch (emailImportError) {
+                    console.log('📧 Email function not available, skipping notification:', emailImportError.message);
+                    emailResult = {
+                        success: false,
+                        error: 'Email function not available',
+                        skipped: true
+                    };
+                }
 
             } catch (emailError) {
                 console.error('❌ Failed to send subscription upgrade email:', emailError);
@@ -254,7 +336,8 @@ export async function POST(request, { params }) {
             emailSent: sendNotification,
             emailResult: emailResult,
             isUpgrade: isUpgrade,
-            migrationPerformed: true
+            migrationPerformed: migrationPerformed,
+            userEmail: user.email // Include for debugging
         });
 
     } catch (error) {
@@ -273,8 +356,20 @@ export async function POST(request, { params }) {
             );
         }
 
+        // Check for connection errors
+        if (error.name === 'MongoNetworkError' || error.name === 'MongoTimeoutError') {
+            return NextResponse.json(
+                { error: 'Database connection error. Please try again.' },
+                { status: 503 }
+            );
+        }
+
         return NextResponse.json(
-            { error: 'Internal server error' },
+            {
+                error: 'Internal server error',
+                errorType: error.name || 'Unknown',
+                errorMessage: error.message
+            },
             { status: 500 }
         );
     }
@@ -358,12 +453,14 @@ export async function PATCH(request, { params }) {
         // Process each user
         for (const user of users) {
             try {
+                console.log(`🔧 Processing user: ${user.email}`);
+
                 // FIXED: Migrate old user schema
-                const wasMigrated = !user.subscription;
-                migrateUserSubscriptionSchema(user);
+                const wasMigrated = migrateUserSubscriptionSchema(user);
 
                 if (wasMigrated) {
                     results.migrated.push(user.email);
+                    console.log(`✅ Schema migrated for: ${user.email}`);
                 }
 
                 const previousTier = user.subscription?.tier || 'free';
@@ -397,23 +494,8 @@ export async function PATCH(request, { params }) {
                     ].slice(-10)
                 };
 
-                // Ensure other required fields for old users
-                if (!user.usageTracking) {
-                    user.usageTracking = {
-                        currentMonth: now.getMonth(),
-                        currentYear: now.getFullYear(),
-                        monthlyUPCScans: 0,
-                        monthlyReceiptScans: 0,
-                        totalInventoryItems: 0,
-                        totalPersonalRecipes: 0,
-                        totalSavedRecipes: 0,
-                        totalPublicRecipes: 0,
-                        totalRecipeCollections: 0,
-                        lastUpdated: now
-                    };
-                }
-
                 await user.save();
+                console.log(`✅ Upgraded user: ${user.email} to ${tier}`);
 
                 const userResult = {
                     email: user.email,
@@ -429,6 +511,8 @@ export async function PATCH(request, { params }) {
                 // Send individual email if notifications are enabled
                 if (sendNotifications) {
                     try {
+                        const { sendSubscriptionUpgradeEmail } = await import('@/lib/email');
+
                         const emailData = {
                             userName: user.name,
                             userEmail: user.email,
@@ -460,7 +544,8 @@ export async function PATCH(request, { params }) {
                 console.error(`❌ Failed to upgrade user ${user.email}:`, userError);
                 results.failed.push({
                     email: user.email,
-                    error: userError.message
+                    error: userError.message,
+                    errorType: userError.name
                 });
             }
         }
@@ -500,7 +585,11 @@ export async function PATCH(request, { params }) {
     } catch (error) {
         console.error('❌ Bulk upgrade API error:', error);
         return NextResponse.json(
-            { error: 'Internal server error' },
+            {
+                error: 'Internal server error',
+                errorType: error.name || 'Unknown',
+                errorMessage: error.message
+            },
             { status: 500 }
         );
     }
