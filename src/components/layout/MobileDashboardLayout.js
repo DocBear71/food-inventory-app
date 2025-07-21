@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/MobileDashboardLayout.js v10 - FIXED: UI consistency and header layout
+// file: /src/components/layout/MobileDashboardLayout.js v11 - ENHANCED: Responsive bottom navigation
 
 import {useState, useEffect} from 'react';
 import {handleMobileSignOut} from '@/lib/mobile-signout';
@@ -21,6 +21,7 @@ export default function MobileDashboardLayout({children}) {
     const [isScrolled, setIsScrolled] = useState(false);
     const [showPWABanner, setShowPWABanner] = useState(false);
     const [isSigningOut, setIsSigningOut] = useState(false);
+    const [screenWidth, setScreenWidth] = useState(0);
     const [platformInfo, setPlatformInfo] = useState({
         isNative: false,
         isPWA: false,
@@ -73,6 +74,20 @@ export default function MobileDashboardLayout({children}) {
         detectPlatform();
     }, []);
 
+    // Track screen width for responsive bottom navigation
+    useEffect(() => {
+        const updateScreenWidth = () => {
+            setScreenWidth(window.innerWidth);
+        };
+
+        // Set initial width
+        updateScreenWidth();
+
+        // Add resize listener
+        window.addEventListener('resize', updateScreenWidth);
+        return () => window.removeEventListener('resize', updateScreenWidth);
+    }, []);
+
     // Check if user is admin
     const isAdmin = session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com';
 
@@ -109,12 +124,44 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(false);
     }, [pathname, searchParams]);
 
-    const navigation = [
-        { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/' },
-        { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory' },
-        { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes') },
-        { name: 'Shopping', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping') },
+    // Enhanced navigation with additional items for responsive bottom nav
+    const allNavigationItems = [
+        { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/', priority: 1 },
+        { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory', priority: 2 },
+        { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes'), priority: 3 },
+        { name: 'Shopping', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping'), priority: 4 },
+        { name: 'Nutrition', href: '/dashboard/nutrition', icon: '📊', current: pathname === '/dashboard/nutrition', priority: 5 },
+        { name: 'Stores', href: '/stores', icon: '🏪', current: pathname === '/stores', priority: 6 },
     ];
+
+    // Calculate how many items can fit in bottom navigation based on screen width
+    const getBottomNavItems = () => {
+        if (screenWidth === 0) return allNavigationItems.slice(0, 4); // Default fallback
+
+        let maxItems;
+        if (screenWidth >= 480) {
+            maxItems = 6; // Large phones/small tablets
+        } else if (screenWidth >= 430) {
+            maxItems = 5; // iPhone 14 Pro Max, etc.
+        } else if (screenWidth >= 375) {
+            maxItems = 4; // iPhone SE, standard phones
+        } else {
+            maxItems = 4; // Very small screens
+        }
+
+        // Always include the current page in the navigation
+        const currentItem = allNavigationItems.find(item => item.current);
+        let itemsToShow = allNavigationItems.slice(0, maxItems);
+
+        // If current page isn't in the visible items, replace the last item
+        if (currentItem && !itemsToShow.some(item => item.current)) {
+            itemsToShow[maxItems - 1] = currentItem;
+        }
+
+        return itemsToShow;
+    };
+
+    const navigation = getBottomNavItems();
 
     // Enhanced additional menu items for hamburger menu
     const additionalMenuItems = [
@@ -330,6 +377,7 @@ export default function MobileDashboardLayout({children}) {
     }
 
     console.log('🎯 MobileDashboardLayout rendering with children:', !!children);
+    console.log('📱 Screen width:', screenWidth, 'Bottom nav items:', navigation.length);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -462,12 +510,12 @@ export default function MobileDashboardLayout({children}) {
                         {/* Scrollable Navigation Content */}
                         <div className="flex-1 overflow-y-auto">
                             <nav className="px-4 py-6 space-y-2">
-                                {/* Main navigation items */}
+                                {/* Main navigation items - Show ALL items in hamburger menu */}
                                 <div className="mb-6">
                                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
                                         Main Navigation
                                     </h3>
-                                    {navigation.map((item) => (
+                                    {allNavigationItems.map((item) => (
                                         <TouchEnhancedButton
                                             key={item.name}
                                             onClick={() => handleNavigation(item.href)}
@@ -633,7 +681,7 @@ export default function MobileDashboardLayout({children}) {
                 </div>
             </main>
 
-            {/* FIXED: Modern Bottom Navigation */}
+            {/* ENHANCED: Responsive Bottom Navigation */}
             <nav className="fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg z-30"
                  style={{
                      bottom: '0',
@@ -648,14 +696,19 @@ export default function MobileDashboardLayout({children}) {
                         <TouchEnhancedButton
                             key={item.name}
                             onClick={() => handleNavigation(item.href)}
-                            className={`relative flex flex-col items-center justify-center space-y-1 px-3 py-2 rounded-xl transition-all touch-friendly min-w-0 flex-1 ${
+                            className={`relative flex flex-col items-center justify-center space-y-1 px-2 py-2 rounded-xl transition-all touch-friendly min-w-0 flex-1 ${
                                 item.current
                                     ? 'text-indigo-600 bg-indigo-50'
                                     : 'text-gray-500 hover:text-gray-700 active:bg-gray-100'
                             }`}
+                            style={{
+                                maxWidth: `${Math.floor(100 / navigation.length)}%`
+                            }}
                         >
                             <span className="text-xl leading-none">{item.icon}</span>
-                            <span className="text-xs font-medium leading-tight text-center max-w-full truncate px-1">
+                            <span className={`font-medium leading-tight text-center max-w-full truncate px-1 ${
+                                navigation.length > 4 ? 'text-xs' : 'text-xs'
+                            }`}>
                                 {item.name}
                             </span>
                             {item.current && (
