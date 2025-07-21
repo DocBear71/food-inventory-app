@@ -344,10 +344,10 @@ export default function MobileDashboardLayout({children}) {
                         paddingTop: platformInfo.isNative ? '8px' : '0'
                     }}
             >
-                {/* FIXED: Cleaner header layout that matches modern app design */}
+                {/* FIXED: Cleaner header layout without redundant logo */}
                 <div className="flex items-center justify-between px-4 py-3">
-                    {/* Left side: Menu + Logo */}
-                    <div className="flex items-center space-x-3">
+                    {/* Left side: Just the Menu button */}
+                    <div className="flex items-center">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
                             className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all touch-friendly"
@@ -358,18 +358,6 @@ export default function MobileDashboardLayout({children}) {
                                       d="M4 6h16M4 12h16M4 18h16"/>
                             </svg>
                         </TouchEnhancedButton>
-
-                        {/* FIXED: Better logo placement - not cramped in middle */}
-                        <div className="flex items-center space-x-2">
-                            <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center">
-                                <span className="text-white text-lg">🍳</span>
-                            </div>
-                            <div className="hidden sm:block">
-                                <div className="text-lg font-bold text-gray-900 leading-tight">
-                                    Doc Bear's Kitchen
-                                </div>
-                            </div>
-                        </div>
                     </div>
 
                     {/* Right side: Action buttons + Profile */}
