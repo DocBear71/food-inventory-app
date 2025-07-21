@@ -348,7 +348,7 @@ export default function MobileDashboardLayout({children}) {
                     <div className="flex items-center">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
-                            className="p-2.5 rounded-xl bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2.5 rounded-lg bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Open menu"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -360,10 +360,10 @@ export default function MobileDashboardLayout({children}) {
 
                     {/* Right side: Action buttons + Profile */}
                     <div className="flex items-center space-x-2">
-                        {/* FIXED: Softer action buttons with rounded edges */}
+                        {/* FIXED: Rounded square action buttons */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory/receipt-scan')}
-                            className="p-2.5 rounded-full bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2.5 rounded-lg bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Scan receipt"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -374,7 +374,7 @@ export default function MobileDashboardLayout({children}) {
 
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/shopping/add-items')}
-                            className="p-2.5 rounded-full bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2.5 rounded-lg bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Add to shopping list"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -385,7 +385,7 @@ export default function MobileDashboardLayout({children}) {
 
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add&scroll=form')}
-                            className="p-2.5 rounded-full bg-green-600 text-white shadow-sm hover:bg-green-700 active:scale-95 transition-all touch-friendly"
+                            className="p-2.5 rounded-lg bg-green-600 text-white shadow-sm hover:bg-green-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Quick add item"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -394,7 +394,7 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* FIXED: Completely round profile button */}
+                        {/* FIXED: Only the avatar is completely round */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
                             className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden relative"
