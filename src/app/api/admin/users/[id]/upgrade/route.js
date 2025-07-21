@@ -205,22 +205,41 @@ export async function POST(request, { params }) {
 
         const userId = params.id;
         const body = await request.json();
+
+        // FIXED: Handle nested upgradeData structure from frontend
+        let requestData;
+        if (body.upgradeData) {
+            // Frontend sends nested structure: {upgradeData: {tier, endDate, reason, sendNotification}}
+            requestData = body.upgradeData;
+        } else {
+            // Direct structure: {tier, endDate, reason, sendNotification}
+            requestData = body;
+        }
+
         const {
             tier,
             endDate,
             reason,
             sendNotification = true,
             billingCycle = null
-        } = body;
+        } = requestData;
 
-        console.log(`🔧 Admin upgrading user ${userId} to ${tier}`, {
+        console.log(`🔧 Admin upgrading user ${userId}:`, {
+            tier,
             endDate,
             reason,
             sendNotification,
             adminUser: session.user.email
         });
 
-        // Validate inputs - FIXED: Make case-insensitive
+        // Validate inputs - FIXED: Check if tier exists first
+        if (!tier || typeof tier !== 'string') {
+            return NextResponse.json(
+                { error: 'Tier is required and must be a string' },
+                { status: 400 }
+            );
+        }
+
         const tierLower = tier.toLowerCase();
         if (!['free', 'gold', 'platinum'].includes(tierLower)) {
             return NextResponse.json(

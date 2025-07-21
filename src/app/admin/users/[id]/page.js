@@ -83,12 +83,14 @@ export default function AdminUserDetailPage({ params }) {
         try {
             setActionLoading(true);
 
-            const response = await apiPost(`/api/admin/users/${userId}/upgrade`, {
-                upgradeData
-            });
+            console.log('Sending upgrade data:', upgradeData);
+
+            // FIXED: Send upgradeData directly, not nested
+            const response = await apiPost(`/api/admin/users/${userId}/upgrade`, upgradeData);
 
             if (!response.ok) {
-                throw new Error('Upgrade failed');
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Upgrade failed');
             }
 
             const result = await response.json();
