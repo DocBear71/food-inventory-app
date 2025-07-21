@@ -126,6 +126,58 @@ function migrateUserSubscriptionSchema(user) {
         fieldsAdded = true;
     }
 
+    // FIXED: Add missing mealPlanningPreferences
+    if (!user.mealPlanningPreferences) {
+        console.log(`🔧 Adding mealPlanningPreferences to user ${user.email}`);
+        user.mealPlanningPreferences = {
+            defaultMealTypes: ['breakfast', 'lunch', 'dinner'],
+            planningHorizon: 7,
+            allowDuplicateRecipes: true,
+            autoGenerateShoppingList: true,
+            includeSnacks: false,
+            servingsPerMeal: 2,
+            dietaryRestrictions: [],
+            avoidIngredients: [],
+            preferredCuisines: [],
+            mealPrepStyle: 'flexible'
+        };
+        fieldsAdded = true;
+    }
+
+    // FIXED: Add missing nutritionPreferences
+    if (!user.nutritionPreferences) {
+        console.log(`🔧 Adding nutritionPreferences to user ${user.email}`);
+        user.nutritionPreferences = {
+            trackNutrition: false,
+            dailyCalorieGoal: 2000,
+            macroTargets: {
+                protein: 25,
+                carbs: 45,
+                fat: 30
+            },
+            dietaryGoals: [],
+            allergens: [],
+            nutritionDisplayUnits: 'metric',
+            showNutritionOnRecipes: true
+        };
+        fieldsAdded = true;
+    }
+
+    // FIXED: Add missing emailPreferences
+    if (!user.emailPreferences) {
+        console.log(`🔧 Adding emailPreferences to user ${user.email}`);
+        user.emailPreferences = {
+            expirationAlerts: true,
+            weeklyDigest: false,
+            recipeRecommendations: false,
+            mealPlanReminders: false,
+            shoppingListUpdates: false,
+            promotionalEmails: false,
+            frequency: 'daily'
+        };
+        fieldsAdded = true;
+    }
+
     return fieldsAdded;
 }
 
@@ -168,8 +220,9 @@ export async function POST(request, { params }) {
             adminUser: session.user.email
         });
 
-        // Validate inputs
-        if (!['free', 'gold', 'platinum'].includes(tier)) {
+        // Validate inputs - FIXED: Make case-insensitive
+        const tierLower = tier.toLowerCase();
+        if (!['free', 'gold', 'platinum'].includes(tierLower)) {
             return NextResponse.json(
                 { error: 'Invalid tier. Must be free, gold, or platinum' },
                 { status: 400 }
@@ -198,13 +251,13 @@ export async function POST(request, { params }) {
 
         // Store previous subscription for comparison and audit
         const previousTier = user.subscription?.tier || 'free';
-        const isUpgrade = (tier === 'platinum' && previousTier !== 'platinum') ||
-            (tier === 'gold' && previousTier === 'free');
+        const isUpgrade = (tierLower === 'platinum' && previousTier !== 'platinum') ||
+            (tierLower === 'gold' && previousTier === 'free');
 
-        // Prepare subscription update
+        // Prepare subscription update - use normalized tier
         const now = new Date();
         const subscriptionUpdate = {
-            tier,
+            tier: tierLower, // Use lowercase tier
             status: 'active',
             billingCycle,
             startDate: now,
@@ -213,7 +266,7 @@ export async function POST(request, { params }) {
         };
 
         // If downgrading to free, ensure proper cleanup
-        if (tier === 'free') {
+        if (tierLower === 'free') {
             subscriptionUpdate.status = 'free';
             subscriptionUpdate.billingCycle = null;
             subscriptionUpdate.endDate = null;
@@ -294,7 +347,7 @@ export async function POST(request, { params }) {
                     const emailData = {
                         userName: user.name,
                         userEmail: user.email,
-                        newTier: tier,
+                        newTier: tierLower, // Use normalized tier
                         previousTier: previousTier,
                         endDate: endDate,
                         upgradeReason: reason,
@@ -324,7 +377,7 @@ export async function POST(request, { params }) {
 
         return NextResponse.json({
             success: true,
-            message: `User subscription updated to ${tier} successfully`,
+            message: `User subscription updated to ${tierLower} successfully`,
             subscription: {
                 tier: user.subscription.tier,
                 status: user.subscription.status,
