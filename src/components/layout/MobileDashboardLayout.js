@@ -129,6 +129,7 @@ export default function MobileDashboardLayout({children}) {
         { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/', priority: 1 },
         { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory', priority: 2 },
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes'), priority: 3 },
+        { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
         { name: 'Shopping', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping'), priority: 4 },
         { name: 'Nutrition', href: '/dashboard/nutrition', icon: '📊', current: pathname === '/dashboard/nutrition', priority: 5 },
         { name: 'Stores', href: '/stores', icon: '🏪', current: pathname === '/stores', priority: 6 },

@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/shopping/SmartPriceShoppingList.js v2 - Enhanced version combining existing features with price intelligence
+// file: /src/components/shopping/SmartPriceShoppingList.js v3 - Fixed scrolling and summary cards display issues
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -427,9 +427,9 @@ export default function SmartPriceShoppingList({
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] overflow-hidden shadow-2xl">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[95vh] flex flex-col overflow-hidden shadow-2xl">
                 {/* Enhanced Header */}
-                <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-4">
+                <div className="bg-gradient-to-r from-green-600 to-emerald-600 text-white p-4 flex-shrink-0">
                     <div className="flex items-center justify-between mb-3">
                         <div className="flex items-center space-x-3">
                             <TouchEnhancedButton
@@ -450,32 +450,32 @@ export default function SmartPriceShoppingList({
                         </div>
                     </div>
 
-                    {/* Enhanced Summary Cards */}
+                    {/* Enhanced Summary Cards - FIXED */}
                     <div className="grid grid-cols-4 gap-2">
                         <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-sm font-medium">Budget</div>
-                            <div className="text-lg font-bold">
+                            <div className="text-xs font-medium text-green-100">Budget</div>
+                            <div className="text-sm font-bold text-white">
                                 {budgetTracking.limit ? formatPrice(budgetTracking.limit) : 'None'}
                             </div>
                         </div>
 
                         <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-sm font-medium">Savings</div>
-                            <div className="text-lg font-bold">
-                                {formatPrice(priceAnalysis.totalSavings)}
+                            <div className="text-xs font-medium text-green-100">Savings</div>
+                            <div className="text-sm font-bold text-white">
+                                {formatPrice(priceAnalysis.totalSavings || 0)}
                             </div>
                         </div>
 
                         <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-sm font-medium">Items</div>
-                            <div className="text-lg font-bold">
+                            <div className="text-xs font-medium text-green-100">Items</div>
+                            <div className="text-sm font-bold text-white">
                                 {selectedItems.length}
                             </div>
                         </div>
 
                         <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-sm font-medium">Deals</div>
-                            <div className="text-lg font-bold">
+                            <div className="text-xs font-medium text-green-100">Deals</div>
+                            <div className="text-sm font-bold text-white">
                                 {items.filter(item => item.dealStatus === 'deal').length}
                             </div>
                         </div>
@@ -498,7 +498,7 @@ export default function SmartPriceShoppingList({
                 </div>
 
                 {/* Controls */}
-                <div className="p-3 border-b border-gray-200 bg-gray-50">
+                <div className="p-3 border-b border-gray-200 bg-gray-50 flex-shrink-0">
                     <div className="flex flex-wrap gap-2 items-center justify-between">
                         <div className="flex gap-2">
                             <TouchEnhancedButton
@@ -558,7 +558,7 @@ export default function SmartPriceShoppingList({
 
                 {/* Loading State */}
                 {loading && (
-                    <div className="p-4 text-center border-b border-gray-200">
+                    <div className="p-4 text-center border-b border-gray-200 flex-shrink-0">
                         <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600 mx-auto mb-2"></div>
                         <p className="text-gray-600 text-sm">Optimizing prices...</p>
                     </div>
@@ -566,7 +566,7 @@ export default function SmartPriceShoppingList({
 
                 {/* Optimization Summary */}
                 {!loading && (priceAnalysis.bestDeals.length > 0 || priceAnalysis.storeRecommendations?.length > 0 || (budgetTracking.limit && budgetTracking.current > budgetTracking.limit)) && (
-                    <div className="p-4 space-y-3 border-b border-gray-200 max-h-48 overflow-y-auto">
+                    <div className="p-4 space-y-3 border-b border-gray-200 max-h-48 overflow-y-auto flex-shrink-0">
                         {/* Deal Alerts */}
                         {priceAnalysis.bestDeals.length > 0 && (
                             <div className="bg-green-50 border border-green-200 rounded-lg p-3">
@@ -632,7 +632,7 @@ export default function SmartPriceShoppingList({
                     </div>
                 )}
 
-                {/* Shopping List Items */}
+                {/* Shopping List Items - FIXED SCROLLING */}
                 <div className="flex-1 overflow-y-auto p-4">
                     {Object.keys(groupedItems).length > 0 ? (
                         Object.entries(groupedItems).map(([category, categoryItems]) => (
@@ -659,7 +659,7 @@ export default function SmartPriceShoppingList({
                                                 <div className="flex items-start space-x-3">
                                                     <TouchEnhancedButton
                                                         onClick={() => handleItemToggle(item.id)}
-                                                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 ${
+                                                        className={`w-6 h-6 rounded-full border-2 flex items-center justify-center mt-1 flex-shrink-0 ${
                                                             item.checked
                                                                 ? 'bg-green-500 border-green-500 text-white'
                                                                 : 'border-gray-300 hover:border-green-500'
@@ -783,20 +783,20 @@ export default function SmartPriceShoppingList({
                                                                 {item.inventoryItem?.location && ` (${item.inventoryItem.location})`}
                                                             </div>
                                                         )}
-                                                </div>
+                                                    </div>
 
-                                                {/* Price History Button */}
-                                                {priceComparison[item.name]?.prices.length > 0 && (
-                                                    <TouchEnhancedButton
-                                                        onClick={() => {/* Open price history modal */}}
-                                                        className="text-blue-600 text-xs bg-blue-50 px-2 py-1 rounded self-start"
-                                                    >
-                                                        📊 History
-                                                    </TouchEnhancedButton>
-                                                )}
+                                                    {/* Price History Button */}
+                                                    {priceComparison[item.name]?.prices.length > 0 && (
+                                                        <TouchEnhancedButton
+                                                            onClick={() => {/* Open price history modal */}}
+                                                            className="text-blue-600 text-xs bg-blue-50 px-2 py-1 rounded self-start flex-shrink-0"
+                                                        >
+                                                            📊 History
+                                                        </TouchEnhancedButton>
+                                                    )}
+                                                </div>
                                             </div>
-                                    </div>
-                                    );
+                                        );
                                     })}
                                 </div>
                             </div>
@@ -810,7 +810,7 @@ export default function SmartPriceShoppingList({
                 </div>
 
                 {/* Enhanced Footer */}
-                <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                     <div className="space-y-3">
                         {/* Primary Action */}
                         <TouchEnhancedButton
