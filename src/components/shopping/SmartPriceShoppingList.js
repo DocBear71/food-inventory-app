@@ -452,29 +452,29 @@ export default function SmartPriceShoppingList({
 
                     {/* Enhanced Summary Cards - FIXED */}
                     <div className="grid grid-cols-4 gap-2">
-                        <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-xs font-medium text-green-100">Budget</div>
+                        <div className="bg-emerald-100 bg-opacity-20 rounded p-2 text-center">
+                            <div className="text-xs font-medium text-white">Budget</div>
                             <div className="text-sm font-bold text-white">
                                 {budgetTracking.limit ? formatPrice(budgetTracking.limit) : 'None'}
                             </div>
                         </div>
 
-                        <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-xs font-medium text-green-100">Savings</div>
+                        <div className="bg-blue-100 bg-opacity-20 rounded p-2 text-center">
+                            <div className="text-xs font-medium text-white">Savings</div>
                             <div className="text-sm font-bold text-white">
                                 {formatPrice(priceAnalysis.totalSavings || 0)}
                             </div>
                         </div>
 
-                        <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-xs font-medium text-green-100">Items</div>
+                        <div className="bg-purple-100 bg-opacity-20 rounded p-2 text-center">
+                            <div className="text-xs font-medium text-white">Items</div>
                             <div className="text-sm font-bold text-white">
                                 {selectedItems.length}
                             </div>
                         </div>
 
-                        <div className="bg-white bg-opacity-20 rounded p-2 text-center">
-                            <div className="text-xs font-medium text-green-100">Deals</div>
+                        <div className="bg-orange-100 bg-opacity-20 rounded p-2 text-center">
+                            <div className="text-xs font-medium text-white">Deals</div>
                             <div className="text-sm font-bold text-white">
                                 {items.filter(item => item.dealStatus === 'deal').length}
                             </div>
