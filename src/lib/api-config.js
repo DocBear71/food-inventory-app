@@ -72,9 +72,6 @@ export async function fetchWithSession(url, options = {}) {
         }
     };
 
-    console.log('🌐 Making session-aware API call to:', url);
-    console.log('📋 Session headers:', sessionHeaders);
-
     return fetch(url, enhancedOptions);
 }
 

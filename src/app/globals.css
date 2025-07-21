@@ -572,6 +572,7 @@ input[type="radio"]:focus {
 /* ===== COLOR UTILITIES ===== */
 
 /* Text Colors */
+.text-black { color: #000000 !important; }
 .text-white { color: #ffffff !important; }
 .text-gray-50 { color: #f9fafb !important; }
 .text-gray-300 { color: #d1d5db !important; }
