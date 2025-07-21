@@ -938,7 +938,10 @@ const UserSchema = new mongoose.Schema({
             default: false
         }
     },
-    // 🆕 ADD CURRENCY PREFERENCES
+    // Enhanced User Schema additions for international support
+// Add these fields to your existing UserSchema
+
+// Enhanced currency preferences (already exists in your schema - keeping for reference)
     currencyPreferences: {
         currency: {
             type: String,
@@ -969,6 +972,576 @@ const UserSchema = new mongoose.Schema({
             min: 0,
             max: 3,
             default: 2
+        }
+    },
+
+    // 🆕 NEW: International preferences for UPC scanning and product data
+    internationalPreferences: {
+        // Primary region for product lookups
+        primaryRegion: {
+            type: String,
+            enum: ['US', 'UK', 'EU', 'CA', 'AU', 'JP', 'CN', 'IN', 'Global'],
+            default: 'US'
+        },
+
+        // Preferred product databases (in order of preference)
+        preferredDatabases: {
+            type: [String],
+            enum: ['OpenFoodFacts', 'USDA', 'UK-FSA', 'EU-EFSA', 'Global'],
+            default: ['OpenFoodFacts', 'USDA']
+        },
+
+        // Language preferences for product names
+        preferredLanguages: {
+            type: [String],
+            enum: ['en', 'en-US', 'en-GB', 'en-CA', 'en-AU', 'fr', 'de', 'es', 'it', 'ja', 'zh', 'pt'],
+            default: ['en']
+        },
+
+        // Unit system preferences
+        unitSystem: {
+            type: String,
+            enum: ['metric', 'imperial', 'mixed'],
+            default: 'imperial' // US default
+        },
+
+        // Temperature scale
+        temperatureScale: {
+            type: String,
+            enum: ['celsius', 'fahrenheit'],
+            default: 'fahrenheit'
+        },
+
+        // Date format preference
+        dateFormat: {
+            type: String,
+            enum: ['MM/DD/YYYY', 'DD/MM/YYYY', 'YYYY-MM-DD', 'DD-MM-YYYY'],
+            default: 'MM/DD/YYYY'
+        },
+
+        // Regional barcode preferences
+        barcodePreferences: {
+            acceptEAN8: {
+                type: Boolean,
+                default: true
+            },
+            acceptEAN13: {
+                type: Boolean,
+                default: true
+            },
+            acceptUPCA: {
+                type: Boolean,
+                default: true
+            },
+            acceptGTIN14: {
+                type: Boolean,
+                default: false // Usually for cases/packaging
+            },
+
+            // Auto-pad short barcodes
+            autoPadBarcodes: {
+                type: Boolean,
+                default: true
+            },
+
+            // Show barcode format in results
+            showBarcodeFormat: {
+                type: Boolean,
+                default: false
+            }
+        },
+
+        // Store chain preferences (for price tracking)
+        preferredStoreChains: {
+            type: [String],
+            default: []
+            // Examples: ['Walmart', 'Target', 'Kroger'] for US
+            // ['Tesco', 'ASDA', 'Sainsbury\'s'] for UK
+            // ['Carrefour', 'Auchan', 'Leclerc'] for France
+        },
+
+        // Regional category preferences
+        categoryMappingStyle: {
+            type: String,
+            enum: ['US', 'UK', 'EU', 'Global', 'Auto'],
+            default: 'Auto' // Auto-detect based on currency/region
+        },
+
+        // Nutrition label style preference
+        nutritionLabelStyle: {
+            type: String,
+            enum: ['US', 'EU', 'UK', 'CA', 'AU'],
+            default: 'US'
+        },
+
+        // Show regional product warnings
+        showRegionalWarnings: {
+            type: Boolean,
+            default: true
+        },
+
+        // Auto-detect region from IP/currency
+        autoDetectRegion: {
+            type: Boolean,
+            default: true
+        }
+    },
+
+    // 🆕 NEW: Enhanced localization preferences
+    localizationPreferences: {
+        // Measurement units for different contexts
+        measurementUnits: {
+            // Cooking measurements
+            volume: {
+                type: String,
+                enum: ['ml', 'l', 'cups', 'fl-oz', 'pints', 'quarts', 'gallons'],
+                default: 'cups'
+            },
+            weight: {
+                type: String,
+                enum: ['g', 'kg', 'oz', 'lbs', 'stones'],
+                default: 'oz'
+            },
+            temperature: {
+                type: String,
+                enum: ['celsius', 'fahrenheit', 'gas-mark'],
+                default: 'fahrenheit'
+            },
+
+            // Nutrition display units
+            energy: {
+                type: String,
+                enum: ['kcal', 'kJ', 'cal'],
+                default: 'kcal'
+            },
+
+            // Package sizes
+            packageVolume: {
+                type: String,
+                enum: ['ml', 'l', 'fl-oz', 'cups', 'pints', 'quarts'],
+                default: 'fl-oz'
+            },
+            packageWeight: {
+                type: String,
+                enum: ['g', 'kg', 'oz', 'lbs'],
+                default: 'oz'
+            }
+        },
+
+        // Number formatting
+        numberFormat: {
+            // Decimal separator
+            decimalSeparator: {
+                type: String,
+                enum: ['.', ','],
+                default: '.'
+            },
+
+            // Thousands separator
+            thousandsSeparator: {
+                type: String,
+                enum: [',', '.', ' ', ''],
+                default: ','
+            },
+
+            // Number of decimal places for different contexts
+            priceDecimals: {
+                type: Number,
+                min: 0,
+                max: 4,
+                default: 2
+            },
+            nutritionDecimals: {
+                type: Number,
+                min: 0,
+                max: 3,
+                default: 1
+            },
+            quantityDecimals: {
+                type: Number,
+                min: 0,
+                max: 3,
+                default: 2
+            }
+        },
+
+        // Time and date preferences
+        timeFormat: {
+            type: String,
+            enum: ['12-hour', '24-hour'],
+            default: '12-hour'
+        },
+
+        // First day of week (for meal planning, etc.)
+        firstDayOfWeek: {
+            type: String,
+            enum: ['sunday', 'monday'],
+            default: 'sunday'
+        }
+    },
+
+    // 🆕 NEW: Regional shopping preferences
+    regionalShoppingPreferences: {
+        // Common store types in user's region
+        commonStoreTypes: {
+            type: [String],
+            default: [] // Will be populated based on region
+            // US: ['supermarket', 'grocery-store', 'warehouse-club', 'convenience-store']
+            // UK: ['supermarket', 'convenience-store', 'corner-shop', 'hypermarket']
+            // EU: ['supermarche', 'hypermarche', 'epicerie', 'marche']
+        },
+
+        // Regional tax handling
+        showPricesWithTax: {
+            type: Boolean,
+            default: false // US default (prices without tax), true for EU/UK
+        },
+
+        // VAT/Sales tax rate for calculations
+        localTaxRate: {
+            type: Number,
+            min: 0,
+            max: 0.5, // 50% max
+            default: 0
+        },
+
+        // Typical shopping patterns
+        shoppingFrequency: {
+            type: String,
+            enum: ['daily', 'few-times-week', 'weekly', 'bi-weekly', 'monthly'],
+            default: 'weekly'
+        },
+
+        // Package size preferences
+        preferredPackageSizes: {
+            type: String,
+            enum: ['small', 'medium', 'large', 'bulk', 'mixed'],
+            default: 'medium'
+        }
+    },
+
+    // 🆕 NEW: Enhanced product database preferences
+    productDatabasePreferences: {
+        // Database priority order
+        databasePriority: {
+            type: [String],
+            enum: [
+                'OpenFoodFacts-Regional', 'OpenFoodFacts-Global', 'USDA',
+                'UK-FSA', 'EU-EFSA', 'Health-Canada', 'FSANZ-AU', 'Local-Fallback'
+            ],
+            default: ['OpenFoodFacts-Regional', 'OpenFoodFacts-Global', 'USDA']
+        },
+
+        // Product matching preferences
+        productMatching: {
+            // Strict matching for brand names
+            strictBrandMatching: {
+                type: Boolean,
+                default: false
+            },
+
+            // Accept approximate matches
+            acceptApproximateMatches: {
+                type: Boolean,
+                default: true
+            },
+
+            // Show confidence scores
+            showConfidenceScores: {
+                type: Boolean,
+                default: false
+            },
+
+            // Minimum confidence threshold
+            minimumConfidence: {
+                type: Number,
+                min: 0.1,
+                max: 1.0,
+                default: 0.6
+            }
+        },
+
+        // Image preferences
+        imagePreferences: {
+            // Prefer local market images
+            preferRegionalImages: {
+                type: Boolean,
+                default: true
+            },
+
+            // Image quality preference
+            imageQuality: {
+                type: String,
+                enum: ['low', 'medium', 'high'],
+                default: 'medium'
+            }
+        },
+
+        // Nutrition data preferences
+        nutritionPreferences: {
+            // Primary nutrition standard
+            nutritionStandard: {
+                type: String,
+                enum: ['US-FDA', 'EU-Regulation', 'UK-FSA', 'CA-Health', 'AU-FSANZ'],
+                default: 'US-FDA'
+            },
+
+            // Show per 100g/100ml values
+            showPer100g: {
+                type: Boolean,
+                default: true
+            },
+
+            // Show per serving values
+            showPerServing: {
+                type: Boolean,
+                default: true
+            },
+
+            // Preferred allergen format
+            allergenFormat: {
+                type: String,
+                enum: ['US', 'EU', 'UK', 'Global'],
+                default: 'US'
+            }
+        }
+    },
+
+    // 🆕 NEW: International search and discovery preferences
+    searchPreferences: {
+        // Search result preferences
+        resultPreferences: {
+            // Prioritize local products
+            prioritizeLocalProducts: {
+                type: Boolean,
+                default: true
+            },
+
+            // Include international variants
+            includeInternationalVariants: {
+                type: Boolean,
+                default: true
+            },
+
+            // Show regional availability
+            showRegionalAvailability: {
+                type: Boolean,
+                default: true
+            },
+
+            // Results per page
+            resultsPerPage: {
+                type: Number,
+                min: 5,
+                max: 50,
+                default: 15
+            }
+        },
+
+        // Search scope preferences
+        searchScope: {
+            // Geographic scope
+            geographicScope: {
+                type: String,
+                enum: ['local', 'national', 'regional', 'global'],
+                default: 'national'
+            },
+
+            // Database scope
+            databaseScope: {
+                type: [String],
+                enum: ['OpenFoodFacts', 'USDA', 'Regional', 'Global'],
+                default: ['OpenFoodFacts', 'USDA']
+            }
+        },
+
+        // Search enhancement features
+        searchEnhancements: {
+            // Auto-correct search terms
+            autoCorrectSearchTerms: {
+                type: Boolean,
+                default: true
+            },
+
+            // Suggest alternative spellings
+            suggestAlternativeSpellings: {
+                type: Boolean,
+                default: true
+            },
+
+            // Include phonetic matches
+            includePhoneticMatches: {
+                type: Boolean,
+                default: false
+            },
+
+            // Search in local language equivalents
+            searchLocalLanguage: {
+                type: Boolean,
+                default: true
+            }
+        }
+    },
+
+    // 🆕 NEW: Regional feature preferences
+    regionalFeatures: {
+        // Enable region-specific features
+        enableRegionalFeatures: {
+            type: Boolean,
+            default: true
+        },
+
+        // Regional price tracking
+        priceTracking: {
+            // Enable regional price comparison
+            enableRegionalPriceComparison: {
+                type: Boolean,
+                default: true
+            },
+
+            // Include regional store chains
+            includeRegionalStores: {
+                type: Boolean,
+                default: true
+            },
+
+            // Price alert thresholds (regional currency)
+            priceAlertThreshold: {
+                type: Number,
+                default: 0 // 0 = disabled
+            }
+        },
+
+        // Regional recipe features
+        recipeFeatures: {
+            // Show regional recipe variants
+            showRegionalRecipeVariants: {
+                type: Boolean,
+                default: true
+            },
+
+            // Include regional ingredients
+            includeRegionalIngredients: {
+                type: Boolean,
+                default: true
+            },
+
+            // Use regional cooking terms
+            useRegionalCookingTerms: {
+                type: Boolean,
+                default: true
+            }
+        },
+
+        // Regional shopping list features
+        shoppingListFeatures: {
+            // Group by regional store layout
+            groupByRegionalStoreLayout: {
+                type: Boolean,
+                default: false
+            },
+
+            // Include regional product alternatives
+            includeRegionalAlternatives: {
+                type: Boolean,
+                default: true
+            },
+
+            // Show regional availability warnings
+            showAvailabilityWarnings: {
+                type: Boolean,
+                default: true
+            }
+        }
+    },
+
+    // 🆕 NEW: User regional profile (auto-populated)
+    userRegionalProfile: {
+        // Detected/configured region
+        detectedRegion: {
+            type: String,
+            enum: ['US', 'UK', 'EU', 'CA', 'AU', 'JP', 'CN', 'IN', 'Other'],
+            default: 'US'
+        },
+
+        // Country (more specific than region)
+        detectedCountry: {
+            type: String,
+            maxlength: 2, // ISO country codes
+            default: 'US'
+        },
+
+        // Regional detection methods used
+        detectionMethods: {
+            type: [String],
+            enum: ['currency', 'ip-location', 'user-specified', 'browser-locale', 'timezone'],
+            default: []
+        },
+
+        // Last detection update
+        lastDetectionUpdate: {
+            type: Date,
+            default: Date.now
+        },
+
+        // Regional confidence score
+        regionalConfidence: {
+            type: Number,
+            min: 0,
+            max: 1,
+            default: 0.5
+        },
+
+        // Regional data quality metrics
+        regionalDataQuality: {
+            productDatabaseCoverage: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0.8
+            },
+            storeCoverage: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0.7
+            },
+            pricingDataCoverage: {
+                type: Number,
+                min: 0,
+                max: 1,
+                default: 0.6
+            }
+        }
+    },
+
+    // 🆕 NEW: International compliance and legal preferences
+    compliancePreferences: {
+        // Data privacy compliance
+        dataPrivacyCompliance: {
+            type: String,
+            enum: ['GDPR', 'CCPA', 'PIPEDA', 'APPs', 'Standard'],
+            default: 'Standard'
+        },
+
+        // Nutrition labeling compliance
+        nutritionLabelingCompliance: {
+            type: String,
+            enum: ['US-FDA', 'EU-1169', 'UK-FSA', 'CA-CFIA', 'AU-FSANZ'],
+            default: 'US-FDA'
+        },
+
+        // Allergen disclosure compliance
+        allergenDisclosureCompliance: {
+            type: String,
+            enum: ['US-FALCPA', 'EU-1169', 'UK-FSA', 'CA-Enhanced', 'AU-Standard'],
+            default: 'US-FALCPA'
+        },
+
+        // Age verification requirements
+        ageVerificationRequired: {
+            type: Boolean,
+            default: false
         }
     },
     // Usage tracking for subscription limits

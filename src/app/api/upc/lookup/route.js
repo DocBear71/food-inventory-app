@@ -1,7 +1,7 @@
-// Enhanced UPC lookup route with USDA FoodData Central backup
+// file: /src/app/api/upc/route.js v9 - Enhanced with international support for UK/EU users
+
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
@@ -9,67 +9,254 @@ import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } fr
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
-// API Configuration
-const OPEN_FOOD_FACTS_ENDPOINTS = [
-    'https://world.openfoodfacts.org/api/v2/product',
-    'https://world.openfoodfacts.net/api/v2/product',
-    'https://fr.openfoodfacts.org/api/v2/product'
-];
+// Enhanced international API configuration
+const INTERNATIONAL_ENDPOINTS = {
+    // Open Food Facts - Primary global database
+    openFoodFacts: {
+        global: 'https://world.openfoodfacts.org/api/v2/product',
+        uk: 'https://uk.openfoodfacts.org/api/v2/product',
+        france: 'https://fr.openfoodfacts.org/api/v2/product',
+        germany: 'https://de.openfoodfacts.org/api/v2/product',
+        spain: 'https://es.openfoodfacts.org/api/v2/product',
+        italy: 'https://it.openfoodfacts.org/api/v2/product',
+        canada: 'https://ca.openfoodfacts.org/api/v2/product',
+        australia: 'https://au.openfoodfacts.org/api/v2/product'
+    },
 
-const USDA_API_CONFIG = {
-    baseUrl: 'https://api.nal.usda.gov/fdc/v1',
-    apiKey: process.env.USDA_API_KEY, // Add this to your environment variables
-    searchEndpoint: '/foods/search',
-    foodEndpoint: '/food'
+    // USDA (US-specific)
+    usda: {
+        baseUrl: 'https://api.nal.usda.gov/fdc/v1',
+        apiKey: process.env.USDA_API_KEY,
+        searchEndpoint: '/foods/search',
+        foodEndpoint: '/food'
+    },
+
+    // UK-specific databases (fallback options)
+    ukDatabases: {
+        // Food Standards Agency (if available)
+        fsa: 'https://www.food.gov.uk/api', // Placeholder - would need real API
+        // Tesco API (if available)
+        tesco: process.env.TESCO_API_BASE_URL, // Would need Tesco developer API
+    }
 };
 
-// Retry configuration
-const RETRY_CONFIG = {
-    maxRetries: 2,
-    timeoutMs: 8000,
-    backoffMs: 1000
+// International currency symbols for price display
+const CURRENCY_SYMBOLS = {
+    'USD': '$', 'EUR': '€', 'GBP': '£', 'CAD': 'C$', 'AUD': 'A$', 'JPY': '¥',
+    'CHF': 'CHF', 'SEK': 'kr', 'NOK': 'kr', 'DKK': 'kr', 'PLN': 'zł',
+    'CZK': 'Kč', 'HUF': 'Ft', 'RON': 'lei', 'NZD': 'NZ$', 'ZAR': 'R',
+    'INR': '₹', 'CNY': '¥', 'KRW': '₩', 'SGD': 'S$', 'HKD': 'HK$',
+    'THB': '฿', 'MYR': 'RM', 'RUB': '₽', 'TRY': '₺', 'ILS': '₪',
+    'AED': 'د.إ', 'SAR': 'ر.س', 'BRL': 'R$', 'MXN': '$', 'ARS': '$'
 };
 
-// UPC to GTIN-14 converter (USDA uses GTIN-14 format)
-function convertUPCToGTIN14(upc) {
-    const cleanUpc = upc.replace(/\D/g, '');
+// Enhanced barcode format detection
+function detectBarcodeFormat(barcode) {
+    const clean = barcode.replace(/\D/g, '');
 
-    // Convert different UPC formats to GTIN-14
-    if (cleanUpc.length === 12) {
-        // UPC-A to GTIN-14: add two leading zeros
-        return '00' + cleanUpc;
-    } else if (cleanUpc.length === 13) {
-        // EAN-13 to GTIN-14: add one leading zero
-        return '0' + cleanUpc;
-    } else if (cleanUpc.length === 14) {
-        // Already GTIN-14
-        return cleanUpc;
-    } else if (cleanUpc.length === 8) {
-        // UPC-E to GTIN-14: convert to UPC-A first, then add zeros
-        // This is a simplified conversion - full UPC-E conversion is complex
-        return '000000' + cleanUpc;
+    if (clean.length === 8) {
+        return { format: 'EAN-8', region: 'EU', type: 'short' };
+    } else if (clean.length === 12) {
+        return { format: 'UPC-A', region: 'US', type: 'standard' };
+    } else if (clean.length === 13) {
+        const prefix = clean.substring(0, 3);
+
+        // Determine region by GS1 prefix
+        if (prefix >= '000' && prefix <= '019') return { format: 'EAN-13', region: 'US', type: 'us_in_ean' };
+        if (prefix >= '020' && prefix <= '029') return { format: 'EAN-13', region: 'RESTRICTED', type: 'internal' };
+        if (prefix >= '030' && prefix <= '039') return { format: 'EAN-13', region: 'US', type: 'drugs' };
+        if (prefix >= '040' && prefix <= '049') return { format: 'EAN-13', region: 'RESTRICTED', type: 'internal' };
+        if (prefix >= '050' && prefix <= '059') return { format: 'EAN-13', region: 'US', type: 'coupons' };
+        if (prefix >= '060' && prefix <= '099') return { format: 'EAN-13', region: 'US', type: 'standard' };
+
+        // International prefixes
+        if (prefix >= '100' && prefix <= '139') return { format: 'EAN-13', region: 'US', type: 'standard' };
+        if (prefix >= '200' && prefix <= '299') return { format: 'EAN-13', region: 'RESTRICTED', type: 'internal' };
+        if (prefix >= '300' && prefix <= '379') return { format: 'EAN-13', region: 'FR', type: 'standard', country: 'France' };
+        if (prefix >= '380' && prefix <= '380') return { format: 'EAN-13', region: 'BG', type: 'standard', country: 'Bulgaria' };
+        if (prefix >= '383' && prefix <= '383') return { format: 'EAN-13', region: 'SI', type: 'standard', country: 'Slovenia' };
+        if (prefix >= '385' && prefix <= '385') return { format: 'EAN-13', region: 'HR', type: 'standard', country: 'Croatia' };
+        if (prefix >= '387' && prefix <= '387') return { format: 'EAN-13', region: 'BA', type: 'standard', country: 'Bosnia' };
+        if (prefix >= '400' && prefix <= '440') return { format: 'EAN-13', region: 'DE', type: 'standard', country: 'Germany' };
+        if (prefix >= '450' && prefix <= '459') return { format: 'EAN-13', region: 'JP', type: 'standard', country: 'Japan' };
+        if (prefix >= '460' && prefix <= '469') return { format: 'EAN-13', region: 'RU', type: 'standard', country: 'Russia' };
+        if (prefix >= '470' && prefix <= '470') return { format: 'EAN-13', region: 'KG', type: 'standard', country: 'Kyrgyzstan' };
+        if (prefix >= '471' && prefix <= '471') return { format: 'EAN-13', region: 'TW', type: 'standard', country: 'Taiwan' };
+        if (prefix >= '474' && prefix <= '474') return { format: 'EAN-13', region: 'EE', type: 'standard', country: 'Estonia' };
+        if (prefix >= '475' && prefix <= '475') return { format: 'EAN-13', region: 'LV', type: 'standard', country: 'Latvia' };
+        if (prefix >= '476' && prefix <= '476') return { format: 'EAN-13', region: 'AZ', type: 'standard', country: 'Azerbaijan' };
+        if (prefix >= '477' && prefix <= '477') return { format: 'EAN-13', region: 'LT', type: 'standard', country: 'Lithuania' };
+        if (prefix >= '478' && prefix <= '478') return { format: 'EAN-13', region: 'UZ', type: 'standard', country: 'Uzbekistan' };
+        if (prefix >= '479' && prefix <= '479') return { format: 'EAN-13', region: 'LK', type: 'standard', country: 'Sri Lanka' };
+        if (prefix >= '480' && prefix <= '489') return { format: 'EAN-13', region: 'PH', type: 'standard', country: 'Philippines' };
+        if (prefix >= '490' && prefix <= '499') return { format: 'EAN-13', region: 'JP', type: 'standard', country: 'Japan' };
+        if (prefix >= '500' && prefix <= '509') return { format: 'EAN-13', region: 'UK', type: 'standard', country: 'United Kingdom' };
+        if (prefix >= '520' && prefix <= '521') return { format: 'EAN-13', region: 'GR', type: 'standard', country: 'Greece' };
+        if (prefix >= '528' && prefix <= '528') return { format: 'EAN-13', region: 'LB', type: 'standard', country: 'Lebanon' };
+        if (prefix >= '529' && prefix <= '529') return { format: 'EAN-13', region: 'CY', type: 'standard', country: 'Cyprus' };
+        if (prefix >= '530' && prefix <= '530') return { format: 'EAN-13', region: 'AL', type: 'standard', country: 'Albania' };
+        if (prefix >= '531' && prefix <= '531') return { format: 'EAN-13', region: 'MK', type: 'standard', country: 'Macedonia' };
+        if (prefix >= '535' && prefix <= '535') return { format: 'EAN-13', region: 'MT', type: 'standard', country: 'Malta' };
+        if (prefix >= '539' && prefix <= '539') return { format: 'EAN-13', region: 'IE', type: 'standard', country: 'Ireland' };
+        if (prefix >= '540' && prefix <= '549') return { format: 'EAN-13', region: 'BE', type: 'standard', country: 'Belgium/Luxembourg' };
+        if (prefix >= '560' && prefix <= '560') return { format: 'EAN-13', region: 'PT', type: 'standard', country: 'Portugal' };
+        if (prefix >= '569' && prefix <= '569') return { format: 'EAN-13', region: 'IS', type: 'standard', country: 'Iceland' };
+        if (prefix >= '570' && prefix <= '579') return { format: 'EAN-13', region: 'DK', type: 'standard', country: 'Denmark' };
+        if (prefix >= '590' && prefix <= '590') return { format: 'EAN-13', region: 'PL', type: 'standard', country: 'Poland' };
+        if (prefix >= '594' && prefix <= '594') return { format: 'EAN-13', region: 'RO', type: 'standard', country: 'Romania' };
+        if (prefix >= '599' && prefix <= '599') return { format: 'EAN-13', region: 'HU', type: 'standard', country: 'Hungary' };
+        if (prefix >= '600' && prefix <= '601') return { format: 'EAN-13', region: 'ZA', type: 'standard', country: 'South Africa' };
+        if (prefix >= '603' && prefix <= '603') return { format: 'EAN-13', region: 'GH', type: 'standard', country: 'Ghana' };
+        if (prefix >= '604' && prefix <= '604') return { format: 'EAN-13', region: 'SN', type: 'standard', country: 'Senegal' };
+        if (prefix >= '608' && prefix <= '608') return { format: 'EAN-13', region: 'BH', type: 'standard', country: 'Bahrain' };
+        if (prefix >= '609' && prefix <= '609') return { format: 'EAN-13', region: 'MU', type: 'standard', country: 'Mauritius' };
+        if (prefix >= '611' && prefix <= '611') return { format: 'EAN-13', region: 'MA', type: 'standard', country: 'Morocco' };
+        if (prefix >= '613' && prefix <= '613') return { format: 'EAN-13', region: 'DZ', type: 'standard', country: 'Algeria' };
+        if (prefix >= '615' && prefix <= '615') return { format: 'EAN-13', region: 'NG', type: 'standard', country: 'Nigeria' };
+        if (prefix >= '616' && prefix <= '616') return { format: 'EAN-13', region: 'KE', type: 'standard', country: 'Kenya' };
+        if (prefix >= '618' && prefix <= '618') return { format: 'EAN-13', region: 'CI', type: 'standard', country: 'Ivory Coast' };
+        if (prefix >= '619' && prefix <= '619') return { format: 'EAN-13', region: 'TN', type: 'standard', country: 'Tunisia' };
+        if (prefix >= '620' && prefix <= '620') return { format: 'EAN-13', region: 'TZ', type: 'standard', country: 'Tanzania' };
+        if (prefix >= '621' && prefix <= '621') return { format: 'EAN-13', region: 'SY', type: 'standard', country: 'Syria' };
+        if (prefix >= '622' && prefix <= '622') return { format: 'EAN-13', region: 'EG', type: 'standard', country: 'Egypt' };
+        if (prefix >= '623' && prefix <= '623') return { format: 'EAN-13', region: 'BN', type: 'standard', country: 'Brunei' };
+        if (prefix >= '624' && prefix <= '624') return { format: 'EAN-13', region: 'LY', type: 'standard', country: 'Libya' };
+        if (prefix >= '625' && prefix <= '625') return { format: 'EAN-13', region: 'JO', type: 'standard', country: 'Jordan' };
+        if (prefix >= '626' && prefix <= '626') return { format: 'EAN-13', region: 'IR', type: 'standard', country: 'Iran' };
+        if (prefix >= '627' && prefix <= '627') return { format: 'EAN-13', region: 'KW', type: 'standard', country: 'Kuwait' };
+        if (prefix >= '628' && prefix <= '628') return { format: 'EAN-13', region: 'SA', type: 'standard', country: 'Saudi Arabia' };
+        if (prefix >= '629' && prefix <= '629') return { format: 'EAN-13', region: 'AE', type: 'standard', country: 'UAE' };
+        if (prefix >= '640' && prefix <= '649') return { format: 'EAN-13', region: 'FI', type: 'standard', country: 'Finland' };
+        if (prefix >= '690' && prefix <= '695') return { format: 'EAN-13', region: 'CN', type: 'standard', country: 'China' };
+        if (prefix >= '700' && prefix <= '709') return { format: 'EAN-13', region: 'NO', type: 'standard', country: 'Norway' };
+        if (prefix >= '729' && prefix <= '729') return { format: 'EAN-13', region: 'IL', type: 'standard', country: 'Israel' };
+        if (prefix >= '730' && prefix <= '739') return { format: 'EAN-13', region: 'SE', type: 'standard', country: 'Sweden' };
+        if (prefix >= '740' && prefix <= '740') return { format: 'EAN-13', region: 'GT', type: 'standard', country: 'Guatemala' };
+        if (prefix >= '741' && prefix <= '741') return { format: 'EAN-13', region: 'SV', type: 'standard', country: 'El Salvador' };
+        if (prefix >= '742' && prefix <= '742') return { format: 'EAN-13', region: 'HN', type: 'standard', country: 'Honduras' };
+        if (prefix >= '743' && prefix <= '743') return { format: 'EAN-13', region: 'NI', type: 'standard', country: 'Nicaragua' };
+        if (prefix >= '744' && prefix <= '744') return { format: 'EAN-13', region: 'CR', type: 'standard', country: 'Costa Rica' };
+        if (prefix >= '745' && prefix <= '745') return { format: 'EAN-13', region: 'PA', type: 'standard', country: 'Panama' };
+        if (prefix >= '746' && prefix <= '746') return { format: 'EAN-13', region: 'DO', type: 'standard', country: 'Dominican Republic' };
+        if (prefix >= '750' && prefix <= '750') return { format: 'EAN-13', region: 'MX', type: 'standard', country: 'Mexico' };
+        if (prefix >= '754' && prefix <= '755') return { format: 'EAN-13', region: 'CA', type: 'standard', country: 'Canada' };
+        if (prefix >= '759' && prefix <= '759') return { format: 'EAN-13', region: 'VE', type: 'standard', country: 'Venezuela' };
+        if (prefix >= '760' && prefix <= '769') return { format: 'EAN-13', region: 'CH', type: 'standard', country: 'Switzerland' };
+        if (prefix >= '770' && prefix <= '771') return { format: 'EAN-13', region: 'CO', type: 'standard', country: 'Colombia' };
+        if (prefix >= '773' && prefix <= '773') return { format: 'EAN-13', region: 'UY', type: 'standard', country: 'Uruguay' };
+        if (prefix >= '775' && prefix <= '775') return { format: 'EAN-13', region: 'PE', type: 'standard', country: 'Peru' };
+        if (prefix >= '777' && prefix <= '777') return { format: 'EAN-13', region: 'BO', type: 'standard', country: 'Bolivia' };
+        if (prefix >= '778' && prefix <= '779') return { format: 'EAN-13', region: 'AR', type: 'standard', country: 'Argentina' };
+        if (prefix >= '780' && prefix <= '780') return { format: 'EAN-13', region: 'CL', type: 'standard', country: 'Chile' };
+        if (prefix >= '784' && prefix <= '784') return { format: 'EAN-13', region: 'PY', type: 'standard', country: 'Paraguay' };
+        if (prefix >= '786' && prefix <= '786') return { format: 'EAN-13', region: 'EC', type: 'standard', country: 'Ecuador' };
+        if (prefix >= '789' && prefix <= '790') return { format: 'EAN-13', region: 'BR', type: 'standard', country: 'Brazil' };
+        if (prefix >= '800' && prefix <= '839') return { format: 'EAN-13', region: 'IT', type: 'standard', country: 'Italy' };
+        if (prefix >= '840' && prefix <= '849') return { format: 'EAN-13', region: 'ES', type: 'standard', country: 'Spain' };
+        if (prefix >= '850' && prefix <= '850') return { format: 'EAN-13', region: 'CU', type: 'standard', country: 'Cuba' };
+        if (prefix >= '858' && prefix <= '858') return { format: 'EAN-13', region: 'SK', type: 'standard', country: 'Slovakia' };
+        if (prefix >= '859' && prefix <= '859') return { format: 'EAN-13', region: 'CZ', type: 'standard', country: 'Czech Republic' };
+        if (prefix >= '860' && prefix <= '860') return { format: 'EAN-13', region: 'RS', type: 'standard', country: 'Serbia' };
+        if (prefix >= '865' && prefix <= '865') return { format: 'EAN-13', region: 'MN', type: 'standard', country: 'Mongolia' };
+        if (prefix >= '867' && prefix <= '867') return { format: 'EAN-13', region: 'KP', type: 'standard', country: 'North Korea' };
+        if (prefix >= '868' && prefix <= '869') return { format: 'EAN-13', region: 'TR', type: 'standard', country: 'Turkey' };
+        if (prefix >= '870' && prefix <= '879') return { format: 'EAN-13', region: 'NL', type: 'standard', country: 'Netherlands' };
+        if (prefix >= '880' && prefix <= '880') return { format: 'EAN-13', region: 'KR', type: 'standard', country: 'South Korea' };
+        if (prefix >= '884' && prefix <= '884') return { format: 'EAN-13', region: 'KH', type: 'standard', country: 'Cambodia' };
+        if (prefix >= '885' && prefix <= '885') return { format: 'EAN-13', region: 'TH', type: 'standard', country: 'Thailand' };
+        if (prefix >= '888' && prefix <= '888') return { format: 'EAN-13', region: 'SG', type: 'standard', country: 'Singapore' };
+        if (prefix >= '890' && prefix <= '890') return { format: 'EAN-13', region: 'IN', type: 'standard', country: 'India' };
+        if (prefix >= '893' && prefix <= '893') return { format: 'EAN-13', region: 'VN', type: 'standard', country: 'Vietnam' };
+        if (prefix >= '896' && prefix <= '896') return { format: 'EAN-13', region: 'PK', type: 'standard', country: 'Pakistan' };
+        if (prefix >= '899' && prefix <= '899') return { format: 'EAN-13', region: 'ID', type: 'standard', country: 'Indonesia' };
+        if (prefix >= '900' && prefix <= '919') return { format: 'EAN-13', region: 'AT', type: 'standard', country: 'Austria' };
+        if (prefix >= '930' && prefix <= '939') return { format: 'EAN-13', region: 'AU', type: 'standard', country: 'Australia' };
+        if (prefix >= '940' && prefix <= '949') return { format: 'EAN-13', region: 'NZ', type: 'standard', country: 'New Zealand' };
+        if (prefix >= '950' && prefix <= '950') return { format: 'EAN-13', region: 'GLOBAL', type: 'demo', country: 'Global Office' };
+        if (prefix >= '951' && prefix <= '951') return { format: 'EAN-13', region: 'GLOBAL', type: 'demo', country: 'Global Office' };
+        if (prefix >= '955' && prefix <= '955') return { format: 'EAN-13', region: 'MY', type: 'standard', country: 'Malaysia' };
+        if (prefix >= '958' && prefix <= '958') return { format: 'EAN-13', region: 'MO', type: 'standard', country: 'Macau' };
+
+        // Default for unknown prefixes
+        return { format: 'EAN-13', region: 'UNKNOWN', type: 'standard', country: 'Unknown' };
+    } else if (clean.length === 14) {
+        return { format: 'GTIN-14', region: 'GLOBAL', type: 'case' };
     }
 
-    return cleanUpc.padStart(14, '0');
+    return { format: 'UNKNOWN', region: 'UNKNOWN', type: 'invalid' };
 }
 
-// Enhanced Open Food Facts fetcher
-async function fetchFromOpenFoodFacts(upc, maxRetries = RETRY_CONFIG.maxRetries) {
+// Enhanced region-specific endpoint selection
+function getOptimalEndpoints(barcodeInfo, userCurrency = 'USD') {
+    const endpoints = [];
+
+    // Determine user's likely region from currency
+    const currencyToRegion = {
+        'GBP': 'UK', 'EUR': 'EU', 'USD': 'US', 'CAD': 'CA', 'AUD': 'AU',
+        'JPY': 'JP', 'CNY': 'CN', 'INR': 'IN', 'KRW': 'KR', 'SGD': 'SG'
+    };
+
+    const userRegion = currencyToRegion[userCurrency] || 'US';
+
+    // Prioritize endpoints based on barcode origin and user location
+    if (barcodeInfo.region === 'UK' || userRegion === 'UK') {
+        endpoints.push(
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.uk,
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.global,
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.france  // EU fallback
+        );
+    } else if (barcodeInfo.region === 'DE' || barcodeInfo.region === 'FR' || barcodeInfo.region === 'EU' || userRegion === 'EU') {
+        endpoints.push(
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.france,
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.germany,
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.global
+        );
+    } else if (barcodeInfo.region === 'AU' || userRegion === 'AU') {
+        endpoints.push(
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.australia,
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.global
+        );
+    } else if (barcodeInfo.region === 'CA' || userRegion === 'CA') {
+        endpoints.push(
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.canada,
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.global
+        );
+    } else {
+        // US or unknown - try global first, then regional
+        endpoints.push(
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.global,
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.uk,    // UK has good coverage
+            INTERNATIONAL_ENDPOINTS.openFoodFacts.france // EU has good coverage
+        );
+    }
+
+    return endpoints;
+}
+
+// Enhanced Open Food Facts fetcher with region awareness
+async function fetchFromOpenFoodFacts(upc, userCurrency = 'USD', maxRetries = 2) {
     const cleanUpc = upc.replace(/\D/g, '');
+    const barcodeInfo = detectBarcodeFormat(cleanUpc);
+    const endpoints = getOptimalEndpoints(barcodeInfo, userCurrency);
+
+    console.log(`🌍 Detected barcode: ${barcodeInfo.format} from ${barcodeInfo.country || barcodeInfo.region}`);
+    console.log(`🎯 User currency: ${userCurrency}, trying ${endpoints.length} endpoints`);
 
     for (let attempt = 0; attempt < maxRetries; attempt++) {
-        for (const baseUrl of OPEN_FOOD_FACTS_ENDPOINTS) {
+        for (const [index, baseUrl] of endpoints.entries()) {
             try {
-                console.log(`🥫 OpenFoodFacts attempt ${attempt + 1}/${maxRetries} - ${baseUrl}`);
+                console.log(`🥫 OpenFoodFacts attempt ${attempt + 1}/${maxRetries} - endpoint ${index + 1}/${endpoints.length}`);
+                console.log(`📡 Trying: ${baseUrl}`);
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), RETRY_CONFIG.timeoutMs);
+                const timeoutId = setTimeout(() => controller.abort(), 8000);
 
                 const response = await fetch(`${baseUrl}/${cleanUpc}.json`, {
                     headers: {
-                        'User-Agent': 'FoodInventoryManager/1.0 (food-inventory@docbearscomfort.kitchen)',
+                        'User-Agent': 'DocBearsComfortKitchen/1.0 (international-food-inventory@docbearscomfort.kitchen)',
                         'Accept': 'application/json',
-                        'Cache-Control': 'no-cache'
+                        'Cache-Control': 'no-cache',
+                        'Accept-Language': getAcceptLanguage(userCurrency)
                     },
                     signal: controller.signal
                 });
@@ -80,7 +267,15 @@ async function fetchFromOpenFoodFacts(upc, maxRetries = RETRY_CONFIG.maxRetries)
                     const data = await response.json();
                     if (data.status !== 0 && data.status_verbose !== 'product not found') {
                         console.log(`✅ OpenFoodFacts success with ${baseUrl}`);
-                        return { success: true, data, source: 'openfoodfacts', endpoint: baseUrl };
+                        console.log(`📊 Product: ${data.product?.product_name || 'Unknown'} from ${barcodeInfo.country || barcodeInfo.region}`);
+                        return {
+                            success: true,
+                            data,
+                            source: 'openfoodfacts',
+                            endpoint: baseUrl,
+                            barcodeInfo,
+                            regional: index === 0 // First endpoint is most region-specific
+                        };
                     }
                 }
 
@@ -90,16 +285,48 @@ async function fetchFromOpenFoodFacts(upc, maxRetries = RETRY_CONFIG.maxRetries)
         }
 
         if (attempt < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.backoffMs));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 
-    return { success: false, source: 'openfoodfacts' };
+    return { success: false, source: 'openfoodfacts', barcodeInfo };
 }
 
-// USDA FoodData Central fetcher
-async function fetchFromUSDA(upc, maxRetries = RETRY_CONFIG.maxRetries) {
-    if (!USDA_API_CONFIG.apiKey) {
+// Get Accept-Language header based on user currency/region
+function getAcceptLanguage(userCurrency) {
+    const languageMap = {
+        'GBP': 'en-GB,en;q=0.9',
+        'EUR': 'en-GB,fr;q=0.9,de;q=0.8,es;q=0.7,it;q=0.6',
+        'CAD': 'en-CA,fr-CA;q=0.9,en;q=0.8',
+        'AUD': 'en-AU,en;q=0.9',
+        'USD': 'en-US,en;q=0.9',
+        'JPY': 'ja,en;q=0.9',
+        'CNY': 'zh-CN,en;q=0.9'
+    };
+
+    return languageMap[userCurrency] || 'en-US,en;q=0.9';
+}
+
+// Enhanced USDA conversion for international users
+function convertUPCToGTIN14(upc) {
+    const cleanUpc = upc.replace(/\D/g, '');
+
+    if (cleanUpc.length === 12) {
+        return '00' + cleanUpc;
+    } else if (cleanUpc.length === 13) {
+        return '0' + cleanUpc;
+    } else if (cleanUpc.length === 14) {
+        return cleanUpc;
+    } else if (cleanUpc.length === 8) {
+        return '000000' + cleanUpc;
+    }
+
+    return cleanUpc.padStart(14, '0');
+}
+
+// Enhanced USDA fetcher (still primarily US-focused)
+async function fetchFromUSDA(upc, maxRetries = 2) {
+    if (!INTERNATIONAL_ENDPOINTS.usda.apiKey) {
         console.log('⚠️ USDA API key not configured, skipping USDA lookup');
         return { success: false, source: 'usda', error: 'API key not configured' };
     }
@@ -112,14 +339,13 @@ async function fetchFromUSDA(upc, maxRetries = RETRY_CONFIG.maxRetries) {
             console.log(`🇺🇸 USDA attempt ${attempt + 1}/${maxRetries}`);
 
             const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), RETRY_CONFIG.timeoutMs);
+            const timeoutId = setTimeout(() => controller.abort(), 8000);
 
-            // Search by GTIN in USDA database
-            const searchUrl = `${USDA_API_CONFIG.baseUrl}${USDA_API_CONFIG.searchEndpoint}`;
+            const searchUrl = `${INTERNATIONAL_ENDPOINTS.usda.baseUrl}${INTERNATIONAL_ENDPOINTS.usda.searchEndpoint}`;
             const searchParams = new URLSearchParams({
-                api_key: USDA_API_CONFIG.apiKey,
+                api_key: INTERNATIONAL_ENDPOINTS.usda.apiKey,
                 query: gtin14,
-                dataType: ['Branded'], // Focus on branded foods which have GTINs
+                dataType: ['Branded'],
                 pageSize: 5,
                 sortBy: 'dataType.keyword',
                 sortOrder: 'asc'
@@ -128,7 +354,7 @@ async function fetchFromUSDA(upc, maxRetries = RETRY_CONFIG.maxRetries) {
             const response = await fetch(`${searchUrl}?${searchParams}`, {
                 headers: {
                     'Accept': 'application/json',
-                    'User-Agent': 'FoodInventoryManager/1.0'
+                    'User-Agent': 'DocBearsComfortKitchen/1.0'
                 },
                 signal: controller.signal
             });
@@ -139,7 +365,6 @@ async function fetchFromUSDA(upc, maxRetries = RETRY_CONFIG.maxRetries) {
                 const data = await response.json();
                 console.log(`📊 USDA search returned ${data.foods?.length || 0} results`);
 
-                // Look for exact GTIN match
                 const exactMatch = data.foods?.find(food =>
                     food.gtinUpc === gtin14 ||
                     food.gtinUpc === upc.replace(/\D/g, '') ||
@@ -149,9 +374,8 @@ async function fetchFromUSDA(upc, maxRetries = RETRY_CONFIG.maxRetries) {
                 if (exactMatch) {
                     console.log(`✅ USDA exact match found: ${exactMatch.description}`);
 
-                    // Get detailed nutrition data
                     const detailResponse = await fetch(
-                        `${USDA_API_CONFIG.baseUrl}${USDA_API_CONFIG.foodEndpoint}/${exactMatch.fdcId}?api_key=${USDA_API_CONFIG.apiKey}`,
+                        `${INTERNATIONAL_ENDPOINTS.usda.baseUrl}${INTERNATIONAL_ENDPOINTS.usda.foodEndpoint}/${exactMatch.fdcId}?api_key=${INTERNATIONAL_ENDPOINTS.usda.apiKey}`,
                         { signal: controller.signal }
                     );
 
@@ -166,13 +390,12 @@ async function fetchFromUSDA(upc, maxRetries = RETRY_CONFIG.maxRetries) {
                     }
                 }
 
-                // If no exact match, try the first result if it looks similar
                 if (data.foods && data.foods.length > 0) {
                     const firstResult = data.foods[0];
                     console.log(`🔍 USDA using best match: ${firstResult.description}`);
 
                     const detailResponse = await fetch(
-                        `${USDA_API_CONFIG.baseUrl}${USDA_API_CONFIG.foodEndpoint}/${firstResult.fdcId}?api_key=${USDA_API_CONFIG.apiKey}`,
+                        `${INTERNATIONAL_ENDPOINTS.usda.baseUrl}${INTERNATIONAL_ENDPOINTS.usda.foodEndpoint}/${firstResult.fdcId}?api_key=${INTERNATIONAL_ENDPOINTS.usda.apiKey}`,
                         { signal: controller.signal }
                     );
 
@@ -194,20 +417,174 @@ async function fetchFromUSDA(upc, maxRetries = RETRY_CONFIG.maxRetries) {
         }
 
         if (attempt < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, RETRY_CONFIG.backoffMs));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
 
     return { success: false, source: 'usda' };
 }
 
-// Convert USDA nutrition data to our standard format
+// Enhanced international category mapping
+function mapCategoryInternational(categoriesTags, countryContext = null) {
+    if (!categoriesTags || !Array.isArray(categoriesTags)) return 'Other';
+
+    // Enhanced category mapping with international variants
+    const internationalCategoryMap = {
+        // International Baking & Cooking
+        'Baking & Cooking Ingredients': [
+            'en:baking-ingredients', 'en:cooking-ingredients', 'en:flour', 'en:sugar', 'en:brown-sugar',
+            'en:baking-powder', 'en:baking-soda', 'en:yeast', 'en:vanilla-extract', 'en:extracts',
+            'en:oils', 'en:cooking-oils', 'en:olive-oil', 'en:vegetable-oil', 'en:vinegar',
+            'en:breadcrumbs', 'en:panko', 'en:cornstarch', 'en:lard', 'en:shortening', 'en:honey',
+            'en:maple-syrup', 'en:molasses', 'en:cocoa-powder', 'en:chocolate-chips', 'en:food-coloring',
+            // UK/EU specific
+            'en:caster-sugar', 'en:icing-sugar', 'en:plain-flour', 'en:self-raising-flour', 'en:cornflour',
+            'en:bicarbonate-of-soda', 'en:cream-of-tartar', 'en:golden-syrup', 'en:treacle'
+        ],
+
+        // International Dairy variants
+        'Dairy': [
+            'en:dairy', 'en:milk', 'en:yogurt', 'en:butter', 'en:cream', 'en:sour-cream',
+            // UK/EU variants
+            'en:yoghurt', 'en:double-cream', 'en:single-cream', 'en:clotted-cream', 'en:crème-fraîche',
+            'en:fromage-frais', 'en:quark', 'en:skyr'
+        ],
+
+        // International Cheese varieties
+        'Cheese': [
+            'en:cheese', 'en:cheeses', 'en:cheddar', 'en:mozzarella', 'en:parmesan', 'en:cream-cheese',
+            // UK/EU specific cheeses
+            'en:stilton', 'en:wensleydale', 'en:camembert', 'en:brie', 'en:roquefort', 'en:gouda',
+            'en:edam', 'en:gruyere', 'en:emmental', 'en:feta', 'en:halloumi', 'en:mascarpone',
+            'en:ricotta', 'en:pecorino', 'en:gorgonzola'
+        ],
+
+        // Enhanced Beverages with international variants
+        'Beverages': [
+            'en:beverages', 'en:drinks', 'en:sodas', 'en:juices', 'en:water', 'en:coffee', 'en:tea', 'en:energy-drinks',
+            // UK/International variants
+            'en:squash', 'en:cordial', 'en:fizzy-drinks', 'en:soft-drinks', 'en:mineral-water', 'en:sparkling-water',
+            'en:herbal-tea', 'en:green-tea', 'en:earl-grey', 'en:builders-tea'
+        ],
+
+        // International Meat categories
+        'Fresh/Frozen Beef': ['en:beef', 'en:beef-meat', 'en:ground-beef', 'en:steaks', 'en:roasts', 'en:mince', 'en:mincemeat'],
+        'Fresh/Frozen Pork': [
+            'en:pork', 'en:pork-meat', 'en:bacon', 'en:ham', 'en:sausages', 'en:ground-pork',
+            'en:gammon', 'en:pancetta', 'en:prosciutto', 'en:chorizo', 'en:bratwurst'
+        ],
+        'Fresh/Frozen Poultry': [
+            'en:chicken', 'en:poultry', 'en:turkey', 'en:duck', 'en:chicken-meat', 'en:turkey-meat',
+            'en:goose', 'en:quail', 'en:pheasant'
+        ],
+
+        // UK/EU specific categories
+        'Ready Meals': [
+            'en:ready-meals', 'en:microwave-meals', 'en:tv-dinners', 'en:convenience-foods',
+            'en:prepared-meals', 'en:frozen-meals'
+        ],
+
+        'Biscuits & Confectionery': [
+            'en:biscuits', 'en:cookies', 'en:crackers', 'en:confectionery', 'en:sweets', 'en:candy',
+            'en:chocolate', 'en:digestives', 'en:hobnobs', 'en:custard-creams', 'en:jammy-dodgers'
+        ],
+
+        // Enhanced Canned/Preserved with international variants
+        'Canned/Jarred Foods': [
+            'en:canned-foods', 'en:jarred-foods', 'en:preserves', 'en:pickles', 'en:jams', 'en:marmalade',
+            'en:canned-beans', 'en:canned-vegetables', 'en:canned-fruit', 'en:canned-fish',
+            'en:baked-beans', 'en:mushy-peas', 'en:tinned-tomatoes'
+        ],
+
+        // Add more international-specific categories...
+        'Frozen Foods': [
+            'en:frozen-foods', 'en:frozen-vegetables', 'en:frozen-fruits', 'en:frozen-meals',
+            'en:ice-cream', 'en:frozen-desserts', 'en:frozen-chips', 'en:frozen-peas'
+        ]
+    };
+
+    // Country-specific adjustments
+    if (countryContext) {
+        switch (countryContext) {
+            case 'United Kingdom':
+            case 'Ireland':
+                // Prioritize UK-specific terms
+                if (categoriesTags.some(tag => tag.includes('biscuit'))) return 'Biscuits & Confectionery';
+                if (categoriesTags.some(tag => tag.includes('ready-meal'))) return 'Ready Meals';
+                break;
+            case 'France':
+                // French-specific handling
+                if (categoriesTags.some(tag => tag.includes('fromage'))) return 'Cheese';
+                break;
+            case 'Germany':
+                // German-specific handling
+                if (categoriesTags.some(tag => tag.includes('wurst'))) return 'Fresh/Frozen Pork';
+                break;
+        }
+    }
+
+    // Standard mapping with priority for international variants
+    for (const [ourCategory, tags] of Object.entries(internationalCategoryMap)) {
+        if (categoriesTags.some(tag =>
+            tags.some(mappedTag => tag.toLowerCase().includes(mappedTag.replace('en:', '')))
+        )) {
+            return ourCategory;
+        }
+    }
+
+    return 'Other';
+}
+
+// Enhanced product conversion with international support
+function convertUSDAToProduct(usdaResult, upc) {
+    const { data: usdaFood, searchData, isApproximateMatch } = usdaResult;
+
+    const description = usdaFood.description || searchData?.description || 'Unknown Product';
+    const brandOwner = usdaFood.brandOwner || usdaFood.brandName || '';
+
+    let productName = description;
+    let brand = brandOwner;
+
+    if (brandOwner && description.toLowerCase().startsWith(brandOwner.toLowerCase())) {
+        productName = description.substring(brandOwner.length).trim().replace(/^[,\-\s]+/, '');
+    }
+
+    return {
+        found: true,
+        upc: upc.replace(/\D/g, ''),
+        name: productName,
+        brand: brand,
+        category: mapUSDACategory(usdaFood.foodCategory?.description || usdaFood.brandedFoodCategory),
+        ingredients: usdaFood.ingredients || '',
+        image: null,
+        nutrition: processUSDANutrition(usdaFood),
+        scores: {
+            nutriscore: null,
+            nova_group: null,
+            ecoscore: null
+        },
+        allergens: [],
+        packaging: usdaFood.packageWeight ? `${usdaFood.packageWeight}g` : '',
+        quantity: usdaFood.servingSize ? `${usdaFood.servingSize} ${usdaFood.servingSizeUnit || ''}`.trim() : '',
+        stores: '',
+        countries: 'United States',
+        labels: [],
+        openFoodFactsUrl: `https://world.openfoodfacts.org/product/${upc.replace(/\D/g, '')}`,
+        usdaUrl: `https://fdc.nal.usda.gov/fdc-app.html#/food-details/${usdaFood.fdcId}/nutrients`,
+        lastModified: usdaFood.modifiedDate || usdaFood.availableDate,
+        dataSource: 'USDA FoodData Central',
+        fdcId: usdaFood.fdcId,
+        isApproximateMatch: isApproximateMatch || false
+    };
+}
+
+// Enhanced nutrition processing (keeping existing logic)
 function processUSDANutrition(usdaFood) {
     const nutrients = {};
 
     if (usdaFood.foodNutrients) {
         const nutrientMap = {
-            'Energy': ['208', '1008'], // Energy in kcal
+            'Energy': ['208', '1008'],
             'Protein': ['203'],
             'Total lipid (fat)': ['204'],
             'Carbohydrate, by difference': ['205'],
@@ -231,7 +608,6 @@ function processUSDANutrition(usdaFood) {
                                         nutrientName.toLowerCase().includes('sodium') ? 'sodium_100mg' : null;
 
                 if (key) {
-                    // Convert per 100g if needed (USDA is usually per 100g)
                     nutrients[key] = nutrient.amount;
                 }
             }
@@ -241,52 +617,7 @@ function processUSDANutrition(usdaFood) {
     return nutrients;
 }
 
-// Convert USDA food data to our product format
-function convertUSDAToProduct(usdaResult, upc) {
-    const { data: usdaFood, searchData, isApproximateMatch } = usdaResult;
-
-    // Extract brand and product name
-    const description = usdaFood.description || searchData?.description || 'Unknown Product';
-    const brandOwner = usdaFood.brandOwner || usdaFood.brandName || '';
-
-    // Parse description to separate brand and product name
-    let productName = description;
-    let brand = brandOwner;
-
-    if (brandOwner && description.toLowerCase().startsWith(brandOwner.toLowerCase())) {
-        productName = description.substring(brandOwner.length).trim().replace(/^[,\-\s]+/, '');
-    }
-
-    return {
-        found: true,
-        upc: upc.replace(/\D/g, ''),
-        name: productName,
-        brand: brand,
-        category: mapUSDACategory(usdaFood.foodCategory?.description || usdaFood.brandedFoodCategory),
-        ingredients: usdaFood.ingredients || '',
-        image: null, // USDA doesn't provide images
-        nutrition: processUSDANutrition(usdaFood),
-        scores: {
-            nutriscore: null, // USDA doesn't provide Nutri-Score
-            nova_group: null,
-            ecoscore: null
-        },
-        allergens: [], // Would need to parse from ingredients
-        packaging: usdaFood.packageWeight ? `${usdaFood.packageWeight}g` : '',
-        quantity: usdaFood.servingSize ? `${usdaFood.servingSize} ${usdaFood.servingSizeUnit || ''}`.trim() : '',
-        stores: '',
-        countries: 'United States',
-        labels: [],
-        openFoodFactsUrl: `https://world.openfoodfacts.org/product/${upc.replace(/\D/g, '')}`,
-        usdaUrl: `https://fdc.nal.usda.gov/fdc-app.html#/food-details/${usdaFood.fdcId}/nutrients`,
-        lastModified: usdaFood.modifiedDate || usdaFood.availableDate,
-        dataSource: 'USDA FoodData Central',
-        fdcId: usdaFood.fdcId,
-        isApproximateMatch: isApproximateMatch || false
-    };
-}
-
-// Map USDA categories to our categories
+// Enhanced USDA category mapping (keeping existing)
 function mapUSDACategory(usdaCategory) {
     if (!usdaCategory) return 'Other';
 
@@ -319,35 +650,47 @@ function mapUSDACategory(usdaCategory) {
     return 'Other';
 }
 
-// Fallback products for when all APIs fail
-const FALLBACK_PRODUCTS = {
+// Enhanced fallback products with international examples
+const INTERNATIONAL_FALLBACK_PRODUCTS = {
+    // US Products
     '0064144282432': {
         name: 'Campbell\'s Condensed Tomato Soup',
         brand: 'Campbell\'s',
         category: 'Soups & Soup Mixes',
-        image: null,
-        nutrition: {
-            energy_100g: 67,
-            proteins_100g: 1.8,
-            carbohydrates_100g: 13.3,
-            fat_100g: 0.9,
-            sodium_100mg: 356
-        },
+        nutrition: { energy_100g: 67, proteins_100g: 1.8, carbohydrates_100g: 13.3, fat_100g: 0.9, sodium_100mg: 356 },
         dataSource: 'fallback'
+    },
+
+    // UK Products (examples)
+    '5000169005415': {
+        name: 'Heinz Baked Beans',
+        brand: 'Heinz',
+        category: 'Canned Beans',
+        nutrition: { energy_100g: 81, proteins_100g: 4.8, carbohydrates_100g: 13.6, fat_100g: 0.6, sodium_100mg: 430 },
+        dataSource: 'fallback',
+        region: 'UK'
+    },
+
+    '5000169124819': {
+        name: 'Walkers Ready Salted Crisps',
+        brand: 'Walkers',
+        category: 'Snacks',
+        nutrition: { energy_100g: 534, proteins_100g: 6.0, carbohydrates_100g: 50.0, fat_100g: 34.0, sodium_100mg: 580 },
+        dataSource: 'fallback',
+        region: 'UK'
     }
 };
 
 export async function GET(request) {
     try {
-        // Authentication and subscription checks (keep existing logic)
         const session = await auth();
 
         if (!session?.user?.id) {
-            return NextResponse.json(
-                { error: 'Authentication required' },
-                { status: 401 }
-            );
+            console.log('GET /api/upc - No session found');
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
+
+        console.log('GET /api/upc - Session found:', session.user.email, 'source:', session.source);
 
         await connectDB();
 
@@ -356,12 +699,16 @@ export async function GET(request) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
+        // Get user's currency preference for regional optimization
+        const userCurrency = user.currencyPreferences?.currency || 'USD';
+        console.log(`💰 User currency: ${userCurrency}`);
+
         const userSubscription = {
             tier: user.getEffectiveTier(),
             status: user.subscription?.status || 'free'
         };
 
-        // Reset monthly counter if needed (keep existing logic)
+        // Reset monthly counter if needed (keeping existing logic)
         const now = new Date();
         try {
             if (!user.usageTracking ||
@@ -396,7 +743,7 @@ export async function GET(request) {
 
         const currentScans = user.usageTracking?.monthlyUPCScans || 0;
 
-        // Check usage limits
+        // Check usage limits (keeping existing logic)
         const hasCapacity = checkUsageLimit(userSubscription, FEATURE_GATES.UPC_SCANNING, currentScans);
 
         if (!hasCapacity) {
@@ -426,7 +773,11 @@ export async function GET(request) {
             return NextResponse.json({ error: 'Invalid UPC format' }, { status: 400 });
         }
 
-        // Track the scan attempt BEFORE making API calls
+        // Detect barcode format and origin
+        const barcodeInfo = detectBarcodeFormat(cleanUpc);
+        console.log(`🏷️ Barcode analysis: ${JSON.stringify(barcodeInfo)}`);
+
+        // Track the scan attempt BEFORE making API calls (keeping existing logic)
         let scanTracked = false;
         try {
             const newScanCount = currentScans + 1;
@@ -450,10 +801,11 @@ export async function GET(request) {
             console.error('❌ Error tracking UPC scan:', trackingError);
         }
 
-        console.log(`🔍 Starting multi-source UPC lookup for: ${cleanUpc}`);
+        console.log(`🔍 Starting international UPC lookup for: ${cleanUpc}`);
+        console.log(`🌍 Region context: ${barcodeInfo.country || barcodeInfo.region}, User currency: ${userCurrency}`);
 
-        // Try Open Food Facts first (usually has better product data)
-        const offResult = await fetchFromOpenFoodFacts(cleanUpc);
+        // Try Open Food Facts first with regional optimization
+        const offResult = await fetchFromOpenFoodFacts(cleanUpc, userCurrency);
 
         if (offResult.success) {
             console.log('✅ Using Open Food Facts data');
@@ -463,7 +815,7 @@ export async function GET(request) {
                 upc: cleanUpc,
                 name: product.product_name || product.product_name_en || 'Unknown Product',
                 brand: product.brands || product.brand_owner || '',
-                category: mapCategory(product.categories_tags),
+                category: mapCategoryInternational(product.categories_tags, barcodeInfo.country),
                 ingredients: product.ingredients_text || product.ingredients_text_en || '',
                 image: product.image_url || product.image_front_url || '',
                 nutrition: {
@@ -486,7 +838,13 @@ export async function GET(request) {
                 quantity: product.quantity || '',
                 openFoodFactsUrl: `https://world.openfoodfacts.org/product/${cleanUpc}`,
                 dataSource: 'Open Food Facts',
-                apiEndpoint: offResult.endpoint
+                apiEndpoint: offResult.endpoint,
+                barcodeInfo: offResult.barcodeInfo,
+                regionalMatch: offResult.regional,
+                // Enhanced international context
+                detectedCountry: barcodeInfo.country,
+                userCurrency: userCurrency,
+                currencySymbol: CURRENCY_SYMBOLS[userCurrency] || '$'
             };
 
             return NextResponse.json({
@@ -494,38 +852,59 @@ export async function GET(request) {
                 product: productInfo,
                 usageIncremented: scanTracked,
                 dataSource: 'openfoodfacts',
+                internationalContext: {
+                    barcodeOrigin: barcodeInfo.country || barcodeInfo.region,
+                    userRegion: userCurrency,
+                    regionalOptimization: offResult.regional
+                },
                 remainingScans: userSubscription.tier === 'free' ?
                     Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
             });
         }
 
-        // Try USDA as backup
-        console.log('🇺🇸 Open Food Facts failed, trying USDA...');
-        const usdaResult = await fetchFromUSDA(cleanUpc);
+        // Try USDA as backup (primarily for US products)
+        if (barcodeInfo.region === 'US' || userCurrency === 'USD') {
+            console.log('🇺🇸 Trying USDA for US product...');
+            const usdaResult = await fetchFromUSDA(cleanUpc);
 
-        if (usdaResult.success) {
-            console.log('✅ Using USDA data');
-            const productInfo = convertUSDAToProduct(usdaResult, cleanUpc);
+            if (usdaResult.success) {
+                console.log('✅ Using USDA data');
+                const productInfo = convertUSDAToProduct(usdaResult, cleanUpc);
 
-            return NextResponse.json({
-                success: true,
-                product: productInfo,
-                usageIncremented: scanTracked,
-                dataSource: 'usda',
-                isApproximateMatch: usdaResult.isApproximateMatch,
-                remainingScans: userSubscription.tier === 'free' ?
-                    Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
-            });
+                // Add international context
+                productInfo.barcodeInfo = barcodeInfo;
+                productInfo.userCurrency = userCurrency;
+                productInfo.currencySymbol = CURRENCY_SYMBOLS[userCurrency] || '$';
+
+                return NextResponse.json({
+                    success: true,
+                    product: productInfo,
+                    usageIncremented: scanTracked,
+                    dataSource: 'usda',
+                    isApproximateMatch: usdaResult.isApproximateMatch,
+                    internationalContext: {
+                        barcodeOrigin: barcodeInfo.country || barcodeInfo.region,
+                        userRegion: userCurrency,
+                        note: 'USDA database primarily covers US products'
+                    },
+                    remainingScans: userSubscription.tier === 'free' ?
+                        Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
+                });
+            }
         }
 
-        // Try fallback data
-        if (FALLBACK_PRODUCTS[cleanUpc]) {
-            console.log('📋 Using fallback data');
+        // Try enhanced fallback data with international products
+        const fallbackKey = cleanUpc;
+        if (INTERNATIONAL_FALLBACK_PRODUCTS[fallbackKey]) {
+            console.log('📋 Using enhanced international fallback data');
             const fallbackProduct = {
-                ...FALLBACK_PRODUCTS[cleanUpc],
+                ...INTERNATIONAL_FALLBACK_PRODUCTS[fallbackKey],
                 found: true,
                 upc: cleanUpc,
                 openFoodFactsUrl: `https://world.openfoodfacts.org/product/${cleanUpc}`,
+                barcodeInfo: barcodeInfo,
+                userCurrency: userCurrency,
+                currencySymbol: CURRENCY_SYMBOLS[userCurrency] || '$'
             };
 
             return NextResponse.json({
@@ -533,25 +912,36 @@ export async function GET(request) {
                 product: fallbackProduct,
                 usageIncremented: scanTracked,
                 dataSource: 'fallback',
+                internationalContext: {
+                    barcodeOrigin: barcodeInfo.country || barcodeInfo.region,
+                    userRegion: userCurrency,
+                    fallbackRegion: fallbackProduct.region || 'Global'
+                },
                 remainingScans: userSubscription.tier === 'free' ?
                     Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
             });
         }
 
-        // All sources failed
+        // All sources failed - enhanced error message with regional context
         return NextResponse.json({
             success: false,
             found: false,
-            message: 'Product not found in any database',
+            message: `Product not found in any database. This ${barcodeInfo.format} barcode appears to be from ${barcodeInfo.country || barcodeInfo.region}.`,
             upc: cleanUpc,
             usageIncremented: scanTracked,
-            searchedSources: ['Open Food Facts', 'USDA FoodData Central', 'Fallback'],
+            searchedSources: ['Open Food Facts (International)', 'USDA FoodData Central', 'Enhanced Fallback'],
+            barcodeInfo: barcodeInfo,
+            internationalContext: {
+                barcodeOrigin: barcodeInfo.country || barcodeInfo.region,
+                userRegion: userCurrency,
+                suggestions: getBarcodeRegionSuggestions(barcodeInfo, userCurrency)
+            },
             remainingScans: userSubscription.tier === 'free' ?
                 Math.max(0, 10 - (currentScans + 1)) : 'Unlimited'
         }, { status: 404 });
 
     } catch (error) {
-        console.error('❌ UPC lookup error:', error);
+        console.error('❌ Enhanced international UPC lookup error:', error);
         return NextResponse.json({
             success: false,
             error: 'Failed to lookup product information',
@@ -560,88 +950,34 @@ export async function GET(request) {
     }
 }
 
-// Your existing mapCategory function for Open Food Facts (keep as is)
-function mapCategory(categoriesTags) {
-    if (!categoriesTags || !Array.isArray(categoriesTags)) return 'Other';
+// Helper function for regional suggestions
+function getBarcodeRegionSuggestions(barcodeInfo, userCurrency) {
+    const suggestions = [];
 
-    const categoryMap = {
-        // Baking and cooking ingredients
-        'Baking & Cooking Ingredients': ['en:baking-ingredients', 'en:cooking-ingredients', 'en:flour', 'en:sugar', 'en:brown-sugar', 'en:baking-powder', 'en:baking-soda', 'en:yeast', 'en:vanilla-extract', 'en:extracts', 'en:oils', 'en:cooking-oils', 'en:olive-oil', 'en:vegetable-oil', 'en:vinegar', 'en:breadcrumbs', 'en:panko', 'en:cornstarch', 'en:lard', 'en:shortening', 'en:honey', 'en:maple-syrup', 'en:molasses', 'en:cocoa-powder', 'en:chocolate-chips', 'en:food-coloring', 'en:cooking-wine'],
-
-        // Dry goods
-        'Beans': ['en:beans', 'en:dried-beans', 'en:red-beans', 'en:pinto-beans', 'en:kidney-beans', 'en:black-beans', 'en:navy-beans', 'en:lima-beans', 'en:black-eyed-peas', 'en:chickpeas', 'en:lentils', 'en:split-peas'],
-
-        // Other categories
-        'Beverages': ['en:beverages', 'en:drinks', 'en:sodas', 'en:juices', 'en:water', 'en:coffee', 'en:tea', 'en:energy-drinks'],
-
-        'Bouillon': ['en:bouillon', 'en:bouillon-cubes', 'en:stock-cubes', 'en:broth-cubes'],
-
-        'Boxed Meals': ['en:meal-kits', 'en:hamburger-helper', 'en:boxed-dinners', 'en:mac-and-cheese', 'en:instant-meals'],
-
-        // Pantry staples
-        'Breads': ['en:bread', 'en:sandwich-bread', 'en:white-bread', 'en:wheat-bread', 'en:hotdog-buns', 'en:hamburger-buns', 'en:baguettes', 'en:french-bread', 'en:pita', 'en:pita-bread', 'en:tortillas', 'en:flour-tortillas', 'en:corn-tortillas', 'en:bagels', 'en:rolls', 'en:croissants'],
-
-        // Canned items
-        'Canned Beans': ['en:canned-beans', 'en:black-beans', 'en:kidney-beans', 'en:chickpeas', 'en:pinto-beans', 'en:navy-beans', 'en:baked-beans'],
-        'Canned Fruit': ['en:canned-fruits', 'en:canned-peaches', 'en:canned-pears', 'en:fruit-cocktail', 'en:canned-pineapple'],
-        'Canned Meals': ['en:canned-meals', 'en:canned-soup', 'en:canned-chili', 'en:canned-stew', 'en:ravioli', 'en:spaghetti'],
-        'Canned Meat': ['en:canned-meat', 'en:canned-chicken', 'en:canned-beef', 'en:canned-fish', 'en:tuna', 'en:salmon', 'en:sardines', 'en:spam'],
-        'Canned Sauces': ['en:canned-sauces', 'en:pasta-sauces', 'en:marinara', 'en:alfredo'],
-        'Canned Tomatoes': ['en:canned-tomatoes', 'en:tomato-sauce', 'en:tomato-paste', 'en:diced-tomatoes', 'en:crushed-tomatoes', 'en:tomato-puree'],
-        'Canned Vegetables': ['en:canned-vegetables', 'en:canned-corn', 'en:canned-peas', 'en:canned-carrots', 'en:canned-green-beans'],
-
-        // Dairy and eggs
-        'Cheese': ['en:cheese', 'en:cheeses', 'en:cheddar', 'en:mozzarella', 'en:parmesan', 'en:cream-cheese'],
-
-        'Condiments': ['en:condiments', 'en:ketchup', 'en:mustard', 'en:mayonnaise', 'en:salad-dressings'],
-
-        'Dairy': ['en:dairy', 'en:milk', 'en:yogurt', 'en:butter', 'en:cream', 'en:sour-cream'],
-
-        'Eggs': ['en:eggs', 'en:chicken-eggs', 'en:egg-products'],
-
-        // Fresh produce
-        'Fresh Fruits': ['en:fruits', 'en:fresh-fruits', 'en:apples', 'en:bananas', 'en:oranges', 'en:berries', 'en:citrus', 'en:tropical-fruits', 'en:stone-fruits'],
-        'Fresh Spices': ['en:fresh-herbs', 'en:fresh-spices', 'en:basil', 'en:cilantro', 'en:parsley', 'en:mint', 'en:ginger'],
-        'Fresh Vegetables': ['en:vegetables', 'en:fresh-vegetables', 'en:leafy-vegetables', 'en:root-vegetables', 'en:tomatoes', 'en:onions', 'en:carrots', 'en:potatoes', 'en:peppers', 'en:lettuce', 'en:spinach', 'en:broccoli', 'en:cauliflower'],
-
-        // Fresh/Frozen meats
-        'Fresh/Frozen Beef': ['en:beef', 'en:beef-meat', 'en:ground-beef', 'en:steaks', 'en:roasts'],
-        'Fresh/Frozen Fish & Seafood': ['en:fish', 'en:seafood', 'en:salmon', 'en:tuna', 'en:cod', 'en:tilapia', 'en:shrimp', 'en:crab', 'en:lobster', 'en:scallops', 'en:mussels', 'en:clams', 'en:fresh-fish', 'en:frozen-fish'],
-        'Fresh/Frozen Lamb': ['en:lamb', 'en:lamb-meat', 'en:mutton'],
-        'Fresh/Frozen Pork': ['en:pork', 'en:pork-meat', 'en:bacon', 'en:ham', 'en:sausages', 'en:ground-pork'],
-        'Fresh/Frozen Poultry': ['en:chicken', 'en:poultry', 'en:turkey', 'en:duck', 'en:chicken-meat', 'en:turkey-meat'],
-        'Fresh/Frozen Rabbit': ['en:rabbit', 'en:rabbit-meat'],
-        'Fresh/Frozen Venison': ['en:venison', 'en:deer', 'en:game-meat'],
-
-        // Frozen items
-        'Frozen Fruit': ['en:frozen-fruits', 'en:frozen-berries', 'en:frozen-strawberries', 'en:frozen-mango'],
-        'Frozen Vegetables': ['en:frozen-vegetables', 'en:frozen-peas', 'en:frozen-corn', 'en:frozen-broccoli', 'en:frozen-spinach'],
-
-        'Grains': ['en:cereals', 'en:rice', 'en:quinoa', 'en:oats', 'en:barley', 'en:bulgur', 'en:rice-mixes', 'en:rice-a-roni'],
-
-        'Pasta': ['en:pasta', 'en:noodles', 'en:spaghetti', 'en:macaroni', 'en:penne', 'en:linguine', 'en:fettuccine', 'en:ravioli', 'en:lasagna'],
-
-        'Seasonings': ['en:seasonings', 'en:salt', 'en:pepper', 'en:garlic-powder', 'en:onion-powder', 'en:seasoning-mixes'],
-
-        'Snacks': ['en:snacks', 'en:chips', 'en:crackers', 'en:cookies', 'en:nuts', 'en:pretzels', 'en:popcorn'],
-
-        // New category for soups
-        'Soups & Soup Mixes': ['en:soups', 'en:soup-mixes', 'en:canned-soup', 'en:instant-soup', 'en:soup-packets', 'en:ramen', 'en:instant-noodles', 'en:chicken-soup', 'en:vegetable-soup', 'en:tomato-soup', 'en:beef-soup', 'en:minestrone', 'en:cream-soups', 'en:bisque'],
-
-        'Spices': ['en:spices', 'en:cinnamon', 'en:paprika', 'en:cumin', 'en:oregano', 'en:thyme', 'en:rosemary', 'en:bay-leaves'],
-
-        'Stock/Broth': ['en:broth', 'en:stock', 'en:chicken-broth', 'en:beef-broth', 'en:vegetable-broth', 'en:bone-broth'],
-
-        'Stuffing & Sides': ['en:stuffing', 'en:stuffing-mix', 'en:instant-mashed-potatoes', 'en:mashed-potato-mix', 'en:au-gratin-potatoes', 'en:scalloped-potatoes', 'en:cornbread-mix', 'en:biscuit-mix', 'en:gravy-mix', 'en:side-dishes'],
-    };
-
-    for (const [ourCategory, tags] of Object.entries(categoryMap)) {
-        if (categoriesTags.some(tag =>
-            tags.some(mappedTag => tag.toLowerCase().includes(mappedTag.replace('en:', '')))
-        )) {
-            return ourCategory;
-        }
+    if (barcodeInfo.region !== 'US' && userCurrency === 'USD') {
+        suggestions.push('This appears to be a non-US product. Try scanning again or check if the barcode is complete.');
     }
 
-    return 'Other';
+    if (barcodeInfo.region === 'UK' && userCurrency !== 'GBP') {
+        suggestions.push('This appears to be a UK product. The item might be available in UK stores.');
+    }
+
+    if (barcodeInfo.country && !['US', 'UK', 'Canada', 'Australia'].includes(barcodeInfo.country)) {
+        suggestions.push(`This product appears to be from ${barcodeInfo.country}. Coverage may be limited for products from this region.`);
+    }
+
+    if (barcodeInfo.format === 'EAN-8') {
+        suggestions.push('This is a short EAN-8 barcode. Try the full product barcode if available.');
+    }
+
+    if (suggestions.length === 0) {
+        suggestions.push('Try adding the product manually or check if the barcode is clearly visible and complete.');
+    }
+
+    return suggestions;
+}
+
+// Enhanced category mapping function (keeping existing logic but adding international support)
+function mapCategory(categoriesTags) {
+    return mapCategoryInternational(categoriesTags);
 }

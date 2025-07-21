@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/inventory/UPCLookup.js - v13 Enhanced with usage limits and display
+// file: /src/components/inventory/UPCLookup.js - v14 Enhanced with international support and regional context
 
 import {useState, useCallback, useRef, useEffect} from 'react';
 import BarcodeScanner from './BarcodeScanner';
@@ -62,6 +62,118 @@ function standardizeNutritionData(nutrition) {
     };
 }
 
+// 🆕 NEW: International currency formatting helper
+function formatPrice(amount, currencyInfo) {
+    if (!amount || !currencyInfo) return '';
+
+    const symbol = currencyInfo.currencySymbol || '$';
+    const position = currencyInfo.currencyPosition || 'before';
+    const decimals = currencyInfo.decimalPlaces || 2;
+
+    const formattedAmount = Number(amount).toFixed(decimals);
+
+    return position === 'before'
+        ? `${symbol}${formattedAmount}`
+        : `${formattedAmount}${symbol}`;
+}
+
+// 🆕 NEW: Regional barcode analysis component
+function BarcodeAnalysisDisplay({barcodeInfo, userCurrency}) {
+    if (!barcodeInfo) return null;
+
+    return (
+        <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+            <div className="text-sm font-medium text-blue-900 mb-2">
+                🌍 Barcode Analysis
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs">
+                <div>
+                    <span className="text-blue-700">Format:</span>
+                    <span className="ml-1 font-medium">{barcodeInfo.format}</span>
+                </div>
+                {barcodeInfo.country && (
+                    <div>
+                        <span className="text-blue-700">Origin:</span>
+                        <span className="ml-1 font-medium">{barcodeInfo.country}</span>
+                    </div>
+                )}
+                {barcodeInfo.description && (
+                    <div className="col-span-2">
+                        <span className="text-blue-700">Type:</span>
+                        <span className="ml-1">{barcodeInfo.description}</span>
+                    </div>
+                )}
+            </div>
+
+            {/* Regional hints */}
+            {barcodeInfo.regionalHints && barcodeInfo.regionalHints.length > 0 && (
+                <div className="mt-2 space-y-1">
+                    {barcodeInfo.regionalHints.map((hint, i) => (
+                        <div key={i} className={`text-xs p-2 rounded ${
+                            hint.type === 'warning' ? 'bg-orange-100 text-orange-700' :
+                                hint.type === 'error' ? 'bg-red-100 text-red-700' :
+                                    'bg-blue-100 text-blue-700'
+                        }`}>
+                            {hint.message}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+// 🆕 NEW: International context display component
+function InternationalContextDisplay({internationalContext, dataSource}) {
+    if (!internationalContext) return null;
+
+    return (
+        <div className="mt-3 p-3 bg-gray-50 border border-gray-200 rounded-lg">
+            <div className="text-sm font-medium text-gray-900 mb-2">
+                🌐 International Context
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                <div>
+                    <span className="text-gray-600">User Region:</span>
+                    <span className="ml-1 font-medium">{internationalContext.userRegion}</span>
+                </div>
+                {internationalContext.barcodeOrigin && (
+                    <div>
+                        <span className="text-gray-600">Product Origin:</span>
+                        <span className="ml-1 font-medium">{internationalContext.barcodeOrigin}</span>
+                    </div>
+                )}
+                <div>
+                    <span className="text-gray-600">Database:</span>
+                    <span className="ml-1 font-medium">{dataSource}</span>
+                </div>
+                {internationalContext.regionalOptimization && (
+                    <div className="sm:col-span-2">
+                        <span
+                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                            ✅ Regional optimization applied
+                        </span>
+                    </div>
+                )}
+            </div>
+
+            {/* Suggestions */}
+            {internationalContext.suggestions && internationalContext.suggestions.length > 0 && (
+                <div className="mt-2">
+                    <div className="text-xs font-medium text-gray-700 mb-1">💡 Suggestions:</div>
+                    <div className="space-y-1">
+                        {internationalContext.suggestions.map((suggestion, i) => (
+                            <div key={i} className="text-xs text-gray-600 bg-yellow-50 p-2 rounded">
+                                {suggestion}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+}
+
 export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}) {
     const [activeTab, setActiveTab] = useState('upc'); // 'upc' or 'search'
     const [isLooking, setIsLooking] = useState(false);
@@ -99,6 +211,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [usageInfo, setUsageInfo] = useState(null);
     const [isLoadingUsage, setIsLoadingUsage] = useState(true);
 
+    // 🆕 NEW: International context state
+    const [userCurrencyInfo, setUserCurrencyInfo] = useState(null);
+    const [isLoadingCurrency, setIsLoadingCurrency] = useState(true);
+
     // FIXED: Sync local UPC state with prop changes
     useEffect(() => {
         setLocalUPC(currentUPC);
@@ -107,7 +223,45 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     // NEW: Load usage information on component mount
     useEffect(() => {
         loadUsageInfo();
+        loadUserCurrencyInfo();
     }, []);
+
+    // 🆕 NEW: Load user currency preferences for international context
+    const loadUserCurrencyInfo = async () => {
+        try {
+            setIsLoadingCurrency(true);
+            console.log('💰 Loading user currency preferences...');
+
+            const response = await apiGet('/api/user/profile');
+
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.user?.currencyPreferences) {
+                    setUserCurrencyInfo(data.user.currencyPreferences);
+                    console.log('💰 Currency preferences loaded:', data.user.currencyPreferences);
+                } else {
+                    // Default currency preferences
+                    setUserCurrencyInfo({
+                        currency: 'USD',
+                        currencySymbol: '$',
+                        currencyPosition: 'before',
+                        decimalPlaces: 2
+                    });
+                }
+            }
+        } catch (error) {
+            console.error('Failed to load currency preferences:', error);
+            // Set default currency preferences on error
+            setUserCurrencyInfo({
+                currency: 'USD',
+                currencySymbol: '$',
+                currencyPosition: 'before',
+                decimalPlaces: 2
+            });
+        } finally {
+            setIsLoadingCurrency(false);
+        }
+    };
 
     // 2. SIMPLIFIED: Immediate usage update function (now just for initial optimistic update)
     const updateUsageImmediately = (incrementBy = 1) => {
@@ -170,7 +324,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         return true;
     };
 
-// 4. ENHANCED: UPC lookup with immediate UI update
+    // 🆕 ENHANCED: UPC lookup with international context handling
     const handleUPCLookupWithImmediateUpdate = async (upc) => {
         if (!upc || upc.length < 8) return;
 
@@ -186,28 +340,39 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         setLookupResult(null);
 
         try {
-            console.log('🔍 Starting UPC lookup for:', upc);
-            const response = await apiGet(`/api/upc/lookup?upc=${encodeURIComponent(upc)}`);
+            console.log('🔍 Starting international UPC lookup for:', upc);
+            const response = await apiGet(`/api/upc?upc=${encodeURIComponent(upc)}`);
             const data = await response.json();
 
-            console.log('🔍 UPC lookup response:', {
+            console.log('🔍 International UPC lookup response:', {
                 success: data.success,
                 found: data.product?.found,
-                usageIncremented: data.usageIncremented  // Log if the API tells us usage was incremented
+                usageIncremented: data.usageIncremented,
+                dataSource: data.dataSource,
+                internationalContext: data.internationalContext
             });
 
             if (data.success && data.product.found) {
                 const standardizedNutrition = standardizeNutritionData(data.product.nutrition);
                 const enhancedProduct = {
                     ...data.product,
-                    nutrition: standardizedNutrition
+                    nutrition: standardizedNutrition,
+                    // 🆕 NEW: Add international context to product
+                    internationalContext: data.internationalContext,
+                    dataSource: data.dataSource,
+                    barcodeInfo: data.product.barcodeInfo
                 };
 
-                setLookupResult({success: true, product: enhancedProduct});
+                setLookupResult({
+                    success: true,
+                    product: enhancedProduct,
+                    internationalContext: data.internationalContext,
+                    dataSource: data.dataSource
+                });
                 onProductFound(enhancedProduct);
 
                 // FIXED: Since UPC lookup was successful, make the optimistic update permanent
-                console.log('✅ UPC lookup successful - making usage update permanent');
+                console.log('✅ International UPC lookup successful - making usage update permanent');
 
                 // Update real usage state immediately (don't wait for server)
                 setUsageInfo(prev => {
@@ -243,15 +408,21 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 }
 
             } else {
+                // Enhanced error handling with international context
+                const errorMessage = data.message || 'Product not found';
+                const contextualMessage = data.internationalContext?.suggestions?.length > 0
+                    ? `${errorMessage}. ${data.internationalContext.suggestions[0]}`
+                    : errorMessage;
+
                 setLookupResult({
                     success: false,
-                    message: data.message || 'Product not found'
+                    message: contextualMessage,
+                    internationalContext: data.internationalContext,
+                    barcodeInfo: data.barcodeInfo
                 });
 
                 if (localUPC && localUPC.length >= 8) {
                     console.log('🤖 UPC lookup failed, trying AI classification fallback...');
-
-                    // Try to extract a reasonable product name from the UPC or use a generic approach
                     const productName = `Product ${localUPC}`;
                     await performAiClassification(productName, {});
                 }
@@ -265,7 +436,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 }
             }
         } catch (error) {
-            console.error('UPC lookup error:', error);
+            console.error('International UPC lookup error:', error);
             setLookupResult({
                 success: false,
                 message: 'Error looking up product'
@@ -283,7 +454,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-// 5. ENHANCED: Text search with immediate UI update
+    // 🆕 ENHANCED: Text search with international context handling
     const performTextSearchWithImmediateUpdate = async (query, page = 1) => {
         if (!query.trim()) {
             setSearchResults([]);
@@ -303,28 +474,24 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         setShowAutocomplete(false);
 
         try {
-            console.log('🔍 Starting text search for:', query);
+            console.log('🔍 Starting international text search for:', query);
 
-            // FIXED: Use proper fetch with correct URL construction
             const params = new URLSearchParams({
                 query: query.trim(),
                 page: page.toString(),
                 page_size: '15'
             });
 
-            const response = await apiGet(`/api/upc/search?${params}`, {
-                });
+            const response = await apiGet(`/api/upc/search?${params}`);
 
-            console.log('🔍 Search response status:', response.status);
+            console.log('🔍 International search response status:', response.status);
 
-            // FIXED: Check response status before parsing
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ Search API error:', response.status, errorText);
                 throw new Error(`Search API returned ${response.status}: ${response.statusText}`);
             }
 
-            // FIXED: Proper JSON parsing with error handling
             let data;
             try {
                 const responseText = await response.text();
@@ -335,18 +502,27 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 throw new Error('Invalid response format from search API');
             }
 
-            console.log('🔍 Search response data:', {
+            console.log('🔍 International search response data:', {
                 success: data.success,
                 resultsCount: data.results?.length || 0,
-                totalResults: data.pagination?.totalResults || 0
+                totalResults: data.pagination?.totalResults || 0,
+                internationalContext: data.internationalContext
             });
 
             if (data.success) {
                 const results = data.results || [];
-                setSearchResults(results);
+
+                // 🆕 NEW: Enhance results with international context
+                const enhancedResults = results.map(result => ({
+                    ...result,
+                    internationalContext: data.internationalContext,
+                    userCurrency: data.internationalContext?.userCurrency
+                }));
+
+                setSearchResults(enhancedResults);
                 setTotalPages(data.pagination?.totalPages || Math.ceil(results.length / 15) || 1);
 
-                console.log(`✅ Search successful: ${results.length} results found`);
+                console.log(`✅ International search successful: ${results.length} results found`);
 
                 // Make the usage update permanent
                 setUsageInfo(prev => {
@@ -379,7 +555,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             }
 
         } catch (error) {
-            console.error('❌ Text search error:', error);
+            console.error('❌ International text search error:', error);
             setSearchResults([]);
             setTotalPages(0);
 
@@ -422,7 +598,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         const now = Date.now();
         if (lastProcessedBarcodeRef.current === barcode &&
             (now - lastProcessedTimeRef.current) < 30000) {
-            console.log(`Ignoring duplicate barcode "${barcode}" - processed ${(now - lastProcessedTimeRef.current)/1000}s ago`);
+            console.log(`Ignoring duplicate barcode "${barcode}" - processed ${(now - lastProcessedTimeRef.current) / 1000}s ago`);
             return;
         }
 
@@ -483,9 +659,9 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             console.log('🤖 Performing AI classification for:', productName);
 
             const response = await apiPost('/api/food/classify', {
-                    itemName: productName,
-                    productDetails: existingData.name || '',
-                    context: 'upc_lookup_fallback'
+                itemName: productName,
+                productDetails: existingData.name || '',
+                context: 'upc_lookup_fallback'
             });
 
             if (response.ok) {
@@ -515,8 +691,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         return null;
     };
 
-
-// 7. ENHANCED: Display current usage (optimistic or real)
+    // 7. ENHANCED: Display current usage (optimistic or real)
     const getCurrentUsageDisplay = () => {
         const currentUsageData = optimisticUsage || usageInfo;
 
@@ -527,7 +702,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 <div className="flex items-center justify-between">
                     <div>
                         <h4 className="text-sm font-medium text-blue-900">
-                            📊 UPC Scan Usage
+                            📊 International UPC Scan Usage
                             {isUpdatingUsage && (
                                 <span className="ml-2 text-xs text-blue-600">(Updating...)</span>
                             )}
@@ -547,6 +722,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 </>
                             )}
                         </p>
+                        {/* 🆕 NEW: Show user's region context */}
+                        {userCurrencyInfo && !isLoadingCurrency && (
+                            <p className="text-xs text-blue-600 mt-1">
+                                🌍 Optimized for {userCurrencyInfo.currency} region
+                            </p>
+                        )}
                     </div>
                     {currentUsageData.monthlyLimit !== 'unlimited' && currentUsageData.remaining <= 2 && (
                         <TouchEnhancedButton
@@ -561,7 +742,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         );
     };
 
-// 8. CLEANUP: Add cleanup for timeout
+    // 8. CLEANUP: Add cleanup for timeout
     useEffect(() => {
         return () => {
             if (usageUpdateTimeoutRef.current) {
@@ -570,9 +751,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         };
     }, []);
 
-// 9. REPLACE: Update your function calls to use the immediate update versions
-// Replace your usage display with getCurrentUsageDisplay()
-// NEW: Function to load current usage information
+    // NEW: Function to load current usage information
     const loadUsageInfo = async () => {
         try {
             setIsLoadingUsage(true);
@@ -688,7 +867,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             return;
         }
 
-        console.log('🔄 Opening barcode scanner...');
+        console.log('🔄 Opening enhanced international barcode scanner...');
         setShowScanner(true);
     };
 
@@ -703,20 +882,17 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         try {
             console.log('🔍 Starting autocomplete for:', query);
 
-            // FIXED: Use proper fetch with error handling
             const params = new URLSearchParams({
                 query: query.trim(),
                 page: '1',
                 page_size: '5'
             });
 
-            const response = await apiGet(`/api/upc/search?${params}`, {
-            });
+            const response = await apiGet(`/api/upc/search?${params}`);
 
             console.log('🔍 Autocomplete response status:', response.status);
 
             if (response.ok) {
-                // FIXED: Proper response handling
                 const responseText = await response.text();
                 let data;
 
@@ -764,14 +940,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     };
 
     const debugAPIEndpoint = () => {
-        console.log('🔍 UPC Search API Debug:', {
+        console.log('🔍 International UPC Search API Debug:', {
             currentURL: window.location.href,
             apiEndpoint: '/api/upc/search',
             fullURL: `${window.location.origin}/api/upc/search`,
-            userAgent: navigator.userAgent.substring(0, 100)
+            userAgent: navigator.userAgent.substring(0, 100),
+            userCurrency: userCurrencyInfo?.currency || 'Loading...'
         });
     };
-
 
 // Handle search input changes with better rate limiting
     const handleSearchInputChange = (e) => {
@@ -805,7 +981,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         // Debounced search
         searchTimeoutRef.current = setTimeout(() => {
             if (query.trim() && query.length >= 3) {
-                console.log('🔍 Triggering search for:', query);
+                console.log('🔍 Triggering international search for:', query);
                 setSearchPage(1);
                 performTextSearchWithImmediateUpdate(query, 1);
             }
@@ -869,7 +1045,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // Add a function to reset the barcode detection when user manually changes UPC
+// Add a function to reset the barcode detection when user manually changes UPC
     const handleUPCInput = (e) => {
         const upc = e.target.value;
 
@@ -941,7 +1117,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
     return (
         <div className="space-y-4">
-            {/* FIXED: Usage Display - Call the function properly */}
+            {/* ENHANCED: Usage Display with international context */}
             {getCurrentUsageDisplay()}
 
             {/* Tab Navigation */}
@@ -970,7 +1146,6 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                         onClick={() => {
                             setActiveTab('search');
                             setLookupResult(null);
-                            // FIXED: Don't clear local UPC when switching tabs
                             setShowAutocomplete(false);
                             setAutocompleteResults([]);
                         }}
@@ -990,7 +1165,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-                            Search by Product Name
+                            🌍 International Product Search
                         </label>
                         <div className="relative">
                             <input
@@ -1000,7 +1175,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 value={searchQuery}
                                 onChange={handleSearchInputChange}
                                 onFocus={handleSearchInputFocus}
-                                placeholder="Type product name (e.g., 'Cheerios', 'Campbell's Soup')"
+                                placeholder="Type product name (e.g., 'Cheerios', 'Heinz Baked Beans', 'Tim Tams')"
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             />
 
@@ -1013,7 +1188,8 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                     {/* Header with close button */}
                                     <div
                                         className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
-                                        <span className="text-xs font-medium text-gray-600">Quick suggestions</span>
+                                        <span
+                                            className="text-xs font-medium text-gray-600">🌍 International suggestions</span>
                                         <TouchEnhancedButton
                                             type="button"
                                             onClick={handleCloseAutocomplete}
@@ -1055,14 +1231,17 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             )}
                         </div>
 
-                        {/* Help text */}
+                        {/* Enhanced help text with international examples */}
                         <div className="mt-2 text-xs text-gray-500 space-y-1">
-                            <div>💡 <strong>Search Tips:</strong></div>
-                            <div>• Type at least 3 characters to start searching</div>
-                            <div>• Try brand + product name (e.g., "Campbell's Tomato Soup")</div>
-                            <div>• Use specific terms (e.g., "Honey Nut Cheerios" vs "cereal")</div>
-                            <div>• Results prioritize products with images for easy identification</div>
-                            <div>• Wait between searches to avoid rate limits</div>
+                            <div>💡 <strong>International Search Tips:</strong></div>
+                            <div>• Try products from your region (UK: "Walkers Crisps", EU: "Nutella", AU: "Tim Tams")
+                            </div>
+                            <div>• Include brand + product name for better results</div>
+                            <div>• Search works across global databases with regional optimization</div>
+                            <div>• Results prioritize products available in your region</div>
+                            {userCurrencyInfo && !isLoadingCurrency && (
+                                <div>• Currently optimized for {userCurrencyInfo.currency} region</div>
+                            )}
                         </div>
                     </div>
 
@@ -1070,16 +1249,16 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     {isSearching && (
                         <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                            <span className="ml-2 text-blue-700">Searching products...</span>
+                            <span className="ml-2 text-blue-700">🌍 Searching international databases...</span>
                         </div>
                     )}
 
-                    {/* Search Results */}
+                    {/* Enhanced Search Results with international context */}
                     {searchResults.length > 0 && (
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="flex items-center justify-between mb-4">
                                 <h4 className="text-lg font-medium text-gray-900">
-                                    Search Results ({searchResults.length} found)
+                                    🌍 International Search Results ({searchResults.length} found)
                                 </h4>
                                 {totalPages > 1 && (
                                     <div className="text-sm text-gray-500">
@@ -1117,6 +1296,23 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                                     <p className="text-xs text-gray-600 mb-1">{product.brand}</p>
                                                 )}
                                                 <p className="text-xs text-gray-500">{product.category}</p>
+                                                {/* 🆕 NEW: Show regional match indicator */}
+                                                {product.regionalMatch && (
+                                                    <div className="mt-1">
+                                                        <span
+                                                            className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                                            🌍 Regional match
+                                                        </span>
+                                                    </div>
+                                                )}
+                                                {/* Show price if available */}
+                                                {product.price && userCurrencyInfo && (
+                                                    <div className="mt-1">
+                                                        <span className="text-xs font-medium text-green-600">
+                                                            {formatPrice(product.price, userCurrencyInfo)}
+                                                        </span>
+                                                    </div>
+                                                )}
                                                 {product.scores?.nutriscore && (
                                                     <div className="mt-1">
                                                         <span
@@ -1164,10 +1360,17 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     {/* No results message */}
                     {searchQuery && !isSearching && searchResults.length === 0 && (
                         <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <div className="text-yellow-600 font-medium">No products found for "{searchQuery}"</div>
-                            <div className="text-sm text-yellow-600 mt-1">
-                                Try different search terms or check spelling
+                            <div className="text-yellow-600 font-medium">🌍 No international products found for
+                                "{searchQuery}"
                             </div>
+                            <div className="text-sm text-yellow-600 mt-1">
+                                Try different search terms, brand names, or check spelling
+                            </div>
+                            {userCurrencyInfo && !isLoadingCurrency && (
+                                <div className="text-xs text-yellow-600 mt-1">
+                                    Search optimized for {userCurrencyInfo.currency} region
+                                </div>
+                            )}
                         </div>
                     )}
                 </div>
@@ -1178,21 +1381,20 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
-                            UPC/Barcode
+                            🌍 International UPC/Barcode
                         </label>
 
-                        {/* MODIFIED: Input field without buttons */}
                         <input
                             type="text"
                             id="upc"
                             name="upc"
                             value={localUPC}
                             onChange={handleUPCInput}
-                            placeholder="Enter or scan UPC code"
+                            placeholder="Enter or scan international UPC/EAN code"
                             className="w-full mt-1 block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                         />
 
-                        {/* MOVED: Buttons now below the input */}
+                        {/* Enhanced buttons with international context */}
                         <div className="flex space-x-2 mt-3">
                             <TouchEnhancedButton
                                 type="button"
@@ -1201,7 +1403,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 className={`flex-1 px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
                                     cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
                                 }`}
-                                title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}
+                                title={cameraAvailable ? 'Scan international barcode with camera' : 'Camera not available on this device'}
                             >
                                 📷 {cameraAvailable ? 'Scan Barcode' : 'No Camera'}
                             </TouchEnhancedButton>
@@ -1215,7 +1417,6 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 {isLooking ? '🔍 Looking up...' : '🔍 Lookup Product'}
                             </TouchEnhancedButton>
 
-                            {/* ADD THIS THIRD BUTTON HERE */}
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={() => {
@@ -1230,14 +1431,26 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 {isAiClassifying ? '🤖 AI Analyzing...' : '🤖 AI Classify'}
                             </TouchEnhancedButton>
                         </div>
+
+                        {/* Enhanced help text with international formats */}
+                        <div className="mt-2 text-xs text-gray-500 space-y-1">
+                            <div>💡 <strong>International Barcode Support:</strong></div>
+                            <div>• UPC-A (12 digits, US/Canada): 012345678901</div>
+                            <div>• EAN-13 (13 digits, International): 1234567890123</div>
+                            <div>• EAN-8 (8 digits, Short format): 12345678</div>
+                            <div>• Auto-detects barcode origin and optimizes search</div>
+                            {userCurrencyInfo && !isLoadingCurrency && (
+                                <div>• Currently optimized for {userCurrencyInfo.currency} products</div>
+                            )}
+                        </div>
                     </div>
 
-                    {/* Scanner Component */}
+                    {/* Enhanced Scanner Component */}
                     <BarcodeScanner
                         isActive={showScanner}
                         onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
                         onClose={() => {
-                            console.log('🔄 Closing barcode scanner...');
+                            console.log('🔄 Closing international barcode scanner...');
                             setShowScanner(false);
                         }}
                     />
@@ -1248,11 +1461,11 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             {isLooking && (
                 <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
                     <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                    <span className="ml-2 text-blue-700">Looking up product...</span>
+                    <span className="ml-2 text-blue-700">🌍 Looking up international product...</span>
                 </div>
             )}
 
-            {/* Lookup Results (shared between UPC and search) */}
+            {/* 🆕 ENHANCED: Lookup Results with international context */}
             {lookupResult && (
                 <div className={`p-4 rounded-lg ${
                     lookupResult.success ? 'bg-green-50 border border-green-200' : 'bg-yellow-50 border border-yellow-200'
@@ -1260,13 +1473,20 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     {lookupResult.success ? (
                         <div>
                             <div className="flex items-center mb-3">
-                                <span className="text-green-600 font-medium">✅ Product Found!</span>
+                                <span className="text-green-600 font-medium">✅ International Product Found!</span>
                                 {hasNutrition && (
                                     <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
                                         🥗 Nutrition Available
                                     </span>
                                 )}
+                                {/* 🆕 NEW: Show data source */}
+                                {lookupResult.dataSource && (
+                                    <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                                        📊 {lookupResult.dataSource}
+                                    </span>
+                                )}
                             </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2 text-sm">
                                     <div><strong>Name:</strong> {lookupResult.product.name}</div>
@@ -1276,6 +1496,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                     <div><strong>Category:</strong> {lookupResult.product.category}</div>
                                     {lookupResult.product.quantity && (
                                         <div><strong>Size:</strong> {lookupResult.product.quantity}</div>
+                                    )}
+                                    {lookupResult.product.price && userCurrencyInfo && (
+                                        <div><strong>Price:</strong> {formatPrice(lookupResult.product.price, userCurrencyInfo)}</div>
+                                    )}
+                                    {lookupResult.product.detectedCountry && (
+                                        <div><strong>Origin:</strong> {lookupResult.product.detectedCountry}</div>
                                     )}
                                     {lookupResult.product.scores && lookupResult.product.scores.nutriscore && (
                                         <div><strong>Nutri-Score:</strong>
@@ -1308,6 +1534,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                     </div>
                                 )}
                             </div>
+
+                            {/* 🆕 NEW: Barcode Analysis Display */}
+                            {lookupResult.product.barcodeInfo && (
+                                <BarcodeAnalysisDisplay
+                                    barcodeInfo={lookupResult.product.barcodeInfo}
+                                    userCurrency={userCurrencyInfo?.currency}
+                                />
+                            )}
 
                             {/* Nutrition Section */}
                             {hasNutrition && (
@@ -1381,7 +1615,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                                 })}
                                             </div>
                                             <div className="mt-3 text-xs text-gray-500">
-                                                * Nutrition data from Open Food Facts community database
+                                                * Nutrition data from international food databases
                                             </div>
                                         </div>
                                     )}
@@ -1413,7 +1647,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 </div>
                             )}
 
-                            {/* AI Classification Results - ADD THIS ENTIRE SECTION HERE */}
+                            {/* AI Classification Results */}
                             {aiClassification && (
                                 <div className="mt-4 pt-4 border-t border-blue-200">
                                     <div className="flex items-center mb-3">
@@ -1436,13 +1670,15 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                             {aiClassification.dietary_flags.length > 0 && (
                                                 <div>
                                                     <strong>Dietary Flags:</strong>
-                                                    <div className="text-blue-700">{aiClassification.dietary_flags.join(', ')}</div>
+                                                    <div
+                                                        className="text-blue-700">{aiClassification.dietary_flags.join(', ')}</div>
                                                 </div>
                                             )}
                                             {aiClassification.allergen_warnings.length > 0 && (
                                                 <div>
                                                     <strong>Allergen Warnings:</strong>
-                                                    <div className="text-orange-700">{aiClassification.allergen_warnings.join(', ')}</div>
+                                                    <div
+                                                        className="text-orange-700">{aiClassification.allergen_warnings.join(', ')}</div>
                                                 </div>
                                             )}
                                         </div>
@@ -1455,7 +1691,6 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                             <TouchEnhancedButton
                                                 type="button"
                                                 onClick={() => {
-                                                    // Apply AI suggestions to the product
                                                     if (lookupResult?.product) {
                                                         const enhancedProduct = {
                                                             ...lookupResult.product,
@@ -1468,7 +1703,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
                                                         setLookupResult({success: true, product: enhancedProduct});
                                                         onProductFound(enhancedProduct);
-                                                        setAiClassification(null); // Hide suggestions after applying
+                                                        setAiClassification(null);
                                                     }
                                                 }}
                                                 className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
@@ -1488,6 +1723,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 </div>
                             )}
 
+                            {/* 🆕 NEW: International Context Display */}
+                            {lookupResult.internationalContext && (
+                                <InternationalContextDisplay
+                                    internationalContext={lookupResult.internationalContext}
+                                    dataSource={lookupResult.dataSource}
+                                />
+                            )}
+
                             <div className="mt-3 text-xs text-gray-500">
                                 <a
                                     href={lookupResult.product.openFoodFactsUrl}
@@ -1497,6 +1740,19 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 >
                                     View on Open Food Facts →
                                 </a>
+                                {/* 🆕 NEW: Show USDA link if available */}
+                                {lookupResult.product.usdaUrl && (
+                                    <span className="ml-3">
+                                        <a
+                                            href={lookupResult.product.usdaUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-blue-600 hover:text-blue-800"
+                                        >
+                                            View on USDA →
+                                        </a>
+                                    </span>
+                                )}
                             </div>
                         </div>
                     ) : (
@@ -1508,38 +1764,59 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 You can still add this item manually by filling out the form below, or try a different
                                 search.
                             </div>
+
+                            {/* 🆕 NEW: Show barcode analysis even for failed lookups */}
+                            {lookupResult.barcodeInfo && (
+                                <BarcodeAnalysisDisplay
+                                    barcodeInfo={lookupResult.barcodeInfo}
+                                    userCurrency={userCurrencyInfo?.currency}
+                                />
+                            )}
+
+                            {/* 🆕 NEW: Show international context for failed lookups */}
+                            {lookupResult.internationalContext && (
+                                <InternationalContextDisplay
+                                    internationalContext={lookupResult.internationalContext}
+                                    dataSource="Search failed"
+                                />
+                            )}
                         </div>
                     )}
-                    {/* AI Classification Loading - ADD THIS RIGHT AFTER THE ABOVE CLOSING )}  */}
+
+                    {/* AI Classification Loading */}
                     {isAiClassifying && (
                         <div className="mt-4 pt-4 border-t border-blue-200">
                             <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
                                 <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-blue-600"></div>
-                                <span className="ml-2 text-blue-700 text-sm">AI analyzing product...</span>
+                                <span className="ml-2 text-blue-700 text-sm">🤖 AI analyzing product...</span>
                             </div>
                         </div>
                     )}
                 </div>
             )}
 
-            {/* Usage Tips - Enhanced */}
+            {/* 🆕 ENHANCED: Usage Tips with international context */}
             <div className="text-xs text-gray-500 space-y-1">
-                <div>💡 <strong>Tips:</strong></div>
+                <div>💡 <strong>International Tips:</strong></div>
                 {activeTab === 'upc' ? (
                     <>
-                        <div>• UPC codes are usually 12-14 digits long</div>
+                        <div>• Supports UPC (US/CA), EAN-13 (Global), EAN-8 (Short) formats</div>
                         <div>• Camera scanning works best in good lighting</div>
-                        <div>• Hold your device steady when scanning</div>
+                        <div>• Auto-detects barcode region and optimizes database search</div>
+                        {userCurrencyInfo && !isLoadingCurrency && (
+                            <div>• Currently optimized for {userCurrencyInfo.currency} products and pricing</div>
+                        )}
                     </>
                 ) : (
                     <>
-                        <div>• Try specific product names for better results</div>
-                        <div>• Include brand names when known (e.g., "Campbell's Soup")</div>
-                        <div>• Results with images appear first for easier identification</div>
+                        <div>• Search includes global product databases with regional prioritization</div>
+                        <div>• UK users see UK products first, EU users see EU products first, etc.</div>
+                        <div>• Results include products from Open Food Facts international database</div>
+                        <div>• Regional products (Tim Tams, Walkers Crisps, etc.) are supported</div>
                     </>
                 )}
-                <div>• Data comes from Open Food Facts community database</div>
-                <div>• Nutrition information included when available</div>
+                <div>• Data sourced from international food databases</div>
+                <div>• Nutrition information varies by region and availability</div>
                 <div>• If not found, you can still add the item manually</div>
             </div>
         </div>
