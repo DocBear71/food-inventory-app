@@ -190,7 +190,7 @@ export default function EnhancedAIShoppingListModal({
             console.warn('⚠️ smartPriceItems is not an array:', typeof smartPriceItems);
             return {
                 items: {},
-                summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0},
+                summary: { totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0 },
                 generatedAt: new Date().toISOString()
             };
         }
@@ -1361,15 +1361,25 @@ export default function EnhancedAIShoppingListModal({
     const groupedItems = getGroupedItems();
     const config = getModeConfig();
 
-    // FIXED: Much more generous content area height and prevent infinite re-renders
+    // FIXED: Add collapsible header and footer to maximize content area
+    const [headerCollapsed, setHeaderCollapsed] = useState(false);
+    const [footerCollapsed, setFooterCollapsed] = useState(false);
+
+    // FIXED: Much larger content area with collapsible sections
     const contentStyle = {
         flex: 1,
         padding: '0.5rem',
         overflow: 'auto',
         backgroundColor: 'white',
         minHeight: 0,
-        // FIXED: Give much more space to the content area
-        maxHeight: 'calc(100vh - 200px)', // Generous space for content
+        // FIXED: Dynamic height based on collapsed state
+        maxHeight: headerCollapsed && footerCollapsed
+            ? 'calc(100vh - 120px)' // Maximum space when both collapsed
+            : headerCollapsed
+                ? 'calc(100vh - 200px)' // More space with header collapsed
+                : footerCollapsed
+                    ? 'calc(100vh - 250px)' // More space with footer collapsed
+                    : 'calc(100vh - 300px)', // Default space
         paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))'
     };
 
@@ -1555,8 +1565,7 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Budget
-                                    </div>
+                                    }}>Budget</div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1578,8 +1587,7 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Total Est.
-                                    </div>
+                                    }}>Total Est.</div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1601,8 +1609,7 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Savings
-                                    </div>
+                                    }}>Savings</div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1624,8 +1631,7 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Deals
-                                    </div>
+                                    }}>Deals</div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -2004,8 +2010,7 @@ export default function EnhancedAIShoppingListModal({
                                         fontSize: '0.8rem',
                                         color: '#d97706'
                                     }}>
-                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your
-                                        budget
+                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your budget
                                     </div>
                                 </div>
                             )}
@@ -2056,8 +2061,7 @@ export default function EnhancedAIShoppingListModal({
                                         color: '#1e40af',
                                         marginBottom: showPriceBreakdown ? '0.75rem' : '0'
                                     }}>
-                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by
-                                        shopping elsewhere
+                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by shopping elsewhere
                                     </div>
 
                                     {showPriceBreakdown && (
@@ -2521,8 +2525,7 @@ export default function EnhancedAIShoppingListModal({
                                                                         color: '#3b82f6',
                                                                         fontWeight: '500'
                                                                     }}>
-                                                                        💡 View {item.alternatives.length} cheaper
-                                                                        alternatives
+                                                                        💡 View {item.alternatives.length} cheaper alternatives
                                                                     </summary>
                                                                     <div style={{
                                                                         marginTop: '0.5rem',
@@ -2539,8 +2542,7 @@ export default function EnhancedAIShoppingListModal({
                                                                                 marginBottom: '0.5rem'
                                                                             }}>
                                                                                 <div>
-                                                                                    <span
-                                                                                        style={{fontWeight: '500'}}>{alt.name}</span>
+                                                                                    <span style={{fontWeight: '500'}}>{alt.name}</span>
                                                                                     <span style={{
                                                                                         color: '#6b7280',
                                                                                         marginLeft: '0.5rem'
@@ -2653,8 +2655,7 @@ export default function EnhancedAIShoppingListModal({
                                                                                     }}
                                                                                     title={`AI suggests moving to ${suggested}`}
                                                                                 >
-                                                                                    🤖
-                                                                                    → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
+                                                                                    🤖 → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
                                                                                 </TouchEnhancedButton>
                                                                             );
                                                                         }
@@ -2667,8 +2668,7 @@ export default function EnhancedAIShoppingListModal({
                                                         {/* Price History Button - Smart Price modes */}
                                                         {config.showPriceFeatures && priceComparison[item.ingredient || item.name]?.prices.length > 0 && (
                                                             <TouchEnhancedButton
-                                                                onClick={() => {/* Open price history modal */
-                                                                }}
+                                                                onClick={() => {/* Open price history modal */}}
                                                                 style={{
                                                                     color: '#3b82f6',
                                                                     fontSize: '0.75rem',
@@ -2692,191 +2692,220 @@ export default function EnhancedAIShoppingListModal({
                             </div>
                         )}
                     </div>
-
-                    {/* Enhanced Footer with Mode-Specific Actions */}
+                    {/* FIXED: Collapsible Footer */}
                     <div style={{
-                        padding: '0.75rem 1rem',
-                        paddingBottom: `calc(0.75rem + max(env(safe-area-inset-bottom, 8px), 8px))`,
+                        padding: footerCollapsed ? '0.5rem 1rem' : '0.75rem 1rem',
+                        paddingBottom: `calc(${footerCollapsed ? '0.5rem' : '0.75rem'} + max(env(safe-area-inset-bottom, 8px), 8px))`,
                         borderTop: '1px solid #e5e7eb',
                         backgroundColor: '#f8fafc',
                         display: 'flex',
                         flexDirection: 'column',
-                        gap: '0.75rem',
+                        gap: footerCollapsed ? '0.5rem' : '0.75rem',
                         flexShrink: 0
                     }}>
-                        {/* Primary Action Button */}
-                        <TouchEnhancedButton
-                            onClick={config.showPriceFeatures ? handleSmartSave : () => setShowSaveModal(true)}
-                            style={{
-                                width: '100%',
-                                backgroundColor: config.primaryColor,
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '8px',
-                                padding: '0.75rem',
-                                fontSize: '1rem',
-                                fontWeight: '600',
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: '0.5rem'
-                            }}
-                        >
-                            <span>💾</span>
-                            <span>Save {config.title.split(' ')[1]} List</span>
-                        </TouchEnhancedButton>
-
-                        {/* Secondary Actions */}
+                        {/* Footer Controls Row */}
                         <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: '1fr 1fr',
-                            gap: '0.5rem'
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
                         }}>
+                            {/* Primary Action Button */}
                             <TouchEnhancedButton
-                                onClick={() => {/* Start shopping mode */
-                                }}
+                                onClick={config.showPriceFeatures ? handleSmartSave : () => setShowSaveModal(true)}
                                 style={{
-                                    backgroundColor: '#3b82f6',
+                                    flex: 1,
+                                    backgroundColor: config.primaryColor,
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '0.5rem',
-                                    fontSize: '0.875rem',
+                                    borderRadius: '8px',
+                                    padding: footerCollapsed ? '0.5rem' : '0.75rem',
+                                    fontSize: footerCollapsed ? '0.875rem' : '1rem',
+                                    fontWeight: '600',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '0.25rem'
+                                    gap: '0.5rem',
+                                    marginRight: '0.75rem'
                                 }}
                             >
-                                <span>🛒</span>
-                                <span>Start Shopping</span>
+                                <span>💾</span>
+                                <span>Save {footerCollapsed ? 'List' : `${config.title.split(' ')[1]} List`}</span>
                             </TouchEnhancedButton>
 
+                            {/* Collapse Footer Button */}
                             <TouchEnhancedButton
-                                onClick={() => setShowEmailModal(true)}
+                                onClick={() => setFooterCollapsed(!footerCollapsed)}
                                 style={{
-                                    backgroundColor: '#7c3aed',
+                                    backgroundColor: footerCollapsed ? '#059669' : '#6b7280',
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: '6px',
+                                    borderRadius: '4px',
                                     padding: '0.5rem',
-                                    fontSize: '0.875rem',
+                                    fontSize: '0.7rem',
                                     cursor: 'pointer',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: '0.25rem'
+                                    fontWeight: '500',
+                                    minWidth: '60px'
                                 }}
+                                title={footerCollapsed ? 'Expand footer' : 'Collapse footer for more space'}
                             >
-                                <span>📤</span>
-                                <span>Share List</span>
+                                {footerCollapsed ? '⬆️ Show' : '⬇️ Hide'}
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* Enhanced Summary with Mode-Specific Info */}
-                        <div style={{
-                            backgroundColor: 'white',
-                            borderRadius: '8px',
-                            padding: '0.75rem',
-                            border: '1px solid #e5e7eb'
-                        }}>
-                            <div style={{
-                                display: 'grid',
-                                gridTemplateColumns: '1fr 1fr',
-                                gap: '0.75rem',
-                                fontSize: '0.875rem'
-                            }}>
-                                <div>
-                                    <div style={{color: '#6b7280'}}>Selected Items:</div>
-                                    <div style={{fontWeight: '600', color: '#111827'}}>{stats.totalItems} items</div>
-                                </div>
-                                <div>
-                                    <div style={{color: '#6b7280'}}>Checked Off:</div>
-                                    <div style={{fontWeight: '600', color: '#111827'}}>{stats.purchased} completed</div>
-                                </div>
-
-                                {config.showPriceFeatures && (
-                                    <>
-                                        <div>
-                                            <div style={{color: '#6b7280'}}>Total Cost:</div>
-                                            <div style={{
-                                                fontWeight: '600',
-                                                color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'
-                                            }}>
-                                                {formatPrice(budgetTracking.current)}
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <div style={{color: '#6b7280'}}>Potential Savings:</div>
-                                            <div style={{fontWeight: '600', color: '#16a34a'}}>
-                                                {formatPrice(priceAnalysis.totalSavings || 0)}
-                                            </div>
-                                        </div>
-                                    </>
-                                )}
-                            </div>
-
-                            {/* Budget Progress Bar - Smart Price modes */}
-                            {config.showPriceFeatures && budgetTracking.limit && (
+                        {/* Expandable Footer Content */}
+                        {!footerCollapsed && (
+                            <>
+                                {/* Secondary Actions */}
                                 <div style={{
-                                    marginTop: '0.75rem',
-                                    paddingTop: '0.75rem',
-                                    borderTop: '1px solid #e5e7eb'
+                                    display: 'grid',
+                                    gridTemplateColumns: '1fr 1fr',
+                                    gap: '0.5rem'
+                                }}>
+                                    <TouchEnhancedButton
+                                        onClick={() => {/* Start shopping mode */}}
+                                        style={{
+                                            backgroundColor: '#3b82f6',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            padding: '0.5rem',
+                                            fontSize: '0.875rem',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '0.25rem'
+                                        }}
+                                    >
+                                        <span>🛒</span>
+                                        <span>Start Shopping</span>
+                                    </TouchEnhancedButton>
+
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowEmailModal(true)}
+                                        style={{
+                                            backgroundColor: '#7c3aed',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            padding: '0.5rem',
+                                            fontSize: '0.875rem',
+                                            cursor: 'pointer',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            gap: '0.25rem'
+                                        }}
+                                    >
+                                        <span>📤</span>
+                                        <span>Share List</span>
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                {/* Enhanced Summary with Mode-Specific Info */}
+                                <div style={{
+                                    backgroundColor: 'white',
+                                    borderRadius: '8px',
+                                    padding: '0.75rem',
+                                    border: '1px solid #e5e7eb'
                                 }}>
                                     <div style={{
-                                        display: 'flex',
-                                        justifyContent: 'space-between',
-                                        fontSize: '0.875rem',
-                                        marginBottom: '0.5rem'
+                                        display: 'grid',
+                                        gridTemplateColumns: '1fr 1fr',
+                                        gap: '0.75rem',
+                                        fontSize: '0.875rem'
                                     }}>
-                                        <span style={{color: '#6b7280'}}>Budget Status:</span>
-                                        <span style={{
-                                            fontWeight: '600',
-                                            color: budgetTracking.remaining >= 0 ? '#16a34a' : '#dc2626'
-                                        }}>
-                                            {budgetTracking.remaining >= 0 ? 'Under' : 'Over'} by {formatPrice(Math.abs(budgetTracking.remaining))}
-                                        </span>
+                                        <div>
+                                            <div style={{color: '#6b7280'}}>Selected Items:</div>
+                                            <div style={{fontWeight: '600', color: '#111827'}}>{stats.totalItems} items</div>
+                                        </div>
+                                        <div>
+                                            <div style={{color: '#6b7280'}}>Checked Off:</div>
+                                            <div style={{fontWeight: '600', color: '#111827'}}>{stats.purchased} completed</div>
+                                        </div>
+
+                                        {config.showPriceFeatures && (
+                                            <>
+                                                <div>
+                                                    <div style={{color: '#6b7280'}}>Total Cost:</div>
+                                                    <div style={{
+                                                        fontWeight: '600',
+                                                        color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'
+                                                    }}>
+                                                        {formatPrice(budgetTracking.current)}
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <div style={{color: '#6b7280'}}>Potential Savings:</div>
+                                                    <div style={{fontWeight: '600', color: '#16a34a'}}>
+                                                        {formatPrice(priceAnalysis.totalSavings || 0)}
+                                                    </div>
+                                                </div>
+                                            </>
+                                        )}
                                     </div>
-                                    <div style={{
-                                        width: '100%',
-                                        height: '0.5rem',
-                                        backgroundColor: '#e5e7eb',
-                                        borderRadius: '0.25rem',
-                                        overflow: 'hidden'
-                                    }}>
-                                        <div
-                                            style={{
-                                                height: '100%',
-                                                width: `${Math.min(100, (budgetTracking.current / budgetTracking.limit) * 100)}%`,
-                                                backgroundColor: budgetTracking.current <= budgetTracking.limit ? '#16a34a' : '#dc2626',
-                                                transition: 'width 0.3s ease'
-                                            }}
-                                        ></div>
+
+                                    {/* Budget Progress Bar - Smart Price modes */}
+                                    {config.showPriceFeatures && budgetTracking.limit && (
+                                        <div style={{
+                                            marginTop: '0.75rem',
+                                            paddingTop: '0.75rem',
+                                            borderTop: '1px solid #e5e7eb'
+                                        }}>
+                                            <div style={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                fontSize: '0.875rem',
+                                                marginBottom: '0.5rem'
+                                            }}>
+                                                <span style={{color: '#6b7280'}}>Budget Status:</span>
+                                                <span style={{
+                                                    fontWeight: '600',
+                                                    color: budgetTracking.remaining >= 0 ? '#16a34a' : '#dc2626'
+                                                }}>
+                                                    {budgetTracking.remaining >= 0 ? 'Under' : 'Over'} by {formatPrice(Math.abs(budgetTracking.remaining))}
+                                                </span>
+                                            </div>
+                                            <div style={{
+                                                width: '100%',
+                                                height: '0.5rem',
+                                                backgroundColor: '#e5e7eb',
+                                                borderRadius: '0.25rem',
+                                                overflow: 'hidden'
+                                            }}>
+                                                <div
+                                                    style={{
+                                                        height: '100%',
+                                                        width: `${Math.min(100, (budgetTracking.current / budgetTracking.limit) * 100)}%`,
+                                                        backgroundColor: budgetTracking.current <= budgetTracking.limit ? '#16a34a' : '#dc2626',
+                                                        transition: 'width 0.3s ease'
+                                                    }}
+                                                ></div>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Footer Info */}
+                                <div style={{
+                                    fontSize: '0.7rem',
+                                    color: '#6b7280',
+                                    textAlign: 'center'
+                                }}>
+                                    {normalizedList.generatedAt && (
+                                        <div>Generated {new Date(normalizedList.generatedAt).toLocaleString()}</div>
+                                    )}
+                                    <div style={{marginTop: '0.25rem'}}>
+                                        🏪 Store: {selectedStore || 'Not selected'}
+                                        {aiMode === 'ai-optimized' && aiInsights && (
+                                            <span style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
+                                        )}
+                                        <span style={{color: config.primaryColor}}> • {config.title}</span>
                                     </div>
                                 </div>
-                            )}
-                        </div>
-
-                        {/* Footer Info */}
-                        <div style={{
-                            fontSize: '0.7rem',
-                            color: '#6b7280',
-                            textAlign: 'center'
-                        }}>
-                            {normalizedList.generatedAt && (
-                                <div>Generated {new Date(normalizedList.generatedAt).toLocaleString()}</div>
-                            )}
-                            <div style={{marginTop: '0.25rem'}}>
-                                🏪 Store: {selectedStore || 'Not selected'}
-                                {aiMode === 'ai-optimized' && aiInsights && (
-                                    <span
-                                        style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
-                                )}
-                                <span style={{color: config.primaryColor}}> • {config.title}</span>
-                            </div>
-                        </div>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>
@@ -2966,8 +2995,7 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Full-featured shopping with AI route optimization, smart categorization, voice
-                                    input, and advanced organization tools.
+                                    Full-featured shopping with AI route optimization, smart categorization, voice input, and advanced organization tools.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
@@ -3024,8 +3052,7 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and
-                                    savings recommendations.
+                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and savings recommendations.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
@@ -3092,8 +3119,7 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    The complete shopping experience combining AI optimization with price intelligence
-                                    for maximum savings and efficiency.
+                                    The complete shopping experience combining AI optimization with price intelligence for maximum savings and efficiency.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
