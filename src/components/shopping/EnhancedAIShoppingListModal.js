@@ -179,16 +179,33 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // FIXED: Better conversion logic to prevent quantity duplication
+    // FIXED: Better conversion logic to prevent quantity duplication and infinite loops
     const convertSmartPriceToEnhanced = (smartPriceItems) => {
+        console.log('🔄 Converting smart price items:', smartPriceItems.length);
+
         const items = {};
 
+        // Handle case where smartPriceItems might be malformed
+        if (!Array.isArray(smartPriceItems)) {
+            console.warn('⚠️ smartPriceItems is not an array:', typeof smartPriceItems);
+            return {
+                items: {},
+                summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0},
+                generatedAt: new Date().toISOString()
+            };
+        }
+
         smartPriceItems.forEach((item, index) => {
+            if (!item) {
+                console.warn(`⚠️ Skipping null/undefined item at index ${index}`);
+                return;
+            }
+
             let processedItem;
 
             if (typeof item === 'string') {
                 processedItem = {
-                    id: `item-${index}`,
+                    id: `item-${index}-${Date.now()}`,
                     name: item,
                     ingredient: item,
                     checked: false,
@@ -202,11 +219,11 @@ export default function EnhancedAIShoppingListModal({
                     alternatives: [],
                     category: getAISuggestedCategory(item)
                 };
-            } else {
+            } else if (typeof item === 'object') {
                 processedItem = {
-                    id: item.id || `item-${index}`,
-                    name: item.name || item.ingredient,
-                    ingredient: item.ingredient || item.name,
+                    id: item.id || `item-${index}-${Date.now()}`,
+                    name: item.name || item.ingredient || 'Unknown Item',
+                    ingredient: item.ingredient || item.name || 'Unknown Item',
                     checked: item.checked || false,
                     selected: item.selected !== false,
                     // FIXED: Don't duplicate quantity/amount - use one or the other
@@ -218,18 +235,27 @@ export default function EnhancedAIShoppingListModal({
                     dealStatus: item.dealStatus || item.priceInfo?.dealStatus || 'normal',
                     alternatives: item.alternatives || item.priceInfo?.alternatives || [],
                     recipes: item.recipes || [],
-                    category: item.category || getAISuggestedCategory(item.name || item.ingredient),
+                    category: item.category || getAISuggestedCategory(item.name || item.ingredient || 'Unknown Item'),
                     inInventory: item.inInventory || false,
                     inventoryItem: item.inventoryItem || null
                 };
+            } else {
+                console.warn(`⚠️ Skipping invalid item type at index ${index}:`, typeof item);
+                return;
             }
 
-            // FIXED: Use actual category name, not index
-            const categoryName = processedItem.category || 'Other';
-            if (!items[categoryName]) items[categoryName] = [];
+            // FIXED: Use actual category name, not index - validate category name
+            const categoryName = processedItem.category && typeof processedItem.category === 'string'
+                ? processedItem.category
+                : 'Other';
+
+            if (!items[categoryName]) {
+                items[categoryName] = [];
+            }
             items[categoryName].push(processedItem);
         });
 
+        console.log('✅ Conversion complete. Categories:', Object.keys(items));
         return {
             items,
             summary: {
@@ -1108,7 +1134,7 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // Normalize shopping list structure - FIXED
+    // FIXED: Normalize shopping list structure with better error handling to prevent infinite loops
     const normalizeShoppingList = (list) => {
         const listToUse = list || currentShoppingList;
         if (!listToUse) return {items: {}, summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}};
@@ -1118,18 +1144,51 @@ export default function EnhancedAIShoppingListModal({
 
         if (listToUse.items) {
             if (Array.isArray(listToUse.items)) {
-                // Convert array to categorized object
-                listToUse.items.forEach(item => {
-                    const category = item.category || 'Other';
+                // Case 1: Items is a flat array - group by category
+                console.log('📋 Normalizing flat array of items');
+                listToUse.items.forEach((item, index) => {
+                    if (!item || typeof item !== 'object') {
+                        console.warn(`⚠️ Skipping invalid item at index ${index}:`, item);
+                        return;
+                    }
+
+                    const category = (item.category && typeof item.category === 'string') ? item.category : 'Other';
                     if (!normalizedItems[category]) {
                         normalizedItems[category] = [];
                     }
-                    normalizedItems[category].push(item);
+                    normalizedItems[category].push({
+                        ...item,
+                        id: item.id || `normalized-${index}-${Date.now()}`
+                    });
                 });
-            } else if (typeof listToUse.items === 'object') {
-                normalizedItems = listToUse.items;
+            } else if (typeof listToUse.items === 'object' && listToUse.items !== null) {
+                // Case 2: Items is already an object with categories
+                console.log('📂 Normalizing categorized items object');
+                Object.entries(listToUse.items).forEach(([category, categoryItems]) => {
+                    // FIXED: Validate category name to prevent numeric indices
+                    const validCategory = (typeof category === 'string' && category !== 'undefined') ? category : 'Other';
+
+                    if (Array.isArray(categoryItems)) {
+                        // Normal case: category contains array of items
+                        normalizedItems[validCategory] = categoryItems.filter(item =>
+                            item && typeof item === 'object' && (item.ingredient || item.name)
+                        );
+                    } else if (categoryItems && typeof categoryItems === 'object' && (categoryItems.ingredient || categoryItems.name)) {
+                        // Edge case: category contains single item object - wrap in array
+                        normalizedItems[validCategory] = [categoryItems];
+                    } else {
+                        console.warn(`⚠️ Skipping invalid category "${category}" with data:`, typeof categoryItems);
+                    }
+                });
             }
         }
+
+        // Clean up any empty categories
+        Object.keys(normalizedItems).forEach(category => {
+            if (!Array.isArray(normalizedItems[category]) || normalizedItems[category].length === 0) {
+                delete normalizedItems[category];
+            }
+        });
 
         return {
             items: normalizedItems,
@@ -1302,15 +1361,15 @@ export default function EnhancedAIShoppingListModal({
     const groupedItems = getGroupedItems();
     const config = getModeConfig();
 
-    // FIXED: Much more generous content area height
+    // FIXED: Much more generous content area height and prevent infinite re-renders
     const contentStyle = {
         flex: 1,
         padding: '0.5rem',
         overflow: 'auto',
         backgroundColor: 'white',
         minHeight: 0,
-        // FIXED: Much larger scrollable area - removed restrictive maxHeight
-        height: '100%',
+        // FIXED: Give much more space to the content area
+        maxHeight: 'calc(100vh - 200px)', // Generous space for content
         paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))'
     };
 
@@ -1496,7 +1555,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Budget</div>
+                                    }}>Budget
+                                    </div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1518,7 +1578,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Total Est.</div>
+                                    }}>Total Est.
+                                    </div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1540,7 +1601,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Savings</div>
+                                    }}>Savings
+                                    </div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1562,7 +1624,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Deals</div>
+                                    }}>Deals
+                                    </div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1941,7 +2004,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontSize: '0.8rem',
                                         color: '#d97706'
                                     }}>
-                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your budget
+                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your
+                                        budget
                                     </div>
                                 </div>
                             )}
@@ -1992,7 +2056,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: '#1e40af',
                                         marginBottom: showPriceBreakdown ? '0.75rem' : '0'
                                     }}>
-                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by shopping elsewhere
+                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by
+                                        shopping elsewhere
                                     </div>
 
                                     {showPriceBreakdown && (
@@ -2456,7 +2521,8 @@ export default function EnhancedAIShoppingListModal({
                                                                         color: '#3b82f6',
                                                                         fontWeight: '500'
                                                                     }}>
-                                                                        💡 View {item.alternatives.length} cheaper alternatives
+                                                                        💡 View {item.alternatives.length} cheaper
+                                                                        alternatives
                                                                     </summary>
                                                                     <div style={{
                                                                         marginTop: '0.5rem',
@@ -2473,7 +2539,8 @@ export default function EnhancedAIShoppingListModal({
                                                                                 marginBottom: '0.5rem'
                                                                             }}>
                                                                                 <div>
-                                                                                    <span style={{fontWeight: '500'}}>{alt.name}</span>
+                                                                                    <span
+                                                                                        style={{fontWeight: '500'}}>{alt.name}</span>
                                                                                     <span style={{
                                                                                         color: '#6b7280',
                                                                                         marginLeft: '0.5rem'
@@ -2586,7 +2653,8 @@ export default function EnhancedAIShoppingListModal({
                                                                                     }}
                                                                                     title={`AI suggests moving to ${suggested}`}
                                                                                 >
-                                                                                    🤖 → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
+                                                                                    🤖
+                                                                                    → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
                                                                                 </TouchEnhancedButton>
                                                                             );
                                                                         }
@@ -2599,7 +2667,8 @@ export default function EnhancedAIShoppingListModal({
                                                         {/* Price History Button - Smart Price modes */}
                                                         {config.showPriceFeatures && priceComparison[item.ingredient || item.name]?.prices.length > 0 && (
                                                             <TouchEnhancedButton
-                                                                onClick={() => {/* Open price history modal */}}
+                                                                onClick={() => {/* Open price history modal */
+                                                                }}
                                                                 style={{
                                                                     color: '#3b82f6',
                                                                     fontSize: '0.75rem',
@@ -2665,7 +2734,8 @@ export default function EnhancedAIShoppingListModal({
                             gap: '0.5rem'
                         }}>
                             <TouchEnhancedButton
-                                onClick={() => {/* Start shopping mode */}}
+                                onClick={() => {/* Start shopping mode */
+                                }}
                                 style={{
                                     backgroundColor: '#3b82f6',
                                     color: 'white',
@@ -2801,7 +2871,8 @@ export default function EnhancedAIShoppingListModal({
                             <div style={{marginTop: '0.25rem'}}>
                                 🏪 Store: {selectedStore || 'Not selected'}
                                 {aiMode === 'ai-optimized' && aiInsights && (
-                                    <span style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
+                                    <span
+                                        style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
                                 )}
                                 <span style={{color: config.primaryColor}}> • {config.title}</span>
                             </div>
@@ -2895,7 +2966,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Full-featured shopping with AI route optimization, smart categorization, voice input, and advanced organization tools.
+                                    Full-featured shopping with AI route optimization, smart categorization, voice
+                                    input, and advanced organization tools.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
@@ -2952,7 +3024,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and savings recommendations.
+                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and
+                                    savings recommendations.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
@@ -3019,7 +3092,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    The complete shopping experience combining AI optimization with price intelligence for maximum savings and efficiency.
+                                    The complete shopping experience combining AI optimization with price intelligence
+                                    for maximum savings and efficiency.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',

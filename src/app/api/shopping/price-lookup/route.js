@@ -1,4 +1,4 @@
-// file: /src/app/api/shopping/price-lookup/route.js v1 - Smart price lookup for shopping lists
+// file: /src/app/api/shopping/price-lookup/route.js v2 - Fixed toLowerCase error and improved error handling
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
@@ -26,11 +26,18 @@ export async function GET(request) {
         // Get user's inventory to find price data
         const inventory = await UserInventory.findOne({ userId: session.user.id });
 
-        // Find matching items in user's inventory
-        const matchingItems = inventory?.items?.filter(item =>
-            item.name.toLowerCase().includes(itemName.toLowerCase()) ||
-            itemName.toLowerCase().includes(item.name.toLowerCase())
-        ) || [];
+        // FIXED: Add safety checks for item.name before calling toLowerCase()
+        const matchingItems = inventory?.items?.filter(item => {
+            if (!item || !item.name || typeof item.name !== 'string') {
+                return false;
+            }
+
+            const itemNameLower = item.name.toLowerCase();
+            const searchItemLower = itemName.toLowerCase();
+
+            return itemNameLower.includes(searchItemLower) ||
+                searchItemLower.includes(itemNameLower);
+        }) || [];
 
         // Aggregate all price data from matching items
         let allPrices = [];
@@ -40,6 +47,7 @@ export async function GET(request) {
         if (matchingItems.length > 0) {
             // Use the best matching item (exact match preferred)
             const exactMatch = matchingItems.find(item =>
+                item.name && typeof item.name === 'string' &&
                 item.name.toLowerCase() === itemName.toLowerCase()
             );
 
@@ -75,12 +83,15 @@ export async function GET(request) {
             );
         }
 
-        // Filter by preferred store if specified
+        // FIXED: Add safety check for store property before filtering
         let storeFilteredPrices = allPrices;
         if (preferredStore && preferredStore !== '') {
-            storeFilteredPrices = allPrices.filter(price =>
-                price.store.toLowerCase().includes(preferredStore.toLowerCase())
-            );
+            storeFilteredPrices = allPrices.filter(price => {
+                if (!price || !price.store || typeof price.store !== 'string') {
+                    return false;
+                }
+                return price.store.toLowerCase().includes(preferredStore.toLowerCase());
+            });
         }
 
         // Calculate price statistics
@@ -127,9 +138,14 @@ async function findSimilarItems(itemName, userId) {
         const searchTerms = itemName.toLowerCase().split(' ');
 
         const similarItems = inventory.items.filter(item => {
+            // FIXED: Add safety checks for item.name
+            if (!item || !item.name || typeof item.name !== 'string') {
+                return false;
+            }
+
             const itemNameLower = item.name.toLowerCase();
             return searchTerms.some(term =>
-                itemNameLower.includes(term) && term.length > 2
+                term.length > 2 && itemNameLower.includes(term)
             );
         });
 
@@ -187,6 +203,11 @@ function calculateStoreComparison(prices) {
     const storeData = {};
 
     prices.forEach(price => {
+        // FIXED: Add safety check for store property
+        if (!price || !price.store || typeof price.store !== 'string') {
+            return;
+        }
+
         if (!storeData[price.store]) {
             storeData[price.store] = {
                 store: price.store,
@@ -281,8 +302,12 @@ async function getStoreRecommendations(prices, preferredStore, userId, radius) {
 
         const storeData = {};
 
-        // Group prices by store
+        // Group prices by store with safety checks
         prices.forEach(price => {
+            if (!price || !price.store || typeof price.store !== 'string') {
+                return;
+            }
+
             if (!storeData[price.store]) {
                 storeData[price.store] = {
                     store: price.store,
@@ -341,9 +366,10 @@ export async function POST(request) {
 
         await connectDB();
 
-        // Find matching inventory item
+        // Find matching inventory item with safety checks
         const inventory = await UserInventory.findOne({ userId: session.user.id });
         const matchingItem = inventory?.items?.find(item =>
+            item && item.name && typeof item.name === 'string' &&
             item.name.toLowerCase() === itemName.toLowerCase()
         );
 
