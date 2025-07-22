@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/ShoppingListGenerator.js v11 - Shopping list generation with price optimization
+// file: /src/components/meal-planning/ShoppingListGenerator.js v12 - Fixed undefined property access in price enhancement
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -152,23 +152,43 @@ export default function EnhancedShoppingListGenerator({
         }
     };
 
+    // FIXED: Added proper null/undefined checks to prevent toLowerCase() errors
     const enhanceShoppingListWithPrices = (baseList, optimization) => {
         // Enhance the shopping list with price optimization data
         const enhancedItems = baseList.items.map(item => {
-            // Find corresponding optimized item
-            const optimizedItem = optimization.items.find(opt =>
-                (opt.name.toLowerCase() === item.ingredient.toLowerCase()) ||
-                (item.ingredient.toLowerCase().includes(opt.name.toLowerCase()))
-            );
+            // FIXED: Add safety checks for undefined/null values
+            if (!item || !item.ingredient) {
+                console.warn('Invalid item found in shopping list:', item);
+                return item;
+            }
+
+            // FIXED: Ensure optimization has items array and check for undefined names
+            if (!optimization || !optimization.items || !Array.isArray(optimization.items)) {
+                console.warn('Invalid optimization data:', optimization);
+                return item;
+            }
+
+            // Find corresponding optimized item with safe property access
+            const optimizedItem = optimization.items.find(opt => {
+                // FIXED: Check if opt and required properties exist before calling toLowerCase()
+                if (!opt || !opt.name || !item.ingredient) {
+                    return false;
+                }
+
+                const optName = opt.name.toLowerCase();
+                const itemIngredient = item.ingredient.toLowerCase();
+
+                return optName === itemIngredient || itemIngredient.includes(optName);
+            });
 
             if (optimizedItem) {
                 return {
                     ...item,
                     priceInfo: {
-                        bestPrice: optimizedItem.bestPrice,
-                        alternatives: optimizedItem.alternatives,
-                        estimatedPrice: optimizedItem.estimatedPrice,
-                        dealStatus: optimizedItem.bestPrice?.savings > 0 ? 'deal' : 'normal'
+                        bestPrice: optimizedItem.bestPrice || null,
+                        alternatives: optimizedItem.alternatives || [],
+                        estimatedPrice: optimizedItem.estimatedPrice || 0,
+                        dealStatus: (optimizedItem.bestPrice?.savings || 0) > 0 ? 'deal' : 'normal'
                     }
                 };
             }
@@ -181,9 +201,9 @@ export default function EnhancedShoppingListGenerator({
             items: enhancedItems,
             optimization: optimization,
             priceOptimized: true,
-            totalEstimatedCost: optimization.totalCost,
-            totalSavings: optimization.totalSavings,
-            storeRecommendations: optimization.storeRecommendations
+            totalEstimatedCost: optimization.totalCost || 0,
+            totalSavings: optimization.totalSavings || 0,
+            storeRecommendations: optimization.storeRecommendations || []
         };
     };
 
