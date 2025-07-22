@@ -14,7 +14,6 @@ import {ShoppingListTotalsCalculator} from '@/lib/shoppingListTotals';
 import {VoiceInput} from '@/components/mobile/VoiceInput';
 import {apiPost, apiGet} from '@/lib/api-config';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
-import {NextResponse} from "next/server";
 
 export default function EnhancedAIShoppingListModal({
                                                         isOpen,
@@ -1140,13 +1139,6 @@ export default function EnhancedAIShoppingListModal({
 
     const normalizedList = normalizeShoppingList();
 
-    // Item interaction handlers
-    const handleItemToggle = (itemKey) => {
-        setPurchasedItems(prev => ({
-            ...prev,
-            [itemKey]: !prev[itemKey]
-        }));
-    };
 
     const markAllAsPurchased = () => {
         if (!normalizedList.items) return;
@@ -1195,6 +1187,12 @@ export default function EnhancedAIShoppingListModal({
 
     // Filter items based on current filter
     const getFilteredItems = (items) => {
+        // FIXED: Ensure items is always an array before processing
+        if (!Array.isArray(items)) {
+            console.warn('getFilteredItems received non-array:', typeof items, items);
+            return [];
+        }
+
         const itemsWithStatus = addPurchasedStatus(items);
 
         switch (filter) {
@@ -1215,7 +1213,7 @@ export default function EnhancedAIShoppingListModal({
             return aiOptimization.optimizedRoute.reduce((grouped, section) => {
                 const sectionItems = [];
                 section.categories.forEach(category => {
-                    if (normalizedList.items[category]) {
+                    if (normalizedList.items[category] && Array.isArray(normalizedList.items[category])) {
                         const filtered = getFilteredItems(normalizedList.items[category]);
                         sectionItems.push(...filtered);
                     }
@@ -1228,14 +1226,54 @@ export default function EnhancedAIShoppingListModal({
             }, {});
         } else {
             const grouped = {};
-            Object.entries(normalizedList.items).forEach(([category, items]) => {
-                const filtered = getFilteredItems(items);
-                if (filtered.length > 0) {
-                    grouped[category] = filtered;
-                }
-            });
+
+            // FIXED: Ensure we're working with the correct data structure
+            if (normalizedList.items && typeof normalizedList.items === 'object') {
+                Object.entries(normalizedList.items).forEach(([category, items]) => {
+                    // FIXED: Only process if items is an array
+                    if (Array.isArray(items)) {
+                        const filtered = getFilteredItems(items);
+                        if (filtered.length > 0) {
+                            grouped[category] = filtered;
+                        }
+                    } else {
+                        console.warn(`Category "${category}" contains non-array items:`, items);
+                    }
+                });
+            }
+
             return grouped;
         }
+    };
+
+    const contentStyle = {
+        flex: 1,
+        padding: '0.5rem', // Reduced padding
+        overflow: 'auto',
+        backgroundColor: 'white',
+        minHeight: 0,
+        // FIXED: Better mobile optimization
+        maxHeight: config.showPriceFeatures ?
+            'calc(100vh - 320px)' :  // Less space when price features are shown
+            'calc(100vh - 250px)',   // More space for basic mode
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
+    };
+
+    const priceSummaryStyle = {
+        padding: '0.5rem 1rem', // Reduced padding
+        backgroundColor: '#f8fafc',
+        borderBottom: '1px solid #e5e7eb',
+        flexShrink: 0
+    };
+
+// Fix for the price optimization summary - make it collapsible
+    const optimizationSummaryStyle = {
+        padding: '0.5rem 1rem', // Reduced padding
+        backgroundColor: '#f8fafc',
+        borderBottom: '1px solid #e5e7eb',
+        flexShrink: 0,
+        maxHeight: showOptimizationDetails ? '200px' : '60px', // Collapsible
+        overflow: 'auto'
     };
 
     // Calculate statistics
@@ -1261,9 +1299,28 @@ export default function EnhancedAIShoppingListModal({
         setShowStoreSelector(false);
         loadCustomCategories();
 
-        // Auto-optimize if in price mode
+        // Auto-optimize if in price mode - but don't let errors close the modal
         if ((shoppingMode === 'smart-price' || shoppingMode === 'unified') && currentShoppingList) {
-            setTimeout(() => optimizeShoppingList(), 500);
+            setTimeout(() => {
+                try {
+                    optimizeShoppingList();
+                } catch (error) {
+                    console.error('Error in auto-optimization:', error);
+                    // Don't let this error close the modal
+                }
+            }, 500);
+        }
+    };
+
+    const safeHandleItemToggle = (itemKey) => {
+        try {
+            setPurchasedItems(prev => ({
+                ...prev,
+                [itemKey]: !prev[itemKey]
+            }));
+        } catch (error) {
+            console.error('Error toggling item:', error);
+            // Continue without closing modal
         }
     };
 
@@ -1422,12 +1479,7 @@ export default function EnhancedAIShoppingListModal({
 
                     {/* Enhanced Smart Price Summary Cards - Only show in price modes */}
                     {config.showPriceFeatures && (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            backgroundColor: '#f8fafc',
-                            borderBottom: '1px solid #e5e7eb',
-                            flexShrink: 0
-                        }}>
+                        <div style={priceSummaryStyle}>
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(4, 1fr)',
@@ -1835,14 +1887,7 @@ export default function EnhancedAIShoppingListModal({
 
                     {/* Price Optimization Summary - Only show in price modes */}
                     {config.showPriceFeatures && !loading && (priceAnalysis.bestDeals.length > 0 || priceAnalysis.storeRecommendations?.length > 0 || (budgetTracking.limit && budgetTracking.current > budgetTracking.limit)) && (
-                        <div style={{
-                            padding: '0.75rem 1rem',
-                            backgroundColor: '#f8fafc',
-                            borderBottom: '1px solid #e5e7eb',
-                            flexShrink: 0,
-                            maxHeight: '200px',
-                            overflow: 'auto'
-                        }}>
+                        <div style={optimizationSummaryStyle}>
                             {/* Deal Alerts */}
                             {priceAnalysis.bestDeals.length > 0 && (
                                 <div style={{
@@ -1940,7 +1985,7 @@ export default function EnhancedAIShoppingListModal({
                                             }}>Save at Other Stores</h3>
                                         </div>
                                         <TouchEnhancedButton
-                                            onClick={() => setShowPriceBreakdown(!showPriceBreakdown)}
+                                            onClick={() => setShowOptimizationDetails(!showOptimizationDetails)}
                                             style={{
                                                 background: 'none',
                                                 border: 'none',
@@ -1950,7 +1995,7 @@ export default function EnhancedAIShoppingListModal({
                                                 fontWeight: '500'
                                             }}
                                         >
-                                            {showPriceBreakdown ? 'Hide' : 'Show'} Details
+                                            {showOptimizationDetails ? 'Hide' : 'Show'} Details
                                         </TouchEnhancedButton>
                                     </div>
                                     <div style={{
@@ -2173,13 +2218,7 @@ export default function EnhancedAIShoppingListModal({
                     {/* Main Shopping List Content */}
                     <div
                         id="unified-shopping-list-content"
-                        style={{
-                            flex: 1,
-                            padding: '1rem',
-                            overflow: 'auto',
-                            backgroundColor: 'white',
-                            minHeight: 0
-                        }}
+                        style={contentStyle}
                     >
                         {Object.keys(groupedItems).length === 0 ? (
                             <div style={{
@@ -2246,7 +2285,7 @@ export default function EnhancedAIShoppingListModal({
                                                             <input
                                                                 type="checkbox"
                                                                 checked={isPurchased}
-                                                                onChange={() => handleItemToggle(itemKey)}
+                                                                onChange={() => safeHandleItemToggle(itemKey)}
                                                                 style={{
                                                                     marginTop: '0.125rem',
                                                                     cursor: 'pointer',
