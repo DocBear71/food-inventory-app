@@ -872,34 +872,6 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // Simple rate limiting
-    const rateLimitMap = new Map();
-
-    function rateLimit(identifier, limit = 10, windowMs = 60000) {
-        const now = Date.now();
-        const windowStart = now - windowMs;
-
-        if (!rateLimitMap.has(identifier)) {
-            rateLimitMap.set(identifier, []);
-        }
-
-        const requests = rateLimitMap.get(identifier);
-        const recentRequests = requests.filter(time => time > windowStart);
-
-        if (recentRequests.length >= limit) {
-            return false;
-        }
-
-        recentRequests.push(now);
-        rateLimitMap.set(identifier, recentRequests);
-        return true;
-    }
-
-    // Use in API routes:
-    if (!rateLimit(session.user.id)) {
-        return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
-    }
-
     const saveCustomCategories = async (categories) => {
         try {
             const response = await fetch('/api/categories/custom', {
