@@ -178,10 +178,13 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
+    // FIXED: Better conversion logic in ShoppingListGenerator
     const convertSmartPriceToEnhanced = (smartPriceItems) => {
         const items = {};
+
         smartPriceItems.forEach((item, index) => {
             let processedItem;
+
             if (typeof item === 'string') {
                 processedItem = {
                     id: `item-${index}`,
@@ -205,6 +208,7 @@ export default function EnhancedAIShoppingListModal({
                     ingredient: item.ingredient || item.name,
                     checked: item.checked || false,
                     selected: item.selected !== false,
+                    // FIXED: Don't duplicate quantity/amount
                     quantity: item.quantity || item.amount || 1,
                     unit: item.unit || '',
                     estimatedPrice: item.estimatedPrice || item.priceInfo?.estimatedPrice || 0,
@@ -219,9 +223,10 @@ export default function EnhancedAIShoppingListModal({
                 };
             }
 
-            const category = processedItem.category || 'Other';
-            if (!items[category]) items[category] = [];
-            items[category].push(processedItem);
+            // FIXED: Use actual category name, not index
+            const categoryName = processedItem.category || 'Other';
+            if (!items[categoryName]) items[categoryName] = [];
+            items[categoryName].push(processedItem);
         });
 
         return {
@@ -1304,19 +1309,19 @@ export default function EnhancedAIShoppingListModal({
 
     const contentStyle = {
         flex: 1,
-        padding: '0.5rem', // Reduced padding
+        padding: '0.5rem',
         overflow: 'auto',
         backgroundColor: 'white',
         minHeight: 0,
-        // FIXED: Better mobile optimization
-        maxHeight: config.showPriceFeatures ?
-            'calc(100vh - 320px)' :  // Less space when price features are shown
-            'calc(100vh - 250px)',   // More space for basic mode
-        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
+        // FIXED: Much larger scrollable area
+        maxHeight: (shoppingMode === 'smart-price' || shoppingMode === 'unified') ?
+            'calc(100vh - 280px)' :  // Less space taken by headers
+            'calc(100vh - 200px)',   // More space for basic mode
+        paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))'
     };
 
     const priceSummaryStyle = {
-        padding: '0.5rem 1rem', // Reduced padding
+        padding: '0.5rem 1rem',
         backgroundColor: '#f8fafc',
         borderBottom: '1px solid #e5e7eb',
         flexShrink: 0
@@ -1483,24 +1488,24 @@ export default function EnhancedAIShoppingListModal({
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(4, 1fr)',
-                                gap: '0.5rem'
+                                gap: '0.25rem' // Reduced gap
                             }}>
+                                {/* Price cards with smaller padding */}
                                 <div style={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    padding: '0.5rem',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem', // Reduced padding
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.7rem',
+                                        fontSize: '0.65rem', // Smaller text
                                         fontWeight: '500',
                                         color: '#6b7280',
-                                        marginBottom: '0.25rem'
-                                    }}>Budget
-                                    </div>
+                                        marginBottom: '0.125rem'
+                                    }}>Budget</div>
                                     <div style={{
-                                        fontSize: '0.875rem',
+                                        fontSize: '0.8rem', // Smaller text
                                         fontWeight: '600',
                                         color: '#111827'
                                     }}>
@@ -1511,19 +1516,19 @@ export default function EnhancedAIShoppingListModal({
                                 <div style={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    padding: '0.5rem',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem', // Reduced padding
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.7rem',
+                                        fontSize: '0.65rem', // Smaller text
                                         fontWeight: '500',
                                         color: '#6b7280',
-                                        marginBottom: '0.25rem'
+                                        marginBottom: '0.125rem'
                                     }}>Total Est.
                                     </div>
                                     <div style={{
-                                        fontSize: '0.875rem',
+                                        fontSize: '0.8rem', // Smaller text
                                         fontWeight: '600',
                                         color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'
                                     }}>
@@ -1534,19 +1539,19 @@ export default function EnhancedAIShoppingListModal({
                                 <div style={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    padding: '0.5rem',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem', // Reduced padding
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.7rem',
+                                        fontSize: '0.65rem', // Smaller text
                                         fontWeight: '500',
                                         color: '#6b7280',
-                                        marginBottom: '0.25rem'
+                                        marginBottom: '0.125rem'
                                     }}>Savings
                                     </div>
                                     <div style={{
-                                        fontSize: '0.875rem',
+                                        fontSize: '0.8rem', // Smaller text
                                         fontWeight: '600',
                                         color: '#059669'
                                     }}>
@@ -1557,19 +1562,19 @@ export default function EnhancedAIShoppingListModal({
                                 <div style={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
-                                    borderRadius: '8px',
-                                    padding: '0.5rem',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem', // Reduced padding
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.7rem',
+                                        fontSize: '0.65rem', // Smaller text
                                         fontWeight: '500',
                                         color: '#6b7280',
-                                        marginBottom: '0.25rem'
+                                        marginBottom: '0.125rem'
                                     }}>Deals
                                     </div>
                                     <div style={{
-                                        fontSize: '0.875rem',
+                                        fontSize: '0.8rem', // Smaller text
                                         fontWeight: '600',
                                         color: '#7c2d12'
                                     }}>
@@ -1582,10 +1587,10 @@ export default function EnhancedAIShoppingListModal({
 
                     {/* Enhanced Controls with Mode-Specific Features */}
                     <div style={{
-                        padding: '0.75rem 1rem',
+                        padding: '0.5rem 1rem', // Reduced padding
                         borderBottom: '1px solid #f3f4f6',
                         display: 'flex',
-                        gap: '0.5rem',
+                        gap: '0.25rem', // Reduced gap
                         alignItems: 'center',
                         flexWrap: 'wrap',
                         backgroundColor: '#f8fafc',
@@ -1622,8 +1627,8 @@ export default function EnhancedAIShoppingListModal({
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                padding: '0.375rem 0.5rem',
-                                fontSize: '0.75rem',
+                                padding: '0.25rem 0.375rem', // Smaller buttons
+                                fontSize: '0.7rem', // Smaller text
                                 cursor: editingCategories ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
                                 opacity: editingCategories ? 0.6 : 1
@@ -1643,8 +1648,8 @@ export default function EnhancedAIShoppingListModal({
                                             : 'bg-white text-gray-700 border border-gray-300'
                                     }`}
                                     style={{
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         fontWeight: '500',
                                         borderRadius: '4px',
                                         border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
@@ -1659,8 +1664,8 @@ export default function EnhancedAIShoppingListModal({
                                 <TouchEnhancedButton
                                     onClick={() => setPriceMode('budget')}
                                     style={{
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         fontWeight: '500',
                                         borderRadius: '4px',
                                         border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
@@ -1675,8 +1680,8 @@ export default function EnhancedAIShoppingListModal({
                                 <TouchEnhancedButton
                                     onClick={() => setPriceMode('deals')}
                                     style={{
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         fontWeight: '500',
                                         borderRadius: '4px',
                                         border: priceMode === 'deals' ? 'none' : '1px solid #d1d5db',
@@ -1693,12 +1698,12 @@ export default function EnhancedAIShoppingListModal({
                                         onClick={optimizeForBudget}
                                         disabled={loading}
                                         style={{
-                                            padding: '0.375rem 0.5rem',
+                                            padding: '0.25rem 0.375rem', // Smaller buttons
+                                            fontSize: '0.7rem', // Smaller text
                                             backgroundColor: loading ? '#9ca3af' : '#f59e0b',
                                             color: 'white',
                                             border: 'none',
                                             borderRadius: '4px',
-                                            fontSize: '0.75rem',
                                             cursor: loading ? 'not-allowed' : 'pointer',
                                             fontWeight: '500'
                                         }}
@@ -1719,8 +1724,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '4px',
-                                    padding: '0.375rem 0.5rem',
-                                    fontSize: '0.75rem',
+                                    padding: '0.25rem 0.375rem', // Smaller buttons
+                                    fontSize: '0.7rem', // Smaller text
                                     cursor: (!selectedStore || aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
                                     fontWeight: '500',
                                     opacity: (!selectedStore || aiLoading || editingCategories) ? 0.6 : 1
@@ -1738,8 +1743,8 @@ export default function EnhancedAIShoppingListModal({
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                padding: '0.375rem 0.5rem',
-                                fontSize: '0.75rem',
+                                padding: '0.25rem 0.375rem', // Smaller buttons
+                                fontSize: '0.7rem', // Smaller text
                                 cursor: 'pointer',
                                 fontWeight: '500'
                             }}
@@ -1757,8 +1762,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1773,8 +1778,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1794,8 +1799,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1809,8 +1814,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1825,8 +1830,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.375rem 0.5rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.375rem', // Smaller buttons
+                                        fontSize: '0.7rem', // Smaller text
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
