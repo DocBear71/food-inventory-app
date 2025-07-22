@@ -79,7 +79,7 @@ export async function POST(request) {
             }
         }
 
-        await connectMongoDB();
+        await connectDB();
 
         const user = await User.findByIdAndUpdate(
             session.user.id,

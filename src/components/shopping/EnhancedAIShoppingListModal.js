@@ -14,6 +14,7 @@ import {ShoppingListTotalsCalculator} from '@/lib/shoppingListTotals';
 import {VoiceInput} from '@/components/mobile/VoiceInput';
 import {apiPost, apiGet} from '@/lib/api-config';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
+import {NextResponse} from "next/server";
 
 export default function EnhancedAIShoppingListModal({
                                                         isOpen,
@@ -843,32 +844,61 @@ export default function EnhancedAIShoppingListModal({
 
     const loadCustomCategories = async () => {
         try {
+            // Always start with default categories
+            const defaultCategories = CategoryUtils.getDefaultCategoryOrder();
+            setAvailableCategories(defaultCategories);
+
+            // Try to load custom categories
             const response = await fetch('/api/categories/custom');
             if (response.ok) {
                 const data = await response.json();
-                if (data.success) {
-                    setCustomCategories(data.customCategories || {});
+                if (data.success && data.customCategories) {
+                    setCustomCategories(data.customCategories);
                 }
             }
 
+            // Load from localStorage as fallback
             const saved = localStorage.getItem(`custom-categories-${session?.user?.id}`);
             if (saved) {
                 const parsed = JSON.parse(saved);
-                setCustomCategories(prev => ({...parsed, ...prev}));
+                setCustomCategories(prev => ({...prev, ...parsed}));
             }
 
-            const storeCategories = localStorage.getItem(`store-categories-${selectedStore}-${session?.user?.id}`);
-            if (storeCategories) {
-                const storeParsed = JSON.parse(storeCategories);
-                setAvailableCategories(storeParsed);
-            } else {
-                setAvailableCategories(CategoryUtils.getDefaultCategoryOrder());
-            }
         } catch (error) {
             console.error('Error loading custom categories:', error);
+            // Always ensure we have default categories
             setAvailableCategories(CategoryUtils.getDefaultCategoryOrder());
+            setCustomCategories({});
         }
     };
+
+    // Simple rate limiting
+    const rateLimitMap = new Map();
+
+    function rateLimit(identifier, limit = 10, windowMs = 60000) {
+        const now = Date.now();
+        const windowStart = now - windowMs;
+
+        if (!rateLimitMap.has(identifier)) {
+            rateLimitMap.set(identifier, []);
+        }
+
+        const requests = rateLimitMap.get(identifier);
+        const recentRequests = requests.filter(time => time > windowStart);
+
+        if (recentRequests.length >= limit) {
+            return false;
+        }
+
+        recentRequests.push(now);
+        rateLimitMap.set(identifier, recentRequests);
+        return true;
+    }
+
+// Use in API routes:
+    if (!rateLimit(session.user.id)) {
+        return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
+    }
 
     const saveCustomCategories = async (categories) => {
         try {
@@ -901,12 +931,17 @@ export default function EnhancedAIShoppingListModal({
     const fetchStores = async () => {
         try {
             const response = await fetch('/api/stores');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
             const data = await response.json();
             if (data.success) {
                 setStores(data.stores || []);
             }
         } catch (error) {
             console.error('Error fetching stores:', error);
+            // Don't retry, just set empty array
+            setStores([]);
         }
     };
 
@@ -967,7 +1002,7 @@ export default function EnhancedAIShoppingListModal({
     };
 
     // Category Management Functions
-    const handleMoveItemToCategory = (item, fromCategory, toCategory) => {
+    const handleMoveItemToCategory = async (item, fromCategory, toCategory) => {
         if (fromCategory === toCategory) return;
 
         console.log(`🔄 Moving ${item.ingredient || item.name} from ${fromCategory} to ${toCategory}`);
@@ -975,9 +1010,14 @@ export default function EnhancedAIShoppingListModal({
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
 
+        // Remove from source category
         if (updatedItems[fromCategory]) {
             updatedItems[fromCategory] = updatedItems[fromCategory].filter(
-                listItem => (listItem.ingredient || listItem.name) !== (item.ingredient || item.name)
+                listItem => {
+                    const itemId = listItem.id || `${listItem.ingredient || listItem.name}-${Date.now()}`;
+                    const moveItemId = item.id || `${item.ingredient || item.name}-${Date.now()}`;
+                    return itemId !== moveItemId;
+                }
             );
 
             if (updatedItems[fromCategory].length === 0) {
@@ -985,6 +1025,7 @@ export default function EnhancedAIShoppingListModal({
             }
         }
 
+        // Add to destination category
         if (!updatedItems[toCategory]) {
             updatedItems[toCategory] = [];
         }

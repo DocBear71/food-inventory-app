@@ -69,10 +69,15 @@ async function optimizeShoppingWithPrices(params) {
         const itemName = typeof shoppingItem === 'string' ? shoppingItem : shoppingItem.name;
 
         // Find matching inventory items
-        const matches = inventory.filter(invItem =>
-            invItem.name.toLowerCase().includes(itemName.toLowerCase()) ||
-            itemName.toLowerCase().includes(invItem.name.toLowerCase())
-        );
+        const matches = inventory.filter(invItem => {
+            const invItemName = invItem?.name;
+            const searchItemName = itemName;
+
+            if (!invItemName || !searchItemName) return false;
+
+            return invItemName.toLowerCase().includes(searchItemName.toLowerCase()) ||
+                searchItemName.toLowerCase().includes(invItemName.toLowerCase());
+        });
 
         let bestPrice = null;
         let priceOptions = [];
