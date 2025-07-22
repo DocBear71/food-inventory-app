@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/profile/page.js v9 - Fixed import issues causing React error #130
+// file: /src/app/profile/page.js v10 - Added currency preferences to General tab
 
 import {useState, useEffect, useRef, useCallback} from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -14,6 +14,7 @@ import { useFeatureGate } from '@/hooks/useSubscription';
 import { getApiUrl } from "@/lib/api-config";
 import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
 import { NutritionGoalsTracking } from '@/components/integrations/NutritionGoalsTracking';
+import { SUPPORTED_CURRENCIES, formatCurrencyExample } from '@/lib/currency-utils';
 
 export default function ProfilePage() {
     let session = null;
@@ -97,6 +98,14 @@ export default function ProfilePage() {
             carbs: 250,
             fiber: 25,
             sodium: 2300
+        },
+        // NEW: Add currency preferences
+        currencyPreferences: {
+            currency: 'USD',
+            currencySymbol: '$',
+            currencyPosition: 'before',
+            showCurrencyCode: false,
+            decimalPlaces: 2
         }
     });
 
@@ -154,6 +163,31 @@ export default function ProfilePage() {
             throw error;
         }
     }, []);
+
+    // NEW: Handle currency change
+    const handleCurrencyChange = (currencyCode) => {
+        const currencyInfo = SUPPORTED_CURRENCIES.find(c => c.code === currencyCode);
+        if (currencyInfo) {
+            setFormData(prev => ({
+                ...prev,
+                currencyPreferences: {
+                    ...prev.currencyPreferences,
+                    currency: currencyCode,
+                    currencySymbol: currencyInfo.symbol,
+                    currencyPosition: currencyInfo.position,
+                    decimalPlaces: currencyInfo.decimalPlaces
+                }
+            }));
+        }
+    };
+
+    // NEW: Get example price for currency preview
+    const getCurrencyPreviewPrice = () => {
+        const { currencySymbol, currencyPosition, decimalPlaces, showCurrencyCode, currency } = formData.currencyPreferences;
+        const amount = decimalPlaces === 0 ? '1234' : '12.34';
+        const formatted = formatCurrencyExample(amount, currencyPosition, currencySymbol);
+        return showCurrencyCode ? `${formatted} ${currency}` : formatted;
+    };
 
     // Helper function to compress image before upload
     const compressImage = (file, maxWidth = 300, maxHeight = 300, quality = 0.8) => {
@@ -463,6 +497,15 @@ export default function ProfilePage() {
                     compactView: false
                 };
 
+                // NEW: Default currency preferences
+                const defaultCurrencyPreferences = {
+                    currency: 'USD',
+                    currencySymbol: '$',
+                    currencyPosition: 'before',
+                    showCurrencyCode: false,
+                    decimalPlaces: 2
+                };
+
                 const userData = {
                     name: data.user?.name || '',
                     avatar: data.user?.avatar || '',
@@ -480,7 +523,9 @@ export default function ProfilePage() {
                         // UPDATED: Apply migration for meal types
                         defaultMealTypes: migrateOldMealTypes(data.user?.mealPlanningPreferences?.defaultMealTypes)
                     },
-                    nutritionGoals: data.user?.nutritionGoals || defaultNutritionGoals
+                    nutritionGoals: data.user?.nutritionGoals || defaultNutritionGoals,
+                    // NEW: Include currency preferences
+                    currencyPreferences: data.user?.currencyPreferences || defaultCurrencyPreferences
                 };
 
                 setFormData(userData);
@@ -988,6 +1033,159 @@ export default function ProfilePage() {
                                             <p className="text-xs text-gray-500 mt-1">
                                                 Separate multiple cuisines with commas
                                             </p>
+                                        </div>
+
+                                        {/* NEW: Currency Preferences Section */}
+                                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                            <h3 className="text-lg font-medium text-blue-900 mb-4 flex items-center">
+                                                <span className="mr-2">💱</span>
+                                                Currency & Pricing Settings
+                                            </h3>
+                                            <p className="text-sm text-blue-700 mb-4">
+                                                Set your preferred currency for price tracking and shopping lists. This affects how prices are displayed throughout the app.
+                                            </p>
+
+                                            <div className="space-y-4">
+                                                {/* Currency Selection */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Primary Currency
+                                                    </label>
+                                                    <select
+                                                        value={formData.currencyPreferences.currency}
+                                                        onChange={(e) => handleCurrencyChange(e.target.value)}
+                                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                        style={{fontSize: '16px'}}
+                                                    >
+                                                        {SUPPORTED_CURRENCIES.map(currency => (
+                                                            <option key={currency.code} value={currency.code}>
+                                                                {currency.flag} {currency.code} - {currency.name} ({currency.symbol}) - {currency.countries}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    <p className="text-sm text-gray-600 mt-1">
+                                                        Choose your local currency for price tracking and shopping lists
+                                                    </p>
+                                                </div>
+
+                                                {/* Advanced Currency Settings */}
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    {/* Currency Symbol */}
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            Currency Symbol
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            value={formData.currencyPreferences.currencySymbol}
+                                                            onChange={(e) => handleInputChange('currencyPreferences', 'currencySymbol', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                            style={{fontSize: '16px'}}
+                                                            placeholder="$"
+                                                            maxLength={5}
+                                                        />
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            Symbol used to display prices (e.g., $, €, £)
+                                                        </p>
+                                                    </div>
+
+                                                    {/* Decimal Places */}
+                                                    <div>
+                                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                            Decimal Places
+                                                        </label>
+                                                        <select
+                                                            value={formData.currencyPreferences.decimalPlaces}
+                                                            onChange={(e) => handleInputChange('currencyPreferences', 'decimalPlaces', parseInt(e.target.value))}
+                                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                            style={{fontSize: '16px'}}
+                                                        >
+                                                            <option value={0}>0 (whole numbers only)</option>
+                                                            <option value={2}>2 (standard)</option>
+                                                            <option value={3}>3 (high precision)</option>
+                                                        </select>
+                                                        <p className="text-xs text-gray-500 mt-1">
+                                                            Number of decimal places to show in prices
+                                                        </p>
+                                                    </div>
+                                                </div>
+
+                                                {/* Symbol Position */}
+                                                <div>
+                                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                        Symbol Position
+                                                    </label>
+                                                    <div className="flex gap-4">
+                                                        <label className="flex items-center">
+                                                            <input
+                                                                type="radio"
+                                                                value="before"
+                                                                checked={formData.currencyPreferences.currencyPosition === 'before'}
+                                                                onChange={(e) => handleInputChange('currencyPreferences', 'currencyPosition', e.target.value)}
+                                                                className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                                            />
+                                                            <span className="text-sm">
+                                                                Before ({formatCurrencyExample('12.34', 'before', formData.currencyPreferences.currencySymbol)})
+                                                            </span>
+                                                        </label>
+                                                        <label className="flex items-center">
+                                                            <input
+                                                                type="radio"
+                                                                value="after"
+                                                                checked={formData.currencyPreferences.currencyPosition === 'after'}
+                                                                onChange={(e) => handleInputChange('currencyPreferences', 'currencyPosition', e.target.value)}
+                                                                className="mr-2 h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
+                                                            />
+                                                            <span className="text-sm">
+                                                                After ({formatCurrencyExample('12.34', 'after', formData.currencyPreferences.currencySymbol)})
+                                                            </span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+
+                                                {/* Show Currency Code */}
+                                                <div className="flex items-center justify-between">
+                                                    <div>
+                                                        <div className="font-medium text-gray-900">Show Currency Code</div>
+                                                        <div className="text-sm text-gray-600">Display currency code after prices (e.g., $12.34 USD)</div>
+                                                    </div>
+                                                    <label className="relative inline-flex items-center cursor-pointer">
+                                                        <input
+                                                            type="checkbox"
+                                                            checked={formData.currencyPreferences.showCurrencyCode}
+                                                            onChange={(e) => handleInputChange('currencyPreferences', 'showCurrencyCode', e.target.checked)}
+                                                            className="sr-only peer"
+                                                        />
+                                                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                                                    </label>
+                                                </div>
+
+                                                {/* Preview */}
+                                                <div className="bg-white rounded-lg p-4 border border-gray-200">
+                                                    <h4 className="font-medium text-gray-900 mb-2">💰 Price Preview</h4>
+                                                    <div className="space-y-2 text-sm">
+                                                        <div className="flex justify-between">
+                                                            <span>Example price:</span>
+                                                            <span className="font-mono font-semibold text-green-600">
+                                                                {getCurrencyPreviewPrice()}
+                                                            </span>
+                                                        </div>
+                                                        <div className="flex justify-between">
+                                                            <span>Large amount:</span>
+                                                            <span className="font-mono font-semibold text-green-600">
+                                                                {formatCurrencyExample(
+                                                                    formData.currencyPreferences.decimalPlaces === 0 ? '1000' : '1,234.56',
+                                                                    formData.currencyPreferences.currencyPosition,
+                                                                    formData.currencyPreferences.currencySymbol
+                                                                )}{formData.currencyPreferences.showCurrencyCode ? ` ${formData.currencyPreferences.currency}` : ''}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <p className="text-xs text-gray-500 mt-2">
+                                                        This is how prices will appear in shopping lists, inventory tracking, and throughout the app.
+                                                    </p>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 )}

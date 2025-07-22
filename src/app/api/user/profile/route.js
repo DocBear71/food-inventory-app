@@ -1,4 +1,4 @@
-// file: /src/app/api/user/profile/route.js - EXACT CHANGES NEEDED
+// file: /src/app/api/user/profile/route.js v2 - Added currency preferences support
 
 import { NextResponse } from 'next/server';
 import { withAuth } from '@/lib/api-auth';
@@ -39,7 +39,7 @@ export const GET = withAuth(async (request) => {
                 notificationSettings: user.notificationSettings || {},
                 mealPlanningPreferences: user.mealPlanningPreferences || {},
                 nutritionGoals: user.nutritionGoals || {},
-                // 🆕 ADD THIS LINE:
+                // Add inventory preferences
                 inventoryPreferences: user.inventoryPreferences || {
                     defaultSortBy: 'expiration',
                     defaultFilterStatus: 'all',
@@ -47,6 +47,14 @@ export const GET = withAuth(async (request) => {
                     showQuickFilters: true,
                     itemsPerPage: 'all',
                     compactView: false
+                },
+                // NEW: Add currency preferences
+                currencyPreferences: user.currencyPreferences || {
+                    currency: 'USD',
+                    currencySymbol: '$',
+                    currencyPosition: 'before',
+                    showCurrencyCode: false,
+                    decimalPlaces: 2
                 },
                 createdAt: user.createdAt,
                 updatedAt: user.updatedAt
@@ -80,7 +88,8 @@ export const PUT = withAuth(async(request) => {
             notificationSettings,
             mealPlanningPreferences,
             nutritionGoals,
-            inventoryPreferences  // 🆕 ADD THIS LINE
+            inventoryPreferences,
+            currencyPreferences  // NEW: Add currency preferences
         } = await request.json();
 
         // Validation
@@ -149,7 +158,7 @@ export const PUT = withAuth(async(request) => {
             }
         }
 
-        // 🆕 ADD THIS ENTIRE VALIDATION BLOCK FOR INVENTORY PREFERENCES:
+        // Validate inventory preferences if provided
         if (inventoryPreferences) {
             const validSortOptions = ['expiration', 'expiration-date', 'name', 'brand', 'category', 'location', 'quantity', 'date-added'];
             const validStatusOptions = ['all', 'expired', 'expiring', 'fresh'];
@@ -198,7 +207,56 @@ export const PUT = withAuth(async(request) => {
                 );
             }
         }
-        // 🆕 END OF INVENTORY PREFERENCES VALIDATION
+
+        // NEW: Validate currency preferences if provided
+        if (currencyPreferences) {
+            const validCurrencies = [
+                'USD', 'EUR', 'GBP', 'CAD', 'AUD', 'JPY', 'CHF', 'SEK', 'NOK', 'DKK',
+                'PLN', 'CZK', 'HUF', 'RON', 'BGN', 'HRK', 'NZD', 'ZAR', 'BRL', 'MXN',
+                'ARS', 'CLP', 'COP', 'PEN', 'INR', 'CNY', 'KRW', 'SGD', 'HKD', 'TWD',
+                'THB', 'PHP', 'MYR', 'IDR', 'VND', 'RUB', 'TRY', 'ILS', 'AED', 'SAR', 'EGP'
+            ];
+
+            if (currencyPreferences.currency && !validCurrencies.includes(currencyPreferences.currency)) {
+                return NextResponse.json(
+                    { error: 'Invalid currency code' },
+                    { status: 400 }
+                );
+            }
+
+            if (currencyPreferences.currencySymbol !== undefined) {
+                if (typeof currencyPreferences.currencySymbol !== 'string' || currencyPreferences.currencySymbol.length > 5) {
+                    return NextResponse.json(
+                        { error: 'Currency symbol must be a string with max 5 characters' },
+                        { status: 400 }
+                    );
+                }
+            }
+
+            if (currencyPreferences.currencyPosition && !['before', 'after'].includes(currencyPreferences.currencyPosition)) {
+                return NextResponse.json(
+                    { error: 'Currency position must be "before" or "after"' },
+                    { status: 400 }
+                );
+            }
+
+            if (currencyPreferences.showCurrencyCode !== undefined && typeof currencyPreferences.showCurrencyCode !== 'boolean') {
+                return NextResponse.json(
+                    { error: 'showCurrencyCode must be a boolean' },
+                    { status: 400 }
+                );
+            }
+
+            if (currencyPreferences.decimalPlaces !== undefined) {
+                const decimals = parseInt(currencyPreferences.decimalPlaces);
+                if (isNaN(decimals) || decimals < 0 || decimals > 3) {
+                    return NextResponse.json(
+                        { error: 'Decimal places must be a number between 0 and 3' },
+                        { status: 400 }
+                    );
+                }
+            }
+        }
 
         await connectDB();
 
@@ -229,9 +287,13 @@ export const PUT = withAuth(async(request) => {
             updateData.nutritionGoals = nutritionGoals;
         }
 
-        // 🆕 ADD THIS BLOCK:
         if (inventoryPreferences) {
             updateData.inventoryPreferences = inventoryPreferences;
+        }
+
+        // NEW: Add currency preferences
+        if (currencyPreferences) {
+            updateData.currencyPreferences = currencyPreferences;
         }
 
         const updatedUser = await User.findByIdAndUpdate(
@@ -259,7 +321,6 @@ export const PUT = withAuth(async(request) => {
                 notificationSettings: updatedUser.notificationSettings || {},
                 mealPlanningPreferences: updatedUser.mealPlanningPreferences || {},
                 nutritionGoals: updatedUser.nutritionGoals || {},
-                // 🆕 ADD THIS LINE:
                 inventoryPreferences: updatedUser.inventoryPreferences || {
                     defaultSortBy: 'expiration',
                     defaultFilterStatus: 'all',
@@ -267,6 +328,14 @@ export const PUT = withAuth(async(request) => {
                     showQuickFilters: true,
                     itemsPerPage: 'all',
                     compactView: false
+                },
+                // NEW: Return currency preferences
+                currencyPreferences: updatedUser.currencyPreferences || {
+                    currency: 'USD',
+                    currencySymbol: '$',
+                    currencyPosition: 'before',
+                    showCurrencyCode: false,
+                    decimalPlaces: 2
                 },
                 updatedAt: updatedUser.updatedAt
             }

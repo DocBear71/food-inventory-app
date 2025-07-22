@@ -895,7 +895,7 @@ export default function EnhancedAIShoppingListModal({
         return true;
     }
 
-// Use in API routes:
+    // Use in API routes:
     if (!rateLimit(session.user.id)) {
         return NextResponse.json({ error: 'Rate limited' }, { status: 429 });
     }
