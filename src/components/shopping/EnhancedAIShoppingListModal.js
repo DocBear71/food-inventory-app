@@ -1165,14 +1165,32 @@ export default function EnhancedAIShoppingListModal({
 
     // Add purchased status to items
     const addPurchasedStatus = (items) => {
+        // FIXED: Check if items is an array before calling map
+        if (!Array.isArray(items)) {
+            console.warn('addPurchasedStatus received non-array items:', typeof items, items);
+            // If items is not an array, return empty array or try to convert it
+            if (!items) {
+                return [];
+            }
+            // If it's a single item object, wrap it in an array
+            if (typeof items === 'object' && (items.ingredient || items.name)) {
+                items = [items];
+            } else {
+                return [];
+            }
+        }
+
         return items.map(item => {
+            if (!item) {
+                return null;
+            }
             const itemKey = `${item.ingredient || item.name}-${item.category || 'other'}`;
             return {
                 ...item,
                 purchased: purchasedItems[itemKey] || false,
                 itemKey
             };
-        });
+        }).filter(item => item !== null); // Remove any null items
     };
 
     // Filter items based on current filter
