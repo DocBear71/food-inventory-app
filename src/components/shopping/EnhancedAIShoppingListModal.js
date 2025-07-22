@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/shopping/EnhancedAIShoppingListModal.js v4 - Unified modal with Smart Price Shopping List integration and mode switching
+// file: /src/components/shopping/EnhancedAIShoppingListModal.js v5 - Fixed scrolling area, category display, item movement, and quantity duplication
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -30,7 +30,8 @@ export default function EnhancedAIShoppingListModal({
                                                         storePreference = '',
                                                         budgetLimit = null,
                                                         onSave,
-                                                        optimization = null
+                                                        optimization = null,
+                                                        initialMode = 'enhanced'
                                                     }) {
     const {data: session} = useSafeSession();
 
@@ -41,8 +42,8 @@ export default function EnhancedAIShoppingListModal({
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
-    // NEW: Mode Management
-    const [shoppingMode, setShoppingMode] = useState('enhanced'); // 'enhanced', 'smart-price', 'unified'
+    // Mode Management
+    const [shoppingMode, setShoppingMode] = useState(initialMode);
     const [showModeSelector, setShowModeSelector] = useState(false);
 
     // AI Enhancement State
@@ -56,7 +57,7 @@ export default function EnhancedAIShoppingListModal({
 
     // Smart Price Shopping List State
     const [priceComparison, setPriceComparison] = useState({});
-    const [priceMode, setPriceMode] = useState('smart'); // smart, budget, deals
+    const [priceMode, setPriceMode] = useState('smart');
     const [budgetTracking, setBudgetTracking] = useState({
         current: 0,
         limit: budgetLimit,
@@ -178,7 +179,7 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // FIXED: Better conversion logic in ShoppingListGenerator
+    // FIXED: Better conversion logic to prevent quantity duplication
     const convertSmartPriceToEnhanced = (smartPriceItems) => {
         const items = {};
 
@@ -208,7 +209,7 @@ export default function EnhancedAIShoppingListModal({
                     ingredient: item.ingredient || item.name,
                     checked: item.checked || false,
                     selected: item.selected !== false,
-                    // FIXED: Don't duplicate quantity/amount
+                    // FIXED: Don't duplicate quantity/amount - use one or the other
                     quantity: item.quantity || item.amount || 1,
                     unit: item.unit || '',
                     estimatedPrice: item.estimatedPrice || item.priceInfo?.estimatedPrice || 0,
@@ -977,7 +978,7 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // Category Management Functions
+    // Category Management Functions - FIXED
     const handleMoveItemToCategory = async (item, fromCategory, toCategory) => {
         if (fromCategory === toCategory) return;
 
@@ -990,8 +991,8 @@ export default function EnhancedAIShoppingListModal({
         if (updatedItems[fromCategory]) {
             updatedItems[fromCategory] = updatedItems[fromCategory].filter(
                 listItem => {
-                    const itemId = listItem.id || `${listItem.ingredient || listItem.name}-${Date.now()}`;
-                    const moveItemId = item.id || `${item.ingredient || item.name}-${Date.now()}`;
+                    const itemId = listItem.id || `${listItem.ingredient || listItem.name}`;
+                    const moveItemId = item.id || `${item.ingredient || item.name}`;
                     return itemId !== moveItemId;
                 }
             );
@@ -1107,7 +1108,7 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // Normalize shopping list structure
+    // Normalize shopping list structure - FIXED
     const normalizeShoppingList = (list) => {
         const listToUse = list || currentShoppingList;
         if (!listToUse) return {items: {}, summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}};
@@ -1117,6 +1118,7 @@ export default function EnhancedAIShoppingListModal({
 
         if (listToUse.items) {
             if (Array.isArray(listToUse.items)) {
+                // Convert array to categorized object
                 listToUse.items.forEach(item => {
                     const category = item.category || 'Other';
                     if (!normalizedItems[category]) {
@@ -1144,7 +1146,6 @@ export default function EnhancedAIShoppingListModal({
 
     const normalizedList = normalizeShoppingList();
 
-
     const markAllAsPurchased = () => {
         if (!normalizedList.items) return;
 
@@ -1160,16 +1161,13 @@ export default function EnhancedAIShoppingListModal({
         setPurchasedItems({});
     };
 
-    // Add purchased status to items
+    // FIXED: Add purchased status to items with better error handling
     const addPurchasedStatus = (items) => {
-        // FIXED: Check if items is an array before calling map
         if (!Array.isArray(items)) {
             console.warn('addPurchasedStatus received non-array items:', typeof items, items);
-            // If items is not an array, return empty array or try to convert it
             if (!items) {
                 return [];
             }
-            // If it's a single item object, wrap it in an array
             if (typeof items === 'object' && (items.ingredient || items.name)) {
                 items = [items];
             } else {
@@ -1187,12 +1185,11 @@ export default function EnhancedAIShoppingListModal({
                 purchased: purchasedItems[itemKey] || false,
                 itemKey
             };
-        }).filter(item => item !== null); // Remove any null items
+        }).filter(item => item !== null);
     };
 
-    // Filter items based on current filter
+    // FIXED: Filter items based on current filter with better error handling
     const getFilteredItems = (items) => {
-        // FIXED: Ensure items is always an array before processing
         if (!Array.isArray(items)) {
             console.warn('getFilteredItems received non-array:', typeof items, items);
             return [];
@@ -1212,7 +1209,7 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // Group items by category for display
+    // FIXED: Group items by category for display with better error handling
     const getGroupedItems = () => {
         if (aiMode === 'ai-optimized' && aiOptimization) {
             return aiOptimization.optimizedRoute.reduce((grouped, section) => {
@@ -1232,10 +1229,8 @@ export default function EnhancedAIShoppingListModal({
         } else {
             const grouped = {};
 
-            // FIXED: Ensure we're working with the correct data structure
             if (normalizedList.items && typeof normalizedList.items === 'object') {
                 Object.entries(normalizedList.items).forEach(([category, items]) => {
-                    // FIXED: Only process if items is an array
                     if (Array.isArray(items)) {
                         const filtered = getFilteredItems(items);
                         if (filtered.length > 0) {
@@ -1307,16 +1302,15 @@ export default function EnhancedAIShoppingListModal({
     const groupedItems = getGroupedItems();
     const config = getModeConfig();
 
+    // FIXED: Much more generous content area height
     const contentStyle = {
         flex: 1,
         padding: '0.5rem',
         overflow: 'auto',
         backgroundColor: 'white',
         minHeight: 0,
-        // FIXED: Much larger scrollable area
-        maxHeight: (shoppingMode === 'smart-price' || shoppingMode === 'unified') ?
-            'calc(100vh - 280px)' :  // Less space taken by headers
-            'calc(100vh - 200px)',   // More space for basic mode
+        // FIXED: Much larger scrollable area - removed restrictive maxHeight
+        height: '100%',
         paddingBottom: 'calc(0.5rem + env(safe-area-inset-bottom, 0px))'
     };
 
@@ -1327,13 +1321,13 @@ export default function EnhancedAIShoppingListModal({
         flexShrink: 0
     };
 
-// Fix for the price optimization summary - make it collapsible
+    // Fix for the price optimization summary - make it collapsible
     const optimizationSummaryStyle = {
-        padding: '0.5rem 1rem', // Reduced padding
+        padding: '0.5rem 1rem',
         backgroundColor: '#f8fafc',
         borderBottom: '1px solid #e5e7eb',
         flexShrink: 0,
-        maxHeight: showOptimizationDetails ? '200px' : '60px', // Collapsible
+        maxHeight: showOptimizationDetails ? '200px' : '60px',
         overflow: 'auto'
     };
 
@@ -1488,24 +1482,23 @@ export default function EnhancedAIShoppingListModal({
                             <div style={{
                                 display: 'grid',
                                 gridTemplateColumns: 'repeat(4, 1fr)',
-                                gap: '0.25rem' // Reduced gap
+                                gap: '0.25rem'
                             }}>
-                                {/* Price cards with smaller padding */}
                                 <div style={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
                                     borderRadius: '6px',
-                                    padding: '0.375rem', // Reduced padding
+                                    padding: '0.375rem',
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.65rem', // Smaller text
+                                        fontSize: '0.65rem',
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
                                     }}>Budget</div>
                                     <div style={{
-                                        fontSize: '0.8rem', // Smaller text
+                                        fontSize: '0.8rem',
                                         fontWeight: '600',
                                         color: '#111827'
                                     }}>
@@ -1517,18 +1510,17 @@ export default function EnhancedAIShoppingListModal({
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
                                     borderRadius: '6px',
-                                    padding: '0.375rem', // Reduced padding
+                                    padding: '0.375rem',
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.65rem', // Smaller text
+                                        fontSize: '0.65rem',
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Total Est.
-                                    </div>
+                                    }}>Total Est.</div>
                                     <div style={{
-                                        fontSize: '0.8rem', // Smaller text
+                                        fontSize: '0.8rem',
                                         fontWeight: '600',
                                         color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'
                                     }}>
@@ -1540,18 +1532,17 @@ export default function EnhancedAIShoppingListModal({
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
                                     borderRadius: '6px',
-                                    padding: '0.375rem', // Reduced padding
+                                    padding: '0.375rem',
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.65rem', // Smaller text
+                                        fontSize: '0.65rem',
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Savings
-                                    </div>
+                                    }}>Savings</div>
                                     <div style={{
-                                        fontSize: '0.8rem', // Smaller text
+                                        fontSize: '0.8rem',
                                         fontWeight: '600',
                                         color: '#059669'
                                     }}>
@@ -1563,18 +1554,17 @@ export default function EnhancedAIShoppingListModal({
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
                                     border: '1px solid #e5e7eb',
                                     borderRadius: '6px',
-                                    padding: '0.375rem', // Reduced padding
+                                    padding: '0.375rem',
                                     textAlign: 'center'
                                 }}>
                                     <div style={{
-                                        fontSize: '0.65rem', // Smaller text
+                                        fontSize: '0.65rem',
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Deals
-                                    </div>
+                                    }}>Deals</div>
                                     <div style={{
-                                        fontSize: '0.8rem', // Smaller text
+                                        fontSize: '0.8rem',
                                         fontWeight: '600',
                                         color: '#7c2d12'
                                     }}>
@@ -1587,10 +1577,10 @@ export default function EnhancedAIShoppingListModal({
 
                     {/* Enhanced Controls with Mode-Specific Features */}
                     <div style={{
-                        padding: '0.5rem 1rem', // Reduced padding
+                        padding: '0.5rem 1rem',
                         borderBottom: '1px solid #f3f4f6',
                         display: 'flex',
-                        gap: '0.25rem', // Reduced gap
+                        gap: '0.25rem',
                         alignItems: 'center',
                         flexWrap: 'wrap',
                         backgroundColor: '#f8fafc',
@@ -1627,8 +1617,8 @@ export default function EnhancedAIShoppingListModal({
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                padding: '0.25rem 0.375rem', // Smaller buttons
-                                fontSize: '0.7rem', // Smaller text
+                                padding: '0.25rem 0.375rem',
+                                fontSize: '0.7rem',
                                 cursor: editingCategories ? 'not-allowed' : 'pointer',
                                 fontWeight: '500',
                                 opacity: editingCategories ? 0.6 : 1
@@ -1642,14 +1632,9 @@ export default function EnhancedAIShoppingListModal({
                             <>
                                 <TouchEnhancedButton
                                     onClick={() => setPriceMode('smart')}
-                                    className={`px-3 py-1 rounded text-sm font-medium ${
-                                        priceMode === 'smart'
-                                            ? 'bg-blue-600 text-white'
-                                            : 'bg-white text-gray-700 border border-gray-300'
-                                    }`}
                                     style={{
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         fontWeight: '500',
                                         borderRadius: '4px',
                                         border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
@@ -1664,8 +1649,8 @@ export default function EnhancedAIShoppingListModal({
                                 <TouchEnhancedButton
                                     onClick={() => setPriceMode('budget')}
                                     style={{
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         fontWeight: '500',
                                         borderRadius: '4px',
                                         border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
@@ -1680,8 +1665,8 @@ export default function EnhancedAIShoppingListModal({
                                 <TouchEnhancedButton
                                     onClick={() => setPriceMode('deals')}
                                     style={{
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         fontWeight: '500',
                                         borderRadius: '4px',
                                         border: priceMode === 'deals' ? 'none' : '1px solid #d1d5db',
@@ -1698,8 +1683,8 @@ export default function EnhancedAIShoppingListModal({
                                         onClick={optimizeForBudget}
                                         disabled={loading}
                                         style={{
-                                            padding: '0.25rem 0.375rem', // Smaller buttons
-                                            fontSize: '0.7rem', // Smaller text
+                                            padding: '0.25rem 0.375rem',
+                                            fontSize: '0.7rem',
                                             backgroundColor: loading ? '#9ca3af' : '#f59e0b',
                                             color: 'white',
                                             border: 'none',
@@ -1724,8 +1709,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '4px',
-                                    padding: '0.25rem 0.375rem', // Smaller buttons
-                                    fontSize: '0.7rem', // Smaller text
+                                    padding: '0.25rem 0.375rem',
+                                    fontSize: '0.7rem',
                                     cursor: (!selectedStore || aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
                                     fontWeight: '500',
                                     opacity: (!selectedStore || aiLoading || editingCategories) ? 0.6 : 1
@@ -1743,8 +1728,8 @@ export default function EnhancedAIShoppingListModal({
                                 color: 'white',
                                 border: 'none',
                                 borderRadius: '4px',
-                                padding: '0.25rem 0.375rem', // Smaller buttons
-                                fontSize: '0.7rem', // Smaller text
+                                padding: '0.25rem 0.375rem',
+                                fontSize: '0.7rem',
                                 cursor: 'pointer',
                                 fontWeight: '500'
                             }}
@@ -1762,8 +1747,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1778,8 +1763,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1799,8 +1784,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1814,8 +1799,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1830,8 +1815,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem', // Smaller buttons
-                                        fontSize: '0.7rem', // Smaller text
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
                                         cursor: 'pointer',
                                         fontWeight: '500'
                                     }}
@@ -1956,8 +1941,7 @@ export default function EnhancedAIShoppingListModal({
                                         fontSize: '0.8rem',
                                         color: '#d97706'
                                     }}>
-                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your
-                                        budget
+                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your budget
                                     </div>
                                 </div>
                             )}
@@ -2008,8 +1992,7 @@ export default function EnhancedAIShoppingListModal({
                                         color: '#1e40af',
                                         marginBottom: showPriceBreakdown ? '0.75rem' : '0'
                                     }}>
-                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by
-                                        shopping elsewhere
+                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by shopping elsewhere
                                     </div>
 
                                     {showPriceBreakdown && (
@@ -2169,7 +2152,7 @@ export default function EnhancedAIShoppingListModal({
                                                             ` (${item.recipes.join(', ')})` : '';
                                                         const price = config.showPriceFeatures && item.estimatedPrice ?
                                                             ` - ${formatPrice(item.estimatedPrice)}` : '';
-                                                        return `  ${checkbox} ${item.quantity || item.amount ? `${item.quantity || item.amount} ` : ''}${item.ingredient || item.name}${price}${status}${recipes}`;
+                                                        return `  ${checkbox} ${item.quantity && item.quantity !== 1 ? `${item.quantity} ` : ''}${item.ingredient || item.name}${price}${status}${recipes}`;
                                                     });
                                                     return `${category}:\n${categoryItems.join('\n')}`;
                                                 })
@@ -2220,7 +2203,7 @@ export default function EnhancedAIShoppingListModal({
                         </div>
                     )}
 
-                    {/* Main Shopping List Content */}
+                    {/* Main Shopping List Content - FIXED */}
                     <div
                         id="unified-shopping-list-content"
                         style={contentStyle}
@@ -2308,8 +2291,8 @@ export default function EnhancedAIShoppingListModal({
                                                                 lineHeight: '1.4',
                                                                 marginBottom: '0.25rem'
                                                             }}>
+                                                                {/* FIXED: Don't duplicate quantity display */}
                                                                 {item.quantity && item.quantity !== 1 && `${item.quantity} `}
-                                                                {item.amount && `${item.amount} `}
                                                                 {item.ingredient || item.name}
 
                                                                 {/* Smart Price Status Badges */}
@@ -2473,8 +2456,7 @@ export default function EnhancedAIShoppingListModal({
                                                                         color: '#3b82f6',
                                                                         fontWeight: '500'
                                                                     }}>
-                                                                        💡 View {item.alternatives.length} cheaper
-                                                                        alternatives
+                                                                        💡 View {item.alternatives.length} cheaper alternatives
                                                                     </summary>
                                                                     <div style={{
                                                                         marginTop: '0.5rem',
@@ -2491,8 +2473,7 @@ export default function EnhancedAIShoppingListModal({
                                                                                 marginBottom: '0.5rem'
                                                                             }}>
                                                                                 <div>
-                                                                                    <span
-                                                                                        style={{fontWeight: '500'}}>{alt.name}</span>
+                                                                                    <span style={{fontWeight: '500'}}>{alt.name}</span>
                                                                                     <span style={{
                                                                                         color: '#6b7280',
                                                                                         marginLeft: '0.5rem'
@@ -2605,8 +2586,7 @@ export default function EnhancedAIShoppingListModal({
                                                                                     }}
                                                                                     title={`AI suggests moving to ${suggested}`}
                                                                                 >
-                                                                                    🤖
-                                                                                    → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
+                                                                                    🤖 → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
                                                                                 </TouchEnhancedButton>
                                                                             );
                                                                         }
@@ -2619,8 +2599,7 @@ export default function EnhancedAIShoppingListModal({
                                                         {/* Price History Button - Smart Price modes */}
                                                         {config.showPriceFeatures && priceComparison[item.ingredient || item.name]?.prices.length > 0 && (
                                                             <TouchEnhancedButton
-                                                                onClick={() => {/* Open price history modal */
-                                                                }}
+                                                                onClick={() => {/* Open price history modal */}}
                                                                 style={{
                                                                     color: '#3b82f6',
                                                                     fontSize: '0.75rem',
@@ -2686,8 +2665,7 @@ export default function EnhancedAIShoppingListModal({
                             gap: '0.5rem'
                         }}>
                             <TouchEnhancedButton
-                                onClick={() => {/* Start shopping mode */
-                                }}
+                                onClick={() => {/* Start shopping mode */}}
                                 style={{
                                     backgroundColor: '#3b82f6',
                                     color: 'white',
@@ -2823,8 +2801,7 @@ export default function EnhancedAIShoppingListModal({
                             <div style={{marginTop: '0.25rem'}}>
                                 🏪 Store: {selectedStore || 'Not selected'}
                                 {aiMode === 'ai-optimized' && aiInsights && (
-                                    <span
-                                        style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
+                                    <span style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
                                 )}
                                 <span style={{color: config.primaryColor}}> • {config.title}</span>
                             </div>
@@ -2832,6 +2809,8 @@ export default function EnhancedAIShoppingListModal({
                     </div>
                 </div>
             </div>
+
+            {/* All existing modals remain the same... */}
 
             {/* Mode Selector Modal */}
             {showModeSelector && (
@@ -2916,8 +2895,7 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Full-featured shopping with AI route optimization, smart categorization, voice
-                                    input, and advanced organization tools.
+                                    Full-featured shopping with AI route optimization, smart categorization, voice input, and advanced organization tools.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
@@ -2974,8 +2952,7 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and
-                                    savings recommendations.
+                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and savings recommendations.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
@@ -3042,8 +3019,7 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    The complete shopping experience combining AI optimization with price intelligence
-                                    for maximum savings and efficiency.
+                                    The complete shopping experience combining AI optimization with price intelligence for maximum savings and efficiency.
                                 </p>
                                 <div style={{
                                     marginTop: '0.5rem',
@@ -3080,7 +3056,6 @@ export default function EnhancedAIShoppingListModal({
                 </div>
             )}
 
-            {/* All existing modals with minor enhancements */}
             {/* Category Selection Modal */}
             {movingItem && (
                 <div style={{
@@ -3121,7 +3096,7 @@ export default function EnhancedAIShoppingListModal({
                             marginBottom: '1rem'
                         }}>
                             <div style={{fontWeight: '500', color: '#374151'}}>
-                                {movingItem.item.amount && `${movingItem.item.amount} `}
+                                {movingItem.item.quantity && movingItem.item.quantity !== 1 && `${movingItem.item.quantity} `}
                                 {movingItem.item.ingredient || movingItem.item.name}
                             </div>
                             <div style={{fontSize: '0.875rem', color: '#6b7280', marginTop: '0.25rem'}}>
