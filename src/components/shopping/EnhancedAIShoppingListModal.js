@@ -18,32 +18,27 @@ import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 export default function EnhancedAIShoppingListModal({
                                                         isOpen,
                                                         onClose,
-                                                        shoppingList,
-                                                        title = '🛒 Smart Shopping Assistant',
-                                                        subtitle = null,
+                                                        shoppingList: initialShoppingList,
                                                         sourceRecipeIds = [],
                                                         sourceMealPlanId = null,
+                                                        userPreferences = {},
+                                                        session = null,
+                                                        stores = [],
+                                                        customCategories = {},
                                                         onRefresh = null,
                                                         showRefresh = false,
-                                                        // Smart Price Shopping List props
-                                                        initialItems = [],
-                                                        storePreference = '',
-                                                        budgetLimit = null,
-                                                        onSave,
-                                                        optimization = null,
-                                                        initialMode = 'enhanced'
+                                                        shoppingMode = 'unified' // 'enhanced', 'smart-price', 'unified'
                                                     }) {
     const {data: session} = useSafeSession();
 
     // Core State
-    const [filter, setFilter] = useState('all');
+    const [categoryFilter, setCategoryFilter] = useState('');
     const [purchasedItems, setPurchasedItems] = useState({});
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
     // Mode Management
-    const [shoppingMode, setShoppingMode] = useState(initialMode);
     const [showModeSelector, setShowModeSelector] = useState(false);
 
     // AI Enhancement State
@@ -60,8 +55,8 @@ export default function EnhancedAIShoppingListModal({
     const [priceMode, setPriceMode] = useState('smart');
     const [budgetTracking, setBudgetTracking] = useState({
         current: 0,
-        limit: budgetLimit,
-        remaining: budgetLimit
+        limit: userPreferences?.budgetLimit || null,
+        remaining: userPreferences?.budgetLimit || 0
     });
     const [priceAnalysis, setPriceAnalysis] = useState({
         totalSavings: 0,
@@ -71,6 +66,8 @@ export default function EnhancedAIShoppingListModal({
     });
     const [showOptimizationDetails, setShowOptimizationDetails] = useState(false);
     const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
+    const [headerCollapsed, setHeaderCollapsed] = useState(false);
+    const [footerCollapsed, setFooterCollapsed] = useState(false);
     const [loading, setLoading] = useState(false);
 
     // Category Management State
@@ -81,7 +78,7 @@ export default function EnhancedAIShoppingListModal({
     const [editingCategories, setEditingCategories] = useState(false);
 
     // Store Layout State
-    const [selectedStore, setSelectedStore] = useState(storePreference);
+    const [selectedStore, setSelectedStore] = useState(userPreferences?.preferredStore || '');
     const [stores, setStores] = useState([]);
     const [showStoreSelector, setShowStoreSelector] = useState(false);
 
@@ -116,17 +113,26 @@ export default function EnhancedAIShoppingListModal({
     // Shopping List State
     const [currentShoppingList, setCurrentShoppingList] = useState(null);
 
+    useEffect(() => {
+        if (isOpen && initialShoppingList) {
+            console.log('🔄 Initializing shopping list modal with:', {
+                mode: shoppingMode,
+                hasItems: !!initialShoppingList?.items,
+                itemCount: Array.isArray(initialShoppingList?.items) ? initialShoppingList.items.length : 0
+            });
+            setCurrentShoppingList(initialShoppingList);
+        }
+    }, [isOpen, initialShoppingList, shoppingMode]);
+
     // Reset state when modal opens/closes
     useEffect(() => {
         if (!isOpen) {
-            setFilter('all');
-            setPurchasedItems({});
+            setCategoryFilter('');
             setShowEmailModal(false);
             setShowSaveModal(false);
             setShowActions(false);
-            setAiMode('basic');
+            setAiMode('standard');
             setAiOptimization(null);
-            setShowAiPanel(false);
             setShowCategoryManager(false);
             setMovingItem(null);
             setCurrentShoppingList(null);
@@ -140,18 +146,15 @@ export default function EnhancedAIShoppingListModal({
             setPriceAnalysis({
                 totalSavings: 0,
                 bestDeals: [],
-                priceAlerts: [],
-                storeComparison: {}
+                storeRecommendations: [],
+                potentialSavings: 0
             });
-        } else {
-            loadPreferences();
-            fetchStores();
-            initializeAISystem();
-            loadCustomCategories();
-            loadUserPreferences();
-            processInitialData();
+            setHeaderCollapsed(false);
+            setFooterCollapsed(false);
         }
-    }, [isOpen, shoppingList, initialItems]);
+    }, [isOpen]);
+
+    if (!isOpen) return null;
 
     const processInitialData = () => {
         // Handle both shoppingList (Enhanced AI) and initialItems (Smart Price) formats
@@ -1353,17 +1356,9 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    if (!isOpen || !currentShoppingList) {
-        return null;
-    }
-
     const stats = getStats();
     const groupedItems = getGroupedItems();
     const config = getModeConfig();
-
-    // FIXED: Add collapsible header and footer to maximize content area
-    const [headerCollapsed, setHeaderCollapsed] = useState(false);
-    const [footerCollapsed, setFooterCollapsed] = useState(false);
 
     // FIXED: Much larger content area with collapsible sections
     const contentStyle = {
@@ -2732,7 +2727,6 @@ export default function EnhancedAIShoppingListModal({
                                 <span>💾</span>
                                 <span>Save {footerCollapsed ? 'List' : `${config.title.split(' ')[1]} List`}</span>
                             </TouchEnhancedButton>
-
                             {/* Collapse Footer Button */}
                             <TouchEnhancedButton
                                 onClick={() => setFooterCollapsed(!footerCollapsed)}
@@ -3780,8 +3774,6 @@ function CustomCategoryManager({isOpen, onClose, customCategories, onSave, userI
         onSave(customOnly);
         onClose();
     };
-
-    if (!isOpen) return null;
 
     const defaultCategories = Object.entries(categories).filter(([_, cat]) => !cat.custom);
     const customCategoriesOnly = Object.entries(categories).filter(([_, cat]) => cat.custom);
