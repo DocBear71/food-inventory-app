@@ -3,7 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import { apiPost, apiGet } from '@/lib/api-config';
+// REMOVED: SmartPriceShoppingList import since we're using EnhancedAIShoppingListModal
 import EnhancedAIShoppingListModal from '@/components/shopping/EnhancedAIShoppingListModal';
 
 export default function EnhancedShoppingListGenerator({
@@ -499,27 +501,146 @@ export default function EnhancedShoppingListGenerator({
         // Convert enhanced shopping list items to array format for the unified modal
         const convertedItems = [];
         if (shoppingList.items) {
-            Object.entries(shoppingList.items).forEach(([category, items]) => {
-                items.forEach(item => {
-                    convertedItems.push({
-                        ...item,
-                        category: category,
-                        // Add price optimization data if available
-                        priceOptimized: !!item.priceInfo,
-                        estimatedPrice: item.priceInfo?.estimatedPrice || item.estimatedPrice || 0,
-                        dealStatus: item.priceInfo?.dealStatus || 'normal',
-                        alternatives: item.priceInfo?.alternatives || [],
-                        // Ensure required fields exist
-                        id: item.id || `${item.ingredient || item.name}-${Date.now()}`,
-                        name: item.name || item.ingredient,
-                        ingredient: item.ingredient || item.name,
-                        quantity: item.quantity || item.amount || 1,
-                        unit: item.unit || '',
-                        selected: item.selected !== false,
-                        checked: item.checked || false
-                    });
+            try {
+                console.log('🔍 DEBUG: Shopping list structure:', {
+                    hasItems: !!shoppingList.items,
+                    itemsType: typeof shoppingList.items,
+                    isArray: Array.isArray(shoppingList.items),
+                    itemsKeys: typeof shoppingList.items === 'object' ? Object.keys(shoppingList.items) : 'N/A'
                 });
-            });
+
+                // Handle different data structures safely
+                if (Array.isArray(shoppingList.items)) {
+                    // Case 1: Items is already a flat array
+                    console.log('📋 Processing flat array of items, count:', shoppingList.items.length);
+                    shoppingList.items.forEach((item, index) => {
+                        if (item && (item.ingredient || item.name)) {
+                            convertedItems.push({
+                                ...item,
+                                category: item.category || 'Other',
+                                priceOptimized: !!(item.priceInfo || item.priceOptimized),
+                                estimatedPrice: item.priceInfo?.estimatedPrice || item.estimatedPrice || 0,
+                                dealStatus: item.priceInfo?.dealStatus || item.dealStatus || 'normal',
+                                alternatives: item.priceInfo?.alternatives || item.alternatives || [],
+                                id: item.id || `${item.ingredient || item.name}-${Date.now()}-${index}`,
+                                name: item.name || item.ingredient || 'Unknown Item',
+                                ingredient: item.ingredient || item.name || 'Unknown Item',
+                                quantity: item.quantity || item.amount || 1,
+                                unit: item.unit || '',
+                                selected: item.selected !== false,
+                                checked: item.checked || false
+                            });
+                        }
+                    });
+                } else if (typeof shoppingList.items === 'object' && shoppingList.items !== null) {
+                    // Case 2: Items is an object with categories
+                    console.log('📂 Processing categorized items object');
+                    Object.entries(shoppingList.items).forEach(([category, categoryItems]) => {
+                        console.log(`🔍 Processing category "${category}":`, {
+                            type: typeof categoryItems,
+                            isArray: Array.isArray(categoryItems),
+                            length: Array.isArray(categoryItems) ? categoryItems.length : 'N/A'
+                        });
+
+                        if (Array.isArray(categoryItems)) {
+                            // Normal case: category contains array of items
+                            categoryItems.forEach((item, index) => {
+                                if (item && (item.ingredient || item.name)) {
+                                    convertedItems.push({
+                                        ...item,
+                                        category: category,
+                                        priceOptimized: !!(item.priceInfo || item.priceOptimized),
+                                        estimatedPrice: item.priceInfo?.estimatedPrice || item.estimatedPrice || 0,
+                                        dealStatus: item.priceInfo?.dealStatus || item.dealStatus || 'normal',
+                                        alternatives: item.priceInfo?.alternatives || item.alternatives || [],
+                                        id: item.id || `${item.ingredient || item.name}-${Date.now()}-${index}`,
+                                        name: item.name || item.ingredient || 'Unknown Item',
+                                        ingredient: item.ingredient || item.name || 'Unknown Item',
+                                        quantity: item.quantity || item.amount || 1,
+                                        unit: item.unit || '',
+                                        selected: item.selected !== false,
+                                        checked: item.checked || false
+                                    });
+                                }
+                            });
+                        } else if (categoryItems && typeof categoryItems === 'object') {
+                            // Edge case: category contains single item object
+                            console.warn(`⚠️ Category "${category}" contains single item instead of array:`, categoryItems);
+                            if (categoryItems.ingredient || categoryItems.name) {
+                                convertedItems.push({
+                                    ...categoryItems,
+                                    category: category,
+                                    priceOptimized: !!(categoryItems.priceInfo || categoryItems.priceOptimized),
+                                    estimatedPrice: categoryItems.priceInfo?.estimatedPrice || categoryItems.estimatedPrice || 0,
+                                    dealStatus: categoryItems.priceInfo?.dealStatus || categoryItems.dealStatus || 'normal',
+                                    alternatives: categoryItems.priceInfo?.alternatives || categoryItems.alternatives || [],
+                                    id: categoryItems.id || `${categoryItems.ingredient || categoryItems.name}-${Date.now()}-0`,
+                                    name: categoryItems.name || categoryItems.ingredient || 'Unknown Item',
+                                    ingredient: categoryItems.ingredient || categoryItems.name || 'Unknown Item',
+                                    quantity: categoryItems.quantity || categoryItems.amount || 1,
+                                    unit: categoryItems.unit || '',
+                                    selected: categoryItems.selected !== false,
+                                    checked: categoryItems.checked || false
+                                });
+                            }
+                        } else {
+                            console.warn(`⚠️ Category "${category}" contains invalid data type:`, typeof categoryItems, categoryItems);
+                        }
+                    });
+                } else {
+                    console.error('❌ Invalid shopping list items structure:', typeof shoppingList.items, shoppingList.items);
+                }
+
+                console.log('✅ Conversion complete. Converted items count:', convertedItems.length);
+            } catch (error) {
+                console.error('❌ Error processing shopping list items:', error);
+                console.error('📋 Shopping list data that caused error:', shoppingList);
+                // Fallback: try to salvage any data we can
+                if (shoppingList.items) {
+                    console.log('🔄 Attempting fallback conversion...');
+                    try {
+                        // Last resort: flatten everything we can find
+                        const flattenItems = (obj, defaultCategory = 'Other') => {
+                            if (Array.isArray(obj)) {
+                                return obj.filter(item => item && (item.ingredient || item.name));
+                            } else if (typeof obj === 'object' && obj !== null) {
+                                if (obj.ingredient || obj.name) {
+                                    return [obj];
+                                } else {
+                                    const items = [];
+                                    Object.entries(obj).forEach(([key, value]) => {
+                                        items.push(...flattenItems(value, key));
+                                    });
+                                    return items;
+                                }
+                            }
+                            return [];
+                        };
+
+                        const fallbackItems = flattenItems(shoppingList.items);
+                        fallbackItems.forEach((item, index) => {
+                            convertedItems.push({
+                                ...item,
+                                category: item.category || 'Other',
+                                id: item.id || `fallback-${Date.now()}-${index}`,
+                                name: item.name || item.ingredient || 'Unknown Item',
+                                ingredient: item.ingredient || item.name || 'Unknown Item',
+                                quantity: item.quantity || item.amount || 1,
+                                unit: item.unit || '',
+                                selected: item.selected !== false,
+                                checked: item.checked || false,
+                                priceOptimized: false,
+                                estimatedPrice: 0,
+                                dealStatus: 'normal',
+                                alternatives: []
+                            });
+                        });
+                        console.log('🔄 Fallback conversion completed. Items salvaged:', convertedItems.length);
+                    } catch (fallbackError) {
+                        console.error('❌ Fallback conversion also failed:', fallbackError);
+                    }
+                }
+            }
         }
 
         console.log('🚀 Opening Enhanced AI Shopping List Modal with unified data:', {
