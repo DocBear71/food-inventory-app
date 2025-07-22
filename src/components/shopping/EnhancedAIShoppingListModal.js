@@ -1246,36 +1246,6 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    const contentStyle = {
-        flex: 1,
-        padding: '0.5rem', // Reduced padding
-        overflow: 'auto',
-        backgroundColor: 'white',
-        minHeight: 0,
-        // FIXED: Better mobile optimization
-        maxHeight: config.showPriceFeatures ?
-            'calc(100vh - 320px)' :  // Less space when price features are shown
-            'calc(100vh - 250px)',   // More space for basic mode
-        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
-    };
-
-    const priceSummaryStyle = {
-        padding: '0.5rem 1rem', // Reduced padding
-        backgroundColor: '#f8fafc',
-        borderBottom: '1px solid #e5e7eb',
-        flexShrink: 0
-    };
-
-// Fix for the price optimization summary - make it collapsible
-    const optimizationSummaryStyle = {
-        padding: '0.5rem 1rem', // Reduced padding
-        backgroundColor: '#f8fafc',
-        borderBottom: '1px solid #e5e7eb',
-        flexShrink: 0,
-        maxHeight: showOptimizationDetails ? '200px' : '60px', // Collapsible
-        overflow: 'auto'
-    };
-
     // Calculate statistics
     const getStats = () => {
         if (!normalizedList.items) {
@@ -1331,6 +1301,36 @@ export default function EnhancedAIShoppingListModal({
     const stats = getStats();
     const groupedItems = getGroupedItems();
     const config = getModeConfig();
+
+    const contentStyle = {
+        flex: 1,
+        padding: '0.5rem', // Reduced padding
+        overflow: 'auto',
+        backgroundColor: 'white',
+        minHeight: 0,
+        // FIXED: Better mobile optimization
+        maxHeight: config.showPriceFeatures ?
+            'calc(100vh - 320px)' :  // Less space when price features are shown
+            'calc(100vh - 250px)',   // More space for basic mode
+        paddingBottom: 'calc(1rem + env(safe-area-inset-bottom, 0px))'
+    };
+
+    const priceSummaryStyle = {
+        padding: '0.5rem 1rem', // Reduced padding
+        backgroundColor: '#f8fafc',
+        borderBottom: '1px solid #e5e7eb',
+        flexShrink: 0
+    };
+
+// Fix for the price optimization summary - make it collapsible
+    const optimizationSummaryStyle = {
+        padding: '0.5rem 1rem', // Reduced padding
+        backgroundColor: '#f8fafc',
+        borderBottom: '1px solid #e5e7eb',
+        flexShrink: 0,
+        maxHeight: showOptimizationDetails ? '200px' : '60px', // Collapsible
+        overflow: 'auto'
+    };
 
     return (
         <>
