@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/shopping/EnhancedAIShoppingListModal.js v5 - Fixed scrolling area, category display, item movement, and quantity duplication
+// file: /src/components/shopping/EnhancedAIShoppingListModal.js v6 - Fixed hooks order, unresolved variables, and unused functions
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -18,27 +18,33 @@ import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 export default function EnhancedAIShoppingListModal({
                                                         isOpen,
                                                         onClose,
-                                                        shoppingList: initialShoppingList,
+                                                        shoppingList, // FIXED: renamed from initialShoppingList to match usage
+                                                        title = '🛒 Smart Shopping Assistant',
+                                                        subtitle = null,
                                                         sourceRecipeIds = [],
                                                         sourceMealPlanId = null,
-                                                        userPreferences = {},
-                                                        session = null,
-                                                        stores = [],
-                                                        customCategories = {},
                                                         onRefresh = null,
                                                         showRefresh = false,
-                                                        shoppingMode = 'unified' // 'enhanced', 'smart-price', 'unified'
+                                                        // Smart Price Shopping List props - FIXED: Added missing props
+                                                        initialItems = [],
+                                                        storePreference = '',
+                                                        budgetLimit = null,
+                                                        onSave,
+                                                        optimization = null,
+                                                        initialMode = 'enhanced'
                                                     }) {
     const {data: session} = useSafeSession();
 
+    // FIXED: Declare ALL state at the top level before any conditional logic
     // Core State
-    const [categoryFilter, setCategoryFilter] = useState('');
+    const [filter, setFilter] = useState('all'); // FIXED: Added missing filter state
     const [purchasedItems, setPurchasedItems] = useState({});
     const [showEmailModal, setShowEmailModal] = useState(false);
     const [showSaveModal, setShowSaveModal] = useState(false);
     const [showActions, setShowActions] = useState(false);
 
     // Mode Management
+    const [shoppingMode, setShoppingMode] = useState(initialMode);
     const [showModeSelector, setShowModeSelector] = useState(false);
 
     // AI Enhancement State
@@ -55,8 +61,8 @@ export default function EnhancedAIShoppingListModal({
     const [priceMode, setPriceMode] = useState('smart');
     const [budgetTracking, setBudgetTracking] = useState({
         current: 0,
-        limit: userPreferences?.budgetLimit || null,
-        remaining: userPreferences?.budgetLimit || 0
+        limit: budgetLimit,
+        remaining: budgetLimit
     });
     const [priceAnalysis, setPriceAnalysis] = useState({
         totalSavings: 0,
@@ -66,8 +72,6 @@ export default function EnhancedAIShoppingListModal({
     });
     const [showOptimizationDetails, setShowOptimizationDetails] = useState(false);
     const [showPriceBreakdown, setShowPriceBreakdown] = useState(false);
-    const [headerCollapsed, setHeaderCollapsed] = useState(false);
-    const [footerCollapsed, setFooterCollapsed] = useState(false);
     const [loading, setLoading] = useState(false);
 
     // Category Management State
@@ -78,7 +82,7 @@ export default function EnhancedAIShoppingListModal({
     const [editingCategories, setEditingCategories] = useState(false);
 
     // Store Layout State
-    const [selectedStore, setSelectedStore] = useState(userPreferences?.preferredStore || '');
+    const [selectedStore, setSelectedStore] = useState(storePreference);
     const [stores, setStores] = useState([]);
     const [showStoreSelector, setShowStoreSelector] = useState(false);
 
@@ -113,72 +117,129 @@ export default function EnhancedAIShoppingListModal({
     // Shopping List State
     const [currentShoppingList, setCurrentShoppingList] = useState(null);
 
-    useEffect(() => {
-        if (isOpen && initialShoppingList) {
-            console.log('🔄 Initializing shopping list modal with:', {
-                mode: shoppingMode,
-                hasItems: !!initialShoppingList?.items,
-                itemCount: Array.isArray(initialShoppingList?.items) ? initialShoppingList.items.length : 0
-            });
-            setCurrentShoppingList(initialShoppingList);
+    // FIXED: Add collapsible header and footer state (moved to top level)
+    const [headerCollapsed, setHeaderCollapsed] = useState(false);
+    const [footerCollapsed, setFooterCollapsed] = useState(false);
+
+    // FIXED: Helper functions defined before useEffect hooks
+    const loadPreferences = () => {
+        try {
+            const savedStore = localStorage.getItem('preferred-shopping-store');
+            const savedAiMode = localStorage.getItem('ai-shopping-mode');
+            const savedShoppingMode = localStorage.getItem('preferred-shopping-mode');
+
+            if (savedStore) setSelectedStore(savedStore);
+            if (savedAiMode) setAiMode(savedAiMode);
+            if (savedShoppingMode) setShoppingMode(savedShoppingMode);
+        } catch (error) {
+            console.error('Error loading preferences:', error);
         }
-    }, [isOpen, initialShoppingList, shoppingMode]);
+    };
 
-    // Reset state when modal opens/closes
-    useEffect(() => {
-        if (!isOpen) {
-            setCategoryFilter('');
-            setShowEmailModal(false);
-            setShowSaveModal(false);
-            setShowActions(false);
-            setAiMode('standard');
-            setAiOptimization(null);
-            setShowCategoryManager(false);
-            setMovingItem(null);
-            setCurrentShoppingList(null);
-            setShowTotals(false);
-            setShowPrintModal(false);
-            setShowVoiceInput(false);
-            setVoiceResults('');
-            setProcessingVoice(false);
-            setShowModeSelector(false);
-            setPriceComparison({});
-            setPriceAnalysis({
-                totalSavings: 0,
-                bestDeals: [],
-                storeRecommendations: [],
-                potentialSavings: 0
-            });
-            setHeaderCollapsed(false);
-            setFooterCollapsed(false);
-        }
-    }, [isOpen]);
-
-    if (!isOpen) return null;
-
-    const processInitialData = () => {
-        // Handle both shoppingList (Enhanced AI) and initialItems (Smart Price) formats
-        if (shoppingList) {
-            setCurrentShoppingList(shoppingList);
-            if (initialItems.length > 0) {
-                // If both are provided, merge them
-                const mergedList = mergeShoppingLists(shoppingList, initialItems);
-                setCurrentShoppingList(mergedList);
+    const loadUserPreferences = () => {
+        try {
+            if (session?.user?.currencyPreferences) {
+                setUserPreferences(prev => ({
+                    ...prev,
+                    currency: session.user.currencyPreferences.currency || 'USD',
+                    currencySymbol: session.user.currencyPreferences.currencySymbol || '$',
+                    currencyPosition: session.user.currencyPreferences.currencyPosition || 'before',
+                    decimalPlaces: session.user.currencyPreferences.decimalPlaces || 2
+                }));
             }
-        } else if (initialItems.length > 0) {
-            // Convert Smart Price format to Enhanced AI format
-            const convertedList = convertSmartPriceToEnhanced(initialItems);
-            setCurrentShoppingList(convertedList);
-            setShoppingMode('smart-price');
-        }
 
-        if (optimization) {
-            setPriceAnalysis({
-                totalSavings: optimization.totalSavings || 0,
-                bestDeals: optimization.bestDeals || optimization.dealAlerts || [],
-                priceAlerts: optimization.priceAlerts || [],
-                storeComparison: optimization.storeComparison || {}
-            });
+            const saved = localStorage.getItem('shopping-preferences');
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setUserPreferences(prev => ({...prev, ...parsed}));
+
+                // Update budget tracking if budget was saved
+                if (parsed.budget) {
+                    setBudgetTracking(prev => ({
+                        ...prev,
+                        limit: parsed.budget,
+                        remaining: prev.current ? parsed.budget - prev.current : parsed.budget
+                    }));
+                }
+            }
+        } catch (error) {
+            console.error('Error loading user preferences:', error);
+        }
+    };
+
+    const fetchStores = async () => {
+        try {
+            const response = await fetch('/api/stores');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            if (data.success) {
+                setStores(data.stores || []);
+            }
+        } catch (error) {
+            console.error('Error fetching stores:', error);
+            // Don't retry, just set empty array
+            setStores([]);
+        }
+    };
+
+    const initializeAISystem = async () => {
+        if (!session?.user?.id) return;
+
+        try {
+            const aiSystem = createAIShoppingSystem(session.user.id);
+            const learningStatus = aiSystem.getLearningStatus();
+            setLearningProgress(learningStatus);
+
+            console.log('Smart Shopping Assistant System initialized:', learningStatus);
+        } catch (error) {
+            console.error('Error initializing AI system:', error);
+        }
+    };
+
+    const loadCustomCategories = async () => {
+        try {
+            // Always start with default categories
+            const defaultCategories = CategoryUtils.getDefaultCategoryOrder();
+            setAvailableCategories(defaultCategories);
+
+            // Try to load custom categories
+            const response = await fetch('/api/categories/custom');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.customCategories) {
+                    setCustomCategories(data.customCategories);
+                }
+            }
+
+            // Load from localStorage as fallback
+            const saved = localStorage.getItem(`custom-categories-${session?.user?.id}`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                setCustomCategories(prev => ({...prev, ...parsed}));
+            }
+
+        } catch (error) {
+            console.error('Error loading custom categories:', error);
+            // Always ensure we have default categories
+            setAvailableCategories(CategoryUtils.getDefaultCategoryOrder());
+            setCustomCategories({});
+        }
+    };
+
+    const getAISuggestedCategory = (itemName) => {
+        try {
+            const preferences = JSON.parse(localStorage.getItem(`item-category-preferences-${session?.user?.id}`) || '{}');
+            const normalizedName = itemName.toLowerCase().replace(/\b(fresh|frozen|canned|dried|ground|chopped|sliced|diced)\b/g, '').trim();
+
+            if (preferences[normalizedName]) {
+                return preferences[normalizedName];
+            }
+
+            return suggestCategoryForItem(itemName);
+        } catch (error) {
+            return suggestCategoryForItem(itemName);
         }
     };
 
@@ -309,6 +370,87 @@ export default function EnhancedAIShoppingListModal({
         merged.items = mergedItems;
         return merged;
     };
+
+    const processInitialData = () => {
+        console.log('🔄 Processing initial data:', { shoppingList: !!shoppingList, initialItems: initialItems.length });
+
+        // Handle both shoppingList (Enhanced AI) and initialItems (Smart Price) formats
+        if (shoppingList) {
+            setCurrentShoppingList(shoppingList);
+            if (initialItems.length > 0) {
+                // If both are provided, merge them
+                const mergedList = mergeShoppingLists(shoppingList, initialItems);
+                setCurrentShoppingList(mergedList);
+            }
+        } else if (initialItems.length > 0) {
+            // Convert Smart Price format to Enhanced AI format
+            const convertedList = convertSmartPriceToEnhanced(initialItems);
+            setCurrentShoppingList(convertedList);
+            setShoppingMode('smart-price');
+        }
+
+        if (optimization) {
+            setPriceAnalysis({
+                totalSavings: optimization.totalSavings || 0,
+                bestDeals: optimization.bestDeals || optimization.dealAlerts || [],
+                priceAlerts: optimization.priceAlerts || [],
+                storeComparison: optimization.storeComparison || {}
+            });
+        }
+    };
+
+    // FIXED: Main useEffect with proper dependency array and initialization order
+    useEffect(() => {
+        if (!isOpen) {
+            // Reset state when modal closes
+            setFilter('all');
+            setPurchasedItems({});
+            setShowEmailModal(false);
+            setShowSaveModal(false);
+            setShowActions(false);
+            setAiMode('basic');
+            setAiOptimization(null);
+            setShowAiPanel(false);
+            setShowCategoryManager(false);
+            setMovingItem(null);
+            setCurrentShoppingList(null);
+            setShowTotals(false);
+            setShowPrintModal(false);
+            setShowVoiceInput(false);
+            setVoiceResults('');
+            setProcessingVoice(false);
+            setShowModeSelector(false);
+            setPriceComparison({});
+            setPriceAnalysis({
+                totalSavings: 0,
+                bestDeals: [],
+                priceAlerts: [],
+                storeComparison: {}
+            });
+            setHeaderCollapsed(false);
+            setFooterCollapsed(false);
+        } else {
+            // Initialize when modal opens
+            loadPreferences();
+            fetchStores();
+            initializeAISystem();
+            loadCustomCategories();
+            loadUserPreferences();
+            processInitialData();
+        }
+    }, [isOpen]); // FIXED: Simplified dependency array
+
+    // FIXED: Separate useEffect for data processing when props change
+    useEffect(() => {
+        if (isOpen && (shoppingList || initialItems.length > 0)) {
+            processInitialData();
+        }
+    }, [shoppingList, initialItems, isOpen]);
+
+    // FIXED: Early return AFTER all hooks are declared
+    if (!isOpen) {
+        return null;
+    }
 
     // Mode Management Functions
     const switchShoppingMode = (newMode) => {
@@ -678,52 +820,6 @@ export default function EnhancedAIShoppingListModal({
         MobileHaptics?.success();
     };
 
-    // Load all required data and preferences
-    const loadPreferences = () => {
-        try {
-            const savedStore = localStorage.getItem('preferred-shopping-store');
-            const savedAiMode = localStorage.getItem('ai-shopping-mode');
-            const savedShoppingMode = localStorage.getItem('preferred-shopping-mode');
-
-            if (savedStore) setSelectedStore(savedStore);
-            if (savedAiMode) setAiMode(savedAiMode);
-            if (savedShoppingMode) setShoppingMode(savedShoppingMode);
-        } catch (error) {
-            console.error('Error loading preferences:', error);
-        }
-    };
-
-    const loadUserPreferences = () => {
-        try {
-            if (session?.user?.currencyPreferences) {
-                setUserPreferences(prev => ({
-                    ...prev,
-                    currency: session.user.currencyPreferences.currency || 'USD',
-                    currencySymbol: session.user.currencyPreferences.currencySymbol || '$',
-                    currencyPosition: session.user.currencyPreferences.currencyPosition || 'before',
-                    decimalPlaces: session.user.currencyPreferences.decimalPlaces || 2
-                }));
-            }
-
-            const saved = localStorage.getItem('shopping-preferences');
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setUserPreferences(prev => ({...prev, ...parsed}));
-
-                // Update budget tracking if budget was saved
-                if (parsed.budget) {
-                    setBudgetTracking(prev => ({
-                        ...prev,
-                        limit: parsed.budget,
-                        remaining: prev.current ? parsed.budget - prev.current : parsed.budget
-                    }));
-                }
-            }
-        } catch (error) {
-            console.error('Error loading user preferences:', error);
-        }
-    };
-
     const saveUserPreferences = (newPreferences) => {
         try {
             const updated = {...userPreferences, ...newPreferences};
@@ -876,36 +972,6 @@ export default function EnhancedAIShoppingListModal({
         console.log('🎤 Updated shopping list with voice items:', updatedShoppingList);
     };
 
-    const loadCustomCategories = async () => {
-        try {
-            // Always start with default categories
-            const defaultCategories = CategoryUtils.getDefaultCategoryOrder();
-            setAvailableCategories(defaultCategories);
-
-            // Try to load custom categories
-            const response = await fetch('/api/categories/custom');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.customCategories) {
-                    setCustomCategories(data.customCategories);
-                }
-            }
-
-            // Load from localStorage as fallback
-            const saved = localStorage.getItem(`custom-categories-${session?.user?.id}`);
-            if (saved) {
-                const parsed = JSON.parse(saved);
-                setCustomCategories(prev => ({...prev, ...parsed}));
-            }
-
-        } catch (error) {
-            console.error('Error loading custom categories:', error);
-            // Always ensure we have default categories
-            setAvailableCategories(CategoryUtils.getDefaultCategoryOrder());
-            setCustomCategories({});
-        }
-    };
-
     const saveCustomCategories = async (categories) => {
         try {
             const response = await fetch('/api/categories/custom', {
@@ -931,37 +997,6 @@ export default function EnhancedAIShoppingListModal({
             console.error('Error saving custom categories:', error);
             localStorage.setItem(`custom-categories-${session?.user?.id}`, JSON.stringify(categories));
             setCustomCategories(categories);
-        }
-    };
-
-    const fetchStores = async () => {
-        try {
-            const response = await fetch('/api/stores');
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            const data = await response.json();
-            if (data.success) {
-                setStores(data.stores || []);
-            }
-        } catch (error) {
-            console.error('Error fetching stores:', error);
-            // Don't retry, just set empty array
-            setStores([]);
-        }
-    };
-
-    const initializeAISystem = async () => {
-        if (!session?.user?.id) return;
-
-        try {
-            const aiSystem = createAIShoppingSystem(session.user.id);
-            const learningStatus = aiSystem.getLearningStatus();
-            setLearningProgress(learningStatus);
-
-            console.log('Smart Shopping Assistant System initialized:', learningStatus);
-        } catch (error) {
-            console.error('Error initializing AI system:', error);
         }
     };
 
@@ -1059,21 +1094,6 @@ export default function EnhancedAIShoppingListModal({
             console.log(`💾 Saved preference: ${normalizedName} → ${category}`);
         } catch (error) {
             console.error('Error saving item category preference:', error);
-        }
-    };
-
-    const getAISuggestedCategory = (itemName) => {
-        try {
-            const preferences = JSON.parse(localStorage.getItem(`item-category-preferences-${session?.user?.id}`) || '{}');
-            const normalizedName = itemName.toLowerCase().replace(/\b(fresh|frozen|canned|dried|ground|chopped|sliced|diced)\b/g, '').trim();
-
-            if (preferences[normalizedName]) {
-                return preferences[normalizedName];
-            }
-
-            return suggestCategoryForItem(itemName);
-        } catch (error) {
-            return suggestCategoryForItem(itemName);
         }
     };
 
@@ -1355,6 +1375,43 @@ export default function EnhancedAIShoppingListModal({
             // Continue without closing modal
         }
     };
+
+    // FIXED: Return early but only after all state is declared
+    if (!currentShoppingList) {
+        return (
+            <div style={{
+                position: 'fixed',
+                top: '0',
+                left: '0',
+                right: '0',
+                bottom: '0',
+                backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                zIndex: 1000
+            }}>
+                <div style={{
+                    backgroundColor: 'white',
+                    borderRadius: '12px',
+                    padding: '2rem',
+                    textAlign: 'center'
+                }}>
+                    <div style={{
+                        display: 'inline-block',
+                        width: '2rem',
+                        height: '2rem',
+                        border: '3px solid #e5e7eb',
+                        borderTopColor: '#7c3aed',
+                        borderRadius: '50%',
+                        animation: 'spin 1s linear infinite',
+                        marginBottom: '1rem'
+                    }}></div>
+                    <p style={{margin: 0, color: '#6b7280'}}>Loading shopping list...</p>
+                </div>
+            </div>
+        );
+    }
 
     const stats = getStats();
     const groupedItems = getGroupedItems();
@@ -2457,153 +2514,7 @@ export default function EnhancedAIShoppingListModal({
                                                                 </div>
                                                             )}
 
-                                                            {/* Price Information */}
-                                                            {config.showPriceFeatures && priceInfo && priceInfo.status !== 'no-price' && (
-                                                                <div style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.5rem',
-                                                                    marginBottom: '0.5rem'
-                                                                }}>
-                                                                    <span style={{
-                                                                        fontSize: '0.875rem',
-                                                                        fontWeight: '600',
-                                                                        color: priceInfo.status === 'deal' ? '#16a34a' :
-                                                                            priceInfo.status === 'expensive' ? '#dc2626' : '#374151'
-                                                                    }}>
-                                                                        {formatPrice(priceInfo.price)}
-                                                                    </span>
-
-                                                                    <span style={{
-                                                                        fontSize: '0.75rem',
-                                                                        color: '#6b7280'
-                                                                    }}>
-                                                                        at {priceInfo.store}
-                                                                    </span>
-
-                                                                    {priceInfo.status === 'deal' && (
-                                                                        <span style={{
-                                                                            fontSize: '0.7rem',
-                                                                            backgroundColor: '#dcfce7',
-                                                                            color: '#166534',
-                                                                            padding: '0.125rem 0.375rem',
-                                                                            borderRadius: '12px',
-                                                                            fontWeight: '500'
-                                                                        }}>
-                                                                            Great Deal!
-                                                                        </span>
-                                                                    )}
-
-                                                                    {priceInfo.status === 'expensive' && (
-                                                                        <span style={{
-                                                                            fontSize: '0.7rem',
-                                                                            backgroundColor: '#fecaca',
-                                                                            color: '#991b1b',
-                                                                            padding: '0.125rem 0.375rem',
-                                                                            borderRadius: '12px',
-                                                                            fontWeight: '500'
-                                                                        }}>
-                                                                            High Price
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Alternatives */}
-                                                            {config.showPriceFeatures && item.alternatives && item.alternatives.length > 0 && (
-                                                                <details style={{
-                                                                    fontSize: '0.875rem',
-                                                                    marginBottom: '0.5rem'
-                                                                }}>
-                                                                    <summary style={{
-                                                                        cursor: 'pointer',
-                                                                        color: '#3b82f6',
-                                                                        fontWeight: '500'
-                                                                    }}>
-                                                                        💡 View {item.alternatives.length} cheaper alternatives
-                                                                    </summary>
-                                                                    <div style={{
-                                                                        marginTop: '0.5rem',
-                                                                        padding: '0.75rem',
-                                                                        backgroundColor: '#eff6ff',
-                                                                        borderRadius: '6px',
-                                                                        border: '1px solid #bfdbfe'
-                                                                    }}>
-                                                                        {item.alternatives.map((alt, altIndex) => (
-                                                                            <div key={altIndex} style={{
-                                                                                display: 'flex',
-                                                                                alignItems: 'center',
-                                                                                justifyContent: 'space-between',
-                                                                                marginBottom: '0.5rem'
-                                                                            }}>
-                                                                                <div>
-                                                                                    <span style={{fontWeight: '500'}}>{alt.name}</span>
-                                                                                    <span style={{
-                                                                                        color: '#6b7280',
-                                                                                        marginLeft: '0.5rem'
-                                                                                    }}>at {alt.store}</span>
-                                                                                    <span style={{
-                                                                                        color: '#16a34a',
-                                                                                        marginLeft: '0.5rem',
-                                                                                        fontWeight: '500'
-                                                                                    }}>
-                                                                                        {formatPrice(alt.price)} (Save {formatPrice((item.estimatedPrice || 0) - alt.price)})
-                                                                                    </span>
-                                                                                </div>
-                                                                                <TouchEnhancedButton
-                                                                                    onClick={() => selectAlternative(item.id || itemKey, alt)}
-                                                                                    style={{
-                                                                                        padding: '0.25rem 0.5rem',
-                                                                                        backgroundColor: '#3b82f6',
-                                                                                        color: 'white',
-                                                                                        border: 'none',
-                                                                                        borderRadius: '4px',
-                                                                                        fontSize: '0.75rem',
-                                                                                        cursor: 'pointer',
-                                                                                        fontWeight: '500'
-                                                                                    }}
-                                                                                >
-                                                                                    Use This
-                                                                                </TouchEnhancedButton>
-                                                                            </div>
-                                                                        ))}
-                                                                    </div>
-                                                                </details>
-                                                            )}
-
-                                                            {/* Inventory Status */}
-                                                            {item.inInventory && (
-                                                                <div style={{
-                                                                    fontSize: '0.8rem',
-                                                                    color: '#16a34a',
-                                                                    backgroundColor: '#f0fdf4',
-                                                                    padding: '0.25rem 0.5rem',
-                                                                    borderRadius: '4px',
-                                                                    marginBottom: '0.25rem',
-                                                                    border: '1px solid #bbf7d0'
-                                                                }}>
-                                                                    ✅ In inventory: {item.haveAmount || 'Available'}
-                                                                    {item.inventoryItem?.location &&
-                                                                        ` (${item.inventoryItem.location})`
-                                                                    }
-                                                                </div>
-                                                            )}
-
-                                                            {/* Recipe References */}
-                                                            {item.recipes && item.recipes.length > 0 && (
-                                                                <div style={{
-                                                                    fontSize: '0.7rem',
-                                                                    color: '#6b7280',
-                                                                    backgroundColor: '#f8fafc',
-                                                                    padding: '0.25rem 0.5rem',
-                                                                    borderRadius: '4px',
-                                                                    border: '1px solid #e2e8f0'
-                                                                }}>
-                                                                    Used in: {item.recipes.join(', ')}
-                                                                </div>
-                                                            )}
-
-                                                            {/* AI Category Suggestion - Enhanced AI modes */}
+                                                            {/* Category Movement Controls */}
                                                             {editingCategories && config.showAdvancedFeatures && (
                                                                 <div style={{
                                                                     marginTop: '0.5rem',
@@ -2658,26 +2569,40 @@ export default function EnhancedAIShoppingListModal({
                                                                     })()}
                                                                 </div>
                                                             )}
-                                                        </div>
 
-                                                        {/* Price History Button - Smart Price modes */}
-                                                        {config.showPriceFeatures && priceComparison[item.ingredient || item.name]?.prices.length > 0 && (
-                                                            <TouchEnhancedButton
-                                                                onClick={() => {/* Open price history modal */}}
-                                                                style={{
-                                                                    color: '#3b82f6',
-                                                                    fontSize: '0.75rem',
-                                                                    backgroundColor: '#eff6ff',
+                                                            {/* Inventory Status */}
+                                                            {item.inInventory && (
+                                                                <div style={{
+                                                                    fontSize: '0.8rem',
+                                                                    color: '#16a34a',
+                                                                    backgroundColor: '#f0fdf4',
                                                                     padding: '0.25rem 0.5rem',
                                                                     borderRadius: '4px',
-                                                                    border: '1px solid #bfdbfe',
-                                                                    cursor: 'pointer',
-                                                                    alignSelf: 'flex-start'
-                                                                }}
-                                                            >
-                                                                📊 History
-                                                            </TouchEnhancedButton>
-                                                        )}
+                                                                    marginTop: '0.5rem',
+                                                                    border: '1px solid #bbf7d0'
+                                                                }}>
+                                                                    ✅ In inventory: {item.haveAmount || 'Available'}
+                                                                    {item.inventoryItem?.location &&
+                                                                        ` (${item.inventoryItem.location})`
+                                                                    }
+                                                                </div>
+                                                            )}
+
+                                                            {/* Recipe References */}
+                                                            {item.recipes && item.recipes.length > 0 && (
+                                                                <div style={{
+                                                                    fontSize: '0.7rem',
+                                                                    color: '#6b7280',
+                                                                    backgroundColor: '#f8fafc',
+                                                                    padding: '0.25rem 0.5rem',
+                                                                    borderRadius: '4px',
+                                                                    marginTop: '0.5rem',
+                                                                    border: '1px solid #e2e8f0'
+                                                                }}>
+                                                                    Used in: {item.recipes.join(', ')}
+                                                                </div>
+                                                            )}
+                                                        </div>
                                                     </div>
                                                 );
                                             })}
@@ -2687,6 +2612,7 @@ export default function EnhancedAIShoppingListModal({
                             </div>
                         )}
                     </div>
+
                     {/* FIXED: Collapsible Footer */}
                     <div style={{
                         padding: footerCollapsed ? '0.5rem 1rem' : '0.75rem 1rem',
@@ -2727,6 +2653,7 @@ export default function EnhancedAIShoppingListModal({
                                 <span>💾</span>
                                 <span>Save {footerCollapsed ? 'List' : `${config.title.split(' ')[1]} List`}</span>
                             </TouchEnhancedButton>
+
                             {/* Collapse Footer Button */}
                             <TouchEnhancedButton
                                 onClick={() => setFooterCollapsed(!footerCollapsed)}
@@ -2750,53 +2677,6 @@ export default function EnhancedAIShoppingListModal({
                         {/* Expandable Footer Content */}
                         {!footerCollapsed && (
                             <>
-                                {/* Secondary Actions */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '1fr 1fr',
-                                    gap: '0.5rem'
-                                }}>
-                                    <TouchEnhancedButton
-                                        onClick={() => {/* Start shopping mode */}}
-                                        style={{
-                                            backgroundColor: '#3b82f6',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            fontSize: '0.875rem',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '0.25rem'
-                                        }}
-                                    >
-                                        <span>🛒</span>
-                                        <span>Start Shopping</span>
-                                    </TouchEnhancedButton>
-
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowEmailModal(true)}
-                                        style={{
-                                            backgroundColor: '#7c3aed',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            fontSize: '0.875rem',
-                                            cursor: 'pointer',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            gap: '0.25rem'
-                                        }}
-                                    >
-                                        <span>📤</span>
-                                        <span>Share List</span>
-                                    </TouchEnhancedButton>
-                                </div>
-
                                 {/* Enhanced Summary with Mode-Specific Info */}
                                 <div style={{
                                     backgroundColor: 'white',
@@ -2904,7 +2784,7 @@ export default function EnhancedAIShoppingListModal({
                 </div>
             </div>
 
-            {/* All existing modals remain the same... */}
+            {/* All Modals */}
 
             {/* Mode Selector Modal */}
             {showModeSelector && (
@@ -2991,14 +2871,6 @@ export default function EnhancedAIShoppingListModal({
                                 }}>
                                     Full-featured shopping with AI route optimization, smart categorization, voice input, and advanced organization tools.
                                 </p>
-                                <div style={{
-                                    marginTop: '0.5rem',
-                                    fontSize: '0.75rem',
-                                    color: '#059669',
-                                    fontWeight: '500'
-                                }}>
-                                    ✅ AI Route Optimization • Category Management • Voice Input • Advanced Features
-                                </div>
                             </TouchEnhancedButton>
 
                             {/* Smart Price Mode */}
@@ -3048,14 +2920,6 @@ export default function EnhancedAIShoppingListModal({
                                 }}>
                                     Price-optimized shopping with deal alerts, budget tracking, store comparisons, and savings recommendations.
                                 </p>
-                                <div style={{
-                                    marginTop: '0.5rem',
-                                    fontSize: '0.75rem',
-                                    color: '#059669',
-                                    fontWeight: '500'
-                                }}>
-                                    ✅ Price Optimization • Deal Alerts • Budget Tracking • Store Comparisons
-                                </div>
                             </TouchEnhancedButton>
 
                             {/* Unified Mode */}
@@ -3096,16 +2960,6 @@ export default function EnhancedAIShoppingListModal({
                                             CURRENT
                                         </span>
                                     )}
-                                    <span style={{
-                                        fontSize: '0.7rem',
-                                        color: '#dc2626',
-                                        backgroundColor: '#fef2f2',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '12px',
-                                        fontWeight: '500'
-                                    }}>
-                                        PREMIUM
-                                    </span>
                                 </div>
                                 <p style={{
                                     margin: 0,
@@ -3115,14 +2969,6 @@ export default function EnhancedAIShoppingListModal({
                                 }}>
                                     The complete shopping experience combining AI optimization with price intelligence for maximum savings and efficiency.
                                 </p>
-                                <div style={{
-                                    marginTop: '0.5rem',
-                                    fontSize: '0.75rem',
-                                    color: '#059669',
-                                    fontWeight: '500'
-                                }}>
-                                    ✅ All AI Features • All Price Features • Advanced Analytics • Maximum Savings
-                                </div>
                             </TouchEnhancedButton>
                         </div>
 
@@ -3284,17 +3130,6 @@ export default function EnhancedAIShoppingListModal({
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* Custom Category Manager Modal */}
-            {showCategoryManager && (
-                <CustomCategoryManager
-                    isOpen={showCategoryManager}
-                    onClose={() => setShowCategoryManager(false)}
-                    customCategories={customCategories}
-                    onSave={saveCustomCategories}
-                    userId={session?.user?.id}
-                />
             )}
 
             {/* Store Selection Modal */}
@@ -3502,36 +3337,6 @@ export default function EnhancedAIShoppingListModal({
                             </TouchEnhancedButton>
                         </div>
 
-                        <div style={{
-                            marginBottom: '1.5rem',
-                            padding: '1rem',
-                            backgroundColor: '#f0f9ff',
-                            borderRadius: '8px',
-                            border: '1px solid #0ea5e9'
-                        }}>
-                            <h4 style={{
-                                margin: '0 0 0.5rem 0',
-                                fontSize: '1rem',
-                                fontWeight: '500',
-                                color: '#0c4a6e'
-                            }}>
-                                💡 How to use Voice Input
-                            </h4>
-                            <ul style={{
-                                margin: 0,
-                                paddingLeft: '1.25rem',
-                                fontSize: '0.875rem',
-                                color: '#0369a1',
-                                lineHeight: '1.4'
-                            }}>
-                                <li>Speak clearly and at normal speed</li>
-                                <li>Say items separated by "and" or commas</li>
-                                <li>Include quantities: "2 pounds chicken"</li>
-                                <li>Examples: "milk, eggs, and 3 bananas"</li>
-                                <li>The AI will automatically categorize items</li>
-                            </ul>
-                        </div>
-
                         <div style={{marginBottom: '1.5rem'}}>
                             <VoiceInput
                                 onResult={handleVoiceResult}
@@ -3693,6 +3498,17 @@ export default function EnhancedAIShoppingListModal({
                     aiOptimized: config.showAdvancedFeatures && aiMode === 'ai-optimized'
                 }}
             />
+
+            {/* Custom Category Manager Modal */}
+            {showCategoryManager && (
+                <CustomCategoryManager
+                    isOpen={showCategoryManager}
+                    onClose={() => setShowCategoryManager(false)}
+                    customCategories={customCategories}
+                    onSave={saveCustomCategories}
+                    userId={session?.user?.id}
+                />
+            )}
         </>
     );
 }
@@ -3774,6 +3590,8 @@ function CustomCategoryManager({isOpen, onClose, customCategories, onSave, userI
         onSave(customOnly);
         onClose();
     };
+
+    if (!isOpen) return null;
 
     const defaultCategories = Object.entries(categories).filter(([_, cat]) => !cat.custom);
     const customCategoriesOnly = Object.entries(categories).filter(([_, cat]) => cat.custom);
