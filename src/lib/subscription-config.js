@@ -20,6 +20,17 @@ export const FEATURE_GATES = {
     PERSONAL_RECIPES: 'personal_recipes',
     WRITE_REVIEW: 'write_review',
 
+    // NEW: Recipe Transformation Features
+    BASIC_RECIPE_SCALING: 'basic_recipe_scaling',          // Mathematical scaling (free)
+    AI_RECIPE_SCALING: 'ai_recipe_scaling',                // AI-enhanced scaling (Gold+)
+    BASIC_UNIT_CONVERSION: 'basic_unit_conversion',        // Simple unit conversion (free)
+    AI_UNIT_CONVERSION: 'ai_unit_conversion',              // AI contextual conversion (Gold+)
+    SAVE_SCALED_RECIPES: 'save_scaled_recipes',            // Save scaled versions (Gold+)
+    SAVE_CONVERTED_RECIPES: 'save_converted_recipes',      // Save converted versions (Gold+)
+    BATCH_RECIPE_CONVERSION: 'batch_recipe_conversion',    // Convert multiple recipes (Platinum)
+    CONVERSION_TEMPLATES: 'conversion_templates',          // Save conversion preferences (Platinum)
+
+
     // Premium features
     COMMON_ITEMS_WIZARD: 'common_items_wizard',
     CONSUMPTION_HISTORY: 'consumption_history', // FIXED: lowercase
@@ -61,7 +72,13 @@ export const USAGE_LIMITS = {
         emailNotificationsPerMonth: 0,
         priceTrackingItems: 10,        // Can track prices for 10 items
         priceEntriesPerMonth: 25,      // Can add 25 price entries per month
-        priceHistoryDays: 30          // Keep 30 days of price history
+        priceHistoryDays: 30,          // Keep 30 days of price history
+        basicScalingsPerMonth: 20,          // 20 basic mathematical scalings per month
+        basicConversionsPerMonth: 20,       // 20 basic unit conversions per month
+        aiScalingsPerMonth: 0,              // No AI scaling
+        aiConversionsPerMonth: 0,           // No AI conversion
+        savedTransformedRecipes: 5,         // Can save 5 scaled/converted recipes
+        conversionTemplates: 0             // No saved conversion templates
     },
     [SUBSCRIPTION_TIERS.GOLD]: {
         inventoryItems: 250,
@@ -76,7 +93,13 @@ export const USAGE_LIMITS = {
         emailNotificationsPerMonth: 100,
         priceTrackingItems: 50,        // Can track prices for 50 items
         priceEntriesPerMonth: 100,     // Can add 100 price entries per month
-        priceHistoryDays: 180         // Keep 180 days of price history
+        priceHistoryDays: 180,         // Keep 180 days of price history
+        basicScalingsPerMonth: -1,          // Unlimited basic scaling
+        basicConversionsPerMonth: -1,       // Unlimited basic conversion
+        aiScalingsPerMonth: 50,             // 50 AI scalings per month
+        aiConversionsPerMonth: 50,          // 50 AI conversions per month
+        savedTransformedRecipes: 100,       // Can save 100 scaled/converted recipes
+        conversionTemplates: 10             // 10 saved conversion templates
     },
     [SUBSCRIPTION_TIERS.PLATINUM]: {
         inventoryItems: -1, // unlimited
@@ -91,7 +114,13 @@ export const USAGE_LIMITS = {
         emailNotificationsPerMonth: -1,
         priceTrackingItems: -1,        // Unlimited price tracking
         priceEntriesPerMonth: -1,      // Unlimited price entries
-        priceHistoryDays: -1          // Keep unlimited price history
+        priceHistoryDays: -1,          // Keep unlimited price history
+        basicScalingsPerMonth: -1,          // Unlimited basic scaling
+        basicConversionsPerMonth: -1,       // Unlimited basic conversion
+        aiScalingsPerMonth: -1,             // Unlimited AI scaling
+        aiConversionsPerMonth: -1,          // Unlimited AI conversion
+        savedTransformedRecipes: -1,        // Unlimited saved transformed recipes
+        conversionTemplates: -1             // Unlimited conversion templates
     },
     // NEW: Admin tier - unlimited everything
     [SUBSCRIPTION_TIERS.ADMIN]: {
@@ -107,7 +136,13 @@ export const USAGE_LIMITS = {
         emailNotificationsPerMonth: -1, // unlimited
         priceTrackingItems: -1,        // Unlimited price tracking
         priceEntriesPerMonth: -1,      // Unlimited price entries
-        priceHistoryDays: -1          // Keep unlimited price history
+        priceHistoryDays: -1,          // Keep unlimited price history
+        basicScalingsPerMonth: -1,
+        basicConversionsPerMonth: -1,
+        aiScalingsPerMonth: -1,
+        aiConversionsPerMonth: -1,
+        savedTransformedRecipes: -1,
+        conversionTemplates: -1
     }
 };
 
@@ -136,7 +171,16 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.PRICE_TRACKING]: true,     // Basic price tracking (limited)
         [FEATURE_GATES.PRICE_HISTORY]: true,      // View price history (limited)
         [FEATURE_GATES.PRICE_ALERTS]: false,      // No price alerts
-        [FEATURE_GATES.PRICE_EXPORT]: false       // No price export
+        [FEATURE_GATES.PRICE_EXPORT]: false,       // No price export
+        [FEATURE_GATES.BASIC_RECIPE_SCALING]: true,        // Basic math scaling allowed
+        [FEATURE_GATES.AI_RECIPE_SCALING]: false,          // No AI scaling
+        [FEATURE_GATES.BASIC_UNIT_CONVERSION]: true,       // Basic unit conversion allowed
+        [FEATURE_GATES.AI_UNIT_CONVERSION]: false,         // No AI conversion
+        [FEATURE_GATES.SAVE_SCALED_RECIPES]: true,         // Can save (limited)
+        [FEATURE_GATES.SAVE_CONVERTED_RECIPES]: true,      // Can save (limited)
+        [FEATURE_GATES.BATCH_RECIPE_CONVERSION]: false,    // No batch conversion
+        [FEATURE_GATES.CONVERSION_TEMPLATES]: false        // No conversion templates
+
     },
     [SUBSCRIPTION_TIERS.GOLD]: {
         [FEATURE_GATES.INVENTORY_LIMIT]: true,
@@ -161,7 +205,15 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.PRICE_TRACKING]: true,     // Enhanced price tracking
         [FEATURE_GATES.PRICE_HISTORY]: true,      // Extended price history
         [FEATURE_GATES.PRICE_ALERTS]: false,      // No email alerts yet
-        [FEATURE_GATES.PRICE_EXPORT]: false       // No export yet
+        [FEATURE_GATES.PRICE_EXPORT]: false,       // No export yet
+        [FEATURE_GATES.BASIC_RECIPE_SCALING]: true,        // Basic math scaling allowed
+        [FEATURE_GATES.AI_RECIPE_SCALING]: true,           // AI scaling allowed
+        [FEATURE_GATES.BASIC_UNIT_CONVERSION]: true,       // Basic unit conversion allowed
+        [FEATURE_GATES.AI_UNIT_CONVERSION]: true,          // AI conversion allowed
+        [FEATURE_GATES.SAVE_SCALED_RECIPES]: true,         // Can save scaled recipes
+        [FEATURE_GATES.SAVE_CONVERTED_RECIPES]: true,      // Can save converted recipes
+        [FEATURE_GATES.BATCH_RECIPE_CONVERSION]: false,    // No batch conversion yet
+        [FEATURE_GATES.CONVERSION_TEMPLATES]: true         // Limited conversion templates
     },
     [SUBSCRIPTION_TIERS.PLATINUM]: {
         [FEATURE_GATES.INVENTORY_LIMIT]: true,
@@ -186,8 +238,17 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.PRICE_TRACKING]: true,     // Unlimited price tracking
         [FEATURE_GATES.PRICE_HISTORY]: true,      // Unlimited price history
         [FEATURE_GATES.PRICE_ALERTS]: true,       // Email price alerts
-        [FEATURE_GATES.PRICE_EXPORT]: true        // Export price data
+        [FEATURE_GATES.PRICE_EXPORT]: true,        // Export price data
+        [FEATURE_GATES.BASIC_RECIPE_SCALING]: true,
+        [FEATURE_GATES.AI_RECIPE_SCALING]: true,
+        [FEATURE_GATES.BASIC_UNIT_CONVERSION]: true,
+        [FEATURE_GATES.AI_UNIT_CONVERSION]: true,
+        [FEATURE_GATES.SAVE_SCALED_RECIPES]: true,
+        [FEATURE_GATES.SAVE_CONVERTED_RECIPES]: true,
+        [FEATURE_GATES.BATCH_RECIPE_CONVERSION]: true,     // Batch conversion allowed
+        [FEATURE_GATES.CONVERSION_TEMPLATES]: true         // Unlimited conversion templates
     },
+
     // NEW: Admin tier - access to everything
     [SUBSCRIPTION_TIERS.ADMIN]: {
         [FEATURE_GATES.INVENTORY_LIMIT]: true,
@@ -212,7 +273,15 @@ export const FEATURE_ACCESS = {
         [FEATURE_GATES.PRICE_TRACKING]: true,     // Unlimited price tracking
         [FEATURE_GATES.PRICE_HISTORY]: true,      // Unlimited price history
         [FEATURE_GATES.PRICE_ALERTS]: true,       // Email price alerts
-        [FEATURE_GATES.PRICE_EXPORT]: true        // Export price data
+        [FEATURE_GATES.PRICE_EXPORT]: true,        // Export price data
+        [FEATURE_GATES.BASIC_RECIPE_SCALING]: true,
+        [FEATURE_GATES.AI_RECIPE_SCALING]: true,
+        [FEATURE_GATES.BASIC_UNIT_CONVERSION]: true,
+        [FEATURE_GATES.AI_UNIT_CONVERSION]: true,
+        [FEATURE_GATES.SAVE_SCALED_RECIPES]: true,
+        [FEATURE_GATES.SAVE_CONVERTED_RECIPES]: true,
+        [FEATURE_GATES.BATCH_RECIPE_CONVERSION]: true,
+        [FEATURE_GATES.CONVERSION_TEMPLATES]: true
     }
 };
 
@@ -395,5 +464,13 @@ export const FEATURE_DESCRIPTIONS = {
     [FEATURE_GATES.PRICE_TRACKING]: 'Track grocery prices for your inventory items',
     [FEATURE_GATES.PRICE_HISTORY]: 'View historical price data and trends',
     [FEATURE_GATES.PRICE_ALERTS]: 'Get email alerts when prices drop below your target',
-    [FEATURE_GATES.PRICE_EXPORT]: 'Export price data for analysis'
+    [FEATURE_GATES.PRICE_EXPORT]: 'Export price data for analysis',
+    [FEATURE_GATES.BASIC_RECIPE_SCALING]: 'Scale recipes up or down with mathematical calculations',
+    [FEATURE_GATES.AI_RECIPE_SCALING]: 'AI-powered recipe scaling with cooking time and method adjustments',
+    [FEATURE_GATES.BASIC_UNIT_CONVERSION]: 'Convert between US and metric measurements',
+    [FEATURE_GATES.AI_UNIT_CONVERSION]: 'Intelligent unit conversion with ingredient-specific density calculations',
+    [FEATURE_GATES.SAVE_SCALED_RECIPES]: 'Save scaled recipe versions to your collection',
+    [FEATURE_GATES.SAVE_CONVERTED_RECIPES]: 'Save converted recipe versions to your collection',
+    [FEATURE_GATES.BATCH_RECIPE_CONVERSION]: 'Convert multiple recipes at once',
+    [FEATURE_GATES.CONVERSION_TEMPLATES]: 'Save and reuse conversion preferences'
 };

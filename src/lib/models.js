@@ -1665,6 +1665,62 @@ UserSchema.pre('save', function(next) {
     next();
 });
 
+UserSchema.methods.trackRecipeScaling = function(isAI = false) {
+    try {
+        this.checkAndResetMonthlyUsage();
+
+        if (!this.usageTracking.recipeTransformations) {
+            this.usageTracking.recipeTransformations = {
+                basicScalings: 0,
+                aiScalings: 0,
+                basicConversions: 0,
+                aiConversions: 0,
+                lastReset: new Date()
+            };
+        }
+
+        if (isAI) {
+            this.usageTracking.recipeTransformations.aiScalings += 1;
+        } else {
+            this.usageTracking.recipeTransformations.basicScalings += 1;
+        }
+
+        this.usageTracking.lastUpdated = new Date();
+        return this.save();
+    } catch (error) {
+        console.error('❌ Error tracking recipe scaling:', error);
+        throw error;
+    }
+};
+
+UserSchema.methods.trackRecipeConversion = function(isAI = false) {
+    try {
+        this.checkAndResetMonthlyUsage();
+
+        if (!this.usageTracking.recipeTransformations) {
+            this.usageTracking.recipeTransformations = {
+                basicScalings: 0,
+                aiScalings: 0,
+                basicConversions: 0,
+                aiConversions: 0,
+                lastReset: new Date()
+            };
+        }
+
+        if (isAI) {
+            this.usageTracking.recipeTransformations.aiConversions += 1;
+        } else {
+            this.usageTracking.recipeTransformations.basicConversions += 1;
+        }
+
+        this.usageTracking.lastUpdated = new Date();
+        return this.save();
+    } catch (error) {
+        console.error('❌ Error tracking recipe conversion:', error);
+        throw error;
+    }
+};
+
 UserSchema.methods.isSuspended = function() {
     if (!this.accountStatus || this.accountStatus.status !== 'suspended') {
         return false;
@@ -2885,6 +2941,59 @@ const RecipeSchema = new mongoose.Schema({
         }
     },
 
+    originalServings: { type: Number, default: null },
+    currentServings: { type: Number, default: null },
+    scalingHistory: [{
+        fromServings: Number,
+        toServings: Number,
+        scaledAt: Date,
+        scaledBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        aiGenerated: Boolean,
+        scalingNotes: String,
+        cookingAdjustments: {
+            timeMultiplier: Number,
+            temperatureChanges: String,
+            equipmentNotes: String,
+            difficultyNotes: String
+        }
+    }],
+
+    // NEW: Unit conversion tracking
+    originalMeasurementSystem: {
+        type: String,
+        enum: ['us', 'metric', 'mixed', 'unknown'],
+        default: 'unknown'
+    },
+    currentMeasurementSystem: {
+        type: String,
+        enum: ['us', 'metric', 'mixed'],
+        default: 'us'
+    },
+    conversionHistory: [{
+        fromSystem: String,
+        toSystem: String,
+        convertedAt: Date,
+        convertedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        aiGenerated: Boolean,
+        conversionNotes: String,
+        conversionMethod: String, // 'ai_contextual', 'basic_math', 'manual'
+        culturalAdaptations: [String]
+    }],
+
+    // NEW: AI transformation enhancements
+    aiTransformations: {
+        scalingOptimized: { type: Boolean, default: false },
+        unitsOptimized: { type: Boolean, default: false },
+        lastAiTransformation: Date,
+        aiTransformationVersion: String,
+        transformationMetadata: {
+            originalIngredientCount: Number,
+            transformedIngredientCount: Number,
+            confidenceScore: Number,
+            processingCost: Number
+        }
+    },
+
     createdAt: {type: Date, default: Date.now},
     updatedAt: {type: Date, default: Date.now}
 }, {
@@ -2908,6 +3017,131 @@ RecipeSchema.pre('save', function(next) {
 
     next();
 });
+
+// NEW: Add these indexes for better performance on scaling/conversion queries
+RecipeSchema.index({ 'scalingHistory.scaledAt': -1 });
+RecipeSchema.index({ 'conversionHistory.convertedAt': -1 });
+RecipeSchema.index({ originalServings: 1, currentServings: 1 });
+RecipeSchema.index({ originalMeasurementSystem: 1, currentMeasurementSystem: 1 });
+RecipeSchema.index({ 'aiTransformations.lastAiTransformation': -1 });
+
+// NEW: Instance methods for recipe transformations
+RecipeSchema.methods.recordScaling = function(fromServings, toServings, userId, aiData = null) {
+    this.scalingHistory.push({
+        fromServings,
+        toServings,
+        scaledAt: new Date(),
+        scaledBy: userId,
+        aiGenerated: !!aiData,
+        scalingNotes: aiData?.notes || '',
+        cookingAdjustments: aiData?.cookingAdjustments || {}
+    });
+
+    this.currentServings = toServings;
+    if (!this.originalServings) {
+        this.originalServings = fromServings;
+    }
+
+    if (aiData) {
+        this.aiTransformations.scalingOptimized = true;
+        this.aiTransformations.lastAiTransformation = new Date();
+    }
+
+    return this.save();
+};
+
+RecipeSchema.methods.recordConversion = function(fromSystem, toSystem, userId, aiData = null) {
+    this.conversionHistory.push({
+        fromSystem,
+        toSystem,
+        convertedAt: new Date(),
+        convertedBy: userId,
+        aiGenerated: !!aiData,
+        conversionNotes: aiData?.notes || '',
+        conversionMethod: aiData?.method || 'manual',
+        culturalAdaptations: aiData?.culturalAdaptations || []
+    });
+
+    this.currentMeasurementSystem = toSystem;
+    if (this.originalMeasurementSystem === 'unknown') {
+        this.originalMeasurementSystem = fromSystem;
+    }
+
+    if (aiData) {
+        this.aiTransformations.unitsOptimized = true;
+        this.aiTransformations.lastAiTransformation = new Date();
+    }
+
+    return this.save();
+};
+
+RecipeSchema.methods.hasBeenScaled = function() {
+    return this.scalingHistory && this.scalingHistory.length > 0;
+};
+
+RecipeSchema.methods.hasBeenConverted = function() {
+    return this.conversionHistory && this.conversionHistory.length > 0;
+};
+
+RecipeSchema.methods.getLatestScaling = function() {
+    if (!this.scalingHistory || this.scalingHistory.length === 0) return null;
+    return this.scalingHistory[this.scalingHistory.length - 1];
+};
+
+RecipeSchema.methods.getLatestConversion = function() {
+    if (!this.conversionHistory || this.conversionHistory.length === 0) return null;
+    return this.conversionHistory[this.conversionHistory.length - 1];
+};
+
+RecipeSchema.methods.isScaledFromOriginal = function() {
+    return this.originalServings && this.currentServings &&
+        this.originalServings !== this.currentServings;
+};
+
+RecipeSchema.methods.isConvertedFromOriginal = function() {
+    return this.originalMeasurementSystem && this.currentMeasurementSystem &&
+        this.originalMeasurementSystem !== this.currentMeasurementSystem;
+};
+
+// NEW: Static methods for transformation queries
+RecipeSchema.statics.findScaledRecipes = function(userId = null) {
+    const query = { 'scalingHistory.0': { $exists: true } };
+    if (userId) {
+        query['scalingHistory.scaledBy'] = userId;
+    }
+    return this.find(query);
+};
+
+RecipeSchema.statics.findConvertedRecipes = function(userId = null) {
+    const query = { 'conversionHistory.0': { $exists: true } };
+    if (userId) {
+        query['conversionHistory.convertedBy'] = userId;
+    }
+    return this.find(query);
+};
+
+RecipeSchema.statics.findAiTransformedRecipes = function() {
+    return this.find({
+        $or: [
+            { 'aiTransformations.scalingOptimized': true },
+            { 'aiTransformations.unitsOptimized': true }
+        ]
+    });
+};
+
+// NEW: Virtual fields for transformation status
+RecipeSchema.virtual('transformationSummary').get(function() {
+    return {
+        hasScaling: this.hasBeenScaled(),
+        hasConversion: this.hasBeenConverted(),
+        isModified: this.isScaledFromOriginal() || this.isConvertedFromOriginal(),
+        aiOptimized: this.aiTransformations?.scalingOptimized || this.aiTransformations?.unitsOptimized,
+        lastTransformation: this.aiTransformations?.lastAiTransformation
+    };
+});
+
+// Ensure virtual fields are included in JSON output
+RecipeSchema.set('toJSON', { virtuals: true });
 
 
 // NEW: Instance methods for image handling

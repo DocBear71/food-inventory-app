@@ -18,6 +18,7 @@ import { FEATURE_GATES } from '@/lib/subscription-config';
 import NutritionModal from '@/components/nutrition/NutritionModal';
 import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
+import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
 
 export default function RecipeDetailPage() {
     let session = null;
@@ -488,6 +489,20 @@ export default function RecipeDetailPage() {
                         </div>
                     )}
                 </div>
+
+                {/* RECIPE TRANSFORMATION PANEL */}
+                <RecipeTransformationPanel
+                    recipe={recipe}
+                    onTransformationChange={(transformedRecipe) => {
+                        // Update the recipe state with transformed data
+                        setRecipe(prev => ({
+                            ...prev,
+                            ...transformedRecipe
+                        }));
+                    }}
+                    showSaveOptions={true}
+                    defaultExpanded={false}
+                />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* LEFT COLUMN - Main Content */}
