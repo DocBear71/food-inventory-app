@@ -1,10 +1,12 @@
-// file: /src/lib/modal-bridge.js v2 - Enhanced with image extraction support
+// file: /src/lib/modal-bridge.js v3 - Updated with correct smart-inventory-manager endpoint
 
 class ModalServiceBridge {
     constructor() {
         this.baseUrl = process.env.MODAL_ENDPOINT_URL || 'https://docbear71--social-video-recipe-extractor-extract-recipe--01df04.modal.run';
         this.receiptUrl = process.env.MODAL_RECEIPT_ENDPOINT_URL || 'https://docbear71--receipt-processor-process-receipt-with-ai.modal.run';
         this.nutritionUrl = process.env.MODAL_NUTRITION_ENDPOINT_URL || 'https://docbear71--unified-nutrition-analyzer-analyze-nutrition.modal.run';
+
+        // FIXED: Correct smart-inventory-manager endpoint
         this.inventoryUrl = process.env.MODAL_INVENTORY_ENDPOINT_URL || 'https://docbear71--smart-inventory-manager-suggest-ingredients.modal.run';
 
         this.defaultHeaders = {
@@ -26,14 +28,18 @@ class ModalServiceBridge {
 
         try {
             console.log(`🔗 Modal request to: ${url}`);
+            console.log(`📊 Request data:`, JSON.stringify(data, null, 2));
+
             const response = await fetch(url, requestOptions);
 
             if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`❌ Modal service error: ${response.status} ${response.statusText}`, errorText);
                 throw new Error(`Modal service error: ${response.status} ${response.statusText}`);
             }
 
             const result = await response.json();
-            console.log(`✅ Modal response received from: ${url}`);
+            console.log(`✅ Modal response received from: ${url}`, result);
             return result;
         } catch (error) {
             console.error(`❌ Modal request failed:`, error);
@@ -45,7 +51,7 @@ class ModalServiceBridge {
     async extractRecipe(videoData) {
         return this.makeRequest(this.baseUrl, {
             ...videoData,
-            extract_image: videoData.extract_image || false  // NEW: Image extraction flag
+            extract_image: videoData.extract_image || false
         });
     }
 
@@ -59,9 +65,21 @@ class ModalServiceBridge {
         return this.makeRequest(this.nutritionUrl, nutritionData);
     }
 
-    // Smart inventory suggestions
+    // UPDATED: Smart inventory suggestions with correct format
     async suggestInventoryItems(inventoryData) {
-        return this.makeRequest(this.inventoryUrl, inventoryData);
+        console.log('🧠 Calling smart-inventory-manager with data:', inventoryData);
+
+        // Format data to match Python endpoint expectations
+        const formattedData = {
+            type: inventoryData.type || 'recipe_suggestions',
+            userId: inventoryData.userId || inventoryData.user_id,
+            data: inventoryData.data || {
+                inventory: inventoryData.items || inventoryData.inventory || [],
+                preferences: inventoryData.preferences || {}
+            }
+        };
+
+        return this.makeRequest(this.inventoryUrl, formattedData);
     }
 
     // ENHANCED: Recipe extraction with nutrition analysis and optional image
@@ -70,7 +88,7 @@ class ModalServiceBridge {
             // First extract the recipe with optional image
             const recipeResult = await this.extractRecipe({
                 ...videoData,
-                extract_image: videoData.extract_image || false  // NEW: Pass image flag
+                extract_image: videoData.extract_image || false
             });
 
             if (recipeResult.success && recipeResult.recipe) {
@@ -89,7 +107,7 @@ class ModalServiceBridge {
                     console.warn('⚠️ Nutrition analysis failed, continuing with recipe only:', nutritionError);
                 }
 
-                // NEW: Log if image was extracted
+                // Log if image was extracted
                 if (recipeResult.recipe.extractedImage) {
                     console.log('📸 Image extracted from video:', {
                         method: recipeResult.recipe.extractedImage.extractionMethod,
@@ -106,11 +124,11 @@ class ModalServiceBridge {
         }
     }
 
-    // NEW: Recipe extraction with image extraction enabled by default
+    // Recipe extraction with image extraction enabled by default
     async extractRecipeWithImage(videoData) {
         return this.extractRecipeWithNutrition({
             ...videoData,
-            extract_image: true  // Force image extraction
+            extract_image: true
         });
     }
 
@@ -124,9 +142,12 @@ class ModalServiceBridge {
                 // Get smart inventory suggestions
                 try {
                     const suggestionResult = await this.suggestInventoryItems({
-                        items: receiptResult.receipt_data.items,
+                        type: 'smart_shopping_list',
                         userId: userId,
-                        context: 'receipt_processing'
+                        data: {
+                            currentInventory: receiptResult.receipt_data.items,
+                            preferences: {}
+                        }
                     });
 
                     if (suggestionResult.success) {
@@ -141,6 +162,84 @@ class ModalServiceBridge {
             return receiptResult;
         } catch (error) {
             console.error('❌ Enhanced receipt processing failed:', error);
+            throw error;
+        }
+    }
+
+    // NEW: Get recipe suggestions from inventory
+    async getRecipeSuggestions(inventoryItems, preferences = {}) {
+        return this.suggestInventoryItems({
+            type: 'recipe_suggestions',
+            data: {
+                inventory: inventoryItems,
+                preferences: preferences
+            }
+        });
+    }
+
+    // NEW: Optimize inventory for waste reduction
+    async optimizeInventory(inventoryItems, goals = ['reduce_waste', 'save_money']) {
+        return this.suggestInventoryItems({
+            type: 'inventory_optimization',
+            data: {
+                inventory: inventoryItems,
+                goals: goals
+            }
+        });
+    }
+
+    // NEW: Generate smart shopping list
+    async generateSmartShoppingList(currentInventory, mealPlans = [], preferences = {}, budget = null) {
+        return this.suggestInventoryItems({
+            type: 'smart_shopping_list',
+            data: {
+                currentInventory: currentInventory,
+                mealPlans: mealPlans,
+                preferences: preferences,
+                budget: budget
+            }
+        });
+    }
+
+    // NEW: Get meal plan suggestions
+    async getMealPlanSuggestions(inventoryItems, preferences = {}, nutritionGoals = null, timeframe = 'week') {
+        return this.suggestInventoryItems({
+            type: 'meal_plan_suggestions',
+            data: {
+                inventory: inventoryItems,
+                preferences: preferences,
+                nutritionGoals: nutritionGoals,
+                timeframe: timeframe
+            }
+        });
+    }
+
+    // NEW: Test smart inventory connection
+    async testSmartInventoryConnection() {
+        try {
+            const testData = {
+                type: 'recipe_suggestions',
+                data: {
+                    inventory: [
+                        {
+                            name: 'Chicken Breast',
+                            category: 'Fresh/Frozen Poultry',
+                            quantity: 2,
+                            unit: 'lbs'
+                        }
+                    ],
+                    preferences: {
+                        cookingTime: '30 minutes',
+                        difficulty: 'easy'
+                    }
+                }
+            };
+
+            const result = await this.suggestInventoryItems(testData);
+            console.log('✅ Smart inventory connection test successful:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ Smart inventory connection test failed:', error);
             throw error;
         }
     }
