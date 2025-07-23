@@ -6,6 +6,7 @@ import { useState } from 'react';
 import RecipeScalingWidget from './RecipeScalingWidget';
 import UnitConversionWidget from './UnitConversionWidget';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function RecipeTransformationPanel({
                                                       recipe,
@@ -26,10 +27,7 @@ export default function RecipeTransformationPanel({
         setIsCombinedTransform(true);
 
         try {
-            const response = await fetch('/api/recipes/transform', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const response = await apiPost('/api/recipes/transform', {
                     recipeId: recipe._id,
                     transformationType: 'both',
                     options: {
@@ -38,7 +36,6 @@ export default function RecipeTransformationPanel({
                         saveAsNew
                     },
                     useAI: true
-                })
             });
 
             const data = await response.json();

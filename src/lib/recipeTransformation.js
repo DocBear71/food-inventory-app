@@ -1,22 +1,16 @@
 // file: /src/lib/recipeTransformation.js v1 - Recipe scaling and unit conversion utilities
 
+import {apiPost} from "@/lib/api-config.js";
+
 /**
  * Recipe Transformation Utilities
  * Handles recipe scaling and unit conversion with both basic math and AI integration
  */
 
 // Modal.com service integration
-export async function callModalTransformationService(functionName, data) {
-    const response = await fetch(`${process.env.MODAL_WEBHOOK_URL}/recipe-transformation`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${process.env.MODAL_API_KEY}`
-        },
-        body: JSON.stringify({
-            function: functionName,
-            data: data
-        })
+export async function callModalTransformationService(data) {
+    const response = await apiPost(process.env.MODAL_FUNCTION_URL || 'https://docbear71--recipe-transformation-service-transform-recipe.modal.run', {
+        data
     });
 
     if (!response.ok) {

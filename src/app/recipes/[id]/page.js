@@ -495,15 +495,34 @@ export default function RecipeDetailPage() {
                     recipe={recipe}
                     onTransformationChange={(transformationResult) => {
                         if (transformationResult.scaled_ingredients) {
+                            const updatedIngredients = transformationResult.scaled_ingredients.map((scaledIng, index) => {
+                                const originalIng = recipe.ingredients[index] || {};
+                                return {
+                                    ...originalIng,
+                                    amount: scaledIng.amount,
+                                    scalingNotes: scaledIng.scaling_notes || scaledIng.scalingNotes
+                                };
+                            });
+
                             setRecipe(prev => ({
                                 ...prev,
-                                ingredients: transformationResult.scaled_ingredients,
+                                ingredients: updatedIngredients,
                                 servings: transformationResult.targetServings || prev.servings
                             }));
                         } else if (transformationResult.converted_ingredients) {
+                            const updatedIngredients = transformationResult.converted_ingredients.map((convertedIng, index) => {
+                                const originalIng = recipe.ingredients[index] || {};
+                                return {
+                                    ...originalIng,
+                                    amount: convertedIng.amount,
+                                    unit: convertedIng.unit,
+                                    conversionNotes: convertedIng.notes
+                                };
+                            });
+
                             setRecipe(prev => ({
                                 ...prev,
-                                ingredients: transformationResult.converted_ingredients
+                                ingredients: updatedIngredients
                             }));
                         }
                     }}

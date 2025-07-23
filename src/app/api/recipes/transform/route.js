@@ -213,12 +213,13 @@ export async function POST(request) {
 }
 
 // Helper function to perform scaling
+// Update performScaling function
 async function performScaling(recipe, options, useAI) {
     console.log(`🔢 Performing ${useAI ? 'AI' : 'basic'} recipe scaling`);
 
     if (useAI) {
         try {
-            return await callModalTransformationService('transform_recipe', {
+            return await callModalTransformationService({
                 transformation_type: 'scale',
                 recipe_data: recipe.toObject ? recipe.toObject() : recipe,
                 options: { target_servings: options.targetServings },
@@ -233,13 +234,13 @@ async function performScaling(recipe, options, useAI) {
     }
 }
 
-// Helper function to perform conversion
+// Update performConversion function
 async function performConversion(recipe, options, useAI) {
     console.log(`🔄 Performing ${useAI ? 'AI' : 'basic'} unit conversion`);
 
     if (useAI) {
         try {
-            return await callModalTransformationService('transform_recipe', {
+            return await callModalTransformationService({
                 transformation_type: 'convert',
                 recipe_data: recipe.toObject ? recipe.toObject() : recipe,
                 options: { target_system: options.targetSystem },

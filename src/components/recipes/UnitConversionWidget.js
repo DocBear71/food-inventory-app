@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import {apiPost} from "@/lib/api-config.js";
 
 export default function UnitConversionWidget({
                                                  recipe,
@@ -93,10 +94,7 @@ export default function UnitConversionWidget({
                 shouldUseAI = false;
             }
 
-            const response = await fetch('/api/recipes/transform', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const response = await apiPost('/api/recipes/transform', {
                     recipeId: recipe._id,
                     transformationType: 'convert',
                     options: {
@@ -104,7 +102,6 @@ export default function UnitConversionWidget({
                         saveAsNew
                     },
                     useAI: shouldUseAI
-                })
             });
 
             const data = await response.json();
