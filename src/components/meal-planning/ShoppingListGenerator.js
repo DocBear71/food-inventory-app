@@ -1,7 +1,7 @@
 'use client';
 // file: /src/components/meal-planning/ShoppingListGenerator.js v14 - FIXED all null/undefined issues
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import { apiPost, apiGet } from '@/lib/api-config';
@@ -824,19 +824,26 @@ export default function EnhancedShoppingListGenerator({
         // Determine the appropriate mode based on optimization
         const initialMode = options.includePriceOptimization ? 'unified' : 'enhanced';
 
-        // Convert shopping list items safely
-        const convertedItems = convertShoppingListForModal(shoppingList);
+        // FIXED: Use useMemo to prevent infinite re-conversion
+        const memoizedConvertedData = useMemo(() => {
+            console.log('🔄 Converting shopping list for modal...');
+            return {
+                convertedItems: convertShoppingListForModal(shoppingList),
+                mode: initialMode,
+                hasOptimization: !!optimization
+            };
+        }, [shoppingList, initialMode, optimization]);
 
         console.log('🚀 Opening Enhanced AI Shopping List Modal:', {
-            mode: initialMode,
+            mode: memoizedConvertedData.mode,
             originalItemsStructure: typeof shoppingList.items,
-            convertedItemsCount: convertedItems.length,
+            convertedItemsCount: memoizedConvertedData.convertedItems.length,
             priceOptimized: options.includePriceOptimization,
-            hasOptimization: !!optimization
+            hasOptimization: memoizedConvertedData.hasOptimization
         });
 
         // FIXED: Added fallback handling for empty results
-        if (convertedItems.length === 0) {
+        if (memoizedConvertedData.convertedItems.length === 0) {
             console.warn('⚠️ No items were successfully converted');
             return (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
@@ -866,39 +873,49 @@ export default function EnhancedShoppingListGenerator({
             );
         }
 
+        // FIXED: Create stable props object to prevent re-renders
+        const modalProps = useMemo(() => ({
+            isOpen: true,
+            onClose: onClose,
+            // Pass the shopping list data in a stable format
+            currentShoppingList: {
+                items: shoppingList.items,
+                summary: shoppingList.summary || shoppingList.stats || {
+                    totalItems: memoizedConvertedData.convertedItems.length,
+                    needToBuy: memoizedConvertedData.convertedItems.filter(item => !item.inInventory).length,
+                    inInventory: memoizedConvertedData.convertedItems.filter(item => item.inInventory).length,
+                    purchased: 0
+                },
+                generatedAt: shoppingList.generatedAt || new Date().toISOString(),
+                recipes: shoppingList.recipes || []
+            },
+            // Enhanced AI props
+            sourceMealPlanId: mealPlanId,
+            sourceRecipeIds: shoppingList.recipes?.map(r => r.id) || [],
+            onSave: handleSaveToUnifiedModal,
+            // Smart Price props (passed when price optimization is enabled)
+            initialBudget: options.budget,
+            optimization: optimization,
+            // Modal configuration - use stable values
+            title: options.includePriceOptimization ? '🚀 Ultimate Shopping Assistant' : '🤖 Enhanced AI Shopping',
+            subtitle: options.includePriceOptimization ?
+                `Smart list for ${mealPlanName} with price optimization` :
+                `AI-optimized list for ${mealPlanName}`,
+            showRefresh: false,
+            // Force the appropriate initial mode
+            initialShoppingMode: memoizedConvertedData.mode
+        }), [
+            mealPlanId,
+            mealPlanName,
+            shoppingList,
+            memoizedConvertedData,
+            optimization,
+            options.budget,
+            options.includePriceOptimization
+        ]);
+
         return (
-            <EnhancedAIShoppingListModal
-                isOpen={true}
-                onClose={onClose}
-                // Pass the shopping list data
-                currentShoppingList={{
-                    items: shoppingList.items,
-                    summary: shoppingList.summary || shoppingList.stats || {
-                        totalItems: convertedItems.length,
-                        needToBuy: convertedItems.filter(item => !item.inInventory).length,
-                        inInventory: convertedItems.filter(item => item.inInventory).length,
-                        purchased: 0
-                    },
-                    generatedAt: shoppingList.generatedAt || new Date().toISOString(),
-                    recipes: shoppingList.recipes || []
-                }}
-                // Enhanced AI props
-                sourceMealPlanId={mealPlanId}
-                sourceRecipeIds={shoppingList.recipes?.map(r => r.id) || []}
-                onSave={handleSaveToUnifiedModal}
-                // Smart Price props (passed when price optimization is enabled)
-                initialBudget={options.budget}
-                optimization={optimization}
-                // Modal configuration
-                title={options.includePriceOptimization ? '🚀 Ultimate Shopping Assistant' : '🤖 Enhanced AI Shopping'}
-                subtitle={options.includePriceOptimization ?
-                    `Smart list for ${mealPlanName} with price optimization` :
-                    `AI-optimized list for ${mealPlanName}`
-                }
-                showRefresh={false}
-                // Force the appropriate initial mode
-                initialShoppingMode={initialMode}
-            />
+            <EnhancedAIShoppingListModal {...modalProps} />
         );
     }
 
