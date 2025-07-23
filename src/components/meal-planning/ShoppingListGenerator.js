@@ -119,16 +119,85 @@ export default function EnhancedShoppingListGenerator({
             await new Promise(resolve => setTimeout(resolve, 1000)); // Show optimization step
 
             try {
-                const optimizationResponse = await apiPost('/api/price-tracking/optimize-shopping', {
-                    items: baseData.shoppingList.items,
+                // FIXED: Prepare items in the format expected by price optimization API
+                let itemsForOptimization = [];
+
+                console.log('🔧 Preparing items for price optimization...');
+                console.log('Base data structure:', {
+                    hasItems: !!baseData.shoppingList.items,
+                    itemsType: typeof baseData.shoppingList.items,
+                    isArray: Array.isArray(baseData.shoppingList.items)
+                });
+
+                // Convert shopping list items to the format expected by price optimization
+                if (Array.isArray(baseData.shoppingList.items)) {
+                    // Case 1: Items is a flat array
+                    itemsForOptimization = baseData.shoppingList.items.filter(item =>
+                        item && (item.ingredient || item.name)
+                    ).map(item => ({
+                        name: item.ingredient || item.name,
+                        ingredient: item.ingredient || item.name,
+                        quantity: item.quantity || item.amount || 1,
+                        unit: item.unit || '',
+                        category: item.category || 'Other',
+                        estimated_price: item.estimatedPrice || 0,
+                        optional: !!item.optional
+                    }));
+                } else if (typeof baseData.shoppingList.items === 'object' && baseData.shoppingList.items !== null) {
+                    // Case 2: Items is categorized object
+                    Object.entries(baseData.shoppingList.items).forEach(([category, categoryItems]) => {
+                        if (Array.isArray(categoryItems)) {
+                            categoryItems.filter(item =>
+                                item && (item.ingredient || item.name)
+                            ).forEach(item => {
+                                itemsForOptimization.push({
+                                    name: item.ingredient || item.name,
+                                    ingredient: item.ingredient || item.name,
+                                    quantity: item.quantity || item.amount || 1,
+                                    unit: item.unit || '',
+                                    category: category,
+                                    estimated_price: item.estimatedPrice || 0,
+                                    optional: !!item.optional
+                                });
+                            });
+                        }
+                    });
+                } else {
+                    console.warn('⚠️ Unexpected items format, skipping price optimization');
+                    setShoppingList(baseData.shoppingList);
+                    setStep('results');
+                    return;
+                }
+
+                console.log(`📋 Prepared ${itemsForOptimization.length} items for price optimization`);
+
+                if (itemsForOptimization.length === 0) {
+                    console.warn('⚠️ No valid items for price optimization, using base list');
+                    setShoppingList(baseData.shoppingList);
+                    setStep('results');
+                    return;
+                }
+
+                // Make the price optimization request with proper data format
+                const optimizationPayload = {
+                    items: itemsForOptimization, // Use the properly formatted items
                     budget: options.budget,
-                    preferredStores: stores.slice(0, options.maxStores).map(s => s.name),
+                    preferredStores: stores.slice(0, options.maxStores).map(s => s?.name || s).filter(Boolean),
                     maxStores: options.maxStores,
                     prioritize: options.prioritize,
                     inventory: inventory,
                     dealOpportunities: priceData.dealOpportunities,
                     useInventoryFirst: options.useInventoryFirst
+                };
+
+                console.log('📤 Sending price optimization request:', {
+                    itemsCount: itemsForOptimization.length,
+                    budget: options.budget,
+                    maxStores: options.maxStores,
+                    storesCount: stores.length
                 });
+
+                const optimizationResponse = await apiPost('/api/price-tracking/optimize-shopping', optimizationPayload);
 
                 if (optimizationResponse.ok) {
                     const optimizationData = await optimizationResponse.json();
@@ -144,11 +213,16 @@ export default function EnhancedShoppingListGenerator({
 
                         setShoppingList(enhancedShoppingList);
                     } else {
-                        console.warn('Price optimization failed, using base list');
+                        console.warn('Price optimization failed, using base list:', optimizationData.error || 'Unknown error');
                         setShoppingList(baseData.shoppingList);
                     }
                 } else {
-                    console.warn('Price optimization API failed, using base list');
+                    const errorText = await optimizationResponse.text();
+                    console.warn('Price optimization API failed:', {
+                        status: optimizationResponse.status,
+                        statusText: optimizationResponse.statusText,
+                        body: errorText
+                    });
                     setShoppingList(baseData.shoppingList);
                 }
             } catch (optimizationError) {
