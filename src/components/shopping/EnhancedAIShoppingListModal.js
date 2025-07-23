@@ -2637,6 +2637,7 @@ export default function EnhancedAIShoppingListModal({
                                                                 marginBottom: '0.25rem'
                                                             }}>
                                                                 {item.quantity && item.quantity !== 1 && `${item.quantity} `}
+                                                                {item.unit && `${item.unit} `}
                                                                 {item.ingredient || item.name}
 
                                                                 {/* Smart Price Status Badges */}
