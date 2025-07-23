@@ -396,130 +396,170 @@ export default function EnhancedAIShoppingListModal({
         }
     }, [session?.user?.id]);
 
-    // FIXED: AI Integration with proper error handling and data formatting
     const getAISmartSuggestions = useCallback(async (items) => {
-        if (!session?.user?.id) {
-            console.warn('⚠️ No user session, skipping AI suggestions');
-            return;
-        }
+        console.log('🧠 Getting AI smart suggestions from Modal.com...');
+        console.log('📊 Input items for AI analysis:', items);
 
-        if (!Array.isArray(items) || items.length === 0) {
+        if (!items || !Array.isArray(items) || items.length === 0) {
             console.warn('⚠️ No items provided for AI suggestions');
-            return;
+            return [];
         }
 
         try {
-            console.log('🧠 Getting AI smart suggestions from Modal.com...');
-            setAiLoading(true);
+            // Convert items to the format expected by Modal.com
+            const inventoryData = items.map(item => {
+                const name = item.ingredient || item.name || 'Unknown Item';
+                const category = item.category || 'Other';
+                const quantity = item.quantity || item.amount || 1;
+                const unit = item.unit || '';
 
-            // FIXED: Format data correctly for the API endpoint
-            const requestData = {
+                return {
+                    name: String(name).trim(),
+                    category: String(category).trim(),
+                    quantity: parseFloat(quantity) || 1,
+                    unit: String(unit).trim(),
+                    inInventory: !!item.inInventory,
+                    optional: !!item.optional
+                };
+            }).filter(item => item.name && item.name !== 'Unknown Item');
+
+            if (inventoryData.length === 0) {
+                console.warn('⚠️ No valid items found after conversion');
+                return [];
+            }
+
+            console.log('📋 Converted inventory data for Modal.com:', inventoryData);
+
+            // Prepare the payload for Modal.com (same format that worked in our test)
+            const payload = {
                 type: 'recipe_suggestions',
-                userId: session.user.id,
+                userId: session?.user?.id || 'anonymous',
                 data: {
-                    inventory: items.map(item => ({
-                        name: item.ingredient || item.name || 'Unknown Item',
-                        category: item.category || 'Other',
-                        quantity: item.quantity || 1,
-                        unit: item.unit || '',
-                        expirationDate: item.expirationDate || null
-                    })),
+                    inventory: inventoryData,
                     preferences: {
-                        cookingTime: userPreferences?.cookingTime || '30 minutes',
-                        difficulty: userPreferences?.difficulty || 'easy',
-                        cuisinePreferences: userPreferences?.cuisinePreferences || [],
-                        dietaryRestrictions: userPreferences?.dietaryRestrictions || []
+                        difficulty: 'easy',
+                        cookingTime: 30,
+                        servings: 4,
+                        dietaryRestrictions: [],
+                        cuisine: 'any'
+                    },
+                    context: {
+                        timestamp: new Date().toISOString(),
+                        source: 'shopping_list_modal',
+                        itemCount: inventoryData.length
                     }
                 }
             };
 
-            console.log('📊 API request data:', JSON.stringify(requestData, null, 2));
+            console.log('📤 Sending request to Modal.com...');
 
-            // FIXED: Use correct API endpoint with proper error handling
-            const response = await apiPost('/api/integrations/smart-inventory/suggest', {
-                requestData
+            const response = await fetch('https://docbear71--smart-inventory-manager-suggest-ingredients.modal.run', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(payload),
+                signal: AbortSignal.timeout(30000) // 30 second timeout
             });
 
-            console.log('📥 API response status:', response.status);
+            console.log('📥 Modal.com response status:', response.status);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ API error:', response.status, errorText);
-                throw new Error(`API error: ${response.status}`);
+                throw new Error(`Modal.com API error: ${response.status} ${errorText}`);
             }
 
             const data = await response.json();
-            console.log('✅ API response data:', data);
+            console.log('✅ Modal.com response data:', data);
 
-            // Handle both success and fallback responses
-            if (data.success && data.suggestions) {
-                // Transform API response to match expected format
-                const transformedSuggestions = data.suggestions.map(suggestion => ({
-                    name: suggestion.name || 'Recipe Suggestion',
-                    description: suggestion.description || 'Recipe using your available ingredients',
-                    cookingTime: suggestion.cookingTime || 30,
-                    difficulty: suggestion.difficulty || 'easy',
-                    inventoryUsage: suggestion.inventoryUsage || 0.5,
-                    missingIngredients: suggestion.missingIngredients || []
-                }));
+            // Process the response (we know it returns suggestions array)
+            const suggestions = data.suggestions || [];
 
-                setSmartSuggestions(transformedSuggestions);
-                setAiInsights({
-                    utilization: data.utilization || {utilizationPercentage: 50},
-                    shoppingNeeded: data.shoppingNeeded || [],
-                    method: data.fallback ? 'fallback' : 'modal_ai_enhanced',
-                    confidenceScore: data.fallback ? 0.3 : 0.9,
-                    fallback: data.fallback || false
-                });
+            const formattedSuggestions = suggestions.slice(0, 5).map((suggestion, index) => ({
+                name: suggestion.name || suggestion.title || `Recipe ${index + 1}`,
+                description: suggestion.description || suggestion.summary ||
+                    'AI-generated recipe suggestion based on your ingredients',
+                cookingTime: suggestion.cookingTime || suggestion.prepTime || 30,
+                difficulty: suggestion.difficulty || 'easy',
+                inventoryUsage: suggestion.inventoryUsage || 0.7,
+                missingIngredients: Array.isArray(suggestion.missingIngredients)
+                    ? suggestion.missingIngredients.slice(0, 3) : [],
+                id: suggestion.id || `ai-suggestion-${Date.now()}-${index}`
+            }));
 
-                console.log('✅ AI suggestions processed:', transformedSuggestions.length, 'suggestions');
+            console.log('✅ Processed AI suggestions:', formattedSuggestions);
 
-                if (transformedSuggestions.length > 0) {
-                    setShowAiPanel(true);
-                }
-
-                // Show fallback notification if applicable
-                if (data.fallback) {
-                    console.warn('⚠️ Using fallback AI suggestions due to Modal.com unavailability');
-                }
-            } else {
-                console.warn('⚠️ AI suggestions returned no data or failed');
-                // Provide basic fallback
-                setSmartSuggestions([{
-                    name: 'Basic Recipe Ideas',
-                    description: 'Create simple meals with your available ingredients',
-                    cookingTime: 30,
-                    difficulty: 'easy',
-                    inventoryUsage: 0.5,
-                    missingIngredients: []
-                }]);
-                setAiInsights({
-                    utilization: {utilizationPercentage: 40},
-                    method: 'basic_fallback',
-                    confidenceScore: 0.3
-                });
-            }
-        } catch (error) {
-            console.error('❌ Failed to get AI suggestions:', error);
-            // Provide fallback suggestions on error
-            setSmartSuggestions([{
-                name: 'Simple Ingredient Combinations',
-                description: 'Mix and match your available ingredients for quick meals',
-                cookingTime: 20,
-                difficulty: 'easy',
-                inventoryUsage: 0.4,
-                missingIngredients: []
-            }]);
+            // Update AI insights
             setAiInsights({
-                utilization: {utilizationPercentage: 40},
-                method: 'error_fallback',
-                confidenceScore: 0.3,
-                error: error.message
+                utilization: {
+                    utilizationPercentage: data.utilization?.utilizationPercentage || 70,
+                    expiringItemsUsed: 0
+                },
+                fallback: false,
+                lastUpdated: new Date().toISOString(),
+                source: 'modal.com'
             });
-        } finally {
-            setAiLoading(false);
+
+            return formattedSuggestions;
+
+        } catch (error) {
+            console.error('❌ AI suggestions error:', error);
+
+            setAiInsights({
+                error: error.message,
+                fallback: true,
+                lastUpdated: new Date().toISOString()
+            });
+
+            // Return simple fallback suggestions
+            return [
+                {
+                    name: "Quick Stir-Fry",
+                    description: "A simple stir-fry using your available ingredients",
+                    cookingTime: 15,
+                    difficulty: "easy",
+                    inventoryUsage: 0.6,
+                    missingIngredients: ['cooking oil', 'soy sauce'],
+                    id: `fallback-${Date.now()}-1`
+                }
+            ];
         }
-    }, [session?.user?.id, userPreferences]);
+    }, [session?.user?.id, setAiInsights]);
+
+// Fallback suggestion generator
+    const generateFallbackSuggestions = useCallback((items) => {
+        const categories = [...new Set(items.map(item => item.category || 'Other'))];
+        const itemNames = items.map(item => item.ingredient || item.name).filter(Boolean);
+
+        const templates = [
+            {
+                name: "Quick Stir-Fry",
+                description: `A simple stir-fry using ${itemNames.slice(0, 3).join(', ')}`,
+                cookingTime: 15,
+                difficulty: "easy"
+            },
+            {
+                name: "One-Pot Meal",
+                description: `A hearty one-pot dish combining your available ingredients`,
+                cookingTime: 25,
+                difficulty: "easy"
+            },
+            {
+                name: "Simple Soup",
+                description: `A comforting soup made with ${categories.join(' and ')} ingredients`,
+                cookingTime: 30,
+                difficulty: "easy"
+            }
+        ];
+
+        return templates.slice(0, 2).map((template, index) => ({
+            ...template,
+            inventoryUsage: 0.6,
+            missingIngredients: ['seasoning', 'cooking oil'],
+            id: `fallback-${Date.now()}-${index}`
+        }));
+    }, []);
 
     const initializeAISystem = useCallback(async () => {
         if (!session?.user?.id) return;
@@ -910,8 +950,58 @@ export default function EnhancedAIShoppingListModal({
             setTimeout(() => {
                 initializeAISystem();
             }, 500);
+
+            setTimeout(() => {
+                autoTriggerAISuggestions();
+            }, 1000);
         }
     }, [isOpen, initialized, loadPreferences, fetchStores, loadCustomCategories, loadUserPreferences, processInitialData, initializeAISystem]);
+
+    const autoTriggerAISuggestions = useCallback(async () => {
+        console.log('🤖 Auto-triggering AI suggestions...');
+
+        if (!currentShoppingList || !currentShoppingList.items) {
+            console.log('⚠️ No shopping list available for AI suggestions');
+            return;
+        }
+
+        try {
+            // Convert shopping list items to flat array for AI processing
+            let allItems = [];
+
+            if (Array.isArray(currentShoppingList.items)) {
+                allItems = currentShoppingList.items;
+            } else if (typeof currentShoppingList.items === 'object') {
+                // Flatten categorized items
+                Object.values(currentShoppingList.items).forEach(categoryItems => {
+                    if (Array.isArray(categoryItems)) {
+                        allItems.push(...categoryItems);
+                    }
+                });
+            }
+
+            if (allItems.length === 0) {
+                console.log('⚠️ No items found in shopping list');
+                return;
+            }
+
+            console.log('📋 Processing', allItems.length, 'items for AI suggestions');
+
+            // Call the AI suggestions function
+            const suggestions = await getAISmartSuggestions(allItems);
+
+            if (suggestions && suggestions.length > 0) {
+                console.log('✅ AI suggestions received:', suggestions.length, 'suggestions');
+                setSmartSuggestions(suggestions);
+                setShowAiPanel(true); // Automatically show the AI panel
+            } else {
+                console.log('⚠️ No AI suggestions received');
+            }
+
+        } catch (error) {
+            console.error('❌ Auto-trigger AI suggestions error:', error);
+        }
+    }, [currentShoppingList, getAISmartSuggestions]);
 
     // Normalize shopping list data
     const normalizedList = useMemo(() => {
@@ -1772,25 +1862,37 @@ export default function EnhancedAIShoppingListModal({
                         )}
 
                         {/* AI Optimization Button - Enhanced AI modes */}
-                        {config.showAdvancedFeatures && (
-                            <TouchEnhancedButton
-                                onClick={handleAIOptimization}
-                                disabled={!selectedStore || aiLoading || editingCategories}
-                                style={{
-                                    backgroundColor: aiMode === 'ai-optimized' ? '#0284c7' : '#7c3aed',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.375rem',
-                                    fontSize: '0.7rem',
-                                    cursor: (!selectedStore || aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
-                                    fontWeight: '500',
-                                    opacity: (!selectedStore || aiLoading || editingCategories) ? 0.6 : 1
-                                }}
-                            >
-                                {aiLoading ? '⏳ AI...' : aiMode === 'ai-optimized' ? '🤖 AI On' : '🤖 AI'}
-                            </TouchEnhancedButton>
-                        )}
+                        <TouchEnhancedButton
+                            onClick={async () => {
+                                if (smartSuggestions && smartSuggestions.length > 0) {
+                                    // If we already have suggestions, just toggle the panel
+                                    setShowAiPanel(!showAiPanel);
+                                } else {
+                                    // If no suggestions, trigger AI
+                                    setAiLoading(true);
+                                    try {
+                                        await autoTriggerAISuggestions();
+                                    } finally {
+                                        setAiLoading(false);
+                                    }
+                                }
+                            }}
+                            disabled={aiLoading || editingCategories}
+                            style={{
+                                backgroundColor: smartSuggestions?.length > 0 ? '#059669' : '#7c3aed',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.25rem 0.375rem',
+                                fontSize: '0.7rem',
+                                cursor: (aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
+                                fontWeight: '500',
+                                opacity: (aiLoading || editingCategories) ? 0.6 : 1
+                            }}
+                        >
+                            {aiLoading ? '⏳ AI...' :
+                                smartSuggestions?.length > 0 ? `🧠 AI (${smartSuggestions.length})` : '🧠 Get AI'}
+                        </TouchEnhancedButton>
 
                         {/* Category Management Toggle */}
                         <TouchEnhancedButton
