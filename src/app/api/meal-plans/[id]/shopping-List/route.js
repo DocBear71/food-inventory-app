@@ -409,21 +409,21 @@ export async function POST(request, { params }) {
 
             // Format amount for display
             let displayAmount = '';
+            let numericAmount = '';
             if (ingredient.amount > 0) {
                 // Round to reasonable precision
                 const rounded = Math.round(ingredient.amount * 100) / 100;
-                displayAmount = `${rounded}${ingredient.unit ? ' ' + ingredient.unit : ''}`;
+                numericAmount = `${rounded}`;
+                displayAmount = `${rounded}`;
             }
 
-            // FIXED: Ensure we include ALL required fields for MealPlan schema validation
             return {
-                // Primary identifier - use 'ingredient' as required by schema
                 ingredient: ingredient.name,
-                name: ingredient.name, // Keep both for compatibility
+                name: ingredient.name,
 
                 // Amount/quantity fields
                 amount: displayAmount,
-                quantity: displayAmount, // Keep both for compatibility
+                quantity: numericAmount,
                 unit: ingredient.unit || '',
 
                 // Categorization
