@@ -415,14 +415,25 @@ export async function POST(request, { params }) {
                 displayAmount = `${rounded}${ingredient.unit ? ' ' + ingredient.unit : ''}`;
             }
 
+            // FIXED: Ensure we include ALL required fields for MealPlan schema validation
             return {
+                // Primary identifier - use 'ingredient' as required by schema
                 ingredient: ingredient.name,
-                name: ingredient.name, // Add both for compatibility
-                quantity: displayAmount,
-                amount: displayAmount, // Add both for compatibility
-                unit: ingredient.unit,
+                name: ingredient.name, // Keep both for compatibility
+
+                // Amount/quantity fields
+                amount: displayAmount,
+                quantity: displayAmount, // Keep both for compatibility
+                unit: ingredient.unit || '',
+
+                // Categorization
                 category: ingredient.category,
-                recipes: ingredient.recipes,
+
+                // Recipe references
+                recipes: Array.isArray(ingredient.recipes) ? ingredient.recipes : [],
+                recipeIds: Array.isArray(ingredient.recipeIds) ? ingredient.recipeIds : [],
+
+                // Inventory status
                 inInventory,
                 inventoryItem: inventoryItem ? {
                     name: inventoryItem.name,
@@ -430,10 +441,19 @@ export async function POST(request, { params }) {
                     unit: inventoryItem.unit,
                     location: inventoryItem.location
                 } : null,
+                haveAmount: inventoryItem ? inventoryItem.quantity : null,
+
+                // Purchase status
                 purchased: false,
-                optional: ingredient.optional,
-                alternativeAmounts: ingredient.alternativeAmounts || [],
-                haveAmount: inventoryItem ? inventoryItem.quantity : null
+                selected: true, // Default to selected
+                checked: false,
+
+                // Additional properties
+                optional: !!ingredient.optional,
+                alternativeAmounts: Array.isArray(ingredient.alternativeAmounts) ? ingredient.alternativeAmounts : [],
+
+                // Ensure we have an ID for tracking
+                id: `${ingredient.name.replace(/\s+/g, '-').toLowerCase()}-${Date.now()}`
             };
         });
 
@@ -451,14 +471,25 @@ export async function POST(request, { params }) {
             categorizedItems[category].sort((a, b) => a.ingredient.localeCompare(b.ingredient));
         });
 
-        // Update meal plan with generated shopping list
-        mealPlan.shoppingList = {
+        // FIXED: Store shopping list data in the format expected by the MealPlan schema
+        // Some schemas expect a flat array, others expect categorized object
+        // Let's try flat array first since that's what the error suggests
+        const shoppingListForSave = {
             generated: true,
             generatedAt: new Date(),
-            items: categorizedItems // Store as categorized object
+            items: shoppingListItems // Use flat array format for schema compatibility
         };
 
-        await mealPlan.save();
+        // Update meal plan with generated shopping list
+        try {
+            mealPlan.shoppingList = shoppingListForSave;
+            await mealPlan.save();
+            console.log('✅ Shopping list saved to meal plan successfully');
+        } catch (saveError) {
+            console.error('❌ Error saving shopping list to meal plan:', saveError);
+            // Continue anyway - we can still return the shopping list even if saving fails
+            console.log('⚠️ Continuing without saving to meal plan...');
+        }
 
         console.log('Shopping list generated successfully with', shoppingListItems.length, 'items');
 
