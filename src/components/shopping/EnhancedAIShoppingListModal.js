@@ -743,7 +743,7 @@ export default function EnhancedAIShoppingListModal({
             totalItems: itemsWithStatus.length,
             needToBuy: itemsWithStatus.filter(item => !item.inInventory && !item.purchased).length,
             inInventory: itemsWithStatus.filter(item => item.inInventory).length,
-            purchased: itemWithStatus.filter(item => item.purchased).length
+            purchased: itemsWithStatus.filter(item => item.purchased).length  // ✅ CORRECT
         };
     }, [normalizedList.items, addPurchasedStatus]);
 
