@@ -454,16 +454,124 @@ export default function EnhancedShoppingListGenerator({
                 return null;
             }
 
-            // Generate unique ID
-            const itemId = item.id || `${name.replace(/\s+/g, '-')}-${Date.now()}-${itemCounter++}`;
+            // FIXED: Enhanced unit parsing from amount/quantity strings
+            const parseAmountAndUnit = (amountStr) => {
+                if (!amountStr) return { quantity: '1', unit: '' };
 
-            // Safely extract all properties
+                const str = String(amountStr).trim();
+
+                // Common unit patterns
+                const unitPatterns = [
+                    // Volume
+                    { regex: /(\d+(?:\.\d+)?)\s*(cups?|cup)\b/i, unit: 'cups' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(tablespoons?|tbsp?|tbs?)\b/i, unit: 'tbsp' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(teaspoons?|tsp?)\b/i, unit: 'tsp' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(pints?|pt)\b/i, unit: 'pints' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(quarts?|qt)\b/i, unit: 'quarts' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(gallons?|gal)\b/i, unit: 'gallons' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(liters?|l)\b/i, unit: 'liters' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(milliliters?|ml)\b/i, unit: 'ml' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(fluid ounces?|fl oz|floz)\b/i, unit: 'fl oz' },
+
+                    // Weight
+                    { regex: /(\d+(?:\.\d+)?)\s*(pounds?|lbs?|lb)\b/i, unit: 'lbs' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(ounces?|oz)\b/i, unit: 'oz' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(grams?|g)\b/i, unit: 'g' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(kilograms?|kg)\b/i, unit: 'kg' },
+
+                    // Count/pieces
+                    { regex: /(\d+(?:\.\d+)?)\s*(pieces?|pcs?)\b/i, unit: 'pieces' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(items?)\b/i, unit: 'items' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(slices?)\b/i, unit: 'slices' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(cans?)\b/i, unit: 'cans' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(bottles?)\b/i, unit: 'bottles' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(bags?)\b/i, unit: 'bags' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(boxes?)\b/i, unit: 'boxes' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(packages?|pkgs?)\b/i, unit: 'packages' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(containers?)\b/i, unit: 'containers' },
+
+                    // Special cases
+                    { regex: /(\d+(?:\.\d+)?)\s*(cloves?)\b/i, unit: 'cloves' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(bunches?)\b/i, unit: 'bunches' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(heads?)\b/i, unit: 'heads' },
+                    { regex: /(\d+(?:\.\d+)?)\s*(stalks?)\b/i, unit: 'stalks' },
+                ];
+
+                // Try to match patterns
+                for (const pattern of unitPatterns) {
+                    const match = str.match(pattern.regex);
+                    if (match) {
+                        return {
+                            quantity: match[1],
+                            unit: pattern.unit
+                        };
+                    }
+                }
+
+                // If no unit pattern found, try to extract number at the beginning
+                const numberMatch = str.match(/^(\d+(?:\.\d+)?)/);
+                if (numberMatch) {
+                    const restOfString = str.replace(numberMatch[0], '').trim();
+                    // If there's text after the number, it might be a unit
+                    if (restOfString && restOfString.length < 20) {
+                        return {
+                            quantity: numberMatch[1],
+                            unit: restOfString
+                        };
+                    }
+                    return {
+                        quantity: numberMatch[1],
+                        unit: ''
+                    };
+                }
+
+                // Fallback: return as-is
+                return {
+                    quantity: str || '1',
+                    unit: ''
+                };
+            };
+
+            // Parse amount and unit
+            const rawAmount = item.quantity || item.amount || '1';
+            const parsedAmount = parseAmountAndUnit(rawAmount);
+
+            // Override with explicit unit if provided
+            let finalUnit = item.unit || parsedAmount.unit;
+            let finalQuantity = parsedAmount.quantity;
+
+            // Additional cleanup for units
+            if (finalUnit) {
+                finalUnit = finalUnit.trim();
+                // Standardize common variations
+                const unitMap = {
+                    'cup': 'cups',
+                    'tablespoon': 'tbsp',
+                    'tablespoons': 'tbsp',
+                    'teaspoon': 'tsp',
+                    'teaspoons': 'tsp',
+                    'pound': 'lbs',
+                    'pounds': 'lbs',
+                    'lb': 'lbs',
+                    'ounce': 'oz',
+                    'ounces': 'oz',
+                    'piece': 'pieces',
+                    'pcs': 'pieces',
+                    'slice': 'slices'
+                };
+                finalUnit = unitMap[finalUnit.toLowerCase()] || finalUnit;
+            }
+
+            // Generate unique ID
+            const itemId = item.id || `${name.replace(/\s+/g, '-')}-${Date.now()}-${sourceIndex}`;
+
+            // Create the converted item
             const convertedItem = {
                 id: itemId,
                 name: name.trim(),
                 ingredient: name.trim(),
-                quantity: item.quantity || item.amount || '1',
-                unit: (item.unit && typeof item.unit === 'string') ? item.unit.trim() : '',
+                quantity: String(finalQuantity).trim(),
+                unit: finalUnit,
                 category: (category && typeof category === 'string') ? category : 'Other',
 
                 // Inventory status
@@ -498,6 +606,8 @@ export default function EnhancedShoppingListGenerator({
                 convertedItem.dealStatus = (typeof item.dealStatus === 'string') ? item.dealStatus : 'normal';
                 convertedItem.alternatives = Array.isArray(item.alternatives) ? item.alternatives : [];
             }
+
+            console.log(`✅ Converted item: ${finalQuantity} ${finalUnit} ${name}`.trim());
 
             return convertedItem;
         };
