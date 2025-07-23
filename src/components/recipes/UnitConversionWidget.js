@@ -167,16 +167,18 @@ export default function UnitConversionWidget({
     return (
         <div className={`bg-white border border-gray-200 rounded-lg p-4 ${className}`}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
+            <div className="mb-4">
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
                     📐 Unit Conversion
                 </h3>
-                <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600">Convert to:</span>
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                        Convert to:
+                    </label>
                     <select
                         value={targetSystem}
                         onChange={(e) => setTargetSystem(e.target.value)}
-                        className="px-3 py-1 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                         disabled={isConverting}
                     >
                         <option value="metric">Metric (g, ml, °C)</option>

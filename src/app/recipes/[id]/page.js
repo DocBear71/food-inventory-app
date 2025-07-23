@@ -493,12 +493,19 @@ export default function RecipeDetailPage() {
                 {/* RECIPE TRANSFORMATION PANEL */}
                 <RecipeTransformationPanel
                     recipe={recipe}
-                    onTransformationChange={(transformedRecipe) => {
-                        // Update the recipe state with transformed data
-                        setRecipe(prev => ({
-                            ...prev,
-                            ...transformedRecipe
-                        }));
+                    onTransformationChange={(transformationResult) => {
+                        if (transformationResult.scaled_ingredients) {
+                            setRecipe(prev => ({
+                                ...prev,
+                                ingredients: transformationResult.scaled_ingredients,
+                                servings: transformationResult.targetServings || prev.servings
+                            }));
+                        } else if (transformationResult.converted_ingredients) {
+                            setRecipe(prev => ({
+                                ...prev,
+                                ingredients: transformationResult.converted_ingredients
+                            }));
+                        }
                     }}
                     showSaveOptions={true}
                     defaultExpanded={false}
