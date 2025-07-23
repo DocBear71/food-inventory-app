@@ -1,4 +1,4 @@
-// file: /src/app/api/meal-plans/[id]/shopping-list/route.js v2
+// file: /src/app/api/meal-plans/[id]/shopping-list/route.js v2 - Fixed for Next.js 15
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
@@ -64,26 +64,26 @@ function combineIngredients(ingredients) {
 // Helper function to categorize ingredients
 function categorizeIngredient(ingredientName) {
     const categories = {
-        'produce': [
+        'Produce': [
             'tomato', 'onion', 'garlic', 'pepper', 'carrot', 'celery', 'lettuce', 'spinach',
             'apple', 'banana', 'lemon', 'lime', 'potato', 'broccoli', 'cucumber', 'mushroom'
         ],
-        'meat': [
+        'Meat': [
             'chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp',
             'bacon', 'ham', 'sausage', 'ground beef', 'ground turkey'
         ],
-        'dairy': [
+        'Dairy': [
             'milk', 'cheese', 'butter', 'cream', 'yogurt', 'sour cream', 'cottage cheese',
             'mozzarella', 'cheddar', 'parmesan', 'eggs'
         ],
-        'pantry': [
+        'Pantry': [
             'flour', 'sugar', 'salt', 'pepper', 'oil', 'vinegar', 'pasta', 'rice',
             'beans', 'breadcrumbs', 'spices', 'herbs', 'vanilla', 'baking powder'
         ],
-        'frozen': [
+        'Frozen': [
             'frozen peas', 'frozen corn', 'ice cream', 'frozen berries', 'frozen pizza'
         ],
-        'bakery': [
+        'Bakery': [
             'bread', 'rolls', 'bagels', 'tortillas', 'pita'
         ]
     };
@@ -96,7 +96,7 @@ function categorizeIngredient(ingredientName) {
         }
     }
 
-    return 'other';
+    return 'Other';
 }
 
 // Helper function to check inventory for ingredient
@@ -116,10 +116,21 @@ export async function POST(request, { params }) {
         console.log('=== POST /api/meal-plans/[id]/shopping-list START ===');
 
         const session = await auth();
+        console.log('Auth session:', !!session, session?.user?.id);
 
-        // Fix for Next.js 15 - await params
-        const resolvedParams = await params;
-        const { id: mealPlanId } = resolvedParams;
+        // Fix for Next.js 15 - properly await params and handle errors
+        let mealPlanId;
+        try {
+            const resolvedParams = await params;
+            console.log('Resolved params:', resolvedParams);
+            mealPlanId = resolvedParams?.id;
+        } catch (paramError) {
+            console.error('Error resolving params:', paramError);
+            return NextResponse.json(
+                { error: 'Invalid route parameters', details: paramError.message },
+                { status: 400 }
+            );
+        }
 
         console.log('Resolved meal plan ID:', mealPlanId);
 
@@ -136,7 +147,14 @@ export async function POST(request, { params }) {
             );
         }
 
-        const body = await request.json();
+        let body;
+        try {
+            body = await request.json();
+        } catch (jsonError) {
+            console.log('No JSON body or invalid JSON, using defaults');
+            body = {};
+        }
+
         const { options = {} } = body;
 
         console.log('Generating shopping list for meal plan:', mealPlanId);
@@ -205,16 +223,15 @@ export async function POST(request, { params }) {
             return NextResponse.json({
                 success: true,
                 shoppingList: {
-                    items: [],
+                    items: {},
                     generatedAt: new Date(),
                     mealPlanName: mealPlan.name,
                     weekStart: mealPlan.weekStartDate,
-                    stats: {
+                    summary: {
                         totalItems: 0,
                         inInventory: 0,
                         needToBuy: 0,
-                        optional: 0,
-                        categories: 0
+                        purchased: 0
                     }
                 },
                 message: 'No recipes found in meal plan'
@@ -296,7 +313,9 @@ export async function POST(request, { params }) {
 
             return {
                 ingredient: ingredient.name,
-                amount: displayAmount,
+                name: ingredient.name, // Add both for compatibility
+                quantity: displayAmount,
+                amount: displayAmount, // Add both for compatibility
                 unit: ingredient.unit,
                 category: ingredient.category,
                 recipes: ingredient.recipes,
@@ -309,46 +328,59 @@ export async function POST(request, { params }) {
                 } : null,
                 purchased: false,
                 optional: ingredient.optional,
-                alternativeAmounts: ingredient.alternativeAmounts || []
+                alternativeAmounts: ingredient.alternativeAmounts || [],
+                haveAmount: inventoryItem ? inventoryItem.quantity : null
             };
         });
 
-        // Sort by category for better organization
-        const sortedItems = shoppingListItems.sort((a, b) => {
-            if (a.category !== b.category) {
-                return a.category.localeCompare(b.category);
+        // Group by category for better organization
+        const categorizedItems = {};
+        shoppingListItems.forEach(item => {
+            if (!categorizedItems[item.category]) {
+                categorizedItems[item.category] = [];
             }
-            return a.ingredient.localeCompare(b.ingredient);
+            categorizedItems[item.category].push(item);
+        });
+
+        // Sort items within each category
+        Object.keys(categorizedItems).forEach(category => {
+            categorizedItems[category].sort((a, b) => a.ingredient.localeCompare(b.ingredient));
         });
 
         // Update meal plan with generated shopping list
         mealPlan.shoppingList = {
             generated: true,
             generatedAt: new Date(),
-            items: sortedItems
+            items: categorizedItems // Store as categorized object
         };
 
         await mealPlan.save();
 
-        console.log('Shopping list generated successfully with', sortedItems.length, 'items');
+        console.log('Shopping list generated successfully with', shoppingListItems.length, 'items');
 
         // Calculate statistics
-        const stats = {
-            totalItems: sortedItems.length,
-            inInventory: sortedItems.filter(item => item.inInventory).length,
-            needToBuy: sortedItems.filter(item => !item.inInventory).length,
-            optional: sortedItems.filter(item => item.optional).length,
-            categories: [...new Set(sortedItems.map(item => item.category))].length
+        const summary = {
+            totalItems: shoppingListItems.length,
+            inInventory: shoppingListItems.filter(item => item.inInventory).length,
+            needToBuy: shoppingListItems.filter(item => !item.inInventory).length,
+            purchased: 0, // Initially no items are purchased
+            alreadyHave: shoppingListItems.filter(item => item.inInventory).length // For compatibility
         };
 
         return NextResponse.json({
             success: true,
             shoppingList: {
-                items: sortedItems,
+                items: categorizedItems, // Return categorized items
                 generatedAt: mealPlan.shoppingList.generatedAt,
                 mealPlanName: mealPlan.name,
                 weekStart: mealPlan.weekStartDate,
-                stats
+                summary,
+                stats: summary, // Add both for compatibility
+                recipes: recipes.map(r => ({
+                    id: r._id.toString(),
+                    title: r.title,
+                    servings: r.servings
+                }))
             },
             message: 'Shopping list generated successfully'
         });
@@ -371,15 +403,33 @@ export async function PUT(request, { params }) {
     try {
         const session = await auth();
 
-        // Fix for Next.js 15 - await params
-        const resolvedParams = await params;
-        const { id: mealPlanId } = resolvedParams;
+        // Fix for Next.js 15 - properly await params and handle errors
+        let mealPlanId;
+        try {
+            const resolvedParams = await params;
+            mealPlanId = resolvedParams?.id;
+        } catch (paramError) {
+            console.error('Error resolving params in PUT:', paramError);
+            return NextResponse.json(
+                { error: 'Invalid route parameters', details: paramError.message },
+                { status: 400 }
+            );
+        }
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
-        const body = await request.json();
+        let body;
+        try {
+            body = await request.json();
+        } catch (jsonError) {
+            return NextResponse.json(
+                { error: 'Invalid JSON body' },
+                { status: 400 }
+            );
+        }
+
         const { updates } = body; // Array of {ingredientName, purchased, etc.}
 
         await connectDB();
@@ -399,15 +449,35 @@ export async function PUT(request, { params }) {
         // Update shopping list items
         if (updates && Array.isArray(updates)) {
             updates.forEach(update => {
-                const item = mealPlan.shoppingList.items.find(
-                    item => item.ingredient === update.ingredientName
-                );
-                if (item) {
-                    Object.keys(update).forEach(key => {
-                        if (key !== 'ingredientName') {
-                            item[key] = update[key];
+                // Handle both flat array and categorized object structures
+                if (mealPlan.shoppingList.items) {
+                    if (Array.isArray(mealPlan.shoppingList.items)) {
+                        // Flat array structure
+                        const item = mealPlan.shoppingList.items.find(
+                            item => item.ingredient === update.ingredientName
+                        );
+                        if (item) {
+                            Object.keys(update).forEach(key => {
+                                if (key !== 'ingredientName') {
+                                    item[key] = update[key];
+                                }
+                            });
                         }
-                    });
+                    } else {
+                        // Categorized object structure
+                        Object.keys(mealPlan.shoppingList.items).forEach(category => {
+                            const item = mealPlan.shoppingList.items[category].find(
+                                item => item.ingredient === update.ingredientName
+                            );
+                            if (item) {
+                                Object.keys(update).forEach(key => {
+                                    if (key !== 'ingredientName') {
+                                        item[key] = update[key];
+                                    }
+                                });
+                            }
+                        });
+                    }
                 }
             });
         }
@@ -423,7 +493,7 @@ export async function PUT(request, { params }) {
     } catch (error) {
         console.error('PUT shopping list error:', error);
         return NextResponse.json(
-            { error: 'Failed to update shopping list' },
+            { error: 'Failed to update shopping list', details: error.message },
             { status: 500 }
         );
     }

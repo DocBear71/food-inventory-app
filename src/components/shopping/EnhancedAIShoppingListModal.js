@@ -436,12 +436,8 @@ export default function EnhancedAIShoppingListModal({
             console.log('📊 API request data:', JSON.stringify(requestData, null, 2));
 
             // FIXED: Use correct API endpoint with proper error handling
-            const response = await fetch('/api/integrations/smart-inventory/suggest', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(requestData)
+            const response = await apiPost('/api/integrations/smart-inventory/suggest', {
+                requestData
             });
 
             console.log('📥 API response status:', response.status);
@@ -825,17 +821,11 @@ export default function EnhancedAIShoppingListModal({
             const allItems = Object.values(currentShoppingList.items).flat();
             const selectedItems = allItems.filter(item => item.selected !== false);
 
-            const response = await fetch('/api/price-tracking/budget-optimize', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
+            const response = await apiPost('/api/price-tracking/budget-optimize', {
                     items: selectedItems,
                     budgetLimit: budgetTracking.limit,
                     currentTotal: budgetTracking.current,
                     store: selectedStore
-                })
             });
 
             const data = await response.json();
