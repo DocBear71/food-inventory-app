@@ -1,11 +1,10 @@
 'use client';
-// file: /src/components/meal-planning/ShoppingListGenerator.js v13 - Fixed to return results to EnhancedAIShoppingListModal instead of SmartPriceShoppingList
+// file: /src/components/meal-planning/ShoppingListGenerator.js v14 - FIXED all null/undefined issues
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import { apiPost, apiGet } from '@/lib/api-config';
-// REMOVED: SmartPriceShoppingList import since we're using EnhancedAIShoppingListModal
 import EnhancedAIShoppingListModal from '@/components/shopping/EnhancedAIShoppingListModal';
 
 export default function EnhancedShoppingListGenerator({
@@ -91,17 +90,23 @@ export default function EnhancedShoppingListGenerator({
             console.log('Options:', options);
 
             // Step 1: Generate base shopping list from meal plan
+            console.log('🔄 Calling shopping list API...');
             const baseResponse = await apiPost(`/api/meal-plans/${mealPlanId}/shopping-list`, {
                 options: options
             });
 
-            const baseData = await baseResponse.json();
-
             if (!baseResponse.ok) {
-                throw new Error(baseData.error || 'Failed to generate base shopping list');
+                const errorText = await baseResponse.text();
+                console.error('❌ API Response Error:', {
+                    status: baseResponse.status,
+                    statusText: baseResponse.statusText,
+                    body: errorText
+                });
+                throw new Error(`API Error ${baseResponse.status}: ${baseResponse.statusText} - ${errorText}`);
             }
 
-            console.log('✅ Base shopping list generated');
+            const baseData = await baseResponse.json();
+            console.log('✅ Base shopping list generated:', baseData);
 
             if (!options.includePriceOptimization) {
                 setShoppingList(baseData.shoppingList);
@@ -113,32 +118,41 @@ export default function EnhancedShoppingListGenerator({
             setStep('optimizing');
             await new Promise(resolve => setTimeout(resolve, 1000)); // Show optimization step
 
-            const optimizationResponse = await apiPost('/api/price-tracking/optimize-shopping', {
-                items: baseData.shoppingList.items,
-                budget: options.budget,
-                preferredStores: stores.slice(0, options.maxStores).map(s => s.name),
-                maxStores: options.maxStores,
-                prioritize: options.prioritize,
-                inventory: inventory,
-                dealOpportunities: priceData.dealOpportunities,
-                useInventoryFirst: options.useInventoryFirst
-            });
+            try {
+                const optimizationResponse = await apiPost('/api/price-tracking/optimize-shopping', {
+                    items: baseData.shoppingList.items,
+                    budget: options.budget,
+                    preferredStores: stores.slice(0, options.maxStores).map(s => s.name),
+                    maxStores: options.maxStores,
+                    prioritize: options.prioritize,
+                    inventory: inventory,
+                    dealOpportunities: priceData.dealOpportunities,
+                    useInventoryFirst: options.useInventoryFirst
+                });
 
-            const optimizationData = await optimizationResponse.json();
+                if (optimizationResponse.ok) {
+                    const optimizationData = await optimizationResponse.json();
+                    if (optimizationData.success) {
+                        console.log('✅ Price optimization completed');
+                        setOptimization(optimizationData.optimization);
 
-            if (optimizationData.success) {
-                console.log('✅ Price optimization completed');
-                setOptimization(optimizationData.optimization);
+                        // Merge optimization data with shopping list
+                        const enhancedShoppingList = enhanceShoppingListWithPrices(
+                            baseData.shoppingList,
+                            optimizationData.optimization
+                        );
 
-                // Merge optimization data with shopping list
-                const enhancedShoppingList = enhanceShoppingListWithPrices(
-                    baseData.shoppingList,
-                    optimizationData.optimization
-                );
-
-                setShoppingList(enhancedShoppingList);
-            } else {
-                console.warn('Price optimization failed, using base list');
+                        setShoppingList(enhancedShoppingList);
+                    } else {
+                        console.warn('Price optimization failed, using base list');
+                        setShoppingList(baseData.shoppingList);
+                    }
+                } else {
+                    console.warn('Price optimization API failed, using base list');
+                    setShoppingList(baseData.shoppingList);
+                }
+            } catch (optimizationError) {
+                console.warn('Price optimization error, using base list:', optimizationError);
                 setShoppingList(baseData.shoppingList);
             }
 
@@ -146,66 +160,174 @@ export default function EnhancedShoppingListGenerator({
 
         } catch (error) {
             console.error('Shopping list generation error:', error);
-            setError(error.message);
+            setError(error.message || 'Unknown error occurred');
             setStep('options');
         } finally {
             setLoading(false);
         }
     };
 
-    // FIXED: Added proper null/undefined checks to prevent toLowerCase() errors
+    // FIXED: Complete rewrite with comprehensive null/undefined safety
     const enhanceShoppingListWithPrices = (baseList, optimization) => {
-        // Enhance the shopping list with price optimization data
-        const enhancedItems = baseList.items.map(item => {
-            // FIXED: Add safety checks for undefined/null values
-            if (!item || !item.ingredient) {
-                console.warn('Invalid item found in shopping list:', item);
-                return item;
-            }
-
-            // FIXED: Ensure optimization has items array and check for undefined names
-            if (!optimization || !optimization.items || !Array.isArray(optimization.items)) {
-                console.warn('Invalid optimization data:', optimization);
-                return item;
-            }
-
-            // Find corresponding optimized item with safe property access
-            const optimizedItem = optimization.items.find(opt => {
-                // FIXED: Check if opt and required properties exist before calling toLowerCase()
-                if (!opt || !opt.name || !item.ingredient) {
-                    return false;
-                }
-
-                const optName = opt.name.toLowerCase();
-                const itemIngredient = item.ingredient.toLowerCase();
-
-                return optName === itemIngredient || itemIngredient.includes(optName);
-            });
-
-            if (optimizedItem) {
-                return {
-                    ...item,
-                    priceInfo: {
-                        bestPrice: optimizedItem.bestPrice || null,
-                        alternatives: optimizedItem.alternatives || [],
-                        estimatedPrice: optimizedItem.estimatedPrice || 0,
-                        dealStatus: (optimizedItem.bestPrice?.savings || 0) > 0 ? 'deal' : 'normal'
-                    }
-                };
-            }
-
-            return item;
+        console.log('🔧 Enhancing shopping list with prices...');
+        console.log('Base list structure:', {
+            hasItems: !!baseList?.items,
+            itemsType: typeof baseList?.items,
+            isArray: Array.isArray(baseList?.items)
+        });
+        console.log('Optimization structure:', {
+            hasOptimization: !!optimization,
+            hasItems: !!optimization?.items,
+            itemsCount: optimization?.items?.length || 0
         });
 
-        return {
+        // Safety check: ensure we have valid data structures
+        if (!baseList || !baseList.items) {
+            console.warn('⚠️ Invalid base list structure, returning as-is');
+            return baseList || {};
+        }
+
+        if (!optimization || !optimization.items || !Array.isArray(optimization.items)) {
+            console.warn('⚠️ Invalid optimization structure, returning base list');
+            return baseList;
+        }
+
+        // Helper function to safely get item name
+        const safeGetItemName = (item) => {
+            if (!item) return null;
+            const name = item.ingredient || item.name;
+            return (typeof name === 'string' && name.trim()) ? name.trim() : null;
+        };
+
+        // Helper function to safely compare item names
+        const safeNameMatch = (name1, name2) => {
+            if (!name1 || !name2) return false;
+            try {
+                const n1 = String(name1).toLowerCase().trim();
+                const n2 = String(name2).toLowerCase().trim();
+                return n1 === n2 || n1.includes(n2) || n2.includes(n1);
+            } catch (error) {
+                console.warn('Error comparing names:', name1, name2, error);
+                return false;
+            }
+        };
+
+        // Process items based on structure
+        let processedItems;
+
+        if (Array.isArray(baseList.items)) {
+            console.log('📋 Processing flat array of items');
+            processedItems = baseList.items.map((item, index) => {
+                if (!item) {
+                    console.warn(`⚠️ Skipping null item at index ${index}`);
+                    return null;
+                }
+
+                const itemName = safeGetItemName(item);
+                if (!itemName) {
+                    console.warn(`⚠️ Skipping item with no valid name at index ${index}:`, item);
+                    return item; // Return as-is rather than null
+                }
+
+                // Find corresponding optimized item
+                const optimizedItem = optimization.items.find(opt => {
+                    const optName = safeGetItemName(opt);
+                    return optName && safeNameMatch(itemName, optName);
+                });
+
+                if (optimizedItem) {
+                    console.log(`✅ Found price optimization for: ${itemName}`);
+                    return {
+                        ...item,
+                        priceInfo: {
+                            bestPrice: optimizedItem.bestPrice || null,
+                            alternatives: Array.isArray(optimizedItem.alternatives) ? optimizedItem.alternatives : [],
+                            estimatedPrice: typeof optimizedItem.estimatedPrice === 'number' ? optimizedItem.estimatedPrice : 0,
+                            dealStatus: (optimizedItem.bestPrice?.savings || 0) > 0 ? 'deal' : 'normal'
+                        },
+                        priceOptimized: true
+                    };
+                } else {
+                    console.log(`ℹ️ No price optimization found for: ${itemName}`);
+                }
+
+                return item;
+            }).filter(item => item !== null); // Remove any null items
+        } else {
+            console.log('📂 Processing categorized items object');
+            processedItems = {};
+
+            Object.entries(baseList.items).forEach(([category, categoryItems]) => {
+                if (!category || typeof category !== 'string') {
+                    console.warn('⚠️ Skipping invalid category:', category);
+                    return;
+                }
+
+                if (!Array.isArray(categoryItems)) {
+                    console.warn(`⚠️ Category "${category}" items is not an array:`, typeof categoryItems);
+                    // Try to salvage single item
+                    if (categoryItems && typeof categoryItems === 'object') {
+                        const itemName = safeGetItemName(categoryItems);
+                        if (itemName) {
+                            processedItems[category] = [categoryItems];
+                        }
+                    }
+                    return;
+                }
+
+                const enhancedCategoryItems = categoryItems.map((item, index) => {
+                    if (!item) {
+                        console.warn(`⚠️ Skipping null item in category "${category}" at index ${index}`);
+                        return null;
+                    }
+
+                    const itemName = safeGetItemName(item);
+                    if (!itemName) {
+                        console.warn(`⚠️ Skipping item with no valid name in category "${category}":`, item);
+                        return item; // Return as-is
+                    }
+
+                    // Find corresponding optimized item
+                    const optimizedItem = optimization.items.find(opt => {
+                        const optName = safeGetItemName(opt);
+                        return optName && safeNameMatch(itemName, optName);
+                    });
+
+                    if (optimizedItem) {
+                        console.log(`✅ Found price optimization for: ${itemName} in ${category}`);
+                        return {
+                            ...item,
+                            priceInfo: {
+                                bestPrice: optimizedItem.bestPrice || null,
+                                alternatives: Array.isArray(optimizedItem.alternatives) ? optimizedItem.alternatives : [],
+                                estimatedPrice: typeof optimizedItem.estimatedPrice === 'number' ? optimizedItem.estimatedPrice : 0,
+                                dealStatus: (optimizedItem.bestPrice?.savings || 0) > 0 ? 'deal' : 'normal'
+                            },
+                            priceOptimized: true
+                        };
+                    }
+
+                    return item;
+                }).filter(item => item !== null);
+
+                if (enhancedCategoryItems.length > 0) {
+                    processedItems[category] = enhancedCategoryItems;
+                }
+            });
+        }
+
+        const result = {
             ...baseList,
-            items: enhancedItems,
+            items: processedItems,
             optimization: optimization,
             priceOptimized: true,
-            totalEstimatedCost: optimization.totalCost || 0,
-            totalSavings: optimization.totalSavings || 0,
-            storeRecommendations: optimization.storeRecommendations || []
+            totalEstimatedCost: typeof optimization.totalCost === 'number' ? optimization.totalCost : 0,
+            totalSavings: typeof optimization.totalSavings === 'number' ? optimization.totalSavings : 0,
+            storeRecommendations: Array.isArray(optimization.storeRecommendations) ? optimization.storeRecommendations : []
         };
+
+        console.log('✅ Price enhancement completed');
+        return result;
     };
 
     const handleOptionChange = (key, value) => {
@@ -224,6 +346,136 @@ export default function EnhancedShoppingListGenerator({
     const handleSaveToUnifiedModal = (listData) => {
         console.log('✅ Shopping list saved from unified modal:', listData);
         onClose(); // Close the generator after saving
+    };
+
+    // FIXED: Completely rewritten data conversion with comprehensive safety checks
+    const convertShoppingListForModal = (shoppingList) => {
+        console.log('🔄 Converting shopping list for modal...');
+        console.log('Input structure:', {
+            hasShoppingList: !!shoppingList,
+            hasItems: !!shoppingList?.items,
+            itemsType: typeof shoppingList?.items,
+            isArray: Array.isArray(shoppingList?.items)
+        });
+
+        if (!shoppingList || !shoppingList.items) {
+            console.error('❌ No shopping list or items to convert');
+            return [];
+        }
+
+        const convertedItems = [];
+        let itemCounter = 0;
+
+        // Helper function to safely convert a single item
+        const convertSingleItem = (item, category = 'Other', sourceIndex = 0) => {
+            if (!item || typeof item !== 'object') {
+                console.warn(`⚠️ Skipping invalid item:`, item);
+                return null;
+            }
+
+            // Safely extract item name
+            const name = item.ingredient || item.name;
+            if (!name || typeof name !== 'string' || !name.trim()) {
+                console.warn(`⚠️ Skipping item with invalid name:`, item);
+                return null;
+            }
+
+            // Generate unique ID
+            const itemId = item.id || `${name.replace(/\s+/g, '-')}-${Date.now()}-${itemCounter++}`;
+
+            // Safely extract all properties
+            const convertedItem = {
+                id: itemId,
+                name: name.trim(),
+                ingredient: name.trim(),
+                quantity: item.quantity || item.amount || '1',
+                unit: (item.unit && typeof item.unit === 'string') ? item.unit.trim() : '',
+                category: (category && typeof category === 'string') ? category : 'Other',
+
+                // Inventory status
+                inInventory: !!item.inInventory,
+                haveAmount: item.haveAmount || (item.inventoryItem?.quantity),
+                inventoryItem: item.inventoryItem || null,
+
+                // Purchase status
+                purchased: !!item.purchased,
+                selected: item.selected !== false,
+                checked: !!item.checked,
+                optional: !!item.optional,
+
+                // Recipe information
+                recipes: Array.isArray(item.recipes) ? item.recipes : (item.recipes ? [item.recipes] : []),
+
+                // Price information (enhanced or basic)
+                priceOptimized: !!(item.priceInfo || item.priceOptimized),
+                estimatedPrice: 0,
+                dealStatus: 'normal',
+                alternatives: []
+            };
+
+            // Handle price information safely
+            if (item.priceInfo && typeof item.priceInfo === 'object') {
+                convertedItem.estimatedPrice = typeof item.priceInfo.estimatedPrice === 'number' ? item.priceInfo.estimatedPrice : 0;
+                convertedItem.dealStatus = (typeof item.priceInfo.dealStatus === 'string') ? item.priceInfo.dealStatus : 'normal';
+                convertedItem.alternatives = Array.isArray(item.priceInfo.alternatives) ? item.priceInfo.alternatives : [];
+            } else {
+                // Fallback to direct properties
+                convertedItem.estimatedPrice = typeof item.estimatedPrice === 'number' ? item.estimatedPrice : 0;
+                convertedItem.dealStatus = (typeof item.dealStatus === 'string') ? item.dealStatus : 'normal';
+                convertedItem.alternatives = Array.isArray(item.alternatives) ? item.alternatives : [];
+            }
+
+            return convertedItem;
+        };
+
+        try {
+            if (Array.isArray(shoppingList.items)) {
+                console.log('📋 Converting flat array format');
+                shoppingList.items.forEach((item, index) => {
+                    const converted = convertSingleItem(item, item?.category || 'Other', index);
+                    if (converted) {
+                        convertedItems.push(converted);
+                    }
+                });
+            } else if (typeof shoppingList.items === 'object') {
+                console.log('📂 Converting categorized object format');
+                Object.entries(shoppingList.items).forEach(([category, categoryItems]) => {
+                    // Validate category
+                    if (!category || typeof category !== 'string') {
+                        console.warn(`⚠️ Skipping invalid category:`, category);
+                        return;
+                    }
+
+                    // Handle different categoryItems formats
+                    if (Array.isArray(categoryItems)) {
+                        // Normal case: array of items
+                        categoryItems.forEach((item, index) => {
+                            const converted = convertSingleItem(item, category, index);
+                            if (converted) {
+                                convertedItems.push(converted);
+                            }
+                        });
+                    } else if (categoryItems && typeof categoryItems === 'object') {
+                        // Edge case: single item object
+                        console.warn(`⚠️ Category "${category}" contains single item instead of array`);
+                        const converted = convertSingleItem(categoryItems, category, 0);
+                        if (converted) {
+                            convertedItems.push(converted);
+                        }
+                    } else {
+                        console.warn(`⚠️ Category "${category}" contains invalid data:`, typeof categoryItems);
+                    }
+                });
+            } else {
+                console.error('❌ Unsupported shopping list items format:', typeof shoppingList.items);
+            }
+        } catch (conversionError) {
+            console.error('❌ Error during conversion:', conversionError);
+            console.error('📋 Problematic data:', shoppingList);
+        }
+
+        console.log(`✅ Conversion completed. Items: ${convertedItems.length}`);
+        return convertedItems;
     };
 
     // Step 1: Options Configuration
@@ -472,7 +724,7 @@ export default function EnhancedShoppingListGenerator({
                 <div className="bg-white rounded-lg max-w-md w-full p-6 text-center">
                     <div className="text-4xl mb-4">❌</div>
                     <h3 className="text-lg font-semibold text-gray-900 mb-2">Generation Failed</h3>
-                    <p className="text-gray-600 mb-6">{error}</p>
+                    <p className="text-gray-600 mb-6 text-sm break-words">{error}</p>
 
                     <div className="flex space-x-3 justify-center">
                         <TouchEnhancedButton
@@ -493,186 +745,85 @@ export default function EnhancedShoppingListGenerator({
         );
     }
 
-    // NEW: Step 4: Results - Show Enhanced AI Shopping List Modal with Smart Price features
+    // Step 4: Results - Show Enhanced AI Shopping List Modal with Smart Price features
     if (step === 'results' && shoppingList) {
         // Determine the appropriate mode based on optimization
         const initialMode = options.includePriceOptimization ? 'unified' : 'enhanced';
 
-        // Convert enhanced shopping list items to array format for the unified modal
-        const convertedItems = [];
-        if (shoppingList.items) {
-            try {
-                console.log('🔍 DEBUG: Shopping list structure:', {
-                    hasItems: !!shoppingList.items,
-                    itemsType: typeof shoppingList.items,
-                    isArray: Array.isArray(shoppingList.items),
-                    itemsKeys: typeof shoppingList.items === 'object' ? Object.keys(shoppingList.items) : 'N/A'
-                });
+        // Convert shopping list items safely
+        const convertedItems = convertShoppingListForModal(shoppingList);
 
-                // Handle different data structures safely
-                if (Array.isArray(shoppingList.items)) {
-                    // Case 1: Items is already a flat array
-                    console.log('📋 Processing flat array of items, count:', shoppingList.items.length);
-                    shoppingList.items.forEach((item, index) => {
-                        if (item && (item.ingredient || item.name)) {
-                            convertedItems.push({
-                                ...item,
-                                category: item.category || 'Other',
-                                priceOptimized: !!(item.priceInfo || item.priceOptimized),
-                                estimatedPrice: item.priceInfo?.estimatedPrice || item.estimatedPrice || 0,
-                                dealStatus: item.priceInfo?.dealStatus || item.dealStatus || 'normal',
-                                alternatives: item.priceInfo?.alternatives || item.alternatives || [],
-                                id: item.id || `${item.ingredient || item.name}-${Date.now()}-${index}`,
-                                name: item.name || item.ingredient || 'Unknown Item',
-                                ingredient: item.ingredient || item.name || 'Unknown Item',
-                                quantity: item.quantity || item.amount || 1,
-                                unit: item.unit || '',
-                                selected: item.selected !== false,
-                                checked: item.checked || false
-                            });
-                        }
-                    });
-                } else if (typeof shoppingList.items === 'object' && shoppingList.items !== null) {
-                    // Case 2: Items is an object with categories
-                    console.log('📂 Processing categorized items object');
-                    Object.entries(shoppingList.items).forEach(([category, categoryItems]) => {
-                        console.log(`🔍 Processing category "${category}":`, {
-                            type: typeof categoryItems,
-                            isArray: Array.isArray(categoryItems),
-                            length: Array.isArray(categoryItems) ? categoryItems.length : 'N/A'
-                        });
-
-                        if (Array.isArray(categoryItems)) {
-                            // Normal case: category contains array of items
-                            categoryItems.forEach((item, index) => {
-                                if (item && (item.ingredient || item.name)) {
-                                    convertedItems.push({
-                                        ...item,
-                                        category: category,
-                                        priceOptimized: !!(item.priceInfo || item.priceOptimized),
-                                        estimatedPrice: item.priceInfo?.estimatedPrice || item.estimatedPrice || 0,
-                                        dealStatus: item.priceInfo?.dealStatus || item.dealStatus || 'normal',
-                                        alternatives: item.priceInfo?.alternatives || item.alternatives || [],
-                                        id: item.id || `${item.ingredient || item.name}-${Date.now()}-${index}`,
-                                        name: item.name || item.ingredient || 'Unknown Item',
-                                        ingredient: item.ingredient || item.name || 'Unknown Item',
-                                        quantity: item.quantity || item.amount || 1,
-                                        unit: item.unit || '',
-                                        selected: item.selected !== false,
-                                        checked: item.checked || false
-                                    });
-                                }
-                            });
-                        } else if (categoryItems && typeof categoryItems === 'object') {
-                            // Edge case: category contains single item object
-                            console.warn(`⚠️ Category "${category}" contains single item instead of array:`, categoryItems);
-                            if (categoryItems.ingredient || categoryItems.name) {
-                                convertedItems.push({
-                                    ...categoryItems,
-                                    category: category,
-                                    priceOptimized: !!(categoryItems.priceInfo || categoryItems.priceOptimized),
-                                    estimatedPrice: categoryItems.priceInfo?.estimatedPrice || categoryItems.estimatedPrice || 0,
-                                    dealStatus: categoryItems.priceInfo?.dealStatus || categoryItems.dealStatus || 'normal',
-                                    alternatives: categoryItems.priceInfo?.alternatives || categoryItems.alternatives || [],
-                                    id: categoryItems.id || `${categoryItems.ingredient || categoryItems.name}-${Date.now()}-0`,
-                                    name: categoryItems.name || categoryItems.ingredient || 'Unknown Item',
-                                    ingredient: categoryItems.ingredient || categoryItems.name || 'Unknown Item',
-                                    quantity: categoryItems.quantity || categoryItems.amount || 1,
-                                    unit: categoryItems.unit || '',
-                                    selected: categoryItems.selected !== false,
-                                    checked: categoryItems.checked || false
-                                });
-                            }
-                        } else {
-                            console.warn(`⚠️ Category "${category}" contains invalid data type:`, typeof categoryItems, categoryItems);
-                        }
-                    });
-                } else {
-                    console.error('❌ Invalid shopping list items structure:', typeof shoppingList.items, shoppingList.items);
-                }
-
-                console.log('✅ Conversion complete. Converted items count:', convertedItems.length);
-            } catch (error) {
-                console.error('❌ Error processing shopping list items:', error);
-                console.error('📋 Shopping list data that caused error:', shoppingList);
-                // Fallback: try to salvage any data we can
-                if (shoppingList.items) {
-                    console.log('🔄 Attempting fallback conversion...');
-                    try {
-                        // Last resort: flatten everything we can find
-                        const flattenItems = (obj, defaultCategory = 'Other') => {
-                            if (Array.isArray(obj)) {
-                                return obj.filter(item => item && (item.ingredient || item.name));
-                            } else if (typeof obj === 'object' && obj !== null) {
-                                if (obj.ingredient || obj.name) {
-                                    return [obj];
-                                } else {
-                                    const items = [];
-                                    Object.entries(obj).forEach(([key, value]) => {
-                                        items.push(...flattenItems(value, key));
-                                    });
-                                    return items;
-                                }
-                            }
-                            return [];
-                        };
-
-                        const fallbackItems = flattenItems(shoppingList.items);
-                        fallbackItems.forEach((item, index) => {
-                            convertedItems.push({
-                                ...item,
-                                category: item.category || 'Other',
-                                id: item.id || `fallback-${Date.now()}-${index}`,
-                                name: item.name || item.ingredient || 'Unknown Item',
-                                ingredient: item.ingredient || item.name || 'Unknown Item',
-                                quantity: item.quantity || item.amount || 1,
-                                unit: item.unit || '',
-                                selected: item.selected !== false,
-                                checked: item.checked || false,
-                                priceOptimized: false,
-                                estimatedPrice: 0,
-                                dealStatus: 'normal',
-                                alternatives: []
-                            });
-                        });
-                        console.log('🔄 Fallback conversion completed. Items salvaged:', convertedItems.length);
-                    } catch (fallbackError) {
-                        console.error('❌ Fallback conversion also failed:', fallbackError);
-                    }
-                }
-            }
-        }
-
-        console.log('🚀 Opening Enhanced AI Shopping List Modal with unified data:', {
+        console.log('🚀 Opening Enhanced AI Shopping List Modal:', {
             mode: initialMode,
-            itemsCount: convertedItems.length,
+            originalItemsStructure: typeof shoppingList.items,
+            convertedItemsCount: convertedItems.length,
             priceOptimized: options.includePriceOptimization,
-            optimization: optimization
+            hasOptimization: !!optimization
         });
+
+        // FIXED: Added fallback handling for empty results
+        if (convertedItems.length === 0) {
+            console.warn('⚠️ No items were successfully converted');
+            return (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6 text-center">
+                        <div className="text-4xl mb-4">⚠️</div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2">No Items Found</h3>
+                        <p className="text-gray-600 mb-6">
+                            The shopping list was generated but no valid items were found. This might be because all ingredients are already in your inventory.
+                        </p>
+
+                        <div className="flex space-x-3 justify-center">
+                            <TouchEnhancedButton
+                                onClick={retryGeneration}
+                                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                            >
+                                Try Again
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={onClose}
+                                className="px-4 py-2 text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg"
+                            >
+                                Close
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+                </div>
+            );
+        }
 
         return (
             <EnhancedAIShoppingListModal
                 isOpen={true}
                 onClose={onClose}
-                // Pass both the original shopping list (for enhanced AI features)
-                shoppingList={shoppingList}
-                // And the converted items (for smart price features)
-                initialItems={convertedItems}
-                // Smart Price props
-                storePreference={stores.length > 0 ? stores[0].name : ''}
-                budgetLimit={options.budget}
-                optimization={optimization}
-                onSave={handleSaveToUnifiedModal}
+                // Pass the shopping list data
+                currentShoppingList={{
+                    items: shoppingList.items,
+                    summary: shoppingList.summary || shoppingList.stats || {
+                        totalItems: convertedItems.length,
+                        needToBuy: convertedItems.filter(item => !item.inInventory).length,
+                        inInventory: convertedItems.filter(item => item.inInventory).length,
+                        purchased: 0
+                    },
+                    generatedAt: shoppingList.generatedAt || new Date().toISOString(),
+                    recipes: shoppingList.recipes || []
+                }}
                 // Enhanced AI props
+                sourceMealPlanId={mealPlanId}
+                sourceRecipeIds={shoppingList.recipes?.map(r => r.id) || []}
+                onSave={handleSaveToUnifiedModal}
+                // Smart Price props (passed when price optimization is enabled)
+                initialBudget={options.budget}
+                optimization={optimization}
+                // Modal configuration
                 title={options.includePriceOptimization ? '🚀 Ultimate Shopping Assistant' : '🤖 Enhanced AI Shopping'}
                 subtitle={options.includePriceOptimization ?
                     `Smart list for ${mealPlanName} with price optimization` :
                     `AI-optimized list for ${mealPlanName}`
                 }
-                sourceMealPlanId={mealPlanId}
                 showRefresh={false}
                 // Force the appropriate initial mode
-                initialMode={initialMode}
+                initialShoppingMode={initialMode}
             />
         );
     }
