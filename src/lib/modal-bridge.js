@@ -1,4 +1,4 @@
-// file: /src/lib/modal-bridge.js v3 - Updated with correct smart-inventory-manager endpoint
+// file: /src/lib/modal-bridge.js v4 - Fixed with correct smart-inventory-manager endpoint URLs
 
 class ModalServiceBridge {
     constructor() {
@@ -6,8 +6,11 @@ class ModalServiceBridge {
         this.receiptUrl = process.env.MODAL_RECEIPT_ENDPOINT_URL || 'https://docbear71--receipt-processor-process-receipt-with-ai.modal.run';
         this.nutritionUrl = process.env.MODAL_NUTRITION_ENDPOINT_URL || 'https://docbear71--unified-nutrition-analyzer-analyze-nutrition.modal.run';
 
-        // FIXED: Correct smart-inventory-manager endpoint
+        // FIXED: Correct smart-inventory-manager endpoint from your deployment
         this.inventoryUrl = process.env.MODAL_INVENTORY_ENDPOINT_URL || 'https://docbear71--smart-inventory-manager-suggest-ingredients.modal.run';
+
+        // Health check endpoint for testing connectivity
+        this.inventoryHealthUrl = 'https://docbear71--smart-inventory-manager-health.modal.run';
 
         this.defaultHeaders = {
             'Content-Type': 'application/json',
@@ -35,7 +38,7 @@ class ModalServiceBridge {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`❌ Modal service error: ${response.status} ${response.statusText}`, errorText);
-                throw new Error(`Modal service error: ${response.status} ${response.statusText}`);
+                throw new Error(`Modal service error: ${response.status} ${response.statusText} - ${errorText}`);
             }
 
             const result = await response.json();
@@ -65,11 +68,11 @@ class ModalServiceBridge {
         return this.makeRequest(this.nutritionUrl, nutritionData);
     }
 
-    // UPDATED: Smart inventory suggestions with correct format
+    // FIXED: Smart inventory suggestions with correct format matching Python script
     async suggestInventoryItems(inventoryData) {
         console.log('🧠 Calling smart-inventory-manager with data:', inventoryData);
 
-        // Format data to match Python endpoint expectations
+        // Format data to match Python endpoint expectations exactly
         const formattedData = {
             type: inventoryData.type || 'recipe_suggestions',
             userId: inventoryData.userId || inventoryData.user_id,
@@ -79,7 +82,60 @@ class ModalServiceBridge {
             }
         };
 
+        console.log('🎯 Formatted data for Python script:', JSON.stringify(formattedData, null, 2));
+
         return this.makeRequest(this.inventoryUrl, formattedData);
+    }
+
+    // NEW: Test smart inventory connection
+    async testSmartInventoryConnection() {
+        try {
+            console.log('🩺 Testing smart inventory health...');
+
+            // First test health endpoint
+            const healthResponse = await fetch(this.inventoryHealthUrl, {
+                method: 'GET',
+                headers: this.defaultHeaders
+            });
+
+            if (healthResponse.ok) {
+                const healthData = await healthResponse.json();
+                console.log('✅ Health check passed:', healthData);
+            }
+
+            // Then test actual functionality
+            const testData = {
+                type: 'recipe_suggestions',
+                userId: 'test_user',
+                data: {
+                    inventory: [
+                        {
+                            name: 'Chicken Breast',
+                            category: 'Fresh/Frozen Poultry',
+                            quantity: 2,
+                            unit: 'lbs'
+                        },
+                        {
+                            name: 'Broccoli',
+                            category: 'Fresh Vegetables',
+                            quantity: 1,
+                            unit: 'head'
+                        }
+                    ],
+                    preferences: {
+                        cookingTime: '30 minutes',
+                        difficulty: 'easy'
+                    }
+                }
+            };
+
+            const result = await this.suggestInventoryItems(testData);
+            console.log('✅ Smart inventory connection test successful:', result);
+            return result;
+        } catch (error) {
+            console.error('❌ Smart inventory connection test failed:', error);
+            throw error;
+        }
     }
 
     // ENHANCED: Recipe extraction with nutrition analysis and optional image
@@ -212,36 +268,6 @@ class ModalServiceBridge {
                 timeframe: timeframe
             }
         });
-    }
-
-    // NEW: Test smart inventory connection
-    async testSmartInventoryConnection() {
-        try {
-            const testData = {
-                type: 'recipe_suggestions',
-                data: {
-                    inventory: [
-                        {
-                            name: 'Chicken Breast',
-                            category: 'Fresh/Frozen Poultry',
-                            quantity: 2,
-                            unit: 'lbs'
-                        }
-                    ],
-                    preferences: {
-                        cookingTime: '30 minutes',
-                        difficulty: 'easy'
-                    }
-                }
-            };
-
-            const result = await this.suggestInventoryItems(testData);
-            console.log('✅ Smart inventory connection test successful:', result);
-            return result;
-        } catch (error) {
-            console.error('❌ Smart inventory connection test failed:', error);
-            throw error;
-        }
     }
 }
 

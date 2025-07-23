@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/shopping/EnhancedAIShoppingListModal.js v9 - Part 1: Core structure with all missing features restored
+// file: /src/components/shopping/EnhancedAIShoppingListModal.js v10 - Part 1: Fixed Modal.com integration and API communication
 
 import {useState, useEffect, useCallback, useMemo} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -156,7 +156,7 @@ export default function EnhancedAIShoppingListModal({
             console.warn('⚠️ smartPriceItems is not an array:', typeof smartPriceItems);
             return {
                 items: {},
-                summary: { totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0 },
+                summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0},
                 generatedAt: new Date().toISOString()
             };
         }
@@ -396,20 +396,30 @@ export default function EnhancedAIShoppingListModal({
         }
     }, [session?.user?.id]);
 
-    // AI Integration
+    // FIXED: AI Integration with proper error handling and data formatting
     const getAISmartSuggestions = useCallback(async (items) => {
+        if (!session?.user?.id) {
+            console.warn('⚠️ No user session, skipping AI suggestions');
+            return;
+        }
+
+        if (!Array.isArray(items) || items.length === 0) {
+            console.warn('⚠️ No items provided for AI suggestions');
+            return;
+        }
+
         try {
             console.log('🧠 Getting AI smart suggestions from Modal.com...');
             setAiLoading(true);
 
-            // Prepare data in the format expected by Modal.com smart-inventory-manager
-            const modalData = {
+            // FIXED: Format data correctly for the API endpoint
+            const requestData = {
                 type: 'recipe_suggestions',
-                userId: session?.user?.id,
+                userId: session.user.id,
                 data: {
                     inventory: items.map(item => ({
-                        name: item.ingredient || item.name,
-                        category: item.category,
+                        name: item.ingredient || item.name || 'Unknown Item',
+                        category: item.category || 'Other',
                         quantity: item.quantity || 1,
                         unit: item.unit || '',
                         expirationDate: item.expirationDate || null
@@ -423,55 +433,79 @@ export default function EnhancedAIShoppingListModal({
                 }
             };
 
-            const response = await apiPost('/api/integrations/smart-inventory/suggest', {
-                modalData
+            console.log('📊 API request data:', JSON.stringify(requestData, null, 2));
+
+            // FIXED: Use correct API endpoint with proper error handling
+            const response = await fetch('/api/integrations/smart-inventory/suggest', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestData)
             });
 
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.suggestions) {
-                    // Transform Modal.com response to match expected format
-                    const transformedSuggestions = data.suggestions.map(suggestion => ({
-                        name: suggestion.name,
-                        description: suggestion.description,
-                        cookingTime: suggestion.cookingTime,
-                        difficulty: suggestion.difficulty,
-                        inventoryUsage: suggestion.inventoryUsage,
-                        missingIngredients: suggestion.missingIngredients || []
-                    }));
+            console.log('📥 API response status:', response.status);
 
-                    setSmartSuggestions(transformedSuggestions);
-                    setAiInsights({
-                        utilization: data.utilization,
-                        shoppingNeeded: data.shoppingNeeded,
-                        method: 'modal_ai_enhanced',
-                        confidenceScore: 0.9
-                    });
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ API error:', response.status, errorText);
+                throw new Error(`API error: ${response.status}`);
+            }
 
-                    console.log('✅ AI suggestions received from Modal.com:', transformedSuggestions);
+            const data = await response.json();
+            console.log('✅ API response data:', data);
 
-                    if (transformedSuggestions.length > 0) {
-                        setShowAiPanel(true);
-                    }
-                } else {
-                    console.warn('⚠️ AI suggestions returned no data');
-                    // Fallback to basic suggestions
-                    setSmartSuggestions([{
-                        name: 'Basic Recipe Ideas',
-                        description: 'Create simple meals with your available ingredients',
-                        cookingTime: 30,
-                        difficulty: 'easy',
-                        inventoryUsage: 0.5,
-                        missingIngredients: []
-                    }]);
+            // Handle both success and fallback responses
+            if (data.success && data.suggestions) {
+                // Transform API response to match expected format
+                const transformedSuggestions = data.suggestions.map(suggestion => ({
+                    name: suggestion.name || 'Recipe Suggestion',
+                    description: suggestion.description || 'Recipe using your available ingredients',
+                    cookingTime: suggestion.cookingTime || 30,
+                    difficulty: suggestion.difficulty || 'easy',
+                    inventoryUsage: suggestion.inventoryUsage || 0.5,
+                    missingIngredients: suggestion.missingIngredients || []
+                }));
+
+                setSmartSuggestions(transformedSuggestions);
+                setAiInsights({
+                    utilization: data.utilization || {utilizationPercentage: 50},
+                    shoppingNeeded: data.shoppingNeeded || [],
+                    method: data.fallback ? 'fallback' : 'modal_ai_enhanced',
+                    confidenceScore: data.fallback ? 0.3 : 0.9,
+                    fallback: data.fallback || false
+                });
+
+                console.log('✅ AI suggestions processed:', transformedSuggestions.length, 'suggestions');
+
+                if (transformedSuggestions.length > 0) {
+                    setShowAiPanel(true);
+                }
+
+                // Show fallback notification if applicable
+                if (data.fallback) {
+                    console.warn('⚠️ Using fallback AI suggestions due to Modal.com unavailability');
                 }
             } else {
-                console.error('❌ AI suggestions API error:', response.status);
-                throw new Error(`API error: ${response.status}`);
+                console.warn('⚠️ AI suggestions returned no data or failed');
+                // Provide basic fallback
+                setSmartSuggestions([{
+                    name: 'Basic Recipe Ideas',
+                    description: 'Create simple meals with your available ingredients',
+                    cookingTime: 30,
+                    difficulty: 'easy',
+                    inventoryUsage: 0.5,
+                    missingIngredients: []
+                }]);
+                setAiInsights({
+                    utilization: {utilizationPercentage: 40},
+                    method: 'basic_fallback',
+                    confidenceScore: 0.3
+                });
             }
         } catch (error) {
             console.error('❌ Failed to get AI suggestions:', error);
-            // Provide fallback suggestions
+            // Provide fallback suggestions on error
             setSmartSuggestions([{
                 name: 'Simple Ingredient Combinations',
                 description: 'Mix and match your available ingredients for quick meals',
@@ -481,9 +515,10 @@ export default function EnhancedAIShoppingListModal({
                 missingIngredients: []
             }]);
             setAiInsights({
-                utilization: { utilizationPercentage: 40 },
-                method: 'fallback',
-                confidenceScore: 0.3
+                utilization: {utilizationPercentage: 40},
+                method: 'error_fallback',
+                confidenceScore: 0.3,
+                error: error.message
             });
         } finally {
             setAiLoading(false);
@@ -790,12 +825,17 @@ export default function EnhancedAIShoppingListModal({
             const allItems = Object.values(currentShoppingList.items).flat();
             const selectedItems = allItems.filter(item => item.selected !== false);
 
-            // For now, use optimize-shopping endpoint instead of budget-optimize
-            const response = await apiPost('/api/price-tracking/budget-optimize', {
-                items: selectedItems,
-                budgetLimit: budgetTracking.limit,
-                currentTotal: budgetTracking.current,
-                store: selectedStore
+            const response = await fetch('/api/price-tracking/budget-optimize', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    items: selectedItems,
+                    budgetLimit: budgetTracking.limit,
+                    currentTotal: budgetTracking.current,
+                    store: selectedStore
+                })
             });
 
             const data = await response.json();
@@ -885,7 +925,10 @@ export default function EnhancedAIShoppingListModal({
 
     // Normalize shopping list data
     const normalizedList = useMemo(() => {
-        if (!currentShoppingList) return {items: {}, summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}};
+        if (!currentShoppingList) return {
+            items: {},
+            summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}
+        };
 
         let normalizedItems = {};
         let summary = currentShoppingList.summary || currentShoppingList.stats || {};
@@ -1577,7 +1620,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Budget</div>
+                                    }}>Budget
+                                    </div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1586,50 +1630,6 @@ export default function EnhancedAIShoppingListModal({
                                         {budgetTracking.limit ? formatPrice(budgetTracking.limit) : 'None'}
                                     </div>
                                 </div>
-
-                                {/*<div style={{*/}
-                                {/*    backgroundColor: 'rgba(255, 255, 255, 0.9)',*/}
-                                {/*    border: '1px solid #e5e7eb',*/}
-                                {/*    borderRadius: '6px',*/}
-                                {/*    padding: '0.375rem',*/}
-                                {/*    textAlign: 'center'*/}
-                                {/*}}>*/}
-                                {/*    <div style={{*/}
-                                {/*        fontSize: '0.65rem',*/}
-                                {/*        fontWeight: '500',*/}
-                                {/*        color: '#6b7280',*/}
-                                {/*        marginBottom: '0.125rem'*/}
-                                {/*    }}>Total Est.</div>*/}
-                                {/*    <div style={{*/}
-                                {/*        fontSize: '0.8rem',*/}
-                                {/*        fontWeight: '600',*/}
-                                {/*        color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'*/}
-                                {/*    }}>*/}
-                                {/*        {formatPrice(budgetTracking.current)}*/}
-                                {/*    </div>*/}
-                                {/*</div>*/}
-
-                                {/*<div style={{*/}
-                                {/*    backgroundColor: 'rgba(255, 255, 255, 0.9)',*/}
-                                {/*    border: '1px solid #e5e7eb',*/}
-                                {/*    borderRadius: '6px',*/}
-                                {/*    padding: '0.375rem',*/}
-                                {/*    textAlign: 'center'*/}
-                                {/*}}>*/}
-                                {/*    <div style={{*/}
-                                {/*        fontSize: '0.65rem',*/}
-                                {/*        fontWeight: '500',*/}
-                                {/*        color: '#6b7280',*/}
-                                {/*        marginBottom: '0.125rem'*/}
-                                {/*    }}>Savings</div>*/}
-                                {/*    <div style={{*/}
-                                {/*        fontSize: '0.8rem',*/}
-                                {/*        fontWeight: '600',*/}
-                                {/*        color: '#059669'*/}
-                                {/*    }}>*/}
-                                {/*        {formatPrice(priceAnalysis.totalSavings || 0)}*/}
-                                {/*    </div>*/}
-                                {/*</div>*/}
 
                                 <div style={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
@@ -1643,7 +1643,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Deals</div>
+                                    }}>Deals
+                                    </div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
@@ -1890,52 +1891,6 @@ export default function EnhancedAIShoppingListModal({
                         )}
                     </div>
 
-                    <div style={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        padding: '0.375rem',
-                        textAlign: 'center'
-                    }}>
-                        <div style={{
-                            fontSize: '0.65rem',
-                            fontWeight: '500',
-                            color: '#6b7280',
-                            marginBottom: '0.125rem'
-                        }}>Total Est.</div>
-                        <div style={{
-                            fontSize: '0.8rem',
-                            fontWeight: '600',
-                            color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'
-                        }}>
-                            {formatPrice(budgetTracking.current)}
-                        </div>
-                    </div>
-
-                    <div style={{
-                        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                        border: '1px solid #e5e7eb',
-                        borderRadius: '6px',
-                        padding: '0.375rem',
-                        textAlign: 'center'
-                    }}>
-                        <div style={{
-                            fontSize: '0.65rem',
-                            fontWeight: '500',
-                            color: '#6b7280',
-                            marginBottom: '0.125rem'
-                        }}>Savings</div>
-                        <div style={{
-                            fontSize: '0.8rem',
-                            fontWeight: '600',
-                            color: '#111827'
-                        }}>
-                            {budgetTracking.limit ? formatPrice(budgetTracking.limit) : 'None'}
-                        </div>
-                    </div>
-
-
-
                     {/* Category Management Instructions */}
                     {editingCategories && (
                         <div style={{
@@ -1982,6 +1937,18 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#14532d'
                                 }}>
                                     🧠 AI Recipe Suggestions
+                                    {aiInsights?.fallback && (
+                                        <span style={{
+                                            marginLeft: '0.5rem',
+                                            fontSize: '0.7rem',
+                                            color: '#d97706',
+                                            backgroundColor: '#fef3c7',
+                                            padding: '0.125rem 0.375rem',
+                                            borderRadius: '8px'
+                                        }}>
+                                            Offline Mode
+                                        </span>
+                                    )}
                                 </h4>
                                 <TouchEnhancedButton
                                     onClick={() => setShowAiPanel(false)}
@@ -2048,7 +2015,9 @@ export default function EnhancedAIShoppingListModal({
                                                 fontSize: '0.7rem',
                                                 color: '#dc2626'
                                             }}>
-                                                Need: {suggestion.missingIngredients.slice(0, 3).map(ing => ing.item).join(', ')}
+                                                Need: {suggestion.missingIngredients.slice(0, 3).map(ing =>
+                                                typeof ing === 'string' ? ing : ing.item
+                                            ).join(', ')}
                                                 {suggestion.missingIngredients.length > 3 && ` +${suggestion.missingIngredients.length - 3} more`}
                                             </div>
                                         )}
@@ -2065,10 +2034,20 @@ export default function EnhancedAIShoppingListModal({
                                     fontSize: '0.75rem',
                                     color: '#14532d'
                                 }}>
-                                    💡 AI Insights: Using {aiInsights.utilization?.utilizationPercentage || 0}% of your inventory
+                                    💡 AI Insights: Using {aiInsights.utilization?.utilizationPercentage || 0}% of your
+                                    inventory
                                     {aiInsights.utilization?.expiringItemsUsed > 0 &&
                                         ` • Prevents waste of ${aiInsights.utilization.expiringItemsUsed} expiring items`
                                     }
+                                    {aiInsights.error && (
+                                        <div style={{
+                                            marginTop: '0.25rem',
+                                            color: '#dc2626',
+                                            fontSize: '0.7rem'
+                                        }}>
+                                            ⚠️ {aiInsights.error}
+                                        </div>
+                                    )}
                                 </div>
                             )}
                         </div>
@@ -2172,7 +2151,8 @@ export default function EnhancedAIShoppingListModal({
                                         fontSize: '0.8rem',
                                         color: '#d97706'
                                     }}>
-                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your budget
+                                        You're {formatPrice(budgetTracking.current - budgetTracking.limit)} over your
+                                        budget
                                     </div>
                                 </div>
                             )}
@@ -2223,7 +2203,8 @@ export default function EnhancedAIShoppingListModal({
                                         color: '#1e40af',
                                         marginBottom: showPriceBreakdown ? '0.75rem' : '0'
                                     }}>
-                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by shopping elsewhere
+                                        Potential savings: {formatPrice(priceAnalysis.potentialSavings || 0)} by
+                                        shopping elsewhere
                                     </div>
 
                                     {showPriceBreakdown && (
@@ -2711,7 +2692,8 @@ export default function EnhancedAIShoppingListModal({
                                                                                     }}
                                                                                     title={`AI suggests moving to ${suggested}`}
                                                                                 >
-                                                                                    🤖 → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
+                                                                                    🤖
+                                                                                    → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
                                                                                 </TouchEnhancedButton>
                                                                             );
                                                                         }
@@ -2902,11 +2884,17 @@ export default function EnhancedAIShoppingListModal({
                                     }}>
                                         <div>
                                             <div style={{color: '#6b7280'}}>Selected Items:</div>
-                                            <div style={{fontWeight: '600', color: '#111827'}}>{stats.totalItems} items</div>
+                                            <div
+                                                style={{fontWeight: '600', color: '#111827'}}>{stats.totalItems} items
+                                            </div>
                                         </div>
                                         <div>
                                             <div style={{color: '#6b7280'}}>Checked Off:</div>
-                                            <div style={{fontWeight: '600', color: '#111827'}}>{stats.purchased} completed</div>
+                                            <div style={{
+                                                fontWeight: '600',
+                                                color: '#111827'
+                                            }}>{stats.purchased} completed
+                                            </div>
                                         </div>
 
                                         {config.showPriceFeatures && (
@@ -2948,8 +2936,8 @@ export default function EnhancedAIShoppingListModal({
                                                     fontWeight: '600',
                                                     color: budgetTracking.remaining >= 0 ? '#16a34a' : '#dc2626'
                                                 }}>
-                                {budgetTracking.remaining >= 0 ? 'Under' : 'Over'} by {formatPrice(Math.abs(budgetTracking.remaining))}
-                            </span>
+                                                    {budgetTracking.remaining >= 0 ? 'Under' : 'Over'} by {formatPrice(Math.abs(budgetTracking.remaining))}
+                                                </span>
                                             </div>
                                             <div style={{
                                                 width: '100%',
@@ -2983,7 +2971,8 @@ export default function EnhancedAIShoppingListModal({
                                     <div style={{marginTop: '0.25rem'}}>
                                         🏪 Store: {selectedStore || 'Not selected'}
                                         {aiMode === 'ai-optimized' && aiInsights && (
-                                            <span style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
+                                            <span
+                                                style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
                                         )}
                                         <span style={{color: config.primaryColor}}> • {config.title}</span>
                                     </div>
@@ -3518,7 +3507,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Full-featured shopping with AI route optimization, smart categorization, voice input, and advanced organization tools.
+                                    Full-featured shopping with AI route optimization, smart categorization, voice
+                                    input, and advanced organization tools.
                                 </p>
                             </TouchEnhancedButton>
 
@@ -3567,7 +3557,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and savings recommendations.
+                                    Price-optimized shopping with deal alerts, budget tracking, store comparisons, and
+                                    savings recommendations.
                                 </p>
                             </TouchEnhancedButton>
 
@@ -3616,7 +3607,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     lineHeight: '1.4'
                                 }}>
-                                    The complete shopping experience combining AI optimization with price intelligence for maximum savings and efficiency.
+                                    The complete shopping experience combining AI optimization with price intelligence
+                                    for maximum savings and efficiency.
                                 </p>
                             </TouchEnhancedButton>
                         </div>
@@ -3708,6 +3700,202 @@ export default function EnhancedAIShoppingListModal({
                 }}
             />
 
+            {/* Expandable Actions Panel */}
+            {showActions && !editingCategories && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '200px',
+                    left: '1rem',
+                    right: '1rem',
+                    backgroundColor: '#f1f5f9',
+                    borderRadius: '12px',
+                    border: '1px solid #e2e8f0',
+                    padding: '1rem',
+                    zIndex: 1050,
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)'
+                }}>
+                    <div style={{
+                        display: 'grid',
+                        gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+                        gap: '0.5rem'
+                    }}>
+                        {showRefresh && onRefresh && (
+                            <TouchEnhancedButton
+                                onClick={onRefresh}
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.5rem',
+                                    fontSize: '0.65rem',
+                                    cursor: 'pointer',
+                                    textAlign: 'center'
+                                }}
+                            >
+                                🔄<br/>Refresh
+                            </TouchEnhancedButton>
+                        )}
+                        <TouchEnhancedButton
+                            onClick={() => setShowSaveModal(true)}
+                            style={{
+                                backgroundColor: '#8b5cf6',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.5rem',
+                                fontSize: '0.65rem',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                            }}
+                        >
+                            💾<br/>Save
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => setShowEmailModal(true)}
+                            style={{
+                                backgroundColor: '#16a34a',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.5rem',
+                                fontSize: '0.65rem',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                            }}
+                        >
+                            📧<br/>Share
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => setShowPrintModal(true)}
+                            style={{
+                                backgroundColor: '#2563eb',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.5rem',
+                                fontSize: '0.65rem',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                            }}
+                        >
+                            🖨️<br/>Print
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => setShowTotals(!showTotals)}
+                            style={{
+                                backgroundColor: showTotals ? '#059669' : '#6366f1',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.5rem',
+                                fontSize: '0.65rem',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                            }}
+                        >
+                            💰<br/>{showTotals ? 'Hide' : 'Totals'}
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => setShowVoiceInput(true)}
+                            style={{
+                                backgroundColor: '#7c3aed',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.5rem',
+                                fontSize: '0.65rem',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                            }}
+                        >
+                            🎤<br/>Voice
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => {
+                                const textContent = `Shopping List - ${config.title}\n\n` +
+                                    Object.entries(groupedItems)
+                                        .map(([category, items]) => {
+                                            const categoryItems = items.map(item => {
+                                                const checkbox = item.purchased ? '☑' : '☐';
+                                                const status = item.purchased ? ' [PURCHASED]' :
+                                                    item.inInventory ? ' [IN INVENTORY]' : '';
+                                                const recipes = item.recipes && item.recipes.length > 0 ?
+                                                    ` (${item.recipes.join(', ')})` : '';
+                                                const price = config.showPriceFeatures && item.estimatedPrice ?
+                                                    ` - ${formatPrice(item.estimatedPrice)}` : '';
+                                                return `  ${checkbox} ${item.quantity && item.quantity !== 1 ? `${item.quantity} ` : ''}${item.ingredient || item.name}${price}${status}${recipes}`;
+                                            });
+                                            return `${category}:\n${categoryItems.join('\n')}`;
+                                        })
+                                        .join('\n\n');
+
+                                const blob = new Blob([textContent], {type: 'text/plain'});
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement('a');
+                                a.href = url;
+                                a.download = `shopping-list-${shoppingMode}-${Date.now()}.txt`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                            }}
+                            style={{
+                                backgroundColor: '#0891b2',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                padding: '0.5rem',
+                                fontSize: '0.65rem',
+                                cursor: 'pointer',
+                                textAlign: 'center'
+                            }}
+                        >
+                            📝<br/>Export
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
+            )}
+
+            {/* Totals Panel */}
+            {showTotals && (
+                <div style={{
+                    position: 'fixed',
+                    bottom: '120px',
+                    left: '1rem',
+                    right: '1rem',
+                    backgroundColor: '#f8fafc',
+                    borderRadius: '12px',
+                    border: '1px solid #e5e7eb',
+                    padding: '1rem',
+                    zIndex: 1050,
+                    boxShadow: '0 10px 25px rgba(0, 0, 0, 0.1)',
+                    maxHeight: '300px',
+                    overflow: 'auto'
+                }}>
+                    <ShoppingListTotals
+                        shoppingList={normalizedList}
+                        userPreferences={userPreferences}
+                        onBudgetChange={(budget) => {
+                            const updated = {...userPreferences, budget};
+                            localStorage.setItem('shopping-preferences', JSON.stringify(updated));
+                            setUserPreferences(updated);
+                            setBudgetTracking(prev => ({
+                                ...prev,
+                                limit: budget,
+                                remaining: budget - prev.current
+                            }));
+                        }}
+                        onTaxRateChange={(taxRate) => {
+                            const updated = {...userPreferences, taxRate};
+                            localStorage.setItem('shopping-preferences', JSON.stringify(updated));
+                            setUserPreferences(updated);
+                        }}
+                        showBudgetTracker={true}
+                        showCategoryBreakdown={true}
+                        compact={false}
+                    />
+                </div>
+            )}
+
             {/* Custom Category Manager Modal */}
             {showCategoryManager && (
                 <div style={{
@@ -3756,7 +3944,8 @@ export default function EnhancedAIShoppingListModal({
                                     fontSize: '0.875rem',
                                     color: '#0c4a6e'
                                 }}>
-                                    Custom category management is available. You can move items between categories using the "📂 Categories" mode.
+                                    Custom category management is available. You can move items between categories using
+                                    the "📂 Categories" mode.
                                 </p>
                             </div>
                         </div>
