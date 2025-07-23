@@ -370,7 +370,7 @@ export async function POST(request, { params }) {
                         allIngredients.push({
                             name: ingredient.name.trim(),
                             amount: Math.max(0, totalAmount),
-                            unit: parsed.unit || '',
+                            unit: ingredient.unit || parsed.unit || '',
                             category: categorizeIngredient(ingredient.name),
                             recipes: recipeUsage && recipeUsage.recipeName ? [recipeUsage.recipeName] : [recipe.title],
                             recipeIds: [recipe._id.toString()],
