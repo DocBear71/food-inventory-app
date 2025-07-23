@@ -876,28 +876,33 @@ export default function EnhancedShoppingListGenerator({
         }
 
         // FIXED: Use a simple conditional render to prevent re-render loops
-        // Instead of complex memoization, just render once with stable props
+        // Format the data correctly for the modal
         return (
             <EnhancedAIShoppingListModal
-                key="shopping-list-modal" // Add stable key
+                key="shopping-list-modal"
                 isOpen={true}
                 onClose={onClose}
+                // FIXED: Pass data in the exact format the modal expects
                 currentShoppingList={{
-                    items: shoppingList.items,
+                    items: shoppingList.items, // Categorized items object
                     summary: shoppingList.summary || shoppingList.stats || {
                         totalItems: memoizedConvertedData.convertedItems.length,
                         needToBuy: memoizedConvertedData.convertedItems.filter(item => !item.inInventory).length,
                         inInventory: memoizedConvertedData.convertedItems.filter(item => item.inInventory).length,
-                        purchased: 0
+                        purchased: 0,
+                        alreadyHave: memoizedConvertedData.convertedItems.filter(item => item.inInventory).length
                     },
                     generatedAt: shoppingList.generatedAt || new Date().toISOString(),
                     recipes: shoppingList.recipes || []
                 }}
+                // Enhanced AI props
                 sourceMealPlanId={mealPlanId}
                 sourceRecipeIds={shoppingList.recipes?.map(r => r.id) || []}
                 onSave={handleSaveToUnifiedModal}
+                // Smart Price props
                 initialBudget={options.budget}
                 optimization={optimization}
+                // Modal configuration
                 title={options.includePriceOptimization ? '🚀 Ultimate Shopping Assistant' : '🤖 Enhanced AI Shopping'}
                 subtitle={options.includePriceOptimization ?
                     `Smart list for ${mealPlanName} with price optimization` :
@@ -905,6 +910,19 @@ export default function EnhancedShoppingListGenerator({
                 }
                 showRefresh={false}
                 initialShoppingMode={memoizedConvertedData.mode}
+                // ADDED: Additional props the modal might expect
+                shoppingList={shoppingList} // Pass the raw shopping list too
+                priceAnalysis={{
+                    totalSavings: optimization?.totalSavings || 0,
+                    bestDeals: optimization?.bestDeals || [],
+                    priceAlerts: [],
+                    storeComparison: {}
+                }}
+                budgetTracking={{
+                    current: optimization?.totalCost || 0,
+                    limit: options.budget,
+                    remaining: options.budget ? (options.budget - (optimization?.totalCost || 0)) : 0
+                }}
             />
         );
     }
