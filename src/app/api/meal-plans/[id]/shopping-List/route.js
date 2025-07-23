@@ -8,53 +8,126 @@ import { MealPlan, Recipe, UserInventory } from '@/lib/models';
 
 // Helper function to parse ingredient amounts
 function parseIngredientAmount(amountStr) {
+    // FIXED: Add comprehensive type checking and validation
     if (!amountStr) return { amount: 0, unit: '' };
 
-    // Extract number from string (handles fractions, decimals, etc.)
-    const match = amountStr.match(/^(\d+(?:\/\d+)?(?:\.\d+)?)/);
-    if (match) {
-        let amount = match[1];
-        // Handle fractions
-        if (amount.includes('/')) {
-            const [num, den] = amount.split('/');
-            amount = parseFloat(num) / parseFloat(den);
-        } else {
-            amount = parseFloat(amount);
-        }
-
-        // Extract unit (everything after the number)
-        const unit = amountStr.replace(match[0], '').trim();
-        return { amount, unit };
+    // Ensure amountStr is a string
+    let amountString;
+    if (typeof amountStr === 'string') {
+        amountString = amountStr.trim();
+    } else if (typeof amountStr === 'number') {
+        amountString = String(amountStr);
+    } else if (amountStr && typeof amountStr === 'object' && amountStr.toString) {
+        amountString = String(amountStr).trim();
+    } else {
+        console.warn('Invalid amountStr type:', typeof amountStr, amountStr);
+        return { amount: 0, unit: String(amountStr || '') };
     }
 
-    return { amount: 0, unit: amountStr };
+    if (!amountString) return { amount: 0, unit: '' };
+
+    try {
+        // Extract number from string (handles fractions, decimals, etc.)
+        const match = amountString.match(/^(\d+(?:\/\d+)?(?:\.\d+)?)/);
+        if (match) {
+            let amount = match[1];
+            // Handle fractions
+            if (amount.includes('/')) {
+                const [num, den] = amount.split('/');
+                const numVal = parseFloat(num);
+                const denVal = parseFloat(den);
+                if (denVal !== 0 && !isNaN(numVal) && !isNaN(denVal)) {
+                    amount = numVal / denVal;
+                } else {
+                    amount = 0;
+                }
+            } else {
+                amount = parseFloat(amount);
+                if (isNaN(amount)) amount = 0;
+            }
+
+            // Extract unit (everything after the number)
+            const unit = amountString.replace(match[0], '').trim();
+            return { amount: Math.max(0, amount), unit };
+        }
+
+        // If no number found, treat the whole string as a unit
+        return { amount: 0, unit: amountString };
+    } catch (error) {
+        console.error('Error parsing ingredient amount:', error, 'Input:', amountStr);
+        return { amount: 0, unit: String(amountStr || '') };
+    }
 }
 
 // Helper function to combine similar ingredients
 function combineIngredients(ingredients) {
     const combined = {};
 
-    ingredients.forEach(ingredient => {
+    if (!Array.isArray(ingredients)) {
+        console.warn('combineIngredients received non-array:', typeof ingredients);
+        return [];
+    }
+
+    ingredients.forEach((ingredient, index) => {
+        // FIXED: Add comprehensive validation
+        if (!ingredient || typeof ingredient !== 'object') {
+            console.warn(`⚠️ Skipping invalid ingredient at index ${index}:`, ingredient);
+            return;
+        }
+
+        if (!ingredient.name || typeof ingredient.name !== 'string') {
+            console.warn(`⚠️ Skipping ingredient with invalid name at index ${index}:`, ingredient);
+            return;
+        }
+
         const key = ingredient.name.toLowerCase().trim();
+        if (!key) {
+            console.warn(`⚠️ Skipping ingredient with empty name at index ${index}:`, ingredient);
+            return;
+        }
 
-        if (combined[key]) {
-            // Same ingredient, try to combine amounts
-            if (ingredient.unit === combined[key].unit) {
-                combined[key].amount += ingredient.amount;
+        try {
+            if (combined[key]) {
+                // Same ingredient, try to combine amounts
+                const existingUnit = combined[key].unit || '';
+                const newUnit = ingredient.unit || '';
+
+                if (existingUnit === newUnit) {
+                    combined[key].amount += (ingredient.amount || 0);
+                } else {
+                    // Different units, add as separate entries
+                    combined[key].alternativeAmounts = combined[key].alternativeAmounts || [];
+                    combined[key].alternativeAmounts.push({
+                        amount: ingredient.amount || 0,
+                        unit: newUnit,
+                        recipes: Array.isArray(ingredient.recipes) ? ingredient.recipes : []
+                    });
+                }
+
+                // Combine recipe lists safely
+                const existingRecipes = Array.isArray(combined[key].recipes) ? combined[key].recipes : [];
+                const newRecipes = Array.isArray(ingredient.recipes) ? ingredient.recipes : [];
+                combined[key].recipes = [...new Set([...existingRecipes, ...newRecipes])];
             } else {
-                // Different units, add as separate entries
-                combined[key].alternativeAmounts = combined[key].alternativeAmounts || [];
-                combined[key].alternativeAmounts.push({
-                    amount: ingredient.amount,
-                    unit: ingredient.unit,
-                    recipes: ingredient.recipes
-                });
+                combined[key] = {
+                    ...ingredient,
+                    amount: ingredient.amount || 0,
+                    unit: ingredient.unit || '',
+                    recipes: Array.isArray(ingredient.recipes) ? ingredient.recipes : []
+                };
             }
-
-            // Combine recipe lists
-            combined[key].recipes = [...new Set([...combined[key].recipes, ...ingredient.recipes])];
-        } else {
-            combined[key] = { ...ingredient };
+        } catch (combineError) {
+            console.error(`❌ Error combining ingredient "${ingredient.name}":`, combineError);
+            // Add as new ingredient to avoid losing it
+            const fallbackKey = `${key}-${Date.now()}-${index}`;
+            combined[fallbackKey] = {
+                name: ingredient.name,
+                amount: ingredient.amount || 0,
+                unit: ingredient.unit || '',
+                category: ingredient.category || 'Other',
+                recipes: Array.isArray(ingredient.recipes) ? ingredient.recipes : [],
+                optional: !!ingredient.optional
+            };
         }
     });
 
@@ -261,33 +334,64 @@ export async function POST(request, { params }) {
             const recipeUsage = mealRecipes[recipe._id.toString()];
 
             if (recipe.ingredients && Array.isArray(recipe.ingredients)) {
-                recipe.ingredients.forEach(ingredient => {
+                recipe.ingredients.forEach((ingredient, index) => {
+                    // FIXED: Add comprehensive ingredient validation
+                    if (!ingredient || typeof ingredient !== 'object') {
+                        console.warn(`⚠️ Skipping invalid ingredient at index ${index} in recipe ${recipe.title}:`, ingredient);
+                        return;
+                    }
+
+                    // Validate ingredient name
+                    if (!ingredient.name || typeof ingredient.name !== 'string' || !ingredient.name.trim()) {
+                        console.warn(`⚠️ Skipping ingredient with invalid name in recipe ${recipe.title}:`, ingredient);
+                        return;
+                    }
+
                     // Calculate total needed based on all planned servings
                     let totalAmount = 0;
                     let baseAmount = 0;
 
-                    // Parse the ingredient amount
-                    const parsed = parseIngredientAmount(ingredient.amount);
-                    baseAmount = parsed.amount;
+                    try {
+                        // Parse the ingredient amount with enhanced safety
+                        const parsed = parseIngredientAmount(ingredient.amount);
+                        baseAmount = parsed.amount;
 
-                    // Calculate total needed across all meals using this recipe
-                    if (recipeUsage && recipeUsage.meals) {
-                        recipeUsage.meals.forEach(meal => {
-                            const scalingFactor = meal.servings / (recipe.servings || 1);
-                            totalAmount += baseAmount * scalingFactor;
+                        // Calculate total needed across all meals using this recipe
+                        if (recipeUsage && recipeUsage.meals && Array.isArray(recipeUsage.meals)) {
+                            recipeUsage.meals.forEach(meal => {
+                                const scalingFactor = (meal.servings || 1) / (recipe.servings || 1);
+                                totalAmount += baseAmount * scalingFactor;
+                            });
+                        } else {
+                            // Fallback: use base amount if no meal usage data
+                            totalAmount = baseAmount;
+                        }
+
+                        allIngredients.push({
+                            name: ingredient.name.trim(),
+                            amount: Math.max(0, totalAmount),
+                            unit: parsed.unit || '',
+                            category: categorizeIngredient(ingredient.name),
+                            recipes: recipeUsage && recipeUsage.recipeName ? [recipeUsage.recipeName] : [recipe.title],
+                            recipeIds: [recipe._id.toString()],
+                            optional: !!ingredient.optional
+                        });
+                    } catch (ingredientError) {
+                        console.error(`❌ Error processing ingredient "${ingredient.name}" in recipe ${recipe.title}:`, ingredientError);
+                        // Add ingredient with minimal data to avoid losing it completely
+                        allIngredients.push({
+                            name: ingredient.name.trim(),
+                            amount: 0,
+                            unit: '',
+                            category: 'Other',
+                            recipes: [recipe.title],
+                            recipeIds: [recipe._id.toString()],
+                            optional: !!ingredient.optional
                         });
                     }
-
-                    allIngredients.push({
-                        name: ingredient.name,
-                        amount: totalAmount,
-                        unit: parsed.unit,
-                        category: categorizeIngredient(ingredient.name),
-                        recipes: recipeUsage ? [recipeUsage.recipeName] : [recipe.title],
-                        recipeIds: [recipe._id.toString()],
-                        optional: ingredient.optional || false
-                    });
                 });
+            } else {
+                console.warn(`⚠️ Recipe ${recipe.title} has no valid ingredients array:`, recipe.ingredients);
             }
         });
 
