@@ -9,15 +9,27 @@ import {apiPost} from "@/lib/api-config.js";
 
 // Modal.com service integration
 export async function callModalTransformationService(data) {
-    const response = await apiPost(process.env.MODAL_FUNCTION_URL || 'https://docbear71--recipe-transformation-service-transform-recipe.modal.run', {
+    // Try both environment variables
+    const modalUrl = process.env.MODAL_FUNCTION_URL ||
+        process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL ||
+        'https://docbear71--recipe-transformation-service-transform-recipe.modal.run';
+
+    console.log('🤖 Calling Modal service at:', modalUrl);
+    console.log('📤 Sending data:', JSON.stringify(data, null, 2));
+
+    const response = await apiPost(modalUrl, {
         data
     });
 
     if (!response.ok) {
-        throw new Error(`Modal transformation service failed: ${response.statusText}`);
+        const errorText = await response.text();
+        console.error('❌ Modal service error:', response.status, errorText);
+        throw new Error(`Modal transformation service failed: ${response.status} ${response.statusText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log('✅ Modal service response:', result);
+    return result;
 }
 
 // Check if user can access AI transformation features
