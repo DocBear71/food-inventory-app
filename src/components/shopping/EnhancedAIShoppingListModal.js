@@ -1587,49 +1587,49 @@ export default function EnhancedAIShoppingListModal({
                                     </div>
                                 </div>
 
-                                <div style={{
-                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '6px',
-                                    padding: '0.375rem',
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{
-                                        fontSize: '0.65rem',
-                                        fontWeight: '500',
-                                        color: '#6b7280',
-                                        marginBottom: '0.125rem'
-                                    }}>Total Est.</div>
-                                    <div style={{
-                                        fontSize: '0.8rem',
-                                        fontWeight: '600',
-                                        color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'
-                                    }}>
-                                        {formatPrice(budgetTracking.current)}
-                                    </div>
-                                </div>
+                                {/*<div style={{*/}
+                                {/*    backgroundColor: 'rgba(255, 255, 255, 0.9)',*/}
+                                {/*    border: '1px solid #e5e7eb',*/}
+                                {/*    borderRadius: '6px',*/}
+                                {/*    padding: '0.375rem',*/}
+                                {/*    textAlign: 'center'*/}
+                                {/*}}>*/}
+                                {/*    <div style={{*/}
+                                {/*        fontSize: '0.65rem',*/}
+                                {/*        fontWeight: '500',*/}
+                                {/*        color: '#6b7280',*/}
+                                {/*        marginBottom: '0.125rem'*/}
+                                {/*    }}>Total Est.</div>*/}
+                                {/*    <div style={{*/}
+                                {/*        fontSize: '0.8rem',*/}
+                                {/*        fontWeight: '600',*/}
+                                {/*        color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'*/}
+                                {/*    }}>*/}
+                                {/*        {formatPrice(budgetTracking.current)}*/}
+                                {/*    </div>*/}
+                                {/*</div>*/}
 
-                                <div style={{
-                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-                                    border: '1px solid #e5e7eb',
-                                    borderRadius: '6px',
-                                    padding: '0.375rem',
-                                    textAlign: 'center'
-                                }}>
-                                    <div style={{
-                                        fontSize: '0.65rem',
-                                        fontWeight: '500',
-                                        color: '#6b7280',
-                                        marginBottom: '0.125rem'
-                                    }}>Savings</div>
-                                    <div style={{
-                                        fontSize: '0.8rem',
-                                        fontWeight: '600',
-                                        color: '#059669'
-                                    }}>
-                                        {formatPrice(priceAnalysis.totalSavings || 0)}
-                                    </div>
-                                </div>
+                                {/*<div style={{*/}
+                                {/*    backgroundColor: 'rgba(255, 255, 255, 0.9)',*/}
+                                {/*    border: '1px solid #e5e7eb',*/}
+                                {/*    borderRadius: '6px',*/}
+                                {/*    padding: '0.375rem',*/}
+                                {/*    textAlign: 'center'*/}
+                                {/*}}>*/}
+                                {/*    <div style={{*/}
+                                {/*        fontSize: '0.65rem',*/}
+                                {/*        fontWeight: '500',*/}
+                                {/*        color: '#6b7280',*/}
+                                {/*        marginBottom: '0.125rem'*/}
+                                {/*    }}>Savings</div>*/}
+                                {/*    <div style={{*/}
+                                {/*        fontSize: '0.8rem',*/}
+                                {/*        fontWeight: '600',*/}
+                                {/*        color: '#059669'*/}
+                                {/*    }}>*/}
+                                {/*        {formatPrice(priceAnalysis.totalSavings || 0)}*/}
+                                {/*    </div>*/}
+                                {/*</div>*/}
 
                                 <div style={{
                                     backgroundColor: 'rgba(255, 255, 255, 0.9)',
