@@ -423,12 +423,8 @@ export default function EnhancedAIShoppingListModal({
                 }
             };
 
-            const response = await fetch('/api/integrations/smart-inventory/suggest', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(modalData)
+            const response = await apiPost('/api/integrations/smart-inventory/suggest', {
+                modalData
             });
 
             if (response.ok) {
@@ -2467,6 +2463,31 @@ export default function EnhancedAIShoppingListModal({
                             }}>
                                 <div style={{fontSize: '2rem', marginBottom: '1rem'}}>🛒</div>
                                 <p>No items match the current filter</p>
+                                {!smartSuggestions && (
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            if (currentShoppingList?.items) {
+                                                const allItems = Object.values(currentShoppingList.items).flat();
+                                                if (allItems.length > 0) {
+                                                    getAISmartSuggestions(allItems);
+                                                }
+                                            }
+                                        }}
+                                        style={{
+                                            backgroundColor: '#7c3aed',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            padding: '0.75rem 1rem',
+                                            fontSize: '0.875rem',
+                                            cursor: 'pointer',
+                                            fontWeight: '500',
+                                            marginTop: '1rem'
+                                        }}
+                                    >
+                                        🧠 Get AI Recipe Suggestions
+                                    </TouchEnhancedButton>
+                                )}
                             </div>
                         ) : (
                             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
@@ -3657,7 +3678,8 @@ export default function EnhancedAIShoppingListModal({
                     budgetTracking: config.showPriceFeatures ? budgetTracking : null,
                     categoryManagement: true,
                     voiceEnabled: true,
-                    unified: true
+                    unified: true,
+                    modalComIntegration: true
                 }}
             />
 
