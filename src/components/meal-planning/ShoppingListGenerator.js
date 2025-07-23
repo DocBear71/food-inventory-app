@@ -567,55 +567,6 @@ export default function EnhancedShoppingListGenerator({
         };
     }, [step, shoppingList, options.includePriceOptimization, optimization, convertShoppingListForModal]);
 
-    const modalProps = useMemo(() => {
-        if (step !== 'results' || !shoppingList || memoizedConvertedData.convertedItems.length === 0) {
-            return null;
-        }
-
-        return {
-            isOpen: true,
-            onClose: onClose,
-            // Pass the shopping list data in a stable format
-            currentShoppingList: {
-                items: shoppingList.items,
-                summary: shoppingList.summary || shoppingList.stats || {
-                    totalItems: memoizedConvertedData.convertedItems.length,
-                    needToBuy: memoizedConvertedData.convertedItems.filter(item => !item.inInventory).length,
-                    inInventory: memoizedConvertedData.convertedItems.filter(item => item.inInventory).length,
-                    purchased: 0
-                },
-                generatedAt: shoppingList.generatedAt || new Date().toISOString(),
-                recipes: shoppingList.recipes || []
-            },
-            // Enhanced AI props
-            sourceMealPlanId: mealPlanId,
-            sourceRecipeIds: shoppingList.recipes?.map(r => r.id) || [],
-            onSave: handleSaveToUnifiedModal,
-            // Smart Price props (passed when price optimization is enabled)
-            initialBudget: options.budget,
-            optimization: optimization,
-            // Modal configuration - use stable values
-            title: options.includePriceOptimization ? '🚀 Ultimate Shopping Assistant' : '🤖 Enhanced AI Shopping',
-            subtitle: options.includePriceOptimization ?
-                `Smart list for ${mealPlanName} with price optimization` :
-                `AI-optimized list for ${mealPlanName}`,
-            showRefresh: false,
-            // Force the appropriate initial mode
-            initialShoppingMode: memoizedConvertedData.mode
-        };
-    }, [
-        step,
-        shoppingList,
-        memoizedConvertedData,
-        mealPlanId,
-        mealPlanName,
-        optimization,
-        options.budget,
-        options.includePriceOptimization,
-        onClose,
-        handleSaveToUnifiedModal
-    ]);
-
     // Step 1: Options Configuration
     if (step === 'options') {
         return (
@@ -924,10 +875,38 @@ export default function EnhancedShoppingListGenerator({
             );
         }
 
-        // Use the memoized props to prevent re-renders
-        if (modalProps) {
-            return <EnhancedAIShoppingListModal {...modalProps} />;
-        }
+        // FIXED: Use a simple conditional render to prevent re-render loops
+        // Instead of complex memoization, just render once with stable props
+        return (
+            <EnhancedAIShoppingListModal
+                key="shopping-list-modal" // Add stable key
+                isOpen={true}
+                onClose={onClose}
+                currentShoppingList={{
+                    items: shoppingList.items,
+                    summary: shoppingList.summary || shoppingList.stats || {
+                        totalItems: memoizedConvertedData.convertedItems.length,
+                        needToBuy: memoizedConvertedData.convertedItems.filter(item => !item.inInventory).length,
+                        inInventory: memoizedConvertedData.convertedItems.filter(item => item.inInventory).length,
+                        purchased: 0
+                    },
+                    generatedAt: shoppingList.generatedAt || new Date().toISOString(),
+                    recipes: shoppingList.recipes || []
+                }}
+                sourceMealPlanId={mealPlanId}
+                sourceRecipeIds={shoppingList.recipes?.map(r => r.id) || []}
+                onSave={handleSaveToUnifiedModal}
+                initialBudget={options.budget}
+                optimization={optimization}
+                title={options.includePriceOptimization ? '🚀 Ultimate Shopping Assistant' : '🤖 Enhanced AI Shopping'}
+                subtitle={options.includePriceOptimization ?
+                    `Smart list for ${mealPlanName} with price optimization` :
+                    `AI-optimized list for ${mealPlanName}`
+                }
+                showRefresh={false}
+                initialShoppingMode={memoizedConvertedData.mode}
+            />
+        );
     }
 
     return null;
