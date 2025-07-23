@@ -1,7 +1,7 @@
 'use client';
 // file: /src/components/meal-planning/ShoppingListGenerator.js v14 - FIXED all null/undefined issues
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import { apiPost, apiGet } from '@/lib/api-config';
@@ -416,11 +416,11 @@ export default function EnhancedShoppingListGenerator({
         setStep('options');
     };
 
-    // UPDATED: New save handler for unified modal - moved before useMemo hooks
-    const handleSaveToUnifiedModal = (listData) => {
+    // FIXED: Wrap in useCallback to prevent recreating on every render
+    const handleSaveToUnifiedModal = useCallback((listData) => {
         console.log('✅ Shopping list saved from unified modal:', listData);
         onClose(); // Close the generator after saving
-    };
+    }, [onClose]);
 
     // FIXED: Move useMemo hooks to top level to follow Rules of Hooks
     const memoizedConvertedData = useMemo(() => {
