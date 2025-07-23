@@ -416,6 +416,12 @@ export default function EnhancedShoppingListGenerator({
         setStep('options');
     };
 
+    // UPDATED: New save handler for unified modal - moved before useMemo hooks
+    const handleSaveToUnifiedModal = (listData) => {
+        console.log('✅ Shopping list saved from unified modal:', listData);
+        onClose(); // Close the generator after saving
+    };
+
     // FIXED: Move useMemo hooks to top level to follow Rules of Hooks
     const memoizedConvertedData = useMemo(() => {
         if (step !== 'results' || !shoppingList) {
@@ -876,12 +882,6 @@ export default function EnhancedShoppingListGenerator({
             </div>
         );
     }
-
-    // UPDATED: New save handler for unified modal
-    const handleSaveToUnifiedModal = (listData) => {
-        console.log('✅ Shopping list saved from unified modal:', listData);
-        onClose(); // Close the generator after saving
-    };
 
     // Step 4: Results - Show Enhanced AI Shopping List Modal with Smart Price features
     if (step === 'results' && shoppingList) {
