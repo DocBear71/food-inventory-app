@@ -630,44 +630,60 @@ export default function RecipeDetailPage() {
 
                             <ul className="space-y-2">
                                 {recipe.ingredients?.length > 0 ? (
-                                    recipe.ingredients.map((ingredient, index) => (
-                                        <li key={index} className="flex items-start space-x-4">
-                                            <input
-                                                type="checkbox"
-                                                className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                            />
-                                            <span className="text-gray-700">
-                                                {ingredient.amount && (
-                                                    <span className="font-medium">
-                                                        {getScaledAmount(ingredient.amount)}
-                                                        {ingredient.unit && ` ${ingredient.unit}`}{' '}
-                                                    </span>
-                                                )}
-                                                {ingredient.name}
-                                                {ingredient.optional && (
-                                                    <span className="text-gray-500 text-sm"> (optional)</span>
-                                                )}
-                                                {/* FIXED: Show conversion notes if present */}
-                                                {ingredient.conversionMethod && ingredient.conversionMethod !== 'no_conversion_needed' && (
-                                                    <span className="text-blue-600 text-xs ml-2">
-                                                        ({ingredient.conversionMethod.replace(/_/g, ' ')})
-                                                    </span>
-                                                )}
-                                                {/* FIXED: Show scaling notes if present */}
-                                                {ingredient.scalingNotes && (
-                                                    <span className="text-green-600 text-xs ml-2">
-                                                        ({ingredient.scalingNotes})
-                                                    </span>
-                                                )}
-                                            </span>
-                                        </li>
-                                    ))
+                                    recipe.ingredients.map((ingredient, index) => {
+                                        // FIXED: Extract ingredient data from complex Mongoose objects
+                                        const ingredientData = ingredient._doc || ingredient;
+                                        const name = ingredientData.name || ingredient.name || 'Unknown ingredient';
+                                        const amount = ingredient.amount || ingredientData.amount;
+                                        const unit = ingredient.unit || ingredientData.unit;
+                                        const optional = ingredient.optional || ingredientData.optional;
+
+                                        console.log(`🥘 Rendering ingredient ${index}:`, {
+                                            ingredient,
+                                            ingredientData,
+                                            name,
+                                            amount,
+                                            unit
+                                        });
+
+                                        return (
+                                            <li key={index} className="flex items-start space-x-4">
+                                                <input
+                                                    type="checkbox"
+                                                    className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                                />
+                                                <span className="text-gray-700">
+                                                    {amount && (
+                                                        <span className="font-medium">
+                                                            {getScaledAmount(amount)}
+                                                            {unit && ` ${unit}`}{' '}
+                                                        </span>
+                                                    )}
+                                                    {name}
+                                                    {optional && (
+                                                        <span className="text-gray-500 text-sm"> (optional)</span>
+                                                    )}
+                                                    {/* FIXED: Show conversion notes if present */}
+                                                    {ingredient.conversionMethod && ingredient.conversionMethod !== 'no_conversion_needed' && (
+                                                        <span className="text-blue-600 text-xs ml-2">
+                                                            ({ingredient.conversionMethod.replace(/_/g, ' ')})
+                                                        </span>
+                                                    )}
+                                                    {/* FIXED: Show scaling notes if present */}
+                                                    {ingredient.scalingNotes && (
+                                                        <span className="text-green-600 text-xs ml-2">
+                                                            ({ingredient.scalingNotes})
+                                                        </span>
+                                                    )}
+                                                </span>
+                                            </li>
+                                        );
+                                    })
                                 ) : (
                                     <li className="text-gray-500 italic">No ingredients available</li>
                                 )}
                             </ul>
                         </div>
-
 
                         {/* Instructions Section */}
                         <div className="bg-white rounded-lg border p-6">

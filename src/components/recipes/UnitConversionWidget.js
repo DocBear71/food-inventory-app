@@ -455,19 +455,28 @@ export default function UnitConversionWidget({
                 <div className="mt-4 pt-3 border-t border-gray-200">
                     <TouchEnhancedButton
                         onClick={() => {
+                            console.log('🔄 Unit conversion reset clicked');
                             setConvertedRecipe(null);
                             setError('');
                             setSuccess('');
-                            // FIXED: Reset to original recipe
-                            if (onConversionChange) {
-                                onConversionChange({
-                                    ...recipe,
-                                    transformationApplied: null // Clear transformation flag
-                                });
+
+                            // FIXED: Call the global reset function instead of trying to handle locally
+                            if (window.handleRevertFromWidget) {
+                                console.log('🔄 Calling global revert function');
+                                window.handleRevertFromWidget();
+                            } else {
+                                console.warn('⚠️ Global revert function not available, trying onConversionChange');
+                                // Fallback to local reset
+                                if (onConversionChange) {
+                                    onConversionChange({
+                                        ...recipe,
+                                        transformationApplied: null // Clear transformation flag
+                                    });
+                                }
+                                // Re-detect system from original recipe
+                                const detectedSystem = detectMeasurementSystem(recipe.ingredients || []);
+                                setCurrentSystem(detectedSystem);
                             }
-                            // Re-detect system from original recipe
-                            const detectedSystem = detectMeasurementSystem(recipe.ingredients || []);
-                            setCurrentSystem(detectedSystem);
                         }}
                         className="text-sm text-gray-600 hover:text-gray-800"
                         disabled={isConverting}

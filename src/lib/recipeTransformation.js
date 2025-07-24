@@ -182,19 +182,34 @@ export function scaleRecipeBasic(recipe, targetServings) {
     });
 
     const scaledIngredients = recipe.ingredients.map((ingredient, index) => {
-        const scaledAmount = scaleAmountBasic(ingredient.amount, scalingFactor);
+        // FIXED: Extract data from complex Mongoose objects
+        const ingredientData = ingredient._doc || ingredient;
+        const name = ingredientData.name || ingredient.name;
+        const originalAmount = ingredientData.amount || ingredient.amount;
+        const unit = ingredientData.unit || ingredient.unit;
+        const optional = ingredientData.optional || ingredient.optional;
+
+        const scaledAmount = scaleAmountBasic(originalAmount, scalingFactor);
 
         console.log(`📐 Scaling ingredient ${index}:`, {
             original: ingredient,
+            ingredientData,
+            name,
+            originalAmount,
             scaledAmount,
             scalingFactor
         });
 
+        // FIXED: Return clean ingredient object with all necessary properties
         return {
-            ...ingredient, // FIXED: Preserve all original ingredient properties
+            name: name,
             amount: scaledAmount,
-            originalAmount: ingredient.amount,
-            scalingNotes: `Scaled by ${scalingFactor.toFixed(2)}x`
+            unit: unit,
+            optional: optional || false,
+            alternatives: ingredientData.alternatives || [],
+            originalAmount: originalAmount,
+            scalingNotes: `Scaled by ${scalingFactor.toFixed(2)}x`,
+            _id: ingredientData._id || ingredient._id
         };
     });
 
@@ -347,14 +362,19 @@ function getBasicConversionTable(sourceSystem, targetSystem) {
 
 // FIXED: Enhanced ingredient conversion with better logic
 function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
-    const originalUnit = (ingredient.unit || '').toLowerCase();
-    const originalAmount = ingredient.amount || '';
-    const ingredientName = (ingredient.name || '').toLowerCase();
+    // FIXED: Extract data from complex Mongoose objects
+    const ingredientData = ingredient._doc || ingredient;
+    const name = ingredientData.name || ingredient.name;
+    const originalUnit = (ingredientData.unit || ingredient.unit || '').toLowerCase();
+    const originalAmount = ingredientData.amount || ingredient.amount || '';
+    const optional = ingredientData.optional || ingredient.optional || false;
 
     console.log('🔄 Converting ingredient:', {
-        name: ingredientName,
+        name,
         amount: originalAmount,
-        unit: originalUnit
+        unit: originalUnit,
+        ingredient,
+        ingredientData
     });
 
     // Try to parse numeric amount
@@ -370,22 +390,34 @@ function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
             numericAmount = parseFloat(originalAmount);
         }
     } catch {
+        // FIXED: Return clean ingredient object even if conversion fails
         return {
-            ...ingredient,
+            name: name,
+            amount: originalAmount,
+            unit: originalUnit,
+            optional: optional,
+            alternatives: ingredientData.alternatives || [],
             originalAmount: originalAmount,
             originalUnit: originalUnit,
             conversionMethod: "no_conversion_needed",
-            notes: "Could not parse numeric amount"
+            notes: "Could not parse numeric amount",
+            _id: ingredientData._id || ingredient._id
         };
     }
 
     if (isNaN(numericAmount) || numericAmount <= 0) {
+        // FIXED: Return clean ingredient object for non-numeric amounts
         return {
-            ...ingredient,
+            name: name,
+            amount: originalAmount,
+            unit: originalUnit,
+            optional: optional,
+            alternatives: ingredientData.alternatives || [],
             originalAmount: originalAmount,
             originalUnit: originalUnit,
             conversionMethod: "no_conversion_needed",
-            notes: "No numeric amount to convert"
+            notes: "No numeric amount to convert",
+            _id: ingredientData._id || ingredient._id
         };
     }
 
@@ -398,15 +430,15 @@ function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
         if (originalUnit.includes(sourceUnit)) {
             if (typeof conversions === 'object') {
                 // Choose appropriate conversion based on ingredient
-                if (ingredientName.includes('flour') && conversions.g_flour) {
+                if (name.toLowerCase().includes('flour') && conversions.g_flour) {
                     convertedAmount = numericAmount * conversions.g_flour;
                     convertedUnit = 'g';
                     conversionMethod = "ingredient_specific";
-                } else if (ingredientName.includes('sugar') && conversions.g_sugar) {
+                } else if (name.toLowerCase().includes('sugar') && conversions.g_sugar) {
                     convertedAmount = numericAmount * conversions.g_sugar;
                     convertedUnit = 'g';
                     conversionMethod = "ingredient_specific";
-                } else if (ingredientName.includes('butter') && conversions.g_butter) {
+                } else if (name.toLowerCase().includes('butter') && conversions.g_butter) {
                     convertedAmount = numericAmount * conversions.g_butter;
                     convertedUnit = 'g';
                     conversionMethod = "ingredient_specific";
@@ -460,14 +492,18 @@ function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
         method: conversionMethod
     });
 
+    // FIXED: Return clean ingredient object with all necessary properties
     return {
-        ...ingredient,
+        name: name,
         amount: formattedAmount,
         unit: convertedUnit,
+        optional: optional,
+        alternatives: ingredientData.alternatives || [],
         originalAmount: originalAmount,
         originalUnit: originalUnit,
         conversionMethod: conversionMethod,
-        notes: convertedAmount !== numericAmount ? `Converted from ${originalAmount} ${originalUnit}` : "No conversion applied"
+        notes: convertedAmount !== numericAmount ? `Converted from ${originalAmount} ${originalUnit}` : "No conversion applied",
+        _id: ingredientData._id || ingredient._id
     };
 }
 
