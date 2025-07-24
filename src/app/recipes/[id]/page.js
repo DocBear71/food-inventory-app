@@ -606,18 +606,10 @@ export default function RecipeDetailPage() {
                                 <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
                                 {recipe.servings && (
                                     <div className="flex items-center space-x-2">
-                                        <label htmlFor="servings" className="text-sm font-medium text-gray-700">
-                                            Servings:
-                                        </label>
-                                        <input
-                                            id="servings"
-                                            type="number"
-                                            min="1"
-                                            max="20"
-                                            value={servings}
-                                            onChange={(e) => setServings(parseInt(e.target.value) || 1)}
-                                            className="w-20 px-2 py-1 border border-gray-300 rounded-md text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                        />
+                                        <span className="text-sm font-medium text-gray-700">Servings:</span>
+                                        <span className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-sm font-medium text-gray-900 min-w-[3rem] text-center">
+        {servings}
+    </span>
                                     </div>
                                 )}
                             </div>
