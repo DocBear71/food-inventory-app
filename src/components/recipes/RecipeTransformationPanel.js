@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/RecipeTransformationPanel.js v1 - Combined scaling and conversion component
+// file: /src/components/recipes/RecipeTransformationPanel.js v2 - FIXED API response handling and reset functionality
 
 import { useState } from 'react';
 import RecipeScalingWidget from './RecipeScalingWidget';
@@ -28,22 +28,55 @@ export default function RecipeTransformationPanel({
         setIsCombinedTransform(true);
 
         try {
+            console.log('🚀 Starting combined transformation:', {
+                targetServings: combinedOptions.targetServings,
+                targetSystem: combinedOptions.targetSystem,
+                saveAsNew
+            });
+
             const response = await apiPost('/api/recipes/transform', {
-                    recipeId: recipe._id,
-                    transformationType: 'both',
-                    options: {
-                        targetServings: combinedOptions.targetServings,
-                        targetSystem: combinedOptions.targetSystem,
-                        saveAsNew
-                    },
-                    useAI: true
+                recipeId: recipe._id,
+                transformationType: 'both',
+                options: {
+                    targetServings: combinedOptions.targetServings,
+                    targetSystem: combinedOptions.targetSystem,
+                    saveAsNew
+                },
+                useAI: true
             });
 
             const data = await response.json();
+            console.log('🚀 Combined transformation response:', data);
 
             if (data.success) {
-                if (onTransformationChange) {
-                    onTransformationChange(data.recipe);
+                // FIXED: Handle the correct response structure
+                const transformationResult = data.transformation || data.recipe;
+
+                if (transformationResult && onTransformationChange) {
+                    // Create the transformed recipe data structure
+                    const transformedRecipe = {
+                        ...recipe,
+                        ingredients: transformationResult.converted_ingredients ||
+                            transformationResult.scaled_ingredients ||
+                            recipe.ingredients,
+                        servings: combinedOptions.targetServings,
+                        currentMeasurementSystem: combinedOptions.targetSystem,
+                        transformationApplied: {
+                            type: 'both',
+                            scaling: {
+                                originalServings: recipe.servings,
+                                targetServings: combinedOptions.targetServings
+                            },
+                            conversion: {
+                                targetSystem: combinedOptions.targetSystem
+                            },
+                            appliedAt: new Date(),
+                            method: transformationResult.method || 'combined'
+                        }
+                    };
+
+                    console.log('🚀 Applying transformed recipe:', transformedRecipe);
+                    onTransformationChange(transformedRecipe);
                 }
 
                 if (saveAsNew && data.savedRecipe) {
@@ -52,7 +85,8 @@ export default function RecipeTransformationPanel({
                     alert('✅ Recipe transformed successfully!');
                 }
             } else {
-                alert(`❌ ${data.error}`);
+                console.error('❌ Combined transformation failed:', data);
+                alert(`❌ ${data.error || 'Transformation failed'}`);
             }
         } catch (error) {
             console.error('Combined transformation error:', error);
@@ -60,6 +94,20 @@ export default function RecipeTransformationPanel({
         } finally {
             setIsCombinedTransform(false);
         }
+    };
+
+    // FIXED: Enhanced revert functionality
+    const handleRevert = () => {
+        if (onRevert) {
+            console.log('🔄 Reverting to original recipe');
+            onRevert();
+        }
+
+        // Reset component state
+        setCombinedOptions({
+            targetServings: recipe.servings || 4,
+            targetSystem: 'metric'
+        });
     };
 
     if (!isExpanded) {
@@ -93,14 +141,28 @@ export default function RecipeTransformationPanel({
                     <h3 className="text-lg font-medium text-gray-900">
                         🔧 Recipe Transformations
                     </h3>
-                    <TouchEnhancedButton
-                        onClick={() => setIsExpanded(false)}
-                        className="text-gray-400 hover:text-gray-600"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
-                        </svg>
-                    </TouchEnhancedButton>
+                    <div className="flex items-center space-x-2">
+                        {/* FIXED: Enhanced revert button */}
+                        <TouchEnhancedButton
+                            onClick={handleRevert}
+                            className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center space-x-1"
+                            title="Reset to original recipe"
+                        >
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                            </svg>
+                            <span>Reset</span>
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={() => setIsExpanded(false)}
+                            className="text-gray-400 hover:text-gray-600"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                            </svg>
+                        </TouchEnhancedButton>
+                    </div>
                 </div>
 
                 {/* Tab Navigation */}

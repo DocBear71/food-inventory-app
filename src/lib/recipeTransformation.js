@@ -1,4 +1,4 @@
-// file: /src/lib/recipeTransformation.js v1 - Recipe scaling and unit conversion utilities
+// file: /src/lib/recipeTransformation.js v2 - FIXED Modal.com integration and conversion logic
 
 import {apiPost} from "@/lib/api-config.js";
 
@@ -7,29 +7,39 @@ import {apiPost} from "@/lib/api-config.js";
  * Handles recipe scaling and unit conversion with both basic math and AI integration
  */
 
-// Modal.com service integration
+// FIXED: Modal.com service integration with proper environment variable handling
 export async function callModalTransformationService(data) {
-    // Try both environment variables
-    const modalUrl = process.env.MODAL_FUNCTION_URL ||
-        process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL ||
+    // FIXED: Check both client and server environment variables
+    const modalUrl = process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL ||
+        process.env.MODAL_FUNCTION_URL ||
         'https://docbear71--recipe-transformation-service-transform-recipe.modal.run';
 
     console.log('🤖 Calling Modal service at:', modalUrl);
     console.log('📤 Sending data:', JSON.stringify(data, null, 2));
 
-    const response = await apiPost(modalUrl, {
-        data
-    });
+    try {
+        // FIXED: Use fetch directly instead of apiPost for external service
+        const response = await fetch(modalUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
 
-    if (!response.ok) {
-        const errorText = await response.text();
-        console.error('❌ Modal service error:', response.status, errorText);
-        throw new Error(`Modal transformation service failed: ${response.status} ${response.statusText}`);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error('❌ Modal service error:', response.status, errorText);
+            throw new Error(`Modal transformation service failed: ${response.status} ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        console.log('✅ Modal service response:', result);
+        return result;
+    } catch (error) {
+        console.error('❌ Modal service call failed:', error);
+        throw error;
     }
-
-    const result = await response.json();
-    console.log('✅ Modal service response:', result);
-    return result;
 }
 
 // Check if user can access AI transformation features
@@ -150,10 +160,17 @@ export function detectMeasurementSystem(ingredients) {
     return 'mixed';
 }
 
-// Basic mathematical recipe scaling (for free users)
+// FIXED: Enhanced basic mathematical recipe scaling
 export function scaleRecipeBasic(recipe, targetServings) {
     const originalServings = recipe.servings || 4;
     const scalingFactor = targetServings / originalServings;
+
+    console.log('📐 Basic scaling:', {
+        originalServings,
+        targetServings,
+        scalingFactor,
+        ingredientCount: recipe.ingredients?.length || 0
+    });
 
     const scaledIngredients = recipe.ingredients.map(ingredient => {
         const scaledAmount = scaleAmountBasic(ingredient.amount, scalingFactor);
@@ -181,15 +198,22 @@ export function scaleRecipeBasic(recipe, targetServings) {
     };
 }
 
-// Basic unit conversion (for free users)
+// FIXED: Enhanced basic unit conversion with better logic
 export function convertUnitsBasic(recipe, targetSystem) {
     const sourceSystem = detectMeasurementSystem(recipe.ingredients);
+
+    console.log('🔄 Basic conversion:', {
+        sourceSystem,
+        targetSystem,
+        ingredientCount: recipe.ingredients?.length || 0
+    });
 
     if (sourceSystem === targetSystem) {
         return {
             success: true,
             message: "Recipe already in target measurement system",
-            converted_ingredients: recipe.ingredients
+            converted_ingredients: recipe.ingredients,
+            method: "no_conversion_needed"
         };
     }
 
@@ -260,21 +284,32 @@ function scaleAmountBasic(amountStr, scalingFactor) {
     }
 }
 
-// Get basic conversion table
+// FIXED: Enhanced conversion table with more units
 function getBasicConversionTable(sourceSystem, targetSystem) {
     const conversions = {
         us_to_metric: {
-            'cup': { ml: 240, g_flour: 120, g_sugar: 200 },
+            'cup': { ml: 240, g_flour: 125, g_sugar: 200, g_butter: 225 },
+            'cups': { ml: 240, g_flour: 125, g_sugar: 200, g_butter: 225 },
             'tbsp': { ml: 15 },
+            'tablespoon': { ml: 15 },
             'tsp': { ml: 5 },
+            'teaspoon': { ml: 5 },
             'oz': { g: 28.35 },
+            'ounce': { g: 28.35 },
             'lb': { g: 453.59, kg: 0.454 },
+            'lbs': { g: 453.59, kg: 0.454 },
+            'pound': { g: 453.59, kg: 0.454 },
+            'fl oz': { ml: 29.57 },
             'fahrenheit': 'celsius'
         },
         metric_to_us: {
-            'ml': { cup: 0.00422, tbsp: 0.0676, tsp: 0.2029 },
-            'g': { oz: 0.0353, cup_flour: 0.00833, cup_sugar: 0.005 },
+            'ml': { cup: 0.00422, tbsp: 0.0676, tsp: 0.2029, 'fl oz': 0.0338 },
+            'l': { cup: 4.22 },
+            'liter': { cup: 4.22 },
+            'g': { oz: 0.0353, cup_flour: 0.008, cup_sugar: 0.005, cup_butter: 0.0044 },
+            'gram': { oz: 0.0353, cup_flour: 0.008, cup_sugar: 0.005, cup_butter: 0.0044 },
             'kg': { lb: 2.205 },
+            'kilogram': { lb: 2.205 },
             'celsius': 'fahrenheit'
         }
     };
@@ -284,16 +319,30 @@ function getBasicConversionTable(sourceSystem, targetSystem) {
         : conversions.metric_to_us;
 }
 
-// Convert single ingredient using basic math
+// FIXED: Enhanced ingredient conversion with better logic
 function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
     const originalUnit = (ingredient.unit || '').toLowerCase();
     const originalAmount = ingredient.amount || '';
     const ingredientName = (ingredient.name || '').toLowerCase();
 
+    console.log('🔄 Converting ingredient:', {
+        name: ingredientName,
+        amount: originalAmount,
+        unit: originalUnit
+    });
+
     // Try to parse numeric amount
     let numericAmount;
     try {
-        numericAmount = parseFloat(originalAmount);
+        // Handle fractions
+        if (originalAmount.includes('/')) {
+            const fractionMatch = originalAmount.match(/(\d+)\/(\d+)/);
+            if (fractionMatch) {
+                numericAmount = parseInt(fractionMatch[1]) / parseInt(fractionMatch[2]);
+            }
+        } else {
+            numericAmount = parseFloat(originalAmount);
+        }
     } catch {
         return {
             ...ingredient,
@@ -301,6 +350,16 @@ function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
             originalUnit: originalUnit,
             conversionMethod: "no_conversion_needed",
             notes: "Could not parse numeric amount"
+        };
+    }
+
+    if (isNaN(numericAmount) || numericAmount <= 0) {
+        return {
+            ...ingredient,
+            originalAmount: originalAmount,
+            originalUnit: originalUnit,
+            conversionMethod: "no_conversion_needed",
+            notes: "No numeric amount to convert"
         };
     }
 
@@ -321,6 +380,10 @@ function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
                     convertedAmount = numericAmount * conversions.g_sugar;
                     convertedUnit = 'g';
                     conversionMethod = "ingredient_specific";
+                } else if (ingredientName.includes('butter') && conversions.g_butter) {
+                    convertedAmount = numericAmount * conversions.g_butter;
+                    convertedUnit = 'g';
+                    conversionMethod = "ingredient_specific";
                 } else if (conversions.ml) {
                     convertedAmount = numericAmount * conversions.ml;
                     convertedUnit = 'ml';
@@ -329,15 +392,51 @@ function convertIngredientBasic(ingredient, conversionTable, targetSystem) {
                     convertedAmount = numericAmount * conversions.g;
                     convertedUnit = 'g';
                     conversionMethod = "weight_conversion";
+                } else if (conversions.cup) {
+                    convertedAmount = numericAmount * conversions.cup;
+                    convertedUnit = 'cup';
+                    conversionMethod = "volume_conversion";
+                } else if (conversions.tbsp) {
+                    convertedAmount = numericAmount * conversions.tbsp;
+                    convertedUnit = 'tbsp';
+                    conversionMethod = "volume_conversion";
+                } else if (conversions.tsp) {
+                    convertedAmount = numericAmount * conversions.tsp;
+                    convertedUnit = 'tsp';
+                    conversionMethod = "volume_conversion";
+                } else if (conversions.oz) {
+                    convertedAmount = numericAmount * conversions.oz;
+                    convertedUnit = 'oz';
+                    conversionMethod = "weight_conversion";
                 }
             }
             break;
         }
     }
 
+    // Format the converted amount nicely
+    let formattedAmount = convertedAmount;
+    if (convertedAmount !== numericAmount) {
+        if (convertedAmount < 1) {
+            formattedAmount = convertedAmount.toFixed(2);
+        } else if (convertedAmount < 10) {
+            formattedAmount = convertedAmount.toFixed(1);
+        } else {
+            formattedAmount = Math.round(convertedAmount).toString();
+        }
+    } else {
+        formattedAmount = originalAmount;
+    }
+
+    console.log('✅ Conversion result:', {
+        original: `${originalAmount} ${originalUnit}`,
+        converted: `${formattedAmount} ${convertedUnit}`,
+        method: conversionMethod
+    });
+
     return {
         ...ingredient,
-        amount: convertedAmount !== numericAmount ? convertedAmount.toFixed(1) : originalAmount,
+        amount: formattedAmount,
         unit: convertedUnit,
         originalAmount: originalAmount,
         originalUnit: originalUnit,

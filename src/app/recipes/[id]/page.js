@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/[id]/page.js v10 - Updated with moved buttons, meal planning feature gate, and improved modal
+// file: /src/app/recipes/[id]/page.js v11 - FIXED transformation handling and reset functionality
 
 import { useEffect, useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -299,6 +299,26 @@ export default function RecipeDetailPage() {
         setShowMealPlanModal(true);
     };
 
+    // FIXED: Enhanced transformation change handler
+    const handleTransformationChange = (transformedRecipe) => {
+        console.log('🔄 Recipe transformation applied:', transformedRecipe);
+        setRecipe(transformedRecipe);
+
+        // Update servings if changed
+        if (transformedRecipe.servings !== servings) {
+            setServings(transformedRecipe.servings);
+        }
+    };
+
+    // FIXED: Enhanced revert functionality
+    const handleRevert = () => {
+        console.log('🔄 Reverting to original recipe');
+        if (originalRecipe) {
+            setRecipe({ ...originalRecipe });
+            setServings(originalRecipe.servings || 4);
+        }
+    };
+
     if (loading) {
         return (
             <MobileOptimizedLayout>
@@ -496,48 +516,8 @@ export default function RecipeDetailPage() {
                 {/* RECIPE TRANSFORMATION PANEL */}
                 <RecipeTransformationPanel
                     recipe={recipe}
-                    onTransformationChange={(transformationResult) => {
-                        console.log('🔄 Transformation result:', transformationResult);
-
-                        if (transformationResult.scaled_ingredients) {
-                            const updatedIngredients = transformationResult.scaled_ingredients.map((scaledIng, index) => {
-                                const originalIng = recipe.ingredients[index] || {};
-                                return {
-                                    ...originalIng,
-                                    amount: scaledIng.amount,
-                                    scalingNotes: scaledIng.scaling_notes || scaledIng.scalingNotes
-                                };
-                            });
-
-                            setRecipe(prev => ({
-                                ...prev,
-                                ingredients: updatedIngredients,
-                                servings: transformationResult.targetServings || prev.servings
-                            }));
-                        } else if (transformationResult.converted_ingredients) {
-                            const updatedIngredients = transformationResult.converted_ingredients.map((convertedIng, index) => {
-                                const originalIng = recipe.ingredients[index] || {};
-                                return {
-                                    ...originalIng,
-                                    amount: convertedIng.amount,
-                                    unit: convertedIng.unit,
-                                    conversionNotes: convertedIng.notes
-                                };
-                            });
-
-                            setRecipe(prev => ({
-                                ...prev,
-                                ingredients: updatedIngredients
-                            }));
-                        }
-                    }}
-                    onRevert={() => {
-                        console.log('🔄 Reverting to original recipe');
-                        if (originalRecipe) {
-                            setRecipe(originalRecipe);
-                            setServings(originalRecipe.servings || 4);
-                        }
-                    }}
+                    onTransformationChange={handleTransformationChange}
+                    onRevert={handleRevert}
                     showSaveOptions={true}
                     defaultExpanded={false}
                 />
@@ -620,13 +600,19 @@ export default function RecipeDetailPage() {
                                             {ingredient.optional && (
                                                 <span className="text-gray-500 text-sm"> (optional)</span>
                                             )}
+                                            {/* FIXED: Show conversion notes if present */}
+                                            {ingredient.conversionMethod && ingredient.conversionMethod !== 'no_conversion_needed' && (
+                                                <span className="text-blue-600 text-xs ml-2">
+                                                    ({ingredient.conversionMethod.replace(/_/g, ' ')})
+                                                </span>
+                                            )}
                                         </span>
                                     </li>
                                 ))}
                             </ul>
                         </div>
 
-                        {/* Existing Instructions section continues here... */}
+                        {/* Instructions Section */}
                         <div className="bg-white rounded-lg border p-6">
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Instructions</h2>
                             <ol className="space-y-4">
@@ -695,7 +681,7 @@ export default function RecipeDetailPage() {
                             )}
                         </div>
 
-                        {/* Existing Reviews section continues here... */}
+                        {/* Reviews Section */}
                         <div className="bg-white rounded-lg border p-6">
                             <RecipeReviewsSection
                                 recipeId={recipeId}
@@ -704,7 +690,7 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
-                    {/* RIGHT COLUMN - Sidebar (your existing sidebar content) */}
+                    {/* RIGHT COLUMN - Sidebar */}
                     <div className="space-y-6">
                         {/* Recipe Info Card - Updated with user tracking */}
                         <div className="bg-white rounded-lg border p-6">
@@ -798,10 +784,34 @@ export default function RecipeDetailPage() {
                                         {recipe.isPublic ? 'Public' : 'Private'}
                                     </span>
                                 </div>
+
+                                {/* FIXED: Show transformation status if applied */}
+                                {recipe.transformationApplied && (
+                                    <div className="pt-2 border-t border-gray-200">
+                                        <span className="text-gray-500">Transformation:</span>
+                                        <div className="ml-2 text-sm">
+                                            {recipe.transformationApplied.type === 'scale' && (
+                                                <span className="text-blue-600">
+                                                    Scaled to {recipe.servings} servings
+                                                </span>
+                                            )}
+                                            {recipe.transformationApplied.type === 'convert' && (
+                                                <span className="text-purple-600">
+                                                    Converted to {recipe.transformationApplied.targetSystem === 'metric' ? 'Metric' : 'US Standard'}
+                                                </span>
+                                            )}
+                                            {recipe.transformationApplied.type === 'both' && (
+                                                <span className="text-green-600">
+                                                    Scaled & Converted
+                                                </span>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
 
-                        {/* Compact Nutrition Display - CHANGE TO PROFESSIONAL STYLE */}
+                        {/* Compact Nutrition Display - Professional Style */}
                         {!showNutrition && hasNutritionData && (
                             <div className="bg-white rounded-lg border p-6">
                                 <div className="flex justify-between items-center mb-4">
@@ -817,7 +827,7 @@ export default function RecipeDetailPage() {
                                     nutrition={getNormalizedNutrition()}
                                     servings={recipe.servings || 1}
                                     showPerServing={true}
-                                    compact={false}  // CHANGE from true to false
+                                    compact={false}
                                 />
                             </div>
                         )}
@@ -834,7 +844,7 @@ export default function RecipeDetailPage() {
                 />
             )}
 
-            {/* UPDATED: Improved Add to Meal Plan Modal */}
+            {/* Improved Add to Meal Plan Modal */}
             {showMealPlanModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -893,7 +903,6 @@ export default function RecipeDetailPage() {
 
                                             <div className="p-6">
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
-                                                    {/* Days and Meal Types */}
                                                     {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
                                                         <div key={day} className="space-y-3">
                                                             <div className="font-medium text-gray-700 capitalize text-center">
@@ -946,15 +955,15 @@ export default function RecipeDetailPage() {
                     </div>
                 </div>
             )}
+
             {/* Nutrition Details Modal */}
             <NutritionModal
                 nutrition={getNormalizedNutrition()}
                 isOpen={showNutritionModal}
                 onClose={() => setShowNutritionModal(false)}
                 servings={recipe?.servings || 1}
-                recipeTitle={recipe?.title || "Recipe"} // ADD THIS
+                recipeTitle={recipe?.title || "Recipe"}
             />
-
 
             <Footer />
         </MobileOptimizedLayout>

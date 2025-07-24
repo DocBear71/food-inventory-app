@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/transform/route.js v1 - Recipe scaling and unit conversion API
+// file: /src/app/api/recipes/transform/route.js v2 - FIXED response structure and Modal.com integration
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
@@ -97,24 +97,8 @@ export async function POST(request) {
             } else if (transformationType === 'convert') {
                 transformationResult = await performConversion(recipe, options, shouldUseAI);
             } else if (transformationType === 'both') {
-                // Scale first, then convert
-                const scalingResult = await performScaling(recipe, options, shouldUseAI);
-                if (scalingResult.success) {
-                    // Update recipe data with scaled ingredients for conversion
-                    const tempRecipeData = {
-                        ...recipe.toObject(),
-                        ingredients: scalingResult.scaled_ingredients,
-                        servings: options.targetServings
-                    };
-                    transformationResult = await performConversion({
-                        ...tempRecipeData
-                    }, options, shouldUseAI);
-
-                    // Combine results
-                    transformationResult.scalingResult = scalingResult;
-                } else {
-                    transformationResult = scalingResult;
-                }
+                // FIXED: Perform combined transformation
+                transformationResult = await performCombinedTransformation(recipe, options, shouldUseAI);
             }
 
             if (!transformationResult.success) {
@@ -175,13 +159,19 @@ export async function POST(request) {
                 }
             }
 
-            // Format response
+            // FIXED: Format response with correct structure
             const formattedResult = formatTransformationResult(transformationResult, transformationType);
+
+            console.log('✅ Transformation completed successfully:', {
+                type: transformationType,
+                method: transformationResult.method,
+                aiUsed: shouldUseAI
+            });
 
             return NextResponse.json({
                 success: true,
                 transformation: formattedResult,
-                recipe: transformationResult,
+                recipe: transformationResult, // FIXED: Include raw transformation data
                 savedRecipe: savedRecipe ? {
                     id: savedRecipe._id,
                     title: savedRecipe.title,
@@ -212,25 +202,30 @@ export async function POST(request) {
     }
 }
 
-// Helper function to perform scaling
-// Update performScaling function
-// Add this at the very top of the performScaling function:
+// FIXED: Enhanced scaling function with better Modal.com integration
 async function performScaling(recipe, options, useAI) {
     console.log(`🔢 Performing ${useAI ? 'AI' : 'basic'} recipe scaling`);
-    console.log('📊 Environment check:', {
-        hasModalUrl: !!process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL,
-        modalUrl: process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL
-    });
 
     if (useAI) {
         try {
             console.log('🤖 Attempting AI scaling via Modal...');
-            return await callModalTransformationService({
+            const modalResult = await callModalTransformationService({
                 transformation_type: 'scale',
                 recipe_data: recipe.toObject ? recipe.toObject() : recipe,
                 options: { target_servings: options.targetServings },
                 use_ai: true
             });
+
+            // FIXED: Ensure proper success response structure
+            if (modalResult && modalResult.success !== false) {
+                return {
+                    success: true,
+                    ...modalResult,
+                    method: 'ai_scaling'
+                };
+            } else {
+                throw new Error(modalResult?.error || 'AI scaling failed');
+            }
         } catch (modalError) {
             console.warn('⚠️ AI scaling failed, falling back to basic math:', modalError.message);
             return scaleRecipeBasic(recipe, options.targetServings);
@@ -241,24 +236,120 @@ async function performScaling(recipe, options, useAI) {
     }
 }
 
-// Update performConversion function
+// FIXED: Enhanced conversion function with better Modal.com integration
 async function performConversion(recipe, options, useAI) {
     console.log(`🔄 Performing ${useAI ? 'AI' : 'basic'} unit conversion`);
 
     if (useAI) {
         try {
-            return await callModalTransformationService({
+            console.log('🤖 Attempting AI conversion via Modal...');
+            const modalResult = await callModalTransformationService({
                 transformation_type: 'convert',
                 recipe_data: recipe.toObject ? recipe.toObject() : recipe,
                 options: { target_system: options.targetSystem },
                 use_ai: true
             });
+
+            // FIXED: Ensure proper success response structure
+            if (modalResult && modalResult.success !== false) {
+                return {
+                    success: true,
+                    ...modalResult,
+                    method: 'ai_conversion'
+                };
+            } else {
+                throw new Error(modalResult?.error || 'AI conversion failed');
+            }
         } catch (modalError) {
             console.warn('⚠️ AI conversion failed, falling back to basic math:', modalError.message);
             return convertUnitsBasic(recipe, options.targetSystem);
         }
     } else {
+        console.log('🔄 Using basic math conversion');
         return convertUnitsBasic(recipe, options.targetSystem);
+    }
+}
+
+// FIXED: New combined transformation function
+async function performCombinedTransformation(recipe, options, useAI) {
+    console.log(`🚀 Performing ${useAI ? 'AI' : 'basic'} combined transformation`);
+
+    if (useAI) {
+        try {
+            console.log('🤖 Attempting AI combined transformation via Modal...');
+            const modalResult = await callModalTransformationService({
+                transformation_type: 'both',
+                recipe_data: recipe.toObject ? recipe.toObject() : recipe,
+                options: {
+                    target_servings: options.targetServings,
+                    target_system: options.targetSystem
+                },
+                use_ai: true
+            });
+
+            // FIXED: Ensure proper success response structure
+            if (modalResult && modalResult.success !== false) {
+                return {
+                    success: true,
+                    ...modalResult,
+                    method: 'ai_combined_transformation'
+                };
+            } else {
+                throw new Error(modalResult?.error || 'AI combined transformation failed');
+            }
+        } catch (modalError) {
+            console.warn('⚠️ AI combined transformation failed, falling back to basic math:', modalError.message);
+            // Fall back to sequential basic transformations
+            return performBasicCombinedTransformation(recipe, options);
+        }
+    } else {
+        console.log('🔧 Using basic math combined transformation');
+        return performBasicCombinedTransformation(recipe, options);
+    }
+}
+
+// Helper function for basic combined transformation
+async function performBasicCombinedTransformation(recipe, options) {
+    try {
+        // First scale the recipe
+        const scalingResult = await performScaling(recipe, options, false);
+
+        if (!scalingResult.success) {
+            return scalingResult;
+        }
+
+        // Create a temporary recipe object with scaled ingredients
+        const scaledRecipe = {
+            ...recipe.toObject ? recipe.toObject() : recipe,
+            ingredients: scalingResult.scaled_ingredients,
+            servings: options.targetServings
+        };
+
+        // Then convert the scaled recipe
+        const conversionResult = await performConversion(scaledRecipe, options, false);
+
+        if (!conversionResult.success) {
+            return conversionResult;
+        }
+
+        // Combine the results
+        return {
+            success: true,
+            scaled_ingredients: scalingResult.scaled_ingredients,
+            converted_ingredients: conversionResult.converted_ingredients,
+            cooking_adjustments: scalingResult.cooking_adjustments,
+            conversion_notes: conversionResult.conversion_notes,
+            scaling_notes: scalingResult.scaling_notes,
+            method: 'basic_combined_transformation',
+            success_probability: Math.min(scalingResult.success_probability, conversionResult.success_probability)
+        };
+
+    } catch (error) {
+        console.error('❌ Basic combined transformation failed:', error);
+        return {
+            success: false,
+            error: error.message
+        };
     }
 }
 
