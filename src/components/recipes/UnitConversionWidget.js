@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/UnitConversionWidget.js v2 - FIXED conversion logic and API response handling
+// file: /src/components/recipes/UnitConversionWidget.js v2 - Simple fixes for detectCurrentSystem and conversionResult errors
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -22,23 +22,7 @@ export default function UnitConversionWidget({
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
-    // Detect current measurement system on mount
-    useEffect(() => {
-        const detectedSystem = detectMeasurementSystem(recipe.ingredients || []);
-        setCurrentSystem(detectedSystem);
-
-        // Set target system to opposite of current
-        if (detectedSystem === 'us') {
-            setTargetSystem('metric');
-        } else if (detectedSystem === 'metric') {
-            setTargetSystem('us');
-        } else {
-            setTargetSystem('metric'); // Default for mixed/unknown
-        }
-
-        fetchTransformationLimits();
-    }, [recipe]);
-
+    // FIXED: Define detectMeasurementSystem function
     const detectMeasurementSystem = (ingredients) => {
         const usUnits = ['cup', 'cups', 'tbsp', 'tsp', 'oz', 'lb', 'lbs', 'ounce', 'pound', 'tablespoon', 'teaspoon', 'fl oz'];
         const metricUnits = ['g', 'kg', 'ml', 'l', 'gram', 'grams', 'kilogram', 'milliliter', 'liter'];
@@ -63,13 +47,29 @@ export default function UnitConversionWidget({
         return 'mixed';
     };
 
+    // Detect current measurement system on mount
+    useEffect(() => {
+        const detectedSystem = detectMeasurementSystem(recipe.ingredients || []);
+        setCurrentSystem(detectedSystem);
+
+        // Set target system to opposite of current
+        if (detectedSystem === 'us') {
+            setTargetSystem('metric');
+        } else if (detectedSystem === 'metric') {
+            setTargetSystem('us');
+        } else {
+            setTargetSystem('metric'); // Default for mixed/unknown
+        }
+
+        fetchTransformationLimits();
+    }, [recipe]);
+
     const fetchTransformationLimits = async () => {
         try {
             const response = await fetch('/api/recipes/transform');
             if (response.ok) {
                 const data = await response.json();
                 setTransformationLimits(data);
-                console.log('📊 Transformation limits loaded:', data);
             }
         } catch (error) {
             console.error('Error fetching transformation limits:', error);
@@ -77,21 +77,8 @@ export default function UnitConversionWidget({
     };
 
     const handleConvert = async (saveAsNew = false, useAI = null) => {
-        console.log('🔄 Starting unit conversion:', {
-            targetSystem,
-            currentSystem,
-            useAI,
-            saveAsNew,
-            ingredientCount: recipe.ingredients?.length || 0
-        });
-
         if (currentSystem === targetSystem) {
             setError('Recipe is already in the target measurement system');
-            return;
-        }
-
-        if (!recipe.ingredients || recipe.ingredients.length === 0) {
-            setError('No ingredients to convert');
             return;
         }
 
@@ -100,77 +87,76 @@ export default function UnitConversionWidget({
         setSuccess('');
 
         try {
-            const requestData = {
+            // Determine if AI should be used
+            let shouldUseAI = false;
+            if (useAI === true && transformationLimits?.canUseAI && transformationLimits?.features?.aiConversion) {
+                shouldUseAI = true;
+            } else if (useAI === false || !transformationLimits?.features?.aiConversion) {
+                shouldUseAI = false;
+            }
+
+            const response = await apiPost('/api/recipes/transform', {
                 recipeId: recipe._id,
                 transformationType: 'convert',
                 options: {
                     targetSystem,
                     saveAsNew
                 },
-                useAI: useAI || false
-            };
-
-            console.log('📤 Sending conversion request:', requestData);
-
-            const response = await fetch('/api/recipes/transform', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestData)
+                useAI: shouldUseAI
             });
 
-            console.log('📥 Conversion response status:', response.status);
             const data = await response.json();
-            console.log('📥 Conversion response data:', data);
 
             if (data.success) {
-                // FIXED: Handle the correct response structure
-                const transformationData = data.transformation || data.recipe;
+                // FIXED: Use data.transformation instead of data.recipe
+                setConvertedRecipe(data.transformation);
 
-                if (transformationData) {
-                    setConversionResult(transformationData);
+                // FIXED: Apply conversion to the recipe display
+                if (onConversionChange && data.recipe && data.recipe.converted_ingredients) {
+                    const convertedRecipeData = {
+                        ...recipe,
+                        ingredients: data.recipe.converted_ingredients,
+                        currentMeasurementSystem: targetSystem,
+                        transformationApplied: {
+                            type: 'convert',
+                            originalSystem: currentSystem,
+                            targetSystem: targetSystem,
+                            appliedAt: new Date(),
+                            method: data.transformation?.method || 'conversion'
+                        }
+                    };
 
-                    // FIXED: Apply conversion to the recipe display
-                    if (onConversionChange && transformationData.converted_ingredients) {
-                        const convertedRecipe = {
-                            ...recipe,
-                            ingredients: transformationData.converted_ingredients,
-                            currentMeasurementSystem: targetSystem,
-                            transformationApplied: {
-                                type: 'convert',
-                                originalSystem: currentSystem,
-                                targetSystem: targetSystem,
-                                appliedAt: new Date(),
-                                method: transformationData.method || 'conversion'
-                            }
-                        };
+                    console.log('🔄 Applying converted recipe:', convertedRecipeData);
+                    onConversionChange(convertedRecipeData);
 
-                        console.log('🔄 Applying converted recipe:', convertedRecipe);
-                        onConversionChange(convertedRecipe);
-
-                        // Update current system to target system
-                        setCurrentSystem(targetSystem);
-                    }
+                    // Update current system to target system
+                    setCurrentSystem(targetSystem);
                 }
 
                 if (saveAsNew && data.savedRecipe) {
-                    setSuccess(`Converted recipe saved as "${data.savedRecipe.title}"`);
+                    setSuccess(`Converted recipe saved as "${data.savedRecipe.title}"!`);
                 } else {
-                    setSuccess('Recipe converted successfully!');
+                    setSuccess(`Recipe converted successfully ${shouldUseAI ? 'with AI optimization' : ''}!`);
                 }
 
-                // Refresh transformation limits
+                // Refresh limits after usage
                 fetchTransformationLimits();
             } else {
-                console.error('❌ Conversion failed:', data);
-                setError(data.error || 'Conversion failed');
+                if (data.code === 'USAGE_LIMIT_EXCEEDED') {
+                    setError(`${data.error} Consider upgrading for more conversions.`);
+                } else {
+                    setError(data.error || 'Failed to convert recipe');
+                }
             }
         } catch (error) {
-            console.error('❌ Conversion request failed:', error);
+            console.error('Conversion error:', error);
             setError('Failed to convert recipe. Please try again.');
         } finally {
             setIsConverting(false);
         }
     };
+
+    const isConversionNeeded = currentSystem !== targetSystem && currentSystem !== 'unknown';
 
     // Clear success/error messages after delay
     useEffect(() => {
@@ -183,63 +169,81 @@ export default function UnitConversionWidget({
         }
     }, [success, error]);
 
-    const canConvert = currentSystem !== 'unknown' && currentSystem !== targetSystem;
+    const getSystemDisplay = (system) => {
+        const systemInfo = {
+            us: { name: 'US Standard', icon: '🇺🇸', desc: 'cups, tbsp, °F' },
+            metric: { name: 'Metric', icon: '🌍', desc: 'g, ml, °C' },
+            mixed: { name: 'Mixed Units', icon: '🔀', desc: 'various units' },
+            unknown: { name: 'Unknown', icon: '❓', desc: 'unable to detect' }
+        };
+        return systemInfo[system] || systemInfo.unknown;
+    };
+
+    const currentSystemInfo = getSystemDisplay(currentSystem);
+    const targetSystemInfo = getSystemDisplay(targetSystem);
 
     return (
         <div className={`bg-white border border-gray-200 rounded-lg p-4 ${className}`}>
             {/* Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-medium text-gray-900">
-                    🔄 Unit Conversion
-                </h3>
-            </div>
-
-            {/* System Selection */}
             <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Convert to:
-                </label>
-                <select
-                    value={targetSystem}
-                    onChange={(e) => setTargetSystem(e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-purple-500 focus:border-transparent"
-                    disabled={isConverting}
-                >
-                    <option value="metric">Metric (g, ml, °C)</option>
-                    <option value="us">US Standard (cups, tbsp, °F)</option>
-                </select>
+                <h3 className="text-lg font-medium text-gray-900 mb-3">
+                    📐 Unit Conversion
+                </h3>
+                <div className="space-y-2">
+                    <label className="block text-sm font-medium text-gray-700">
+                        Convert to:
+                    </label>
+                    <select
+                        value={targetSystem}
+                        onChange={(e) => setTargetSystem(e.target.value)}
+                        className="w-full px-3 py-2 border border-gray-300 rounded focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                        disabled={isConverting}
+                    >
+                        <option value="metric">Metric (g, ml, °C)</option>
+                        <option value="us">US Standard (cups, °F)</option>
+                    </select>
+                </div>
             </div>
 
-            {/* Current vs Target System Display */}
+            {/* Current System Display */}
             <div className="mb-4 p-3 bg-gray-50 rounded-lg">
                 <div className="flex items-center justify-between text-sm">
                     <div className="flex items-center">
-                        <span className={`w-3 h-3 rounded-full mr-2 ${
-                            currentSystem === 'us' ? 'bg-blue-500' :
-                                currentSystem === 'metric' ? 'bg-green-500' :
-                                    'bg-gray-400'
-                        }`}></span>
-                        <span className="font-medium">Current: {
-                            currentSystem === 'us' ? 'US Standard' :
-                                currentSystem === 'metric' ? 'Metric' :
-                                    currentSystem === 'mixed' ? 'Mixed Units' :
-                                        'Unknown'
-                        }</span>
-                        {currentSystem === 'us' && <span className="ml-1 text-gray-600">cups, tbsp, °F</span>}
-                        {currentSystem === 'metric' && <span className="ml-1 text-gray-600">g, ml, °C</span>}
+                        <span className="text-base mr-2">{currentSystemInfo.icon}</span>
+                        <div>
+                            <div className="font-medium text-gray-900">
+                                Current: {currentSystemInfo.name}
+                            </div>
+                            <div className="text-gray-600 text-xs">
+                                {currentSystemInfo.desc}
+                            </div>
+                        </div>
                     </div>
-
-                    <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
 
                     <div className="flex items-center">
-                        <span className="font-medium">Target: {targetSystem === 'metric' ? 'Metric' : 'US Standard'}</span>
-                        <span className="ml-1 text-gray-600">
-                            {targetSystem === 'metric' ? 'g, ml, °C' : 'cups, tbsp, °F'}
-                        </span>
+                        <span className="mx-2 text-gray-400">→</span>
+                        <div className="flex items-center">
+                            <span className="text-base mr-2">{targetSystemInfo.icon}</span>
+                            <div>
+                                <div className="font-medium text-gray-900">
+                                    Target: {targetSystemInfo.name}
+                                </div>
+                                <div className="text-gray-600 text-xs">
+                                    {targetSystemInfo.desc}
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
+
+                {currentSystem === targetSystem && (
+                    <div className="mt-2 flex items-center text-green-600 text-sm">
+                        <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                        </svg>
+                        Recipe is already in the target system
+                    </div>
+                )}
             </div>
 
             {/* Usage Limits Display */}
@@ -272,7 +276,7 @@ export default function UnitConversionWidget({
                 <div className="flex gap-2">
                     <TouchEnhancedButton
                         onClick={() => handleConvert(false, false)}
-                        disabled={isConverting || !canConvert || !transformationLimits?.features?.basicConversion}
+                        disabled={isConverting || !isConversionNeeded || !transformationLimits?.features?.basicConversion}
                         className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
                         {isConverting ? (
@@ -288,7 +292,7 @@ export default function UnitConversionWidget({
                     {showSaveOption && (
                         <TouchEnhancedButton
                             onClick={() => handleConvert(true, false)}
-                            disabled={isConverting || !canConvert || !transformationLimits?.features?.basicConversion}
+                            disabled={isConverting || !isConversionNeeded || !transformationLimits?.features?.basicConversion}
                             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             title="Save converted recipe to your collection"
                         >
@@ -299,7 +303,7 @@ export default function UnitConversionWidget({
 
                 {/* AI Conversion */}
                 <FeatureGate
-                    feature={FEATURE_GATES.AI_RECIPE_SCALING}
+                    feature={FEATURE_GATES.AI_UNIT_CONVERSION}
                     fallback={
                         <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
                             <div className="flex items-center">
@@ -308,7 +312,7 @@ export default function UnitConversionWidget({
                                 </svg>
                                 <div>
                                     <p className="text-sm font-medium text-yellow-800">AI Conversion Available with Gold Plan</p>
-                                    <p className="text-xs text-yellow-700">Get intelligent conversions with cultural adaptations</p>
+                                    <p className="text-xs text-yellow-700">Get ingredient-specific density conversions</p>
                                 </div>
                                 <TouchEnhancedButton
                                     onClick={() => window.location.href = '/pricing?source=unit-conversion'}
@@ -324,8 +328,8 @@ export default function UnitConversionWidget({
                         <div className="flex gap-2">
                             <TouchEnhancedButton
                                 onClick={() => handleConvert(false, true)}
-                                disabled={isConverting || !canConvert || !transformationLimits?.features?.aiConversion}
-                                className="flex-1 bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                disabled={isConverting || !isConversionNeeded || !transformationLimits?.features?.aiConversion}
+                                className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             >
                                 🤖 AI Convert Units
                             </TouchEnhancedButton>
@@ -333,8 +337,8 @@ export default function UnitConversionWidget({
                             {showSaveOption && (
                                 <TouchEnhancedButton
                                     onClick={() => handleConvert(true, true)}
-                                    disabled={isConverting || !canConvert || !transformationLimits?.features?.aiConversion}
-                                    className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                                    disabled={isConverting || !isConversionNeeded || !transformationLimits?.features?.aiConversion}
+                                    className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                                     title="Save AI-converted recipe to your collection"
                                 >
                                     🤖💾
@@ -348,7 +352,7 @@ export default function UnitConversionWidget({
             {/* Conversion Examples */}
             <div className="mt-4">
                 <TouchEnhancedButton
-                    onClick={() => {}}
+                    onClick={() => {/* Toggle examples visibility */}}
                     className="text-sm text-gray-600 hover:text-gray-800 flex items-center"
                 >
                     <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -357,16 +361,27 @@ export default function UnitConversionWidget({
                     Conversion Examples
                 </TouchEnhancedButton>
 
-                <div className="mt-2 text-xs text-gray-600 space-y-1">
-                    <div>• 250ml → 1 cup</div>
-                    <div>• 120g flour → 1 cup</div>
-                    <div>• 15ml → 1 tbsp</div>
-                    <div>• 180°C → 350°F</div>
+                <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-3 rounded">
+                    {targetSystem === 'metric' ? (
+                        <div className="space-y-1">
+                            <div>• 1 cup flour → 120g</div>
+                            <div>• 1 cup sugar → 200g</div>
+                            <div>• 1 tbsp → 15ml</div>
+                            <div>• 350°F → 175°C</div>
+                        </div>
+                    ) : (
+                        <div className="space-y-1">
+                            <div>• 250ml → 1 cup</div>
+                            <div>• 120g flour → 1 cup</div>
+                            <div>• 15ml → 1 tbsp</div>
+                            <div>• 180°C → 350°F</div>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {/* Result Display */}
-            {conversionResult && (
+            {convertedRecipe && (
                 <div className="mt-4 p-3 bg-green-50 rounded-lg">
                     <h4 className="text-sm font-medium text-green-800 mb-2 flex items-center">
                         <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,26 +391,37 @@ export default function UnitConversionWidget({
                     </h4>
 
                     <div className="text-sm text-green-700 space-y-1">
-                        <div><strong>Method:</strong> {conversionResult.method?.includes('ai') ? 'AI-Enhanced' : 'Mathematical'}</div>
-                        <div><strong>Confidence:</strong> {(conversionResult.confidence * 100).toFixed(0)}%</div>
+                        <div><strong>Method:</strong> {convertedRecipe.method?.includes('ai') ? 'AI-Enhanced' : 'Mathematical'}</div>
+                        <div><strong>Confidence:</strong> {(convertedRecipe.confidence * 100).toFixed(0)}%</div>
 
-                        {conversionResult.rawResult?.conversion_notes && (
+                        {convertedRecipe.rawResult?.conversion_notes && (
                             <div className="mt-2 space-y-1">
-                                {conversionResult.rawResult.conversion_notes.accuracy_level && (
-                                    <div><strong>Accuracy:</strong> {conversionResult.rawResult.conversion_notes.accuracy_level}</div>
+                                {convertedRecipe.rawResult.conversion_notes.accuracy_level && (
+                                    <div><strong>Accuracy:</strong> {convertedRecipe.rawResult.conversion_notes.accuracy_level}</div>
                                 )}
-                                {conversionResult.rawResult.conversion_notes.regional_adaptations && (
-                                    <div><strong>Notes:</strong> {conversionResult.rawResult.conversion_notes.regional_adaptations}</div>
+                                {convertedRecipe.rawResult.conversion_notes.regional_adaptations && (
+                                    <div><strong>Notes:</strong> {convertedRecipe.rawResult.conversion_notes.regional_adaptations}</div>
                                 )}
                             </div>
                         )}
 
-                        {conversionResult.rawResult?.cultural_notes && (
+                        {convertedRecipe.rawResult?.cultural_notes && (
                             <div className="mt-2">
-                                <strong>Cultural Notes:</strong>
-                                <div className="text-xs mt-1">{conversionResult.rawResult.cultural_notes}</div>
+                                <strong>Cultural Notes:</strong> {convertedRecipe.rawResult.cultural_notes}
                             </div>
                         )}
+
+                        {convertedRecipe.rawResult?.temperature_conversions?.instructions_updates &&
+                            convertedRecipe.rawResult.temperature_conversions.instructions_updates.length > 0 && (
+                                <div className="mt-2">
+                                    <strong>Temperature Updates:</strong>
+                                    <ul className="list-disc list-inside ml-2 mt-1">
+                                        {convertedRecipe.rawResult.temperature_conversions.instructions_updates.map((update, index) => (
+                                            <li key={index} className="text-xs">{update}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
                     </div>
                 </div>
             )}
@@ -425,19 +451,28 @@ export default function UnitConversionWidget({
             )}
 
             {/* Reset Button */}
-            {conversionResult && (
+            {convertedRecipe && (
                 <div className="mt-4 pt-3 border-t border-gray-200">
                     <TouchEnhancedButton
                         onClick={() => {
-                            setConversionResult(null);
+                            setConvertedRecipe(null);
                             setError('');
                             setSuccess('');
-                            detectCurrentSystem(); // Re-detect system
+                            // FIXED: Reset to original recipe
+                            if (onConversionChange) {
+                                onConversionChange({
+                                    ...recipe,
+                                    transformationApplied: null // Clear transformation flag
+                                });
+                            }
+                            // Re-detect system from original recipe
+                            const detectedSystem = detectMeasurementSystem(recipe.ingredients || []);
+                            setCurrentSystem(detectedSystem);
                         }}
                         className="text-sm text-gray-600 hover:text-gray-800"
                         disabled={isConverting}
                     >
-                        🔄 Reset Conversion
+                        🔄 Reset to Original
                     </TouchEnhancedButton>
                 </div>
             )}

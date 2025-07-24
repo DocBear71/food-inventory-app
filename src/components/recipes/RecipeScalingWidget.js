@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/RecipeScalingWidget.js v1 - Recipe scaling component with AI enhancement
+// file: /src/components/recipes/RecipeScalingWidget.js v2 - FIXED to properly pass scaled ingredients to parent
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -64,10 +64,8 @@ export default function RecipeScalingWidget({
 
             console.log('📤 Sending request:', requestData);
 
-            const response = await fetch('/api/recipes/transform', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestData)
+            const response = await apiPost('/api/recipes/transform', {
+                requestData
             });
 
             console.log('📥 Response status:', response.status);
@@ -75,18 +73,46 @@ export default function RecipeScalingWidget({
             console.log('📥 Response data:', data);
 
             if (data.success) {
+                // FIXED: Extract the actual scaling result properly
+                const scalingResult = data.recipe || data.transformation;
+                console.log('🔍 Scaling result:', scalingResult);
+
                 setScaledRecipe(data.transformation);
-                if (onScalingChange) {
-                    onScalingChange(data.recipe || data.transformation);
+
+                // FIXED: Create the transformed recipe with scaled ingredients
+                if (onScalingChange && scalingResult.scaled_ingredients) {
+                    const transformedRecipe = {
+                        ...recipe,
+                        ingredients: scalingResult.scaled_ingredients,
+                        servings: targetServings,
+                        transformationApplied: {
+                            type: 'scale',
+                            originalServings: recipe.servings,
+                            targetServings: targetServings,
+                            appliedAt: new Date(),
+                            method: scalingResult.method || 'scaling'
+                        }
+                    };
+
+                    console.log('🔄 Calling onScalingChange with:', transformedRecipe);
+                    onScalingChange(transformedRecipe);
                 }
-                // ... rest of success handling
+
+                if (saveAsNew && data.savedRecipe) {
+                    setSuccess(`Scaled recipe saved as "${data.savedRecipe.title}"`);
+                } else {
+                    setSuccess('Recipe scaled successfully!');
+                }
+
+                // Refresh transformation limits
+                fetchTransformationLimits();
             } else {
                 console.error('❌ Transformation failed:', data);
-                // ... rest of error handling
+                setError(data.error || 'Scaling failed');
             }
         } catch (error) {
             console.error('❌ Request failed:', error);
-            // ... rest of error handling
+            setError('Failed to scale recipe. Please try again.');
         } finally {
             setIsScaling(false);
         }
@@ -384,6 +410,14 @@ export default function RecipeScalingWidget({
                             setScaledRecipe(null);
                             setError('');
                             setSuccess('');
+                            // FIXED: Notify parent to revert to original
+                            if (onScalingChange) {
+                                console.log('🔄 Resetting to original recipe');
+                                onScalingChange({
+                                    ...recipe,
+                                    transformationApplied: null // Clear transformation flag
+                                });
+                            }
                         }}
                         className="text-sm text-gray-600 hover:text-gray-800"
                         disabled={isScaling}

@@ -302,19 +302,41 @@ export default function RecipeDetailPage() {
     // FIXED: Enhanced transformation change handler
     const handleTransformationChange = (transformedRecipe) => {
         console.log('🔄 Recipe transformation applied:', transformedRecipe);
-        setRecipe(transformedRecipe);
+
+        // Create a deep copy to avoid mutation issues
+        const updatedRecipe = {
+            ...recipe,
+            ...transformedRecipe,
+            // Ensure we keep the original recipe metadata
+            _id: recipe._id,
+            title: recipe.title,
+            description: recipe.description,
+            createdBy: recipe.createdBy,
+            createdAt: recipe.createdAt,
+            updatedAt: recipe.updatedAt
+        };
+
+        console.log('🔄 Setting updated recipe:', updatedRecipe);
+        setRecipe(updatedRecipe);
 
         // Update servings if changed
-        if (transformedRecipe.servings !== servings) {
+        if (transformedRecipe.servings && transformedRecipe.servings !== servings) {
             setServings(transformedRecipe.servings);
         }
     };
 
     // FIXED: Enhanced revert functionality
     const handleRevert = () => {
-        console.log('🔄 Reverting to original recipe');
+        console.log('🔄 Reverting to original recipe:', originalRecipe);
         if (originalRecipe) {
-            setRecipe({ ...originalRecipe });
+            // Create a clean copy of the original recipe
+            const revertedRecipe = {
+                ...originalRecipe,
+                transformationApplied: null // Clear any transformation flags
+            };
+
+            console.log('🔄 Setting reverted recipe:', revertedRecipe);
+            setRecipe(revertedRecipe);
             setServings(originalRecipe.servings || 4);
         }
     };
@@ -561,7 +583,7 @@ export default function RecipeDetailPage() {
                             />
                         </div>
 
-                        {/* Existing Ingredients section continues here... */}
+                        {/* FIXED: Ingredients section with debug logging */}
                         <div className="bg-white rounded-lg border p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
@@ -582,33 +604,50 @@ export default function RecipeDetailPage() {
                                     </div>
                                 )}
                             </div>
+
+                            {/* DEBUG: Show ingredient count */}
+                            <div className="mb-2 text-xs text-gray-500">
+                                {recipe.ingredients?.length || 0} ingredients •
+                                {recipe.transformationApplied ? ` Transformed (${recipe.transformationApplied.type})` : ' Original'}
+                            </div>
+
                             <ul className="space-y-2">
-                                {recipe.ingredients?.map((ingredient, index) => (
-                                    <li key={index} className="flex items-start space-x-4">
-                                        <input
-                                            type="checkbox"
-                                            className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
-                                        />
-                                        <span className="text-gray-700">
-                                            {ingredient.amount && (
-                                                <span className="font-medium">
-                                                    {getScaledAmount(ingredient.amount)}
-                                                    {ingredient.unit && ` ${ingredient.unit}`}{' '}
-                                                </span>
-                                            )}
-                                            {ingredient.name}
-                                            {ingredient.optional && (
-                                                <span className="text-gray-500 text-sm"> (optional)</span>
-                                            )}
-                                            {/* FIXED: Show conversion notes if present */}
-                                            {ingredient.conversionMethod && ingredient.conversionMethod !== 'no_conversion_needed' && (
-                                                <span className="text-blue-600 text-xs ml-2">
-                                                    ({ingredient.conversionMethod.replace(/_/g, ' ')})
-                                                </span>
-                                            )}
-                                        </span>
-                                    </li>
-                                ))}
+                                {recipe.ingredients?.length > 0 ? (
+                                    recipe.ingredients.map((ingredient, index) => (
+                                        <li key={index} className="flex items-start space-x-4">
+                                            <input
+                                                type="checkbox"
+                                                className="mt-1 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500"
+                                            />
+                                            <span className="text-gray-700">
+                                                {ingredient.amount && (
+                                                    <span className="font-medium">
+                                                        {getScaledAmount(ingredient.amount)}
+                                                        {ingredient.unit && ` ${ingredient.unit}`}{' '}
+                                                    </span>
+                                                )}
+                                                {ingredient.name}
+                                                {ingredient.optional && (
+                                                    <span className="text-gray-500 text-sm"> (optional)</span>
+                                                )}
+                                                {/* FIXED: Show conversion notes if present */}
+                                                {ingredient.conversionMethod && ingredient.conversionMethod !== 'no_conversion_needed' && (
+                                                    <span className="text-blue-600 text-xs ml-2">
+                                                        ({ingredient.conversionMethod.replace(/_/g, ' ')})
+                                                    </span>
+                                                )}
+                                                {/* FIXED: Show scaling notes if present */}
+                                                {ingredient.scalingNotes && (
+                                                    <span className="text-green-600 text-xs ml-2">
+                                                        ({ingredient.scalingNotes})
+                                                    </span>
+                                                )}
+                                            </span>
+                                        </li>
+                                    ))
+                                ) : (
+                                    <li className="text-gray-500 italic">No ingredients available</li>
+                                )}
                             </ul>
                         </div>
 
