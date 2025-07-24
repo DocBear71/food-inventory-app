@@ -65,7 +65,7 @@ export default function RecipeTransformationPanel({
                 console.log('🔍 Transformation Result:', data.transformation);
                 console.log('🔍 Recipe Result:', data.recipe);
 
-                const transformationResult = data.transformation || data.recipe;
+                const transformationResult = data.recipe || data.transformation;
                 console.log('🔍 Selected Transformation Result:', transformationResult);
 
                 if (transformationResult && onTransformationChange) {
