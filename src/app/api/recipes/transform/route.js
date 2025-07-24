@@ -214,11 +214,17 @@ export async function POST(request) {
 
 // Helper function to perform scaling
 // Update performScaling function
+// Add this at the very top of the performScaling function:
 async function performScaling(recipe, options, useAI) {
     console.log(`🔢 Performing ${useAI ? 'AI' : 'basic'} recipe scaling`);
+    console.log('📊 Environment check:', {
+        hasModalUrl: !!process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL,
+        modalUrl: process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL
+    });
 
     if (useAI) {
         try {
+            console.log('🤖 Attempting AI scaling via Modal...');
             return await callModalTransformationService({
                 transformation_type: 'scale',
                 recipe_data: recipe.toObject ? recipe.toObject() : recipe,
@@ -230,6 +236,7 @@ async function performScaling(recipe, options, useAI) {
             return scaleRecipeBasic(recipe, options.targetServings);
         }
     } else {
+        console.log('📐 Using basic math scaling');
         return scaleRecipeBasic(recipe, options.targetServings);
     }
 }

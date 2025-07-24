@@ -20,6 +20,7 @@ import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
 
+
 export default function RecipeDetailPage() {
     let session = null;
 
@@ -48,6 +49,7 @@ export default function RecipeDetailPage() {
     const [showNutritionModal, setShowNutritionModal] = useState(false);
     const [showPhotoUpload, setShowPhotoUpload] = useState(false);
     const [refreshPhotos, setRefreshPhotos] = useState(0);
+    const [originalRecipe, setOriginalRecipe] = useState(null);
 
     useEffect(() => {
         if (recipeId) {
@@ -76,6 +78,7 @@ export default function RecipeDetailPage() {
 
             if (data.success) {
                 setRecipe(data.recipe);
+                setOriginalRecipe(data.recipe); // Store original for revert
                 // Increment view count
                 await apiPost(`/api/recipes/${recipeId}/view`, {});
             } else {
@@ -494,6 +497,8 @@ export default function RecipeDetailPage() {
                 <RecipeTransformationPanel
                     recipe={recipe}
                     onTransformationChange={(transformationResult) => {
+                        console.log('🔄 Transformation result:', transformationResult);
+
                         if (transformationResult.scaled_ingredients) {
                             const updatedIngredients = transformationResult.scaled_ingredients.map((scaledIng, index) => {
                                 const originalIng = recipe.ingredients[index] || {};
@@ -524,6 +529,13 @@ export default function RecipeDetailPage() {
                                 ...prev,
                                 ingredients: updatedIngredients
                             }));
+                        }
+                    }}
+                    onRevert={() => {
+                        console.log('🔄 Reverting to original recipe');
+                        if (originalRecipe) {
+                            setRecipe(originalRecipe);
+                            setServings(originalRecipe.servings || 4);
                         }
                     }}
                     showSaveOptions={true}

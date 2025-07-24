@@ -11,6 +11,7 @@ import {apiPost} from "@/lib/api-config.js";
 export default function RecipeTransformationPanel({
                                                       recipe,
                                                       onTransformationChange,
+                                                      onRevert,
                                                       className = '',
                                                       showSaveOptions = true,
                                                       defaultExpanded = false

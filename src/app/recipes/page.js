@@ -73,6 +73,7 @@ function RecipesContent() {
     const [showVoiceSearch, setShowVoiceSearch] = useState(false);
     const [voiceSearchResults, setVoiceSearchResults] = useState('');
     const [processingVoiceSearch, setProcessingVoiceSearch] = useState(false);
+    const [originalRecipe, setOriginalRecipe] = useState(null);
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },

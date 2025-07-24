@@ -40,6 +40,8 @@ export default function RecipeScalingWidget({
     };
 
     const handleScale = async (saveAsNew = false, useAI = null) => {
+        console.log('🔢 Starting transformation:', { targetServings, useAI, saveAsNew });
+
         if (targetServings === recipe.servings) {
             setError('Target servings same as original');
             return;
@@ -50,50 +52,41 @@ export default function RecipeScalingWidget({
         setSuccess('');
 
         try {
-            // Determine if AI should be used
-            let shouldUseAI = false;
-            if (useAI === true && transformationLimits?.canUseAI && transformationLimits?.features?.aiScaling) {
-                shouldUseAI = true;
-            } else if (useAI === false || !transformationLimits?.features?.aiScaling) {
-                shouldUseAI = false;
-            }
+            const requestData = {
+                recipeId: recipe._id,
+                transformationType: 'scale',
+                options: {
+                    targetServings,
+                    saveAsNew
+                },
+                useAI: useAI || false
+            };
 
-            const response = await apiPost('/api/recipes/transform', {
-                    recipeId: recipe._id,
-                    transformationType: 'scale',
-                    options: {
-                        targetServings,
-                        saveAsNew
-                    },
-                    useAI: shouldUseAI
+            console.log('📤 Sending request:', requestData);
+
+            const response = await fetch('/api/recipes/transform', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(requestData)
             });
 
+            console.log('📥 Response status:', response.status);
             const data = await response.json();
+            console.log('📥 Response data:', data);
 
             if (data.success) {
                 setScaledRecipe(data.transformation);
                 if (onScalingChange) {
-                    onScalingChange(data.recipe);
+                    onScalingChange(data.recipe || data.transformation);
                 }
-
-                if (saveAsNew && data.savedRecipe) {
-                    setSuccess(`Scaled recipe saved as "${data.savedRecipe.title}"!`);
-                } else {
-                    setSuccess(`Recipe scaled successfully ${shouldUseAI ? 'with AI optimization' : ''}!`);
-                }
-
-                // Refresh limits after usage
-                fetchTransformationLimits();
+                // ... rest of success handling
             } else {
-                if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                    setError(`${data.error} Consider upgrading for more transformations.`);
-                } else {
-                    setError(data.error || 'Failed to scale recipe');
-                }
+                console.error('❌ Transformation failed:', data);
+                // ... rest of error handling
             }
         } catch (error) {
-            console.error('Scaling error:', error);
-            setError('Failed to scale recipe. Please try again.');
+            console.error('❌ Request failed:', error);
+            // ... rest of error handling
         } finally {
             setIsScaling(false);
         }
