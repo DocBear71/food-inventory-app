@@ -344,7 +344,7 @@ function SignUpContent() {
                                     onClick={() => setSelectedTier(tier.id)}
                                 >
                                     <div className="flex items-center">
-                                        <Input
+                                        <input
                                             type="radio"
                                             name="tier"
                                             value={tier.id}
