@@ -9,6 +9,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiDelete, apiPost, apiPut } from "@/lib/api-config.js";
 import { CategoryUtils, GROCERY_CATEGORIES } from '@/lib/groceryCategories';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function StoresPage() {
     const { data: session, status } = useSafeSession();
@@ -225,7 +226,7 @@ export default function StoresPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Search Stores
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}

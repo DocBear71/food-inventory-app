@@ -4,6 +4,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AdvancedRecipeFilters({
                                                   onFiltersChange,
@@ -275,7 +276,7 @@ export default function AdvancedRecipeFilters({
                                     <label className="block text-xs font-medium text-gray-600 mb-1">
                                         Max Calories
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={filters.nutrition.maxCalories || ''}
                                         onChange={(e) => updateNutritionFilter('maxCalories', e.target.value)}
@@ -287,7 +288,7 @@ export default function AdvancedRecipeFilters({
                                     <label className="block text-xs font-medium text-gray-600 mb-1">
                                         Min Protein (g)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={filters.nutrition.minProtein || ''}
                                         onChange={(e) => updateNutritionFilter('minProtein', e.target.value)}

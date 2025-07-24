@@ -13,6 +13,7 @@ import NutritionFacts from '@/components/nutrition/NutritionFacts'; // ADD THIS
 import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
 const AutoExpandingTextarea = ({value, onChange, placeholder, className, ...props}) => {
@@ -1144,7 +1145,7 @@ export default function EnhancedRecipeForm({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Recipe URL
                         </label>
-                        <input
+                        <KeyboardOptimizedInput
                             type="url"
                             value={urlInput}
                             onChange={(e) => {
@@ -1251,7 +1252,7 @@ export default function EnhancedRecipeForm({
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Video URL
                             </label>
-                            <input
+                            <KeyboardOptimizedInput
                                 type="url"
                                 value={videoUrl}
                                 onChange={(e) => {
@@ -1478,7 +1479,7 @@ export default function EnhancedRecipeForm({
                                             🎤 Voice
                                         </TouchEnhancedButton>
                                     </div>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         required
                                         value={recipe.title}
@@ -1534,7 +1535,7 @@ export default function EnhancedRecipeForm({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Prep Time (minutes)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={extractNumber(recipe.prepTime)} // CHANGE THIS
                                         onChange={(e) => updateRecipe('prepTime', e.target.value)}
@@ -1548,7 +1549,7 @@ export default function EnhancedRecipeForm({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Cook Time (minutes)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={extractNumber(recipe.cookTime)} // CHANGE THIS
                                         onChange={(e) => updateRecipe('cookTime', e.target.value)}
@@ -1562,7 +1563,7 @@ export default function EnhancedRecipeForm({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Servings
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={extractNumber(recipe.servings)} // CHANGE THIS
                                         onChange={(e) => updateRecipe('servings', e.target.value)}
@@ -1888,7 +1889,7 @@ export default function EnhancedRecipeForm({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Tags (comma-separated)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={tagsString}
                                         onChange={(e) => handleTagsStringChange(e.target.value)}
@@ -2077,7 +2078,7 @@ export default function EnhancedRecipeForm({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Source (Optional)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={recipe.source}
                                         onChange={(e) => updateRecipe('source', e.target.value)}

@@ -6,6 +6,7 @@
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function UrlImportTest() {
     const [url, setUrl] = useState('');
@@ -61,7 +62,7 @@ export default function UrlImportTest() {
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Recipe URL
                         </label>
-                        <input
+                        <KeyboardOptimizedInput
                             type="url"
                             value={url}
                             onChange={(e) => setUrl(e.target.value)}

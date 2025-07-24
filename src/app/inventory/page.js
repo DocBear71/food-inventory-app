@@ -22,6 +22,7 @@ import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashbo
 import MobilePriceTrackingModal from '@/components/inventory/MobilePriceTrackingModal';
 import AdvancedPriceSearch from '@/components/inventory/AdvancedPriceSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 // Import smart display utilities
 import {
@@ -2167,7 +2168,7 @@ function InventoryContent() {
                                     🔍 Search Inventory
                                 </label>
                                 <div className="relative">
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         id="search"
                                         placeholder="Search by name, brand, category, location, or UPC..."
@@ -2446,7 +2447,7 @@ function InventoryContent() {
                                         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                                             Item Name *
                                         </label>
-                                        <input
+                                        <KeyboardOptimizedInput
                                             type="text"
                                             id="name"
                                             name="name"
@@ -2462,7 +2463,7 @@ function InventoryContent() {
                                         <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
                                             Brand
                                         </label>
-                                        <input
+                                        <KeyboardOptimizedInput
                                             type="text"
                                             id="brand"
                                             name="brand"
@@ -2645,7 +2646,7 @@ function InventoryContent() {
                                         Expiration Date
                                         <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="date"
                                         id="expirationDate"
                                         name="expirationDate"

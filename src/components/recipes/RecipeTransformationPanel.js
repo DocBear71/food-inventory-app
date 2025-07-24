@@ -8,6 +8,7 @@ import UnitConversionWidget from './UnitConversionWidget';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import {apiPost} from "@/lib/api-config.js";
 import {detectMeasurementSystem} from "@/lib/recipeTransformation";
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function RecipeTransformationPanel({
                                                       recipe,
@@ -266,7 +267,7 @@ export default function RecipeTransformationPanel({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Target Servings
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         inputMode="numeric"
                                         pattern="[0-9]*"

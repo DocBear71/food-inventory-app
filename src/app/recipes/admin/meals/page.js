@@ -8,6 +8,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 const MEAL_CATEGORIES = [
     { value: 'protein', label: 'Protein', icon: '🥩' },
@@ -469,7 +470,7 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Meal Name *
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         required
                                         value={formData.name}
@@ -497,7 +498,7 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Estimated Time (minutes) *
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         min="5"
                                         max="300"
@@ -512,7 +513,7 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Servings
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         min="1"
                                         max="20"
@@ -577,7 +578,7 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Source (optional)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={formData.source}
                                         onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
@@ -699,7 +700,7 @@ export default function CuratedMealsAdmin() {
                                     ))}
                                 </div>
                                 <div className="flex gap-2">
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={newTag}
                                         onChange={(e) => setNewTag(e.target.value)}
@@ -737,7 +738,7 @@ export default function CuratedMealsAdmin() {
                                     ))}
                                 </div>
                                 <div className="flex gap-2">
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={newTip}
                                         onChange={(e) => setNewTip(e.target.value)}
@@ -778,7 +779,7 @@ export default function CuratedMealsAdmin() {
                                     ))}
                                 </div>
                                 <div className="flex gap-2">
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={newNutritionTag}
                                         onChange={(e) => setNewNutritionTag(e.target.value)}

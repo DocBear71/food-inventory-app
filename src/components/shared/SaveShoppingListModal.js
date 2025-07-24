@@ -5,6 +5,7 @@
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function SaveShoppingListModal({
                                                   isOpen,
@@ -235,7 +236,7 @@ export default function SaveShoppingListModal({
                         }}>
                             List Name
                         </label>
-                        <input
+                        <KeyboardOptimizedInput
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -295,7 +296,7 @@ export default function SaveShoppingListModal({
                         }}>
                             Tags (Optional)
                         </label>
-                        <input
+                        <KeyboardOptimizedInput
                             type="text"
                             value={formData.tags}
                             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}

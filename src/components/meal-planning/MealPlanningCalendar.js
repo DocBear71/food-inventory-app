@@ -13,6 +13,7 @@ import MealCompletionModal from '@/components/meal-planning/MealCompletionModal'
 import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 import SmartSuggestionsModal from '@/components/meal-planning/SmartSuggestionsModal';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();
@@ -2208,7 +2209,7 @@ export default function MealPlanningCalendar() {
                                 </label>
                                 <div className="relative">
                                     <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         step="0.01"
                                         min="0"
@@ -2273,7 +2274,7 @@ export default function MealPlanningCalendar() {
                                 {/* Compact filters */}
                                 <div className="space-y-2">
                                     {/* Search */}
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         placeholder="Search recipes..."
                                         value={recipeSearchQuery}
@@ -3150,7 +3151,7 @@ export default function MealPlanningCalendar() {
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 {/* Search */}
                                 <div className="md:col-span-2">
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         placeholder="Search recipes by title, description, tags, or ingredients..."
                                         value={recipeSearchQuery}

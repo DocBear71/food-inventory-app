@@ -9,6 +9,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 function VerifyEmailContent() {
     const router = useRouter();
@@ -136,7 +137,7 @@ function VerifyEmailContent() {
                                             Need a new verification email? Enter your email address:
                                         </p>
                                         <form onSubmit={handleResendVerification} className="space-y-3">
-                                            <input
+                                            <KeyboardOptimizedInput
                                                 type="email"
                                                 placeholder="Enter your email"
                                                 value={email}

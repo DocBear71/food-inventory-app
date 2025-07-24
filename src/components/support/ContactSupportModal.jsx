@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import {apiPost} from '@/lib/api-config.js';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
     const [formData, setFormData] = useState({
@@ -188,7 +189,7 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                                     Your Name *
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                         type="text"
                                         id="name"
                                         name="name"
@@ -203,7 +204,7 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                                     Email Address *
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                         type="email"
                                         id="email"
                                         name="email"
@@ -264,7 +265,7 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                             <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
                                 Subject *
                             </label>
-                            <input
+                            <KeyboardOptimizedInput
                                     type="text"
                                     id="subject"
                                     name="subject"

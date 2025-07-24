@@ -9,6 +9,7 @@ import Footer from '@/components/legal/Footer';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSubscription } from '@/hooks/useSubscription';
 import {apiPost} from "@/lib/api-config.js";
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function FeedbackPage() {
     const { data: session } = useSafeSession();
@@ -196,7 +197,7 @@ export default function FeedbackPage() {
                                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                                         Your Name *
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         id="name"
                                         name="name"
@@ -211,7 +212,7 @@ export default function FeedbackPage() {
                                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                                         Email Address *
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="email"
                                         id="email"
                                         name="email"
@@ -286,7 +287,7 @@ export default function FeedbackPage() {
                             <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
                                 Subject *
                             </label>
-                            <input
+                            <KeyboardOptimizedInput
                                 type="text"
                                 id="subject"
                                 name="subject"

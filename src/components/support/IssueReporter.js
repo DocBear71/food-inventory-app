@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { fetchWithSession } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 
 export default function IssueReporter({
@@ -166,7 +167,7 @@ export default function IssueReporter({
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Your email (for follow-up)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="email"
                                         value={reportData.email}
                                         onChange={(e) => setReportData(prev => ({ ...prev, email: e.target.value }))}

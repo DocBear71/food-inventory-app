@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const router = useRouter();
@@ -327,7 +328,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                             </p>
                                         </div>
                                     )}
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="email"
                                         value={formData.confirmEmail}
                                         onChange={(e) => setFormData(prev => ({ ...prev, confirmEmail: e.target.value }))}
@@ -342,7 +343,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Enter your password to confirm deletion:
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="password"
                                         value={formData.password}
                                         onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}

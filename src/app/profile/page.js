@@ -15,6 +15,7 @@ import { getApiUrl } from "@/lib/api-config";
 import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
 import { NutritionGoalsTracking } from '@/components/integrations/NutritionGoalsTracking';
 import { SUPPORTED_CURRENCIES, formatCurrencyExample } from '@/lib/currency-utils';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function ProfilePage() {
     let session = null;
@@ -963,7 +964,7 @@ export default function ProfilePage() {
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Full Name
                                             </label>
-                                            <input
+                                            <KeyboardOptimizedInput
                                                 type="text"
                                                 value={formData.name}
                                                 onChange={(e) => handleInputChange('name', null, e.target.value)}
@@ -977,7 +978,7 @@ export default function ProfilePage() {
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Email Address
                                             </label>
-                                            <input
+                                            <KeyboardOptimizedInput
                                                 type="email"
                                                 value={session.user.email}
                                                 disabled
@@ -1022,7 +1023,7 @@ export default function ProfilePage() {
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Favorite Cuisines
                                             </label>
-                                            <input
+                                            <KeyboardOptimizedInput
                                                 type="text"
                                                 value={favoritesCuisinesString}
                                                 onChange={(e) => setFavoritesCuisinesString(e.target.value)}
@@ -1075,7 +1076,7 @@ export default function ProfilePage() {
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                                             Currency Symbol
                                                         </label>
-                                                        <input
+                                                        <KeyboardOptimizedInput
                                                             type="text"
                                                             value={formData.currencyPreferences.currencySymbol}
                                                             onChange={(e) => handleInputChange('currencyPreferences', 'currencySymbol', e.target.value)}

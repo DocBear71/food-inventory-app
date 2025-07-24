@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function EmailShareModal({
                                             isOpen,
@@ -353,7 +354,7 @@ export default function EmailShareModal({
                                 marginBottom: '0.5rem',
                                 alignItems: 'center'
                             }}>
-                                <input
+                                <KeyboardOptimizedInput
                                     type="email"
                                     placeholder="Enter email address"
                                     value={recipient}
@@ -474,7 +475,7 @@ export default function EmailShareModal({
                                 </TouchEnhancedButton>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <input
+                                <KeyboardOptimizedInput
                                     type="text"
                                     placeholder="Name"
                                     value={newContact.name}
@@ -486,7 +487,7 @@ export default function EmailShareModal({
                                         fontSize: '0.875rem'
                                     }}
                                 />
-                                <input
+                                <KeyboardOptimizedInput
                                     type="email"
                                     placeholder="Email"
                                     value={newContact.email}

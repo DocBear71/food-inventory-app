@@ -248,6 +248,7 @@ input, select, textarea {
     font-size: 16px !important; /* Prevents zoom on iOS */
 }
 
+/* Enhanced input styles for better mobile keyboard and swipe typing support */
 input[type="text"],
 input[type="email"],
 input[type="password"],
@@ -255,6 +256,7 @@ input[type="number"],
 input[type="tel"],
 input[type="search"],
 input[type="date"],
+input[type="url"],
 select,
 textarea {
     border: 1px solid #d1d5db;
@@ -263,18 +265,99 @@ textarea {
     font-size: 0.875rem;
     line-height: 1.25rem;
     touch-action: manipulation !important;
+
+    /* Enhanced mobile keyboard support */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    /* Ensure proper text rendering for swipe typing */
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+
+    /* Prevent iOS zoom on focus while maintaining responsive design */
+    transform-origin: left top;
+    transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out;
 }
 
 input[type="text"]:focus,
 input[type="email"]:focus,
 input[type="password"]:focus,
 input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="search"]:focus,
 input[type="date"]:focus,
+input[type="url"]:focus,
 select:focus,
 textarea:focus {
     outline: none;
     border-color: #6366f1;
     box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+
+    /* Ensure consistent focus behavior across devices */
+    transform: scale(1);
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="search"],
+    input[type="date"],
+    input[type="url"],
+    select,
+    textarea {
+        /* Use 16px on mobile to prevent iOS zoom */
+        font-size: 16px;
+
+        /* Slightly larger touch targets on mobile */
+        min-height: 44px;
+        padding: 0.625rem 0.75rem;
+    }
+}
+
+/* Specific optimizations for different input types */
+input[type="password"] {
+    /* Better for password visibility */
+    font-family: monospace;
+}
+
+/* Search field optimizations */
+input[type="search"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Textarea optimizations */
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+/* Safe area support for devices with notches */
+.pt-safe {
+    padding-top: env(safe-area-inset-top);
+}
+
+.pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Additional mobile keyboard support utilities */
+.keyboard-optimized {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+
+    -webkit-touch-callout: default;
+    -webkit-tap-highlight-color: transparent;
 }
 
 /* Override checkbox margins for form layouts */

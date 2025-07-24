@@ -7,6 +7,7 @@ import { apiPost } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function EmailSharingModal({
                                               isOpen,
@@ -219,7 +220,7 @@ export default function EmailSharingModal({
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Your Name *
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     type="text"
                                     value={senderName}
                                     onChange={(e) => setSenderName(e.target.value)}

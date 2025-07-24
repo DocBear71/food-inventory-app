@@ -10,6 +10,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function ChangePasswordPage() {
     let session = null;
@@ -226,7 +227,7 @@ export default function ChangePasswordPage() {
                             <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
                                 Current Password
                             </label>
-                            <input
+                            <KeyboardOptimizedInput
                                 id="currentPassword"
                                 name="currentPassword"
                                 type="password"
@@ -242,7 +243,7 @@ export default function ChangePasswordPage() {
                             <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
                                 New Password
                             </label>
-                            <input
+                            <KeyboardOptimizedInput
                                 id="newPassword"
                                 name="newPassword"
                                 type="password"
@@ -293,7 +294,7 @@ export default function ChangePasswordPage() {
                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                                 Confirm New Password
                             </label>
-                            <input
+                            <KeyboardOptimizedInput
                                 id="confirmPassword"
                                 name="confirmPassword"
                                 type="password"

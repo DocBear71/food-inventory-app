@@ -6,6 +6,7 @@ import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import {apiPost} from "@/lib/api-config.js";
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AdvancedStoreManager() {
     const { data: session } = useSafeSession();
@@ -427,7 +428,7 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Phone
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="tel"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
@@ -440,7 +441,7 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Hours
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={formData.hours}
                                         onChange={(e) => setFormData({...formData, hours: e.target.value})}

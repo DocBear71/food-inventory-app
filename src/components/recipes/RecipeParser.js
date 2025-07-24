@@ -14,6 +14,7 @@ import {
     isHeaderLine,
     cleanTitle
 } from '@/lib/recipe-parsing-utils';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
 const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
@@ -508,7 +509,7 @@ The parser will automatically:
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Recipe Title
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={parsedRecipe.title}
                                         onChange={(e) => handleEditField('title', e.target.value)}
@@ -520,7 +521,7 @@ The parser will automatically:
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Cook Time (minutes)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={parsedRecipe.cookTime || ''}
                                         onChange={(e) => handleEditField('cookTime', parseInt(e.target.value) || null)}
@@ -532,7 +533,7 @@ The parser will automatically:
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Servings
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={parsedRecipe.servings || ''}
                                         onChange={(e) => handleEditField('servings', parseInt(e.target.value) || null)}
@@ -544,7 +545,7 @@ The parser will automatically:
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Prep Time (minutes)
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={parsedRecipe.prepTime || ''}
                                         onChange={(e) => handleEditField('prepTime', parseInt(e.target.value) || null)}
@@ -635,7 +636,7 @@ The parser will automatically:
                                             <div className="flex flex-col sm:flex-row gap-2">
                                                 <div className="flex gap-2 sm:w-auto">
                                                     <div className="flex-1 sm:w-20">
-                                                        <input
+                                                        <KeyboardOptimizedInput
                                                             type="text"
                                                             value={ingredient.amount}
                                                             onChange={(e) => handleEditIngredient(index, 'amount', e.target.value)}
@@ -644,7 +645,7 @@ The parser will automatically:
                                                         />
                                                     </div>
                                                     <div className="flex-1 sm:w-20">
-                                                        <input
+                                                        <KeyboardOptimizedInput
                                                             type="text"
                                                             value={ingredient.unit}
                                                             onChange={(e) => handleEditIngredient(index, 'unit', e.target.value)}
@@ -654,7 +655,7 @@ The parser will automatically:
                                                     </div>
                                                 </div>
                                                 <div className="flex-1">
-                                                    <input
+                                                    <KeyboardOptimizedInput
                                                         type="text"
                                                         value={ingredient.name}
                                                         onChange={(e) => handleEditIngredient(index, 'name', e.target.value)}
@@ -741,7 +742,7 @@ The parser will automatically:
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Tags (comma-separated)
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     type="text"
                                     value={parsedRecipe.tags.join(', ')}
                                     onChange={(e) => handleEditField('tags', e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}

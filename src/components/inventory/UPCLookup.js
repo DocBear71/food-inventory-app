@@ -6,6 +6,7 @@ import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {apiGet, apiPost} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -1168,7 +1169,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             🌍 International Product Search
                         </label>
                         <div className="relative">
-                            <input
+                            <KeyboardOptimizedInput
                                 ref={searchInputRef}
                                 type="text"
                                 id="search"
@@ -1384,7 +1385,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             🌍 International UPC/Barcode
                         </label>
 
-                        <input
+                        <KeyboardOptimizedInput
                             type="text"
                             id="upc"
                             name="upc"

@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost, apiDelete } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function MealPlanTemplateLibrary({
                                                     mealPlanId,
@@ -478,7 +479,7 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Template Name *
                         </label>
-                        <input
+                        <KeyboardOptimizedInput
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}

@@ -7,6 +7,7 @@ import { apiGet } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function NutritionSearch({
                                             onFoodSelected,
@@ -116,7 +117,7 @@ export default function NutritionSearch({
                 <div className={`relative ${compact ? 'max-w-sm' : 'max-w-md'}`}>
                     {/* Disabled search input */}
                     <div className="relative">
-                        <input
+                        <KeyboardOptimizedInput
                             type="text"
                             value=""
                             disabled
@@ -206,7 +207,7 @@ function NutritionSearchContent({
         <div className={`relative ${compact ? 'max-w-sm' : 'max-w-md'}`}>
             {/* Search Input */}
             <div className="relative">
-                <input
+                <KeyboardOptimizedInput
                     type="text"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}

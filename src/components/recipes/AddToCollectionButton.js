@@ -6,6 +6,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiGet, apiPost } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AddToCollectionButton({ recipeId, recipeName, className = '' }) {
     const [collections, setCollections] = useState([]);
@@ -225,7 +226,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                                         className="space-y-3"
                                     >
                                         <div>
-                                            <input
+                                            <KeyboardOptimizedInput
                                                 type="text"
                                                 name="name"
                                                 placeholder="Collection name"

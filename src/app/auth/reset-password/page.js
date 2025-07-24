@@ -7,6 +7,7 @@ import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 function ResetPasswordContent() {
     const router = useRouter();
@@ -313,7 +314,7 @@ function ResetPasswordContent() {
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                     New Password
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="password"
                                     name="password"
                                     type="password"
@@ -380,7 +381,7 @@ function ResetPasswordContent() {
                                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                                     Confirm New Password
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="confirmPassword"
                                     name="confirmPassword"
                                     type="password"

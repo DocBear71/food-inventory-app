@@ -5,6 +5,7 @@
 import React, { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { ShoppingListTotalsCalculator, DEFAULT_TAX_RATES, TAXABLE_CATEGORIES } from '@/lib/shoppingListTotals';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function ShoppingListTotals({
                                                shoppingList,
@@ -186,7 +187,7 @@ export default function ShoppingListTotals({
                                     <option value="TX">Texas (6.25%)</option>
                                 </select>
                                 <div className="flex">
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="number"
                                         value={taxRate}
                                         onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}

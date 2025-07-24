@@ -24,6 +24,7 @@ import FeatureGate from "@/components/subscription/FeatureGate";
 import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 function RecipesContent() {
     const { data: session, status } = useSafeSession();
@@ -837,7 +838,7 @@ function RecipesContent() {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                                 </svg>
                                             </div>
-                                            <input
+                                            <KeyboardOptimizedInput
                                                 type="text"
                                                 value={searchFilters.query}
                                                 onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}

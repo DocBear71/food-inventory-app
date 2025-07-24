@@ -10,6 +10,7 @@ import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { apiGet, apiPost } from '@/lib/api-config';
 import { MobileSession } from '@/lib/mobile-session-simple';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 function SignInContent() {
     const router = useRouter();
@@ -435,7 +436,7 @@ function SignInContent() {
                                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                                     Email address
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="email"
                                     name="email"
                                     type="email"
@@ -451,7 +452,7 @@ function SignInContent() {
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                     Password
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="password"
                                     name="password"
                                     type="password"

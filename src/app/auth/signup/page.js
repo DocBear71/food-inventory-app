@@ -10,6 +10,7 @@ import TermsOfUse from '@/components/legal/TermsOfUse';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
+import {KeyboardOptimizedInput} from "@/components/forms/KeyboardOptimizedInput";
 
 // Separate component for search params to wrap in Suspense
 function SignUpContent() {
@@ -343,7 +344,7 @@ function SignUpContent() {
                                     onClick={() => setSelectedTier(tier.id)}
                                 >
                                     <div className="flex items-center">
-                                        <input
+                                        <Input
                                             type="radio"
                                             name="tier"
                                             value={tier.id}
@@ -450,7 +451,7 @@ function SignUpContent() {
                                 <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                                     Full Name
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="name"
                                     name="name"
                                     type="text"
@@ -466,7 +467,7 @@ function SignUpContent() {
                                 <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                                     Email Address
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="email"
                                     name="email"
                                     type="email"
@@ -482,7 +483,7 @@ function SignUpContent() {
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                     Password
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="password"
                                     name="password"
                                     type="password"
@@ -525,7 +526,7 @@ function SignUpContent() {
                                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                                     Confirm Password
                                 </label>
-                                <input
+                                <KeyboardOptimizedInput
                                     id="confirmPassword"
                                     name="confirmPassword"
                                     type="password"

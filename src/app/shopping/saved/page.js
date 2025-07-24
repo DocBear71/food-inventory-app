@@ -9,6 +9,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function SavedShoppingListsPage() {
     let session = null;
@@ -283,7 +284,7 @@ export default function SavedShoppingListsPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Filter by Tags
                             </label>
-                            <input
+                            <KeyboardOptimizedInput
                                 type="text"
                                 value={filters.tags}
                                 onChange={(e) => setFilters({ ...filters, tags: e.target.value })}

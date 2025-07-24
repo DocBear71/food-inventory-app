@@ -8,6 +8,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { formatInventoryDisplayText } from '@/lib/inventoryDisplayUtils';
 import {apiPost, apiPut} from "@/lib/api-config.js";
+import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AddItemsPage() {
     const [activeTab, setActiveTab] = useState('inventory');
@@ -547,7 +548,7 @@ export default function AddItemsPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         🔍 Search Items
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={inventorySearch}
                                         onChange={(e) => setInventorySearch(e.target.value)}
@@ -656,7 +657,7 @@ export default function AddItemsPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         🔍 Search Items
                                     </label>
-                                    <input
+                                    <KeyboardOptimizedInput
                                         type="text"
                                         value={consumedSearch}
                                         onChange={(e) => setConsumedSearch(e.target.value)}
