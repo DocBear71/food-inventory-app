@@ -23,14 +23,18 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        const requestBody = await request.json();
+        console.log('🔄 Full request body received:', JSON.stringify(requestBody, null, 2));
+
+        // FIXED: Handle nested requestData structure if present
         const {
             recipeId,
-            transformationType, // 'scale', 'convert', 'both'
+            transformationType,
             options,
             useAI = true
-        } = await request.json();
+        } = requestBody.requestData || requestBody;
 
-        console.log('🔄 Recipe transformation request:', {
+        console.log('🔄 Extracted parameters:', {
             recipeId,
             transformationType,
             options,
@@ -41,6 +45,7 @@ export async function POST(request) {
         // Validate input parameters
         const validation = validateTransformationParams(transformationType, options);
         if (!validation.isValid) {
+            console.error('❌ Validation failed:', validation.errors);
             return NextResponse.json({
                 error: 'Invalid parameters',
                 details: validation.errors

@@ -52,6 +52,7 @@ export default function RecipeScalingWidget({
         setSuccess('');
 
         try {
+            // FIXED: Ensure clean request structure
             const requestData = {
                 recipeId: recipe._id,
                 transformationType: 'scale',
@@ -64,8 +65,13 @@ export default function RecipeScalingWidget({
 
             console.log('📤 Sending request:', requestData);
 
-            const response = await apiPost('/api/recipes/transform', {
-                requestData
+            // FIXED: Use fetch directly to avoid any apiPost wrapper issues
+            const response = await fetch('/api/recipes/transform', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(requestData) // Send data directly, not wrapped
             });
 
             console.log('📥 Response status:', response.status);

@@ -19,12 +19,8 @@ export async function callModalTransformationService(data) {
 
     try {
         // FIXED: Use fetch directly instead of apiPost for external service
-        const response = await fetch(modalUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(data)
+        const response = await apiPost(modalUrl, {
+            data
         });
 
         if (!response.ok) {
@@ -664,12 +660,18 @@ export function getTransformationSummary(recipe) {
 export function validateTransformationParams(transformationType, options) {
     const errors = [];
 
+    console.log('🔍 Validating transformation params:', { transformationType, options });
+
     if (!transformationType) {
         errors.push('Transformation type is required');
     }
 
+    if (!options) {
+        errors.push('Options are required');
+    }
+
     if (transformationType === 'scale') {
-        if (!options.targetServings) {
+        if (!options?.targetServings) {
             errors.push('Target servings required for scaling');
         } else if (options.targetServings < 1 || options.targetServings > 100) {
             errors.push('Target servings must be between 1 and 100');
@@ -677,7 +679,7 @@ export function validateTransformationParams(transformationType, options) {
     }
 
     if (transformationType === 'convert') {
-        if (!options.targetSystem) {
+        if (!options?.targetSystem) {
             errors.push('Target measurement system required for conversion');
         } else if (!['us', 'metric'].includes(options.targetSystem)) {
             errors.push('Target system must be "us" or "metric"');
@@ -685,10 +687,12 @@ export function validateTransformationParams(transformationType, options) {
     }
 
     if (transformationType === 'both') {
-        if (!options.targetServings || !options.targetSystem) {
+        if (!options?.targetServings || !options?.targetSystem) {
             errors.push('Both target servings and measurement system required');
         }
     }
+
+    console.log('🔍 Validation result:', { isValid: errors.length === 0, errors });
 
     return {
         isValid: errors.length === 0,
