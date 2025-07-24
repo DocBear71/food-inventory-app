@@ -49,10 +49,17 @@ export default function RecipeTransformationPanel({
             console.log('🚀 Combined transformation response:', data);
 
             if (data.success) {
-                // FIXED: Handle the correct response structure
+                // FIXED: Handle both transformation result properly
                 const transformationResult = data.transformation || data.recipe;
+                console.log('🔍 Both transformation result:', transformationResult);
+                console.log('🔍 Available ingredients:', {
+                    scaled_ingredients: transformationResult?.scaled_ingredients?.length,
+                    converted_ingredients: transformationResult?.converted_ingredients?.length
+                });
 
-                if (transformationResult && onTransformationChange) {
+                if (transformationResult && (transformationResult.scaled_ingredients || transformationResult.converted_ingredients)) {
+                    const finalIngredients = transformationResult.scaled_ingredients || transformationResult.converted_ingredients;
+                    console.log('🔍 Final ingredients to use:', finalIngredients);
                     // Create the transformed recipe data structure
                     const transformedRecipe = {
                         ...recipe,
