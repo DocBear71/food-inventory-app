@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/page.js v5 - FIXED: UI overlay issue and landing page improvements
+// file: /src/app/page.js v6 - FIXED: Added more top spacing to prevent header bar overlap
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {useEffect, useState} from 'react';
@@ -102,10 +102,10 @@ export default function Home() {
     // FIXED: Landing page with proper spacing and no overlay issues
     return (
         <div className="min-h-screen bg-gray-50 flex flex-col">
-            {/* FIXED: Simplified header that won't overlay content */}
-            <header className="bg-white shadow-sm relative z-10">
+            {/* FIXED: Added more top padding to prevent status bar/header overlay */}
+            <header className="bg-white shadow-sm relative z-10 pt-safe">
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-                    <div className="flex justify-between items-center py-4">
+                    <div className="flex justify-between items-center py-6 pt-8">
                         {/* FIXED: Cleaner logo/title section */}
                         <div className="flex items-center space-x-3">
                             <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
@@ -143,7 +143,7 @@ export default function Home() {
             <main className="flex-1">
                 {/* Hero section with proper top padding */}
                 <div className="relative bg-white">
-                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 sm:py-20">
+                    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 sm:py-24">
                         <div className="text-center">
                             <h1 className="text-3xl font-extrabold text-gray-900 sm:text-4xl lg:text-5xl">
                                 Smart Food Inventory

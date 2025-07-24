@@ -1,6 +1,7 @@
-// file: /src/app/api/auth/verify-email/route.js v2 - Fixed to work with User model verification methods
+// file: /src/app/api/auth/verify-email/route.js v3 - FIXED: Properly handle hashed verification tokens
 
 import { NextResponse } from 'next/server';
+import crypto from 'crypto';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
@@ -15,13 +16,17 @@ export async function GET(request) {
 
         await connectDB();
 
-        // Find user with the verification token that hasn't expired
+        // FIXED: Hash the incoming token to match what's stored in the database
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        // Find user with the hashed verification token that hasn't expired
         const user = await User.findOne({
-            emailVerificationToken: token,
+            emailVerificationToken: hashedToken,
             emailVerificationExpires: { $gt: new Date() }
         }).select('+emailVerificationToken +emailVerificationExpires');
 
         if (!user) {
+            console.log('No user found with token or token expired');
             return NextResponse.redirect(new URL('/auth/signin?error=invalid-token', request.url));
         }
 
@@ -30,17 +35,16 @@ export async function GET(request) {
             return NextResponse.redirect(new URL('/auth/signin?message=already-verified', request.url));
         }
 
-        // Use the verifyEmailWithToken method
-        const isValid = user.verifyEmailWithToken(token);
-
-        if (!isValid) {
-            return NextResponse.redirect(new URL('/auth/signin?error=invalid-token', request.url));
-        }
+        // Mark email as verified and clear verification fields
+        user.emailVerified = true;
+        user.emailVerificationToken = undefined;
+        user.emailVerificationExpires = undefined;
+        user.emailVerifiedAt = new Date();
 
         // Save the user with updated verification status
         await user.save();
 
-        console.log(`Email verified for user: ${user.email}`);
+        console.log(`Email verified successfully for user: ${user.email}`);
 
         // Redirect to signin with success message
         return NextResponse.redirect(new URL('/auth/signin?message=email-verified', request.url));
@@ -64,13 +68,17 @@ export async function POST(request) {
 
         await connectDB();
 
-        // Find user with the verification token that hasn't expired
+        // FIXED: Hash the incoming token to match what's stored in the database
+        const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+
+        // Find user with the hashed verification token that hasn't expired
         const user = await User.findOne({
-            emailVerificationToken: token,
+            emailVerificationToken: hashedToken,
             emailVerificationExpires: { $gt: new Date() }
         }).select('+emailVerificationToken +emailVerificationExpires');
 
         if (!user) {
+            console.log('No user found with token or token expired');
             return NextResponse.json(
                 { error: 'Invalid or expired verification token' },
                 { status: 400 }
@@ -86,20 +94,16 @@ export async function POST(request) {
             });
         }
 
-        // Use the verifyEmailWithToken method
-        const isValid = user.verifyEmailWithToken(token);
-
-        if (!isValid) {
-            return NextResponse.json(
-                { error: 'Invalid or expired verification token' },
-                { status: 400 }
-            );
-        }
+        // Mark email as verified and clear verification fields
+        user.emailVerified = true;
+        user.emailVerificationToken = undefined;
+        user.emailVerificationExpires = undefined;
+        user.emailVerifiedAt = new Date();
 
         // Save the user with updated verification status
         await user.save();
 
-        console.log(`Email verified for user: ${user.email}`);
+        console.log(`Email verified successfully for user: ${user.email}`);
 
         return NextResponse.json({
             success: true,
