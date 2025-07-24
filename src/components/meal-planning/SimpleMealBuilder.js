@@ -4,7 +4,7 @@
 import {useState, useEffect} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiGet } from '@/lib/api-config';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 const MEAL_CATEGORIES = [
     {id: 'protein', name: 'Protein', icon: '🥩', color: 'bg-red-50 border-red-200 text-red-700'},

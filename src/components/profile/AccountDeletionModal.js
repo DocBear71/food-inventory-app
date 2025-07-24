@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost } from '@/lib/api-config';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const router = useRouter();

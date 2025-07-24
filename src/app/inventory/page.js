@@ -22,7 +22,7 @@ import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashbo
 import MobilePriceTrackingModal from '@/components/inventory/MobilePriceTrackingModal';
 import AdvancedPriceSearch from '@/components/inventory/AdvancedPriceSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 // Import smart display utilities
 import {

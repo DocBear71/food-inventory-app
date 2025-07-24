@@ -8,7 +8,7 @@ import UnitConversionWidget from './UnitConversionWidget';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import {apiPost} from "@/lib/api-config.js";
 import {detectMeasurementSystem} from "@/lib/recipeTransformation";
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function RecipeTransformationPanel({
                                                       recipe,

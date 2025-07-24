@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import {apiPost} from '@/lib/api-config.js';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
     const [formData, setFormData] = useState({

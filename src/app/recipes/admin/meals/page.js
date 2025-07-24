@@ -8,7 +8,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 const MEAL_CATEGORIES = [
     { value: 'protein', label: 'Protein', icon: '🥩' },

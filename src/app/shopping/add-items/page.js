@@ -8,7 +8,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { formatInventoryDisplayText } from '@/lib/inventoryDisplayUtils';
 import {apiPost, apiPut} from "@/lib/api-config.js";
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AddItemsPage() {
     const [activeTab, setActiveTab] = useState('inventory');

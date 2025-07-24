@@ -13,7 +13,7 @@ import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate, { SubscriptionIndicator } from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiGet, apiPost } from '@/lib/api-config';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function ShoppingPage() {
     const {data: session, status} = useSafeSession();

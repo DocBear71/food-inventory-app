@@ -13,7 +13,7 @@ import NutritionFacts from '@/components/nutrition/NutritionFacts'; // ADD THIS
 import NutritionModal from '@/components/nutrition/NutritionModal'; // ADD THIS
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
 const AutoExpandingTextarea = ({value, onChange, placeholder, className, ...props}) => {

@@ -6,7 +6,7 @@ import { useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { fetchWithSession } from '@/lib/api-config';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 
 export default function IssueReporter({

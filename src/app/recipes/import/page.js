@@ -10,7 +10,7 @@ import Footer from '@/components/legal/Footer';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
 import VideoImportLoadingModal from '@/components/recipes/VideoImportLoadingModal';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function ImportRecipePage() {
     const router = useRouter();

@@ -6,7 +6,7 @@ import BarcodeScanner from './BarcodeScanner';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {apiGet, apiPost} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {

@@ -9,7 +9,7 @@ import Footer from '@/components/legal/Footer';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSubscription } from '@/hooks/useSubscription';
 import {apiPost} from "@/lib/api-config.js";
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function FeedbackPage() {
     const { data: session } = useSafeSession();

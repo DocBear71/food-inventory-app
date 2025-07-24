@@ -6,7 +6,7 @@ import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import {apiPost} from "@/lib/api-config.js";
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function AdvancedStoreManager() {
     const { data: session } = useSafeSession();

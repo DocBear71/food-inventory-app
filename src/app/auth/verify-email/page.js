@@ -9,7 +9,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 function VerifyEmailContent() {
     const router = useRouter();

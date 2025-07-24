@@ -15,7 +15,7 @@ import { getApiUrl } from "@/lib/api-config";
 import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
 import { NutritionGoalsTracking } from '@/components/integrations/NutritionGoalsTracking';
 import { SUPPORTED_CURRENCIES, formatCurrencyExample } from '@/lib/currency-utils';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function ProfilePage() {
     let session = null;

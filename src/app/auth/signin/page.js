@@ -10,7 +10,7 @@ import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { apiGet, apiPost } from '@/lib/api-config';
 import { MobileSession } from '@/lib/mobile-session-simple';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 function SignInContent() {
     const router = useRouter();

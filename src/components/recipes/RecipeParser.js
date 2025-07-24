@@ -14,7 +14,7 @@ import {
     isHeaderLine,
     cleanTitle
 } from '@/lib/recipe-parsing-utils';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
 const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {

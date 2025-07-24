@@ -10,7 +10,7 @@ import TermsOfUse from '@/components/legal/TermsOfUse';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
-import {KeyboardOptimizedInput} from "@/components/forms/KeyboardOptimizedInput";
+import KeyboardOptimizedInput from "@/components/forms/KeyboardOptimizedInput";
 
 // Separate component for search params to wrap in Suspense
 function SignUpContent() {

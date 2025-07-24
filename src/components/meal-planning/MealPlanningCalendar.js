@@ -13,7 +13,7 @@ import MealCompletionModal from '@/components/meal-planning/MealCompletionModal'
 import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 import SmartSuggestionsModal from '@/components/meal-planning/SmartSuggestionsModal';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();

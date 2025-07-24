@@ -8,7 +8,7 @@ import { FEATURE_GATES } from '@/lib/subscription-config';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useSafeSession } from '@/hooks/useSafeSession'; // ADD: Import useSafeSession
 import { apiGet, apiPost, apiDelete } from '@/lib/api-config'; // ADD: Import API helpers
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 const RecipeCollections = ({
                                selectedRecipeId = null,

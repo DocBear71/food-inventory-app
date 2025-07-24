@@ -24,7 +24,7 @@ import FeatureGate from "@/components/subscription/FeatureGate";
 import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
-import {KeyboardOptimizedInput} from '@/components/forms/KeyboardOptimizedInput';
+import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 function RecipesContent() {
     const { data: session, status } = useSafeSession();
