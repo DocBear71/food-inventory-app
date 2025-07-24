@@ -9,18 +9,30 @@ import {apiPost} from "@/lib/api-config.js";
 
 // FIXED: Modal.com service integration with proper environment variable handling
 export async function callModalTransformationService(data) {
-    // FIXED: Check both client and server environment variables
-    const modalUrl = process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL ||
+    // FIXED: Check both client and server environment variables and clean URL
+    let modalUrl = process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL ||
         process.env.MODAL_FUNCTION_URL ||
         'https://docbear71--recipe-transformation-service-transform-recipe.modal.run';
+
+    // FIXED: Remove any leading slashes that might cause URL parsing issues
+    modalUrl = modalUrl.replace(/^\/+/, '');
+
+    // Ensure it starts with https:// if not already present
+    if (!modalUrl.startsWith('http://') && !modalUrl.startsWith('https://')) {
+        modalUrl = `https://${modalUrl}`;
+    }
 
     console.log('🤖 Calling Modal service at:', modalUrl);
     console.log('📤 Sending data:', JSON.stringify(data, null, 2));
 
     try {
         // FIXED: Use fetch directly instead of apiPost for external service
-        const response = await apiPost(modalUrl, {
-            data
+        const response = await fetch(modalUrl, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
         });
 
         if (!response.ok) {
@@ -165,19 +177,28 @@ export function scaleRecipeBasic(recipe, targetServings) {
         originalServings,
         targetServings,
         scalingFactor,
-        ingredientCount: recipe.ingredients?.length || 0
+        ingredientCount: recipe.ingredients?.length || 0,
+        sampleIngredient: recipe.ingredients?.[0]
     });
 
-    const scaledIngredients = recipe.ingredients.map(ingredient => {
+    const scaledIngredients = recipe.ingredients.map((ingredient, index) => {
         const scaledAmount = scaleAmountBasic(ingredient.amount, scalingFactor);
 
+        console.log(`📐 Scaling ingredient ${index}:`, {
+            original: ingredient,
+            scaledAmount,
+            scalingFactor
+        });
+
         return {
-            ...ingredient,
+            ...ingredient, // FIXED: Preserve all original ingredient properties
             amount: scaledAmount,
             originalAmount: ingredient.amount,
             scalingNotes: `Scaled by ${scalingFactor.toFixed(2)}x`
         };
     });
+
+    console.log('📐 Scaled ingredients result:', scaledIngredients);
 
     return {
         success: true,
