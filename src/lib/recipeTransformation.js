@@ -732,6 +732,11 @@ export function validateTransformationParams(transformationType, options) {
         errors.push('Transformation type is required');
     }
 
+    // FIXED: Add "both" as a valid transformation type
+    if (!['scale', 'convert', 'both'].includes(transformationType)) {
+        errors.push(`Unknown transformation type: ${transformationType}`);
+    }
+
     if (!options) {
         errors.push('Options are required');
     }
@@ -755,6 +760,13 @@ export function validateTransformationParams(transformationType, options) {
     if (transformationType === 'both') {
         if (!options?.targetServings || !options?.targetSystem) {
             errors.push('Both target servings and measurement system required');
+        }
+        // Also validate the individual parameters
+        if (options?.targetServings && (options.targetServings < 1 || options.targetServings > 100)) {
+            errors.push('Target servings must be between 1 and 100');
+        }
+        if (options?.targetSystem && !['us', 'metric'].includes(options.targetSystem)) {
+            errors.push('Target system must be "us" or "metric"');
         }
     }
 

@@ -15,6 +15,7 @@ export default function RecipeScalingWidget({
                                                 showSaveOption = true
                                             }) {
     const [targetServings, setTargetServings] = useState(recipe.servings || 4);
+    const [inputValue, setInputValue] = useState(String(recipe.servings || 4));
     const [isScaling, setIsScaling] = useState(false);
     const [scaledRecipe, setScaledRecipe] = useState(null);
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -42,7 +43,15 @@ export default function RecipeScalingWidget({
     const handleScale = async (saveAsNew = false, useAI = null) => {
         console.log('🔢 Starting transformation:', { targetServings, useAI, saveAsNew });
 
-        if (targetServings === recipe.servings) {
+        // FIXED: Validate input before proceeding
+        if (!inputValue || inputValue === '' || parseInt(inputValue) < 1) {
+            setError('Please enter a valid number of servings (1 or more)');
+            return;
+        }
+
+        const servingsToUse = parseInt(inputValue);
+
+        if (servingsToUse === recipe.servings) {
             setError('Target servings same as original');
             return;
         }
@@ -57,7 +66,7 @@ export default function RecipeScalingWidget({
                 recipeId: recipe._id,
                 transformationType: 'scale',
                 options: {
-                    targetServings,
+                    targetServings: servingsToUse,
                     saveAsNew
                 },
                 useAI: useAI || false
@@ -90,11 +99,11 @@ export default function RecipeScalingWidget({
                     const transformedRecipe = {
                         ...recipe,
                         ingredients: scalingResult.scaled_ingredients,
-                        servings: targetServings,
+                        servings: servingsToUse,
                         transformationApplied: {
                             type: 'scale',
                             originalServings: recipe.servings,
-                            targetServings: targetServings,
+                            targetServings: servingsToUse,
                             appliedAt: new Date(),
                             method: scalingResult.method || 'scaling'
                         }
@@ -408,12 +417,14 @@ export default function RecipeScalingWidget({
             )}
 
             {/* Reset Button */}
-            {(scaledRecipe || targetServings !== recipe.servings) && (
+            {(scaledRecipe || parseInt(inputValue) !== recipe.servings) && (
                 <div className="mt-4 pt-3 border-t border-gray-200">
                     <TouchEnhancedButton
                         onClick={() => {
                             console.log('🔄 Resetting scaling widget to original');
-                            setTargetServings(recipe.servings || 4);
+                            const originalServings = recipe.servings || 4;
+                            setTargetServings(originalServings);
+                            setInputValue(String(originalServings));
                             setScaledRecipe(null);
                             setError('');
                             setSuccess('');

@@ -7,6 +7,7 @@ import RecipeScalingWidget from './RecipeScalingWidget';
 import UnitConversionWidget from './UnitConversionWidget';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import {apiPost} from "@/lib/api-config.js";
+import {detectMeasurementSystem} from "@/lib/recipeTransformation";
 
 export default function RecipeTransformationPanel({
                                                       recipe,
@@ -18,18 +19,29 @@ export default function RecipeTransformationPanel({
                                                   }) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
     const [activeTab, setActiveTab] = useState('scale'); // 'scale', 'convert', 'both'
+    const [servingsInput, setServingsInput] = useState(String(recipe.servings || 4));
     const [isCombinedTransform, setIsCombinedTransform] = useState(false);
+    // Add a separate state for the input string
+    const [combinedServingsInput, setCombinedServingsInput] = useState(String(recipe.servings || 4));
     const [combinedOptions, setCombinedOptions] = useState({
         targetServings: recipe.servings || 4,
-        targetSystem: 'metric'
+        targetSystem: detectMeasurementSystem(recipe.ingredients || [])
     });
 
     const handleCombinedTransform = async (saveAsNew = false) => {
+        // FIXED: Validate servings input using the string input state
+        if (!combinedServingsInput || combinedServingsInput === '' || parseInt(combinedServingsInput) < 1) {
+            alert('Please enter a valid number of servings (1 or more)');
+            return;
+        }
+
+        const servingsToUse = parseInt(combinedServingsInput);
+
         setIsCombinedTransform(true);
 
         try {
             console.log('🚀 Starting combined transformation:', {
-                targetServings: combinedOptions.targetServings,
+                targetServings: servingsToUse,
                 targetSystem: combinedOptions.targetSystem,
                 saveAsNew
             });
@@ -38,7 +50,7 @@ export default function RecipeTransformationPanel({
                 recipeId: recipe._id,
                 transformationType: 'both',
                 options: {
-                    targetServings: combinedOptions.targetServings,
+                    targetServings: servingsToUse,
                     targetSystem: combinedOptions.targetSystem,
                     saveAsNew
                 },
@@ -49,30 +61,23 @@ export default function RecipeTransformationPanel({
             console.log('🚀 Combined transformation response:', data);
 
             if (data.success) {
-                // FIXED: Handle both transformation result properly
+                // FIXED: Handle the correct response structure
                 const transformationResult = data.transformation || data.recipe;
-                console.log('🔍 Both transformation result:', transformationResult);
-                console.log('🔍 Available ingredients:', {
-                    scaled_ingredients: transformationResult?.scaled_ingredients?.length,
-                    converted_ingredients: transformationResult?.converted_ingredients?.length
-                });
 
-                if (transformationResult && (transformationResult.scaled_ingredients || transformationResult.converted_ingredients)) {
-                    const finalIngredients = transformationResult.scaled_ingredients || transformationResult.converted_ingredients;
-                    console.log('🔍 Final ingredients to use:', finalIngredients);
+                if (transformationResult && onTransformationChange) {
                     // Create the transformed recipe data structure
                     const transformedRecipe = {
                         ...recipe,
                         ingredients: transformationResult.converted_ingredients ||
                             transformationResult.scaled_ingredients ||
                             recipe.ingredients,
-                        servings: combinedOptions.targetServings,
+                        servings: servingsToUse,
                         currentMeasurementSystem: combinedOptions.targetSystem,
                         transformationApplied: {
                             type: 'both',
                             scaling: {
                                 originalServings: recipe.servings,
-                                targetServings: combinedOptions.targetServings
+                                targetServings: servingsToUse
                             },
                             conversion: {
                                 targetSystem: combinedOptions.targetSystem
@@ -253,16 +258,56 @@ export default function RecipeTransformationPanel({
                                         Target Servings
                                     </label>
                                     <input
-                                        type="number"
-                                        min="1"
-                                        max="50"
-                                        value={combinedOptions.targetServings}
-                                        onChange={(e) => setCombinedOptions(prev => ({
-                                            ...prev,
-                                            targetServings: parseInt(e.target.value) || 1
-                                        }))}
+                                        type="text"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
+                                        value={combinedServingsInput}
+                                        onChange={(e) => {
+                                            const value = e.target.value;
+
+                                            // Allow empty string so users can clear the input
+                                            if (value === '') {
+                                                setCombinedServingsInput('');
+                                                return;
+                                            }
+
+                                            // Only allow numbers
+                                            if (!/^\d+$/.test(value)) {
+                                                return;
+                                            }
+
+                                            const numValue = parseInt(value);
+
+                                            // Enforce reasonable limits
+                                            if (numValue > 100) {
+                                                return;
+                                            }
+
+                                            setCombinedServingsInput(value);
+                                            setCombinedOptions(prev => ({
+                                                ...prev,
+                                                targetServings: numValue
+                                            }));
+                                        }}
+                                        onBlur={() => {
+                                            if (combinedServingsInput === '' || parseInt(combinedServingsInput) < 1) {
+                                                // If empty or invalid, revert to current recipe servings
+                                                const fallback = recipe.servings || 4;
+                                                setCombinedServingsInput(String(fallback));
+                                                setCombinedOptions(prev => ({
+                                                    ...prev,
+                                                    targetServings: fallback
+                                                }));
+                                            }
+                                        }}
+                                        onFocus={(e) => {
+                                            // Select all text on focus for easy replacement
+                                            e.target.select();
+                                        }}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="1"
                                         disabled={isCombinedTransform}
+                                        autoComplete="off"
                                     />
                                     <div className="mt-1 text-xs text-gray-500">
                                         Original: {recipe.servings || 4} servings
