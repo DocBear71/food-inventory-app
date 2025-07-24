@@ -412,17 +412,14 @@ export default function RecipeScalingWidget({
                 <div className="mt-4 pt-3 border-t border-gray-200">
                     <TouchEnhancedButton
                         onClick={() => {
+                            console.log('🔄 Resetting scaling widget to original');
                             setTargetServings(recipe.servings || 4);
                             setScaledRecipe(null);
                             setError('');
                             setSuccess('');
-                            // FIXED: Notify parent to revert to original
-                            if (onScalingChange) {
-                                console.log('🔄 Resetting to original recipe');
-                                onScalingChange({
-                                    ...recipe,
-                                    transformationApplied: null // Clear transformation flag
-                                });
+                            // FIXED: Call parent's revert function instead of trying to handle it here
+                            if (window.handleRevertFromWidget) {
+                                window.handleRevertFromWidget();
                             }
                         }}
                         className="text-sm text-gray-600 hover:text-gray-800"

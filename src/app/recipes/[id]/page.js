@@ -325,21 +325,37 @@ export default function RecipeDetailPage() {
         }
     };
 
-    // FIXED: Enhanced revert functionality
+    // FIXED: Enhanced revert functionality that actually works
     const handleRevert = () => {
-        console.log('🔄 Reverting to original recipe:', originalRecipe);
+        console.log('🔄 Reverting to original recipe - Current recipe:', recipe);
+        console.log('🔄 Original recipe stored:', originalRecipe);
+
         if (originalRecipe) {
-            // Create a clean copy of the original recipe
-            const revertedRecipe = {
-                ...originalRecipe,
-                transformationApplied: null // Clear any transformation flags
-            };
+            // Create a completely clean copy of the original recipe
+            const revertedRecipe = JSON.parse(JSON.stringify(originalRecipe));
+
+            // Ensure transformation flags are cleared
+            delete revertedRecipe.transformationApplied;
+            delete revertedRecipe.currentMeasurementSystem;
+            delete revertedRecipe.currentServings;
 
             console.log('🔄 Setting reverted recipe:', revertedRecipe);
             setRecipe(revertedRecipe);
             setServings(originalRecipe.servings || 4);
+        } else {
+            console.error('❌ No original recipe stored for revert');
+            // Fallback: reload the recipe from server
+            fetchRecipe();
         }
     };
+
+    // FIXED: Make reset function globally available for widgets
+    useEffect(() => {
+        window.handleRevertFromWidget = handleRevert;
+        return () => {
+            delete window.handleRevertFromWidget;
+        };
+    }, [originalRecipe]);
 
     if (loading) {
         return (
@@ -535,15 +551,6 @@ export default function RecipeDetailPage() {
                     )}
                 </div>
 
-                {/* RECIPE TRANSFORMATION PANEL */}
-                <RecipeTransformationPanel
-                    recipe={recipe}
-                    onTransformationChange={handleTransformationChange}
-                    onRevert={handleRevert}
-                    showSaveOptions={true}
-                    defaultExpanded={false}
-                />
-
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
                     {/* LEFT COLUMN - Main Content */}
                     <div className="lg:col-span-2 space-y-8">
@@ -582,6 +589,16 @@ export default function RecipeDetailPage() {
                                 key={refreshPhotos} // Force refresh when photos change
                             />
                         </div>
+                        <br/>
+
+                        {/* RECIPE TRANSFORMATION PANEL */}
+                        <RecipeTransformationPanel
+                            recipe={recipe}
+                            onTransformationChange={handleTransformationChange}
+                            onRevert={handleRevert}
+                            showSaveOptions={true}
+                            defaultExpanded={false}
+                        />
 
                         {/* FIXED: Ingredients section with debug logging */}
                         <div className="bg-white rounded-lg border p-6">
@@ -650,6 +667,7 @@ export default function RecipeDetailPage() {
                                 )}
                             </ul>
                         </div>
+
 
                         {/* Instructions Section */}
                         <div className="bg-white rounded-lg border p-6">

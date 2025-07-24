@@ -222,7 +222,8 @@ export function convertUnitsBasic(recipe, targetSystem) {
     console.log('🔄 Basic conversion:', {
         sourceSystem,
         targetSystem,
-        ingredientCount: recipe.ingredients?.length || 0
+        ingredientCount: recipe.ingredients?.length || 0,
+        sampleIngredient: recipe.ingredients?.[0]
     });
 
     if (sourceSystem === targetSystem) {
@@ -230,15 +231,23 @@ export function convertUnitsBasic(recipe, targetSystem) {
             success: true,
             message: "Recipe already in target measurement system",
             converted_ingredients: recipe.ingredients,
-            method: "no_conversion_needed"
+            method: "no_conversion_needed",
+            success_probability: 1.0 // FIXED: Add explicit confidence
         };
     }
 
     const conversionTable = getBasicConversionTable(sourceSystem, targetSystem);
 
-    const convertedIngredients = recipe.ingredients.map(ingredient => {
-        return convertIngredientBasic(ingredient, conversionTable, targetSystem);
+    const convertedIngredients = recipe.ingredients.map((ingredient, index) => {
+        const converted = convertIngredientBasic(ingredient, conversionTable, targetSystem);
+        console.log(`🔄 Converting ingredient ${index}:`, {
+            original: ingredient,
+            converted: converted
+        });
+        return converted;
     });
+
+    console.log('🔄 Converted ingredients result:', convertedIngredients);
 
     return {
         success: true,
@@ -249,7 +258,7 @@ export function convertUnitsBasic(recipe, targetSystem) {
             regional_adaptations: `Converted to ${targetSystem} measurements`
         },
         method: "basic_math_conversion",
-        success_probability: 0.8
+        success_probability: 0.8 // FIXED: Add explicit confidence
     };
 }
 
