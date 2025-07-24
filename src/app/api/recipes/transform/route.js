@@ -103,70 +103,7 @@ export async function POST(request) {
                 transformationResult = await performConversion(recipe, options, shouldUseAI);
             } else if (transformationType === 'both') {
                 console.log('🔧 Processing both transformation (scale + convert)');
-                if (useAI) {
-                    // Modal.com doesn't support "both", so we'll do sequential AI transformations
-                    console.log('🤖 Modal.com does not support combined transformations, using sequential approach');
-
-                    try {
-                        // First, do AI scaling
-                        console.log('🔢 Step 1: AI Scaling');
-                        const scalingResult = await callModalTransformationService({
-                            transformation_type: 'scale',
-                            recipe_data: recipe,
-                            options: { target_servings: options.targetServings },
-                            use_ai: true
-                        });
-
-                        if (!scalingResult.success) {
-                            throw new Error('AI scaling failed: ' + scalingResult.error);
-                        }
-
-                        // Create intermediate recipe with scaled ingredients
-                        const scaledRecipe = {
-                            ...recipe.toObject ? recipe.toObject() : recipe,
-                            ingredients: scalingResult.scaled_ingredients,
-                            servings: options.targetServings
-                        };
-
-                        // Then, do AI conversion on the scaled recipe
-                        console.log('🔄 Step 2: AI Conversion');
-                        const conversionResult = await callModalTransformationService({
-                            transformation_type: 'convert',
-                            recipe_data: scaledRecipe,
-                            options: { target_system: options.targetSystem },
-                            use_ai: true
-                        });
-
-                        if (!conversionResult.success) {
-                            throw new Error('AI conversion failed: ' + conversionResult.error);
-                        }
-
-                        // Combine the results
-                        transformationResult = {
-                            success: true,
-                            scaled_ingredients: conversionResult.converted_ingredients,
-                            cooking_adjustments: scalingResult.cooking_adjustments,
-                            conversion_notes: conversionResult.conversion_notes,
-                            scaling_notes: scalingResult.scaling_notes,
-                            method: "ai_sequential_both",
-                            success_probability: Math.min(scalingResult.success_probability || 0.9, conversionResult.success_probability || 0.9),
-                            transformation_summary: {
-                                scaled_from: recipe.servings,
-                                scaled_to: options.targetServings,
-                                converted_from: detectMeasurementSystem(recipe.ingredients),
-                                converted_to: options.targetSystem
-                            }
-                        };
-
-                    } catch (aiError) {
-                        console.warn('⚠️ AI sequential transformation failed, falling back to basic math:', aiError.message);
-                        // Fall back to basic combined transformation
-                        transformationResult = performBasicCombinedTransformation(recipe, options);
-                    }
-                } else {
-                    // Use the existing basic combined transformation
-                    transformationResult = performBasicCombinedTransformation(recipe, options);
-                }
+                transformationResult = await performCombinedTransformation(recipe, options, useAI);
             }
 
             if (!transformationResult.success) {

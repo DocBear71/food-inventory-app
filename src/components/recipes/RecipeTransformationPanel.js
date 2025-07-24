@@ -61,23 +61,31 @@ export default function RecipeTransformationPanel({
             console.log('🚀 Combined transformation response:', data);
 
             if (data.success) {
-                // FIXED: Handle the correct response structure
+                console.log('🔍 Raw API Response:', data);
+                console.log('🔍 Transformation Result:', data.transformation);
+                console.log('🔍 Recipe Result:', data.recipe);
+
                 const transformationResult = data.transformation || data.recipe;
+                console.log('🔍 Selected Transformation Result:', transformationResult);
 
                 if (transformationResult && onTransformationChange) {
-                    // Create the transformed recipe data structure
+                    const finalIngredients = transformationResult.converted_ingredients ||
+                        transformationResult.scaled_ingredients ||
+                        recipe.ingredients;
+
+                    console.log('🔍 Final Ingredients to Apply:', finalIngredients);
+                    console.log('🔍 Target Servings:', combinedOptions.targetServings);
+
                     const transformedRecipe = {
                         ...recipe,
-                        ingredients: transformationResult.converted_ingredients ||
-                            transformationResult.scaled_ingredients ||
-                            recipe.ingredients,
-                        servings: servingsToUse,
+                        ingredients: finalIngredients,
+                        servings: combinedOptions.targetServings, // This should be 6
                         currentMeasurementSystem: combinedOptions.targetSystem,
                         transformationApplied: {
                             type: 'both',
                             scaling: {
                                 originalServings: recipe.servings,
-                                targetServings: servingsToUse
+                                targetServings: combinedOptions.targetServings
                             },
                             conversion: {
                                 targetSystem: combinedOptions.targetSystem
@@ -87,9 +95,10 @@ export default function RecipeTransformationPanel({
                         }
                     };
 
-                    console.log('🚀 Applying transformed recipe:', transformedRecipe);
+                    console.log('🔍 Final Transformed Recipe Being Applied:', transformedRecipe);
                     onTransformationChange(transformedRecipe);
                 }
+
 
                 if (saveAsNew && data.savedRecipe) {
                     alert(`✅ Transformed recipe saved as "${data.savedRecipe.title}"!`);
