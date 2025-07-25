@@ -3120,6 +3120,8 @@ function InventoryContent() {
                 onAddToExisting={handleAddToExistingList}
             />
 
+            // Replace the modal section at the end of your inventory/page.js file with this corrected version:
+
             {/* Price Tracking Modal */}
             {priceTrackingModal && trackingPriceForItem && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
@@ -3177,85 +3179,84 @@ function InventoryContent() {
                             </div>
                         </div>
                     </div>
+                </div>
+            )}
 
-                    {/* NEW: Voice Input Modals */}
-                    {/* Voice Add Item Modal */}
-                    {showVoiceAddItem && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-lg max-w-lg w-full p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Add Inventory Item</h3>
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowVoiceAddItem(false)}
-                                        className="text-gray-400 hover:text-gray-600"
-                                    >
-                                        ×
-                                    </TouchEnhancedButton>
-                                </div>
-
-                                <div className="mb-4">
-                                    <VoiceInput
-                                        onResult={handleVoiceAddItem}
-                                        onError={handleVoiceError}
-                                        placeholder="Say what you want to add to inventory..."
-                                    />
-                                </div>
-
-                                <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                                    <p className="text-sm text-blue-800 mb-2">
-                                        💡 <strong>Voice Add Examples:</strong>
-                                    </p>
-                                    <ul className="text-sm text-blue-700 space-y-1">
-                                        <li>• "2 pounds ground beef in the freezer"</li>
-                                        <li>• "1 gallon milk in the fridge"</li>
-                                        <li>• "3 cans tomato sauce in the pantry"</li>
-                                        <li>• "1 bag rice in the kitchen"</li>
-                                        <li>• "2 bottles olive oil"</li>
-                                    </ul>
-                                </div>
-                            </div>
+            {/* ✅ FIXED: Voice Input Modals - MOVED OUTSIDE OTHER MODALS */}
+            {/* Voice Add Item Modal */}
+            {showVoiceAddItem && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Add Inventory Item</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceAddItem(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </TouchEnhancedButton>
                         </div>
-                    )}
 
-                    {/* Voice Search Modal */}
-                    {showVoiceSearch && (
-                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div className="bg-white rounded-lg max-w-lg w-full p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Search Inventory</h3>
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowVoiceSearch(false)}
-                                        className="text-gray-400 hover:text-gray-600"
-                                    >
-                                        ×
-                                    </TouchEnhancedButton>
-                                </div>
-
-                                <div className="mb-4">
-                                    <VoiceInput
-                                        onResult={handleVoiceSearch}
-                                        onError={handleVoiceError}
-                                        placeholder="Say what you want to find..."
-                                    />
-                                </div>
-
-                                <div className="bg-blue-50 border border-blue-200 rounded p-3">
-                                    <p className="text-sm text-blue-800 mb-2">
-                                        💡 <strong>Voice Search Examples:</strong>
-                                    </p>
-                                    <ul className="text-sm text-blue-700 space-y-1">
-                                        <li>• "Find milk in the fridge"</li>
-                                        <li>• "Show me expired items"</li>
-                                        <li>• "Search for meat in the freezer"</li>
-                                        <li>• "What's expiring soon"</li>
-                                        <li>• "Find vegetables in the pantry"</li>
-                                        <li>• "Show me dairy products"</li>
-                                    </ul>
-                                </div>
-                            </div>
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceAddItem}
+                                onError={handleVoiceError}
+                                placeholder="Say what you want to add to inventory..."
+                            />
                         </div>
-                    )}
 
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800 mb-2">
+                                💡 <strong>Voice Add Examples:</strong>
+                            </p>
+                            <ul className="text-sm text-blue-700 space-y-1">
+                                <li>• "2 pounds ground beef in the freezer"</li>
+                                <li>• "1 gallon milk in the fridge"</li>
+                                <li>• "3 cans tomato sauce in the pantry"</li>
+                                <li>• "1 bag rice in the kitchen"</li>
+                                <li>• "2 bottles olive oil"</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Voice Search Modal */}
+            {showVoiceSearch && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-lg w-full p-6">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-lg font-semibold text-gray-900">🎤 Voice Search Inventory</h3>
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceSearch(false)}
+                                className="text-gray-400 hover:text-gray-600"
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="mb-4">
+                            <VoiceInput
+                                onResult={handleVoiceSearch}
+                                onError={handleVoiceError}
+                                placeholder="Say what you want to find..."
+                            />
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded p-3">
+                            <p className="text-sm text-blue-800 mb-2">
+                                💡 <strong>Voice Search Examples:</strong>
+                            </p>
+                            <ul className="text-sm text-blue-700 space-y-1">
+                                <li>• "Find milk in the fridge"</li>
+                                <li>• "Show me expired items"</li>
+                                <li>• "Search for meat in the freezer"</li>
+                                <li>• "What's expiring soon"</li>
+                                <li>• "Find vegetables in the pantry"</li>
+                                <li>• "Show me dairy products"</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
             )}
 

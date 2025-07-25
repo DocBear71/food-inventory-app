@@ -15,6 +15,7 @@ export default function Home() {
     const [isNative, setIsNative] = useState(false);
     const [nativeSessionChecked, setNativeSessionChecked] = useState(false);
     const [debugInfo, setDebugInfo] = useState('');
+    const [imageError, setImageError] = useState(false);
 
     // Check if we're on native platform and handle session detection
     useEffect(() => {
@@ -261,26 +262,23 @@ export default function Home() {
                 <div className="bg-white py-16">
                     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
                         <h2 className="text-3xl font-extrabold text-gray-900 mb-8">
-                            From a Marine Veteran & Culinary Expert
+                            From a Marine Veteran & Culinary/Food Safety Expert
                         </h2>
 
                         <div className="flex items-center justify-center mb-6">
                             <div className="w-20 h-20 rounded-full overflow-hidden border-4 border-indigo-100 shadow-lg bg-gray-200 relative">
-                                <img
-                                    alt="Dr. Edward McKeown"
-                                    className="w-full h-full object-cover"
-                                    src="/icons/edmckeown.jpg"
-                                    onError={(e) => {
-                                        e.target.style.display = 'none';
-                                        e.target.parentElement.querySelector('.fallback-emoji').style.display = 'flex';
-                                    }}
-                                />
-                                <div
-                                    className="fallback-emoji absolute inset-0 flex items-center justify-center text-2xl"
-                                    style={{ display: 'none' }}
-                                >
-                                    👨‍🍳
-                                </div>
+                                {!imageError ? (
+                                    <img
+                                        alt="Dr. Edward McKeown"
+                                        className="w-full h-full object-cover"
+                                        src="/icons/edmckeown.jpg"
+                                        onError={() => setImageError(true)}
+                                    />
+                                ) : (
+                                    <div className="absolute inset-0 flex items-center justify-center text-2xl">
+                                        👨‍🍳
+                                    </div>
+                                )}
                             </div>
                         </div>
 

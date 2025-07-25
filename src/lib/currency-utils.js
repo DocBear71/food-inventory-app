@@ -1,5 +1,7 @@
 // file: src/lib/currency-utils.js v1
 
+import {useEffect, useState} from "react";
+
 export const SUPPORTED_CURRENCIES = [
     { code: 'USD', name: 'US Dollar', symbol: '$', position: 'before', decimalPlaces: 2, flag: '🇺🇸', countries: 'United States' },
     { code: 'EUR', name: 'Euro', symbol: '€', position: 'before', decimalPlaces: 2, flag: '🇪🇺', countries: 'European Union' },
