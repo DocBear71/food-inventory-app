@@ -3120,8 +3120,6 @@ function InventoryContent() {
                 onAddToExisting={handleAddToExistingList}
             />
 
-            // Replace the modal section at the end of your inventory/page.js file with this corrected version:
-
             {/* Price Tracking Modal */}
             {priceTrackingModal && trackingPriceForItem && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
