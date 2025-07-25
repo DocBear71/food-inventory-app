@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/auth/signup/page.js v6 - Added top spacing, auto-scroll to success message, and spam folder notification
+// file: /src/app/auth/signup/page.js v7 - Enhanced with international compliance and GDPR
 
 import { useState, useEffect, Suspense, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -31,7 +31,13 @@ function SignUpContent() {
         email: '',
         password: '',
         confirmPassword: '',
+        country: '', // NEW: Country selection for international compliance
     });
+
+    // NEW: International compliance state
+    const [isEUUser, setIsEUUser] = useState(false);
+    const [detectedCountry, setDetectedCountry] = useState('');
+    const [showInternationalNotice, setShowInternationalNotice] = useState(false);
 
     // Pricing selection state
     const [selectedTier, setSelectedTier] = useState(urlTier);
@@ -43,9 +49,88 @@ function SignUpContent() {
     const [success, setSuccess] = useState('');
     const [acceptedTerms, setAcceptedTerms] = useState(false);
     const [acceptedPrivacy, setAcceptedPrivacy] = useState(false);
+
+    // NEW: Enhanced consent tracking for international compliance
+    const [acceptedDataProcessing, setAcceptedDataProcessing] = useState(false);
+    const [acceptedVoiceProcessing, setAcceptedVoiceProcessing] = useState(false);
+    const [acceptedInternationalTransfers, setAcceptedInternationalTransfers] = useState(false);
+    const [acceptedMinorConsent, setAcceptedMinorConsent] = useState(false);
+    const [isMinor, setIsMinor] = useState(false);
+    const [parentEmail, setParentEmail] = useState('');
+
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [passwordFocused, setPasswordFocused] = useState(false);
+
+    // NEW: Country list for GDPR detection
+    const euCountries = [
+        'Austria', 'Belgium', 'Bulgaria', 'Croatia', 'Cyprus', 'Czech Republic',
+        'Denmark', 'Estonia', 'Finland', 'France', 'Germany', 'Greece',
+        'Hungary', 'Ireland', 'Italy', 'Latvia', 'Lithuania', 'Luxembourg',
+        'Malta', 'Netherlands', 'Poland', 'Portugal', 'Romania', 'Slovakia',
+        'Slovenia', 'Spain', 'Sweden', 'Iceland', 'Liechtenstein', 'Norway'
+    ];
+
+    const countries = [
+        'United States', 'Canada', 'United Kingdom', 'Australia', 'New Zealand',
+        ...euCountries.sort(),
+        'Japan', 'South Korea', 'Singapore', 'Other'
+    ].sort();
+
+    // NEW: Detect user region and show appropriate compliance notices
+    useEffect(() => {
+        const detectUserRegion = () => {
+            try {
+                // Simple EU detection based on timezone
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const euTimezones = [
+                    'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'Europe/Rome',
+                    'Europe/Madrid', 'Europe/Amsterdam', 'Europe/Brussels', 'Europe/Vienna',
+                    'Europe/Prague', 'Europe/Warsaw', 'Europe/Stockholm', 'Europe/Copenhagen',
+                    'Europe/Helsinki', 'Europe/Dublin', 'Europe/Lisbon', 'Europe/Athens',
+                    'Europe/Budapest', 'Europe/Bucharest', 'Europe/Sofia', 'Europe/Zagreb',
+                    'Europe/Ljubljana', 'Europe/Bratislava', 'Europe/Vilnius', 'Europe/Riga',
+                    'Europe/Tallinn', 'Europe/Luxembourg', 'Europe/Malta', 'Europe/Nicosia'
+                ];
+
+                const isEU = euTimezones.includes(timezone);
+                setIsEUUser(isEU);
+
+                // Try to detect country from timezone
+                if (timezone.startsWith('Europe/')) {
+                    const city = timezone.split('/')[1];
+                    const countryMap = {
+                        'London': 'United Kingdom',
+                        'Berlin': 'Germany',
+                        'Paris': 'France',
+                        'Rome': 'Italy',
+                        'Madrid': 'Spain',
+                        'Amsterdam': 'Netherlands',
+                        'Brussels': 'Belgium',
+                        // Add more mappings as needed
+                    };
+                    setDetectedCountry(countryMap[city] || '');
+                }
+
+                if (isEU) {
+                    setShowInternationalNotice(true);
+                }
+            } catch (error) {
+                console.error('Error detecting region:', error);
+            }
+        };
+
+        detectUserRegion();
+    }, []);
+
+    // NEW: Update EU status when country is selected
+    useEffect(() => {
+        if (formData.country) {
+            const isEUCountry = euCountries.includes(formData.country);
+            setIsEUUser(isEUCountry);
+            setShowInternationalNotice(isEUCountry);
+        }
+    }, [formData.country]);
 
     const tiers = [
         {
@@ -138,7 +223,7 @@ function SignUpContent() {
         return tiers.find(tier => tier.id === selectedTier);
     };
 
-    // FIXED: Auto-scroll to success message when it appears
+    // Auto-scroll to success message when it appears
     useEffect(() => {
         if (success && successMessageRef.current) {
             setTimeout(() => {
@@ -146,7 +231,7 @@ function SignUpContent() {
                     behavior: 'smooth',
                     block: 'center'
                 });
-            }, 100); // Small delay to ensure the message is rendered
+            }, 100);
         }
     }, [success]);
 
@@ -176,14 +261,44 @@ function SignUpContent() {
             return;
         }
 
+        // NEW: Enhanced validation for international compliance
+        if (isEUUser && !acceptedDataProcessing) {
+            setError('EU users must consent to data processing under GDPR');
+            setLoading(false);
+            return;
+        }
+
+        if (isMinor && !acceptedMinorConsent) {
+            setError('Parental consent is required for users under 18');
+            setLoading(false);
+            return;
+        }
+
+        if (isMinor && !parentEmail) {
+            setError('Parent/guardian email is required for users under 18');
+            setLoading(false);
+            return;
+        }
+
         try {
             const response = await apiPost('/api/auth/register', {
                 name: formData.name,
                 email: formData.email,
                 password: formData.password,
+                country: formData.country,
                 acceptedTerms: true,
                 acceptedPrivacy: true,
                 acceptanceDate: new Date().toISOString(),
+
+                // NEW: Enhanced consent tracking
+                isEUUser,
+                acceptedDataProcessing: isEUUser ? acceptedDataProcessing : null,
+                acceptedVoiceProcessing,
+                acceptedInternationalTransfers,
+                isMinor,
+                parentEmail: isMinor ? parentEmail : null,
+                acceptedMinorConsent: isMinor ? acceptedMinorConsent : null,
+
                 // Subscription details
                 selectedTier,
                 billingCycle: selectedTier === 'free' ? null : billingCycle,
@@ -194,8 +309,13 @@ function SignUpContent() {
             const data = await response.json();
 
             if (response.ok) {
-                setSuccess('Account created successfully! Please check your email to verify your account before signing in.');
-                // Don't redirect automatically - let them verify email first
+                let successMessage = 'Account created successfully! Please check your email to verify your account before signing in.';
+
+                if (isMinor) {
+                    successMessage += ' A separate verification email has been sent to your parent/guardian.';
+                }
+
+                setSuccess(successMessage);
             } else {
                 setError(data.error || 'An error occurred');
             }
@@ -274,7 +394,6 @@ function SignUpContent() {
 
     return (
         <>
-            {/* FIXED: Added more top padding to prevent header bar overlap */}
             <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8 pt-safe">
                 <div className="max-w-md w-full space-y-6" style={{ paddingTop: '60px' }}>
                     <div className="text-center">
@@ -282,9 +401,37 @@ function SignUpContent() {
                             Create your Doc Bear's Comfort Kitchen account
                         </h2>
                         <p className="mt-2 text-sm text-gray-600">
-                            Join thousands managing their food inventory smartly
+                            Join thousands managing their food inventory smartly worldwide 🌍
                         </p>
                     </div>
+
+                    {/* NEW: International Compliance Notice */}
+                    {showInternationalNotice && (
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                            <div className="flex items-start">
+                                <div className="text-blue-600 mr-3 mt-0.5">
+                                    🌍
+                                </div>
+                                <div className="flex-1">
+                                    <h3 className="text-sm font-medium text-blue-800">
+                                        International User Detected
+                                    </h3>
+                                    <p className="text-sm text-blue-700 mt-1">
+                                        {isEUUser ? (
+                                            <>You appear to be in the EU/EEA. Additional data protection rights under GDPR apply to your account. We'll show relevant consent options below.</>
+                                        ) : (
+                                            <>You appear to be outside the US. We support international users with localized features and comply with applicable privacy laws.</>
+                                        )}
+                                    </p>
+                                    {detectedCountry && (
+                                        <p className="text-xs text-blue-600 mt-1">
+                                            Detected region: {detectedCountry}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Pricing Tier Selection */}
                     <div className="bg-white rounded-lg border border-gray-200 p-4">
@@ -298,7 +445,7 @@ function SignUpContent() {
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* Billing Cycle Toggle (only show if not free) */}
+                        {/* Billing Cycle Toggle */}
                         {selectedTier !== 'free' && (
                             <div className="flex items-center justify-center mb-4">
                                 <div className="bg-gray-100 p-1 rounded-lg">
@@ -407,7 +554,7 @@ function SignUpContent() {
                             </div>
                         )}
 
-                        {/* FIXED: Success message with ref for auto-scroll and spam notice */}
+                        {/* Success message with ref for auto-scroll and spam notice */}
                         {success && (
                             <div ref={successMessageRef} className="bg-green-100 border border-green-400 text-green-700 px-4 py-4 rounded-md">
                                 <div className="flex items-start">
@@ -437,6 +584,11 @@ function SignUpContent() {
                                                         <p className="mt-1">
                                                             The verification link is valid for <strong>7 days</strong> from now.
                                                         </p>
+                                                        {isEUUser && (
+                                                            <p className="mt-1 text-blue-700">
+                                                                🇪🇺 <strong>EU users:</strong> Your data protection rights under GDPR are now active.
+                                                            </p>
+                                                        )}
                                                     </div>
                                                 </div>
                                             </div>
@@ -477,6 +629,81 @@ function SignUpContent() {
                                     value={formData.email}
                                     onChange={handleChange}
                                 />
+                            </div>
+
+                            {/* NEW: Country Selection for International Compliance */}
+                            <div>
+                                <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                                    Country/Region
+                                    {isEUUser && <span className="text-blue-600 ml-1">(GDPR Protected)</span>}
+                                </label>
+                                <select
+                                    id="country"
+                                    name="country"
+                                    required
+                                    value={formData.country}
+                                    onChange={handleChange}
+                                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                >
+                                    <option value="">Select your country</option>
+                                    {countries.map(country => (
+                                        <option key={country} value={country}>
+                                            {country}
+                                            {euCountries.includes(country) ? ' 🇪🇺' : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                                {isEUUser && (
+                                    <p className="mt-1 text-xs text-blue-600">
+                                        EU/EEA residents have additional data protection rights under GDPR
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* NEW: Age Verification for Minor Protection */}
+                            <div className="border border-gray-200 rounded-lg p-3">
+                                <h4 className="text-sm font-medium text-gray-700 mb-2">Age Verification</h4>
+                                <div className="flex items-center mb-2">
+                                    <input
+                                        id="isMinor"
+                                        type="checkbox"
+                                        checked={isMinor}
+                                        onChange={(e) => setIsMinor(e.target.checked)}
+                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
+                                    />
+                                    <label htmlFor="isMinor" className="ml-2 text-sm text-gray-700">
+                                        I am under 18 years of age
+                                    </label>
+                                </div>
+
+                                {isMinor && (
+                                    <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
+                                        <h5 className="text-sm font-medium text-yellow-800 mb-2">
+                                            👨‍👩‍👧‍👦 Parental Consent Required
+                                        </h5>
+                                        <p className="text-xs text-yellow-700 mb-3">
+                                            Users under 18 must have verifiable parental or guardian consent.
+                                            We comply with COPPA and GDPR requirements for minor protection.
+                                        </p>
+                                        <div>
+                                            <label htmlFor="parentEmail" className="block text-sm font-medium text-yellow-800">
+                                                Parent/Guardian Email Address *
+                                            </label>
+                                            <KeyboardOptimizedInput
+                                                id="parentEmail"
+                                                type="email"
+                                                required={isMinor}
+                                                value={parentEmail}
+                                                onChange={(e) => setParentEmail(e.target.value)}
+                                                className="mt-1 w-full px-3 py-2 border border-yellow-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
+                                                placeholder="parent@example.com"
+                                            />
+                                            <p className="mt-1 text-xs text-yellow-600">
+                                                Your parent/guardian will receive a separate email to verify consent
+                                            </p>
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
                             <div>
@@ -556,23 +783,26 @@ function SignUpContent() {
                             </div>
                         </div>
 
+                        {/* Enhanced Legal Requirements Section */}
                         <div className="border-t border-gray-200 pt-4">
                             <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
                                 <h3 className="text-sm font-medium text-blue-900 mb-2">
                                     📋 Legal Requirements
+                                    {isEUUser && <span className="ml-2 text-xs bg-blue-100 px-2 py-1 rounded">GDPR Protected</span>}
                                 </h3>
                                 <p className="text-xs text-blue-700 mb-3">
                                     To create your account, please review and accept our legal terms:
                                 </p>
 
                                 <div className="space-y-3">
-                                    <div className="flex items-center">
+                                    {/* Basic Terms and Privacy */}
+                                    <div className="flex items-start">
                                         <input
                                             id="acceptPrivacy"
                                             type="checkbox"
                                             checked={acceptedPrivacy}
                                             onChange={(e) => setAcceptedPrivacy(e.target.checked)}
-                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0"
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
                                         />
                                         <label htmlFor="acceptPrivacy" className="ml-3 text-sm text-gray-700 leading-5">
                                             I have read and accept the{' '}
@@ -586,13 +816,13 @@ function SignUpContent() {
                                         </label>
                                     </div>
 
-                                    <div className="flex items-center">
+                                    <div className="flex items-start">
                                         <input
                                             id="acceptTerms"
                                             type="checkbox"
                                             checked={acceptedTerms}
                                             onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0"
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
                                         />
                                         <label htmlFor="acceptTerms" className="ml-3 text-sm text-gray-700 leading-5">
                                             I have read and accept the{' '}
@@ -605,11 +835,90 @@ function SignUpContent() {
                                             </TouchEnhancedButton>
                                         </label>
                                     </div>
+
+                                    {/* EU-Specific GDPR Consent */}
+                                    {isEUUser && (
+                                        <div className="border-t border-blue-200 pt-3 mt-3">
+                                            <h4 className="text-sm font-medium text-blue-900 mb-2">
+                                                🇪🇺 Additional EU/GDPR Consents
+                                            </h4>
+                                            <div className="space-y-2">
+                                                <div className="flex items-start">
+                                                    <input
+                                                        id="acceptDataProcessing"
+                                                        type="checkbox"
+                                                        checked={acceptedDataProcessing}
+                                                        onChange={(e) => setAcceptedDataProcessing(e.target.checked)}
+                                                        className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
+                                                    />
+                                                    <label htmlFor="acceptDataProcessing" className="ml-3 text-xs text-blue-800 leading-4">
+                                                        <strong>Data Processing Consent (Required):</strong> I consent to the processing of my personal data as described in the Privacy Policy, including for account management, service provision, and legitimate business interests under GDPR Article 6.
+                                                    </label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Optional Voice Processing Consent */}
+                                    <div className="border-t border-gray-200 pt-3 mt-3">
+                                        <h4 className="text-sm font-medium text-gray-700 mb-2">
+                                            🎤 Optional Feature Consents
+                                        </h4>
+                                        <div className="space-y-2">
+                                            <div className="flex items-start">
+                                                <input
+                                                    id="acceptVoiceProcessing"
+                                                    type="checkbox"
+                                                    checked={acceptedVoiceProcessing}
+                                                    onChange={(e) => setAcceptedVoiceProcessing(e.target.checked)}
+                                                    className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
+                                                />
+                                                <label htmlFor="acceptVoiceProcessing" className="ml-3 text-xs text-gray-700 leading-4">
+                                                    <strong>Voice Input Features (Optional):</strong> I consent to using voice input features. Voice is processed locally in my browser and not stored on servers. I can disable this anytime in my account settings.
+                                                </label>
+                                            </div>
+
+                                            <div className="flex items-start">
+                                                <input
+                                                    id="acceptInternationalTransfers"
+                                                    type="checkbox"
+                                                    checked={acceptedInternationalTransfers}
+                                                    onChange={(e) => setAcceptedInternationalTransfers(e.target.checked)}
+                                                    className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
+                                                />
+                                                <label htmlFor="acceptInternationalTransfers" className="ml-3 text-xs text-gray-700 leading-4">
+                                                    <strong>International Features (Optional):</strong> I consent to using international barcode scanning and product databases. Product codes may be shared with international databases for identification.
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    {/* Minor Consent */}
+                                    {isMinor && (
+                                        <div className="border-t border-yellow-200 pt-3 mt-3 bg-yellow-50 p-3 rounded">
+                                            <div className="flex items-start">
+                                                <input
+                                                    id="acceptMinorConsent"
+                                                    type="checkbox"
+                                                    checked={acceptedMinorConsent}
+                                                    onChange={(e) => setAcceptedMinorConsent(e.target.checked)}
+                                                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
+                                                    required={isMinor}
+                                                />
+                                                <label htmlFor="acceptMinorConsent" className="ml-3 text-xs text-yellow-800 leading-4">
+                                                    <strong>Parental Consent Confirmation:</strong> I confirm that I have obtained verifiable consent from my parent/guardian to create this account and use Doc Bear's Comfort Kitchen services. My parent/guardian will receive a separate verification email.
+                                                </label>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {(!acceptedTerms || !acceptedPrivacy) && (
+                                {/* Validation Warning */}
+                                {(!acceptedTerms || !acceptedPrivacy || (isEUUser && !acceptedDataProcessing) || (isMinor && !acceptedMinorConsent)) && (
                                     <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-700">
-                                        ⚠️ Both checkboxes must be selected to create your account
+                                        ⚠️ Required consents must be selected to create your account
+                                        {isEUUser && !acceptedDataProcessing && <span className="block">• EU users must consent to data processing under GDPR</span>}
+                                        {isMinor && !acceptedMinorConsent && <span className="block">• Users under 18 must confirm parental consent</span>}
                                     </div>
                                 )}
                             </div>
@@ -618,10 +927,10 @@ function SignUpContent() {
                         <div>
                             <TouchEnhancedButton
                                 type="submit"
-                                disabled={loading || !acceptedTerms || !acceptedPrivacy}
+                                disabled={loading || !acceptedTerms || !acceptedPrivacy || (isEUUser && !acceptedDataProcessing) || (isMinor && (!acceptedMinorConsent || !parentEmail))}
                                 className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
                             >
-                                {loading ? 'Creating account...' : 'Create account'}
+                                {loading ? 'Creating account...' : `Create account${isEUUser ? ' (GDPR Protected)' : ''}`}
                             </TouchEnhancedButton>
                         </div>
 
@@ -633,13 +942,32 @@ function SignUpContent() {
                                 Already have an account? Sign in
                             </Link>
                         </div>
+
+                        {/* International Compliance Footer */}
+                        {(isEUUser || formData.country) && (
+                            <div className="mt-4 p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-600 text-center">
+                                <p>
+                                    🌍 <strong>International User:</strong> We comply with applicable privacy laws including
+                                    {isEUUser && ' GDPR (EU),'}
+                                    {formData.country === 'United Kingdom' && ' UK GDPR,'}
+                                    {formData.country === 'Canada' && ' PIPEDA (Canada),'}
+                                    {formData.country === 'Australia' && ' Privacy Act (Australia),'}
+                                    and other regional privacy regulations.
+                                </p>
+                                {isEUUser && (
+                                    <p className="mt-1 text-blue-600">
+                                        EU users have additional rights including data portability, erasure, and access under GDPR.
+                                    </p>
+                                )}
+                            </div>
+                        )}
                     </form>
                 </div>
             </div>
 
             <Footer />
 
-            {/* Pricing Comparison Modal */}
+            {/* Rest of modals remain the same... */}
             <Modal
                 isOpen={showPricingModal}
                 onClose={closeModal}

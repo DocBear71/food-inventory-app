@@ -731,18 +731,372 @@ const UserSchema = new mongoose.Schema({
         userAgent: {
             type: String,
             required: false
-        }
-    },
-    legalVersion: {
+        },
+
+        // NEW: International compliance fields
+        country: {
+            type: String,
+            required: true,
+            maxlength: 50
+        },
+        isEUUser: {
+            type: Boolean,
+            default: false
+        },
+        gdprApplies: {
+            type: Boolean,
+            default: false
+        },
+
+        // GDPR-specific consents
+        acceptedDataProcessing: {
+            type: Boolean,
+            default: null // null = not applicable, true/false = explicit consent
+        },
+        acceptedVoiceProcessing: {
+            type: Boolean,
+            default: false
+        },
+        acceptedInternationalTransfers: {
+            type: Boolean,
+            default: false
+        },
+
+        // Minor protection fields
+        isMinor: {
+            type: Boolean,
+            default: false
+        },
+        parentEmail: {
+            type: String,
+            default: null,
+            lowercase: true
+        },
+        acceptedMinorConsent: {
+            type: Boolean,
+            default: null
+        },
+        parentVerificationRequired: {
+            type: Boolean,
+            default: false
+        },
+        parentVerificationToken: {
+            type: String,
+            select: false
+        },
+        parentVerificationExpires: {
+            type: Date,
+            select: false
+        },
+        parentVerificationCompleted: {
+            type: Boolean,
+            default: false
+        },
+        parentVerificationCompletedAt: {
+            type: Date,
+            default: null
+        },
+
+        // Legal document versions at time of acceptance
         termsVersion: {
             type: String,
-            default: '1.0' // Update this when you change terms
+            default: '3.0'
         },
         privacyVersion: {
             type: String,
-            default: '1.0' // Update this when you change privacy policy
+            default: '2.0'
+        },
+
+        // Consent metadata
+        consentMethod: {
+            type: String,
+            enum: ['explicit-web-form', 'explicit-api', 'implied', 'updated'],
+            default: 'explicit-web-form'
+        },
+        consentContext: {
+            type: String,
+            enum: ['account-registration', 'policy-update', 'feature-opt-in', 'admin-update'],
+            default: 'account-registration'
+        },
+        consentWithdrawn: {
+            type: Boolean,
+            default: false
+        },
+        consentWithdrawnDate: {
+            type: Date,
+            default: null
+        },
+        consentWithdrawnMethod: {
+            type: String,
+            enum: ['user-request', 'admin-action', 'automated', 'parental-request'],
+            default: null
+        },
+
+        // Consent history for audit trails
+        consentHistory: [{
+            action: {
+                type: String,
+                enum: ['granted', 'withdrawn', 'updated', 'renewed'],
+                required: true
+            },
+            date: {
+                type: Date,
+                default: Date.now
+            },
+            method: {
+                type: String,
+                enum: ['web-form', 'api', 'email', 'admin'],
+                required: true
+            },
+            ipAddress: String,
+            userAgent: String,
+            termsVersion: String,
+            privacyVersion: String,
+            details: String, // Additional context
+            dataProcessing: Boolean,
+            voiceProcessing: Boolean,
+            internationalTransfers: Boolean
+        }]
+    },
+
+    // UPDATE your existing legalVersion field with this enhanced version:
+    legalVersion: {
+        termsVersion: {
+            type: String,
+            default: '3.0' // Updated with international compliance
+        },
+        privacyVersion: {
+            type: String,
+            default: '2.0' // Updated with GDPR compliance
+        },
+        lastUpdatedNotification: {
+            type: Date,
+            default: null
+        },
+        requiresNewConsent: {
+            type: Boolean,
+            default: false
         }
     },
+
+    // NEW: GDPR Rights Exercise Tracking
+    gdprRights: {
+        exercisedRights: [{
+            rightType: {
+                type: String,
+                enum: ['access', 'rectification', 'erasure', 'restrict', 'portability', 'object', 'withdraw-consent'],
+                required: true
+            },
+            requestDate: {
+                type: Date,
+                default: Date.now
+            },
+            completedDate: {
+                type: Date,
+                default: null
+            },
+            status: {
+                type: String,
+                enum: ['pending', 'in-progress', 'completed', 'denied', 'not-applicable'],
+                default: 'pending'
+            },
+            requestMethod: {
+                type: String,
+                enum: ['email', 'web-form', 'support-ticket', 'phone'],
+                required: true
+            },
+            notes: String,
+            handledBy: {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: 'User'
+            }
+        }],
+
+        dataPortabilityRequests: [{
+            requestDate: {
+                type: Date,
+                default: Date.now
+            },
+            format: {
+                type: String,
+                enum: ['json', 'csv', 'xml'],
+                default: 'json'
+            },
+            downloadUrl: String,
+            expiresAt: Date,
+            downloaded: {
+                type: Boolean,
+                default: false
+            },
+            downloadedAt: Date
+        }],
+
+        erasureRequests: [{
+            requestDate: {
+                type: Date,
+                default: Date.now
+            },
+            reason: {
+                type: String,
+                enum: ['no-longer-necessary', 'withdraw-consent', 'unlawful-processing', 'legal-obligation', 'other'],
+                required: true
+            },
+            completedDate: Date,
+            dataRetained: String, // Description of any data that must be retained for legal reasons
+            retentionReason: String
+        }]
+    },
+    // NEW: Feature-specific consents (can be updated independently)
+    featureConsents: {
+        voiceInput: {
+            consented: {
+                type: Boolean,
+                default: false
+            },
+            consentDate: {
+                type: Date,
+                default: null
+            },
+            withdrawnDate: {
+                type: Date,
+                default: null
+            },
+            lastUsed: {
+                type: Date,
+                default: null
+            }
+        },
+
+        internationalFeatures: {
+            consented: {
+                type: Boolean,
+                default: false
+            },
+            consentDate: {
+                type: Date,
+                default: null
+            },
+            withdrawnDate: {
+                type: Date,
+                default: null
+            },
+            lastUsed: {
+                type: Date,
+                default: null
+            }
+        },
+
+        priceTracking: {
+            consented: {
+                type: Boolean,
+                default: false
+            },
+            consentDate: {
+                type: Date,
+                default: null
+            },
+            withdrawnDate: {
+                type: Date,
+                default: null
+            },
+            lastUsed: {
+                type: Date,
+                default: null
+            }
+        },
+
+        analytics: {
+            consented: {
+                type: Boolean,
+                default: false
+            },
+            consentDate: {
+                type: Date,
+                default: null
+            },
+            withdrawnDate: {
+                type: Date,
+                default: null
+            }
+        },
+
+        marketing: {
+            consented: {
+                type: Boolean,
+                default: false
+            },
+            consentDate: {
+                type: Date,
+                default: null
+            },
+            withdrawnDate: {
+                type: Date,
+                default: null
+            }
+        }
+    },
+
+    // NEW: Data retention and deletion tracking
+    dataRetention: {
+        accountCreatedAt: {
+            type: Date,
+            default: Date.now
+        },
+        lastActiveAt: {
+            type: Date,
+            default: Date.now
+        },
+        scheduledDeletionDate: {
+            type: Date,
+            default: null
+        },
+        deletionReason: {
+            type: String,
+            enum: ['user-request', 'gdpr-erasure', 'account-closure', 'inactivity', 'legal-requirement'],
+            default: null
+        },
+        deletionRequestDate: {
+            type: Date,
+            default: null
+        },
+        deletionCompletedDate: {
+            type: Date,
+            default: null
+        },
+        retentionCategory: {
+            type: String,
+            enum: ['active', 'inactive', 'pending-deletion', 'legal-hold'],
+            default: 'active'
+        },
+        dataMinimizationDate: {
+            type: Date,
+            default: null
+        },
+        anonymizationDate: {
+            type: Date,
+            default: null
+        }
+    },
+
+    // NEW: Compliance audit log
+    complianceAuditLog: [{
+        event: {
+            type: String,
+            enum: ['data-access', 'data-export', 'consent-change', 'rights-exercise', 'deletion-request'],
+            required: true
+        },
+        timestamp: {
+            type: Date,
+            default: Date.now
+        },
+        ipAddress: String,
+        userAgent: String,
+        details: String,
+        adminUser: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'User'
+        }
+    }],
     // Password reset functionality
     passwordResetToken: {
         type: String,
@@ -938,8 +1292,6 @@ const UserSchema = new mongoose.Schema({
             default: false
         }
     },
-    // Enhanced User Schema additions for international support
-// Add these fields to your existing UserSchema
 
 // Enhanced currency preferences (already exists in your schema - keeping for reference)
     currencyPreferences: {
@@ -1637,6 +1989,7 @@ const UserSchema = new mongoose.Schema({
     },
 });
 
+// Pre-save middleware for admin detection and compliance tracking
 UserSchema.pre('save', function(next) {
     // Define your admin email addresses here
     const adminEmails = [
@@ -1662,8 +2015,53 @@ UserSchema.pre('save', function(next) {
         }
     }
 
+    // Update lastActiveAt for compliance tracking (only for existing users)
+    if (this.isModified() && !this.isNew) {
+        // Ensure dataRetention object exists
+        if (!this.dataRetention) {
+            this.dataRetention = {
+                accountCreatedAt: this.createdAt || new Date(),
+                lastActiveAt: new Date(),
+                retentionCategory: 'active'
+            };
+        } else {
+            this.dataRetention.lastActiveAt = new Date();
+        }
+    }
+
+    // Initialize dataRetention for new users
+    if (this.isNew && !this.dataRetention) {
+        this.dataRetention = {
+            accountCreatedAt: new Date(),
+            lastActiveAt: new Date(),
+            retentionCategory: 'active'
+        };
+    }
+
     next();
 });
+
+// Method to check if user requires GDPR compliance
+UserSchema.methods.requiresGDPRCompliance = function() {
+    return this.legalAcceptance.isEUUser || this.legalAcceptance.gdprApplies;
+};
+
+// Method to check if user is a minor requiring parental consent
+UserSchema.methods.requiresParentalConsent = function() {
+    return this.legalAcceptance.isMinor && !this.legalAcceptance.parentVerificationCompleted;
+};
+
+// Method to log compliance events
+UserSchema.methods.logComplianceEvent = function(event, details, adminUser = null) {
+    this.complianceAuditLog.push({
+        event,
+        details,
+        adminUser,
+        timestamp: new Date()
+    });
+    return this.save();
+};
+
 
 UserSchema.methods.trackRecipeScaling = function(isAI = false) {
     try {
@@ -4126,6 +4524,13 @@ CuratedMealSchema.pre('save', function(next) {
 UserSchema.index({passwordResetToken: 1});
 UserSchema.index({passwordResetExpires: 1});
 UserSchema.index({email: 1, passwordResetRequestedAt: 1}); // For rate limiting
+// Add indexes for compliance queries
+UserSchema.index({ 'legalAcceptance.country': 1 });
+UserSchema.index({ 'legalAcceptance.isEUUser': 1 });
+UserSchema.index({ 'legalAcceptance.isMinor': 1 });
+UserSchema.index({ 'legalAcceptance.parentVerificationRequired': 1 });
+UserSchema.index({ 'dataRetention.retentionCategory': 1 });
+UserSchema.index({ 'dataRetention.scheduledDeletionDate': 1 });
 
 // Create indexes for better performance
 UserInventorySchema.index({userId: 1});

@@ -2,7 +2,7 @@
   "name": "Doc Bear's Comfort Kitchen",
   "short_name": "Comfort Kitchen",
   "description": "AI-powered food inventory & recipe management with international barcode scanning, voice nutrition analysis, and intelligent recipe scaling for 80+ countries.",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
@@ -56,51 +56,6 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/apple-icon-57x57.png",
-      "sizes": "57x57",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-60x60.png",
-      "sizes": "60x60",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-72x72.png",
-      "sizes": "72x72",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-76x76.png",
-      "sizes": "76x76",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-114x114.png",
-      "sizes": "114x114",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-120x120.png",
-      "sizes": "120x120",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-144x144.png",
-      "sizes": "144x144",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-152x152.png",
-      "sizes": "152x152",
-      "type": "image/png"
-    },
-    {
-      "src": "/icons/apple-icon-180x180.png",
-      "sizes": "180x180",
-      "type": "image/png"
     }
   ],
 
@@ -125,13 +80,6 @@
       "description": "Track prices and find deals",
       "url": "/price-tracking",
       "icons": [{ "src": "/icons/price-shortcut.png", "sizes": "96x96" }]
-    },
-    {
-      "name": "Voice Shopping List",
-      "short_name": "Voice Shop",
-      "description": "Create shopping lists with voice commands",
-      "url": "/shopping?voice=true",
-      "icons": [{ "src": "/icons/shopping-shortcut.png", "sizes": "96x96" }]
     },
     {
       "name": "Scan Barcode",
@@ -233,13 +181,6 @@
       "label": "Smart price tracking and budget optimization"
     },
     {
-      "src": "/screenshots/shopping-ai-narrow.png",
-      "sizes": "640x1136",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "AI-optimized shopping lists with price intelligence"
-    },
-    {
       "src": "/screenshots/home-wide.png",
       "sizes": "1024x768",
       "type": "image/png",
@@ -257,6 +198,15 @@
   },
 
   "display_override": ["window-controls-overlay", "standalone"],
+  "handle_links": "preferred",
 
-  "handle_links": "preferred"
+  "_comment": "International Compliance Metadata",
+  "iarc_rating_id": "TBD",
+  "localization": {
+    "supported_regions": ["US", "CA", "GB", "EU", "AU", "NZ", "JP", "KR"],
+    "supported_currencies": ["USD", "EUR", "GBP", "CAD", "AUD", "JPY", "KRW"],
+    "privacy_policy": "https://docbearscomfort.kitchen/privacy",
+    "terms_of_service": "https://docbearscomfort.kitchen/terms",
+    "data_protection_contact": "dpo@docbearscomfort.kitchen"
+  }
 }

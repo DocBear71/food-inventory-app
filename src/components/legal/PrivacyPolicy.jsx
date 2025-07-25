@@ -1,4 +1,4 @@
-// file: src/components/legal/PrivacyPolicy.jsx v1
+// file: src/components/legal/PrivacyPolicy.jsx v2 - Updated with voice input and international features
 
 import React from 'react';
 
@@ -16,7 +16,13 @@ const PrivacyPolicy = () => {
                         PRIVACY POLICY
                     </h1>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
-                        <strong>Last updated June 08, 2025</strong>
+                        <strong>Last updated July 25, 2025</strong>
+                    </p>
+                </div>
+
+                <div style={{ marginBottom: '2rem', backgroundColor: '#e3f2fd', padding: '1rem', borderRadius: '8px', border: '2px solid #2196f3' }}>
+                    <p style={{ fontSize: '16px', color: '#1565c0', margin: '0', fontWeight: 'bold' }}>
+                        🌍 Now featuring voice input capabilities, international barcode support for 80+ countries, AI-powered recipe scaling, and comprehensive price tracking with multi-currency support!
                     </p>
                 </div>
 
@@ -26,7 +32,7 @@ const PrivacyPolicy = () => {
                     </p>
                     <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
                         <li>Visit our website at <a href="https://docbearscomfort.kitchen" target="_blank" rel="noopener noreferrer" style={{ color: '#3030F1' }}>https://docbearscomfort.kitchen</a>, or any website of ours that links to this Privacy Notice</li>
-                        <li>Use our Doc Bear's Comfort Kitchen application for food inventory management and recipe discovery</li>
+                        <li>Use our Doc Bear's Comfort Kitchen application for food inventory management, recipe discovery, voice input, international barcode scanning, price tracking, and AI-powered recipe scaling</li>
                         <li>Engage with us in other related ways, including any sales, marketing, or events</li>
                     </ul>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -42,31 +48,31 @@ const PrivacyPolicy = () => {
 
                     <div style={{ marginTop: '1rem' }}>
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>What personal information do we process?</strong> When you visit, use, or navigate our Services, we may process personal information depending on how you interact with our food inventory and recipe management application, the choices you make, and the products and features you use.
+                            <strong>What personal information do we process?</strong> When you visit, use, or navigate our Services, we may process personal information depending on how you interact with our international food inventory and recipe management application, the choices you make, and the products and features you use, including voice input, barcode scanning, price tracking, and AI-powered recipe scaling.
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>Do we process any sensitive personal information?</strong> We do not process sensitive personal information.
+                            <strong>Do we process any sensitive personal information?</strong> We do not process sensitive personal information. Voice input is processed locally in your browser and not stored on our servers.
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>Do we collect any information from third parties?</strong> We may collect limited information from third-party recipe sources, nutritional databases, and process public video content using AI services when you use our recipe import and video extraction features.
+                            <strong>Do we collect any information from third parties?</strong> We may collect limited information from third-party recipe sources, international nutritional databases (including Open Food Facts for 80+ countries), price comparison services, and process public video content using AI services when you use our recipe import and video extraction features.
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>How do we process your information?</strong> We process your information to provide, improve, and administer our food inventory and recipe management Services, communicate with you, for security and fraud prevention, and to comply with law.
+                            <strong>How do we process your information?</strong> We process your information to provide, improve, and administer our international food inventory and recipe management Services, communicate with you, for security and fraud prevention, to comply with law, and to provide voice input, barcode scanning, price tracking, and AI-powered scaling features.
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>How do we keep your information safe?</strong> We have adequate organizational and technical processes and procedures in place to protect your personal information, including your food inventory data and personal recipes.
+                            <strong>How do we keep your information safe?</strong> We have adequate organizational and technical processes and procedures in place to protect your personal information, including your food inventory data, personal recipes, price tracking information, and voice input processing safeguards.
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>Do we collect information from minors?</strong> We welcome users 13 years of age and older with appropriate parental consent for users under 18. We comply with COPPA and GDPR requirements and implement special protections for all users under 18.
+                            <strong>Do we collect information from minors?</strong> We welcome users 13 years of age and older with appropriate parental consent for users under 18. We comply with COPPA and GDPR requirements and implement special protections for all users under 18, including additional safeguards for voice input features.
                         </p>
 
                         <p style={{ color: '#595959', fontSize: '15px' }}>
-                            <strong>What are your privacy rights?</strong> Depending on where you are located geographically, the applicable privacy law may mean you have certain rights regarding your personal information. Parents and guardians have additional rights regarding their children's data.
+                            <strong>What are your privacy rights?</strong> Depending on where you are located geographically, the applicable privacy law may mean you have certain rights regarding your personal information. Parents and guardians have additional rights regarding their children's data, including control over voice input permissions.
                         </p>
                     </div>
                 </div>
@@ -77,13 +83,16 @@ const PrivacyPolicy = () => {
                         <div><a href="#infocollect" style={{ color: '#3030F1', textDecoration: 'none' }}>1. WHAT INFORMATION DO WE COLLECT?</a></div>
                         <div><a href="#infouse" style={{ color: '#3030F1', textDecoration: 'none' }}>2. HOW DO WE PROCESS YOUR INFORMATION?</a></div>
                         <div><a href="#whoshare" style={{ color: '#3030F1', textDecoration: 'none' }}>3. WHEN AND WITH WHOM DO WE SHARE YOUR PERSONAL INFORMATION?</a></div>
-                        <div><a href="#ai-processing" style={{ color: '#3030F1', textDecoration: 'none' }}>4. AI PROCESSING OF PUBLIC VIDEO CONTENT</a></div>
-                        <div><a href="#cookies" style={{ color: '#3030F1', textDecoration: 'none' }}>5. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</a></div>
-                        <div><a href="#inforetain" style={{ color: '#3030F1', textDecoration: 'none' }}>6. HOW LONG DO WE KEEP YOUR INFORMATION?</a></div>
-                        <div><a href="#infosafe" style={{ color: '#3030F1', textDecoration: 'none' }}>7. HOW DO WE KEEP YOUR INFORMATION SAFE?</a></div>
-                        <div><a href="#infominors" style={{ color: '#3030F1', textDecoration: 'none' }}>8. DO WE COLLECT INFORMATION FROM MINORS?</a></div>
-                        <div><a href="#privacyrights" style={{ color: '#3030F1', textDecoration: 'none' }}>9. WHAT ARE YOUR PRIVACY RIGHTS?</a></div>
-                        <div><a href="#contact" style={{ color: '#3030F1', textDecoration: 'none' }}>10. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</a></div>
+                        <div><a href="#voice-input" style={{ color: '#3030F1', textDecoration: 'none' }}>4. VOICE INPUT FEATURE</a></div>
+                        <div><a href="#international-features" style={{ color: '#3030F1', textDecoration: 'none' }}>5. INTERNATIONAL FEATURES AND DATA SOURCES</a></div>
+                        <div><a href="#ai-processing" style={{ color: '#3030F1', textDecoration: 'none' }}>6. AI PROCESSING OF PUBLIC VIDEO CONTENT</a></div>
+                        <div><a href="#price-tracking" style={{ color: '#3030F1', textDecoration: 'none' }}>7. PRICE TRACKING AND MULTI-CURRENCY SUPPORT</a></div>
+                        <div><a href="#cookies" style={{ color: '#3030F1', textDecoration: 'none' }}>8. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</a></div>
+                        <div><a href="#inforetain" style={{ color: '#3030F1', textDecoration: 'none' }}>9. HOW LONG DO WE KEEP YOUR INFORMATION?</a></div>
+                        <div><a href="#infosafe" style={{ color: '#3030F1', textDecoration: 'none' }}>10. HOW DO WE KEEP YOUR INFORMATION SAFE?</a></div>
+                        <div><a href="#infominors" style={{ color: '#3030F1', textDecoration: 'none' }}>11. DO WE COLLECT INFORMATION FROM MINORS?</a></div>
+                        <div><a href="#privacyrights" style={{ color: '#3030F1', textDecoration: 'none' }}>12. WHAT ARE YOUR PRIVACY RIGHTS?</a></div>
+                        <div><a href="#contact" style={{ color: '#3030F1', textDecoration: 'none' }}>13. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</a></div>
                     </div>
                 </div>
 
@@ -91,7 +100,7 @@ const PrivacyPolicy = () => {
                     <h2 style={{ fontSize: '19px', color: '#000000' }}>1. WHAT INFORMATION DO WE COLLECT?</h2>
                     <h3 style={{ fontSize: '17px', color: '#000000' }}>Personal information you disclose to us</h3>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
-                        <strong><em>In Short:</em></strong> <em>We collect personal information that you provide to us when using our food inventory and recipe management application.</em>
+                        <strong><em>In Short:</em></strong> <em>We collect personal information that you provide to us when using our international food inventory and recipe management application with voice input, barcode scanning, price tracking, and AI-powered scaling capabilities.</em>
                     </p>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -108,19 +117,25 @@ const PrivacyPolicy = () => {
                         <li>passwords</li>
                         <li>food inventory data</li>
                         <li>custom recipes and meal plans</li>
-                        <li>shopping lists</li>
+                        <li>shopping lists and price tracking information</li>
                         <li>dietary preferences and restrictions</li>
                         <li>contact information for sharing lists</li>
+                        <li>international currency and regional preferences</li>
+                        <li>voice command preferences and settings</li>
+                        <li>barcode scanning history and product data</li>
                     </ul>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
                         <strong>Application Data.</strong> We may also collect data related to your use of our food inventory application, including:
                     </p>
                     <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
-                        <li>UPC codes and product information you scan or enter</li>
-                        <li>Recipe searches and preferences</li>
-                        <li>Meal planning data</li>
+                        <li>International UPC codes and product information you scan or enter from 80+ countries</li>
+                        <li>Recipe searches, preferences, and AI-powered scaling data</li>
+                        <li>Meal planning data and templates</li>
+                        <li>Price tracking information and multi-currency preferences</li>
                         <li>Usage patterns within the application</li>
+                        <li>Voice input settings and preferences (but not voice recordings)</li>
+                        <li>Regional and localization preferences</li>
                     </ul>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -135,7 +150,7 @@ const PrivacyPolicy = () => {
                 <div id="infouse" style={{ marginBottom: '2rem' }}>
                     <h2 style={{ fontSize: '19px', color: '#000000' }}>2. HOW DO WE PROCESS YOUR INFORMATION?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
-                        <strong><em>In Short:</em></strong> <em>We process your information to provide, improve, and administer our food inventory and recipe management Services, communicate with you, for security and fraud prevention, and to comply with law.</em>
+                        <strong><em>In Short:</em></strong> <em>We process your information to provide, improve, and administer our international food inventory and recipe management Services with voice input, barcode scanning, price tracking, and AI-powered scaling capabilities.</em>
                     </p>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -143,7 +158,10 @@ const PrivacyPolicy = () => {
                     </p>
                     <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
                         <li><strong>To facilitate account creation and authentication and otherwise manage user accounts.</strong> We may process your information so you can create and log in to your account, as well as keep your account in working order.</li>
-                        <li><strong>To deliver and facilitate delivery of services to the user.</strong> We may process your information to provide you with the requested service, including managing your food inventory, suggesting recipes, and creating meal plans.</li>
+                        <li><strong>To deliver and facilitate delivery of services to the user.</strong> We may process your information to provide you with the requested service, including managing your international food inventory, suggesting recipes with AI-powered scaling, price tracking, voice input processing, and creating meal plans.</li>
+                        <li><strong>To process voice input commands.</strong> We may temporarily process voice-to-text results to understand your inventory commands and search requests.</li>
+                        <li><strong>To provide international barcode scanning.</strong> We may process UPC codes and product identifiers to retrieve product information from international databases.</li>
+                        <li><strong>To enable price tracking features.</strong> We may process price information and currency preferences to provide price tracking and budget management features.</li>
                         <li><strong>To respond to user inquiries/offer support to users.</strong> We may process your information to respond to your inquiries and solve any potential issues you might have with the requested service.</li>
                         <li><strong>To send administrative information to you.</strong> We may process your information to send you details about our products and services, changes to our terms and policies, and other similar information.</li>
                         <li><strong>To enable user-to-user communications.</strong> We may process your information if you choose to use any of our offerings that allow for communication with another user, such as sharing shopping lists via email.</li>
@@ -170,8 +188,77 @@ const PrivacyPolicy = () => {
                     </ul>
                 </div>
 
+                <div id="voice-input" style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>4. VOICE INPUT FEATURE</h2>
+                    <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
+                        <strong><em>In Short:</em></strong> <em>When you use voice input features, your voice is processed locally in your browser and we do not record, store, or transmit audio files.</em>
+                    </p>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>Voice Input Processing:</strong> Our Services include voice input functionality that allows you to add inventory items and search your collection using voice commands.
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>How Voice Input Works</h3>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li><strong>Local Processing:</strong> Voice-to-text conversion happens entirely in your browser using your device's built-in speech recognition</li>
+                        <li><strong>No Recording:</strong> We do not record, store, or transmit audio files</li>
+                        <li><strong>No Audio Storage:</strong> Audio is processed in real-time and immediately discarded</li>
+                        <li><strong>Text Results Only:</strong> Only the resulting text from speech recognition is temporarily used to process your inventory commands</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Your Control Over Voice Features</h3>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Microphone access is entirely optional</li>
+                        <li>You can deny permission and use all app features through text input</li>
+                        <li>You can revoke microphone permission at any time through your browser settings</li>
+                        <li>The app will function fully without microphone access</li>
+                        <li>Voice input settings can be disabled in your profile preferences</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Third-Party Voice Processing</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        Voice-to-text conversion is handled by your browser's native speech recognition service, which may be provided by your operating system or browser vendor (such as Google's speech recognition service for Chrome browsers). Please refer to your browser's and operating system's privacy policies for information about how they handle voice data.
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Additional Protections for Minors</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        For users under 18, we implement additional safeguards for voice input features, including parental controls and the ability for parents to disable voice features entirely for their child's account.
+                    </p>
+                </div>
+
+                <div id="international-features" style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>5. INTERNATIONAL FEATURES AND DATA SOURCES</h2>
+                    <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
+                        <strong><em>In Short:</em></strong> <em>We access international databases and services to provide barcode scanning, product information, and regional optimization for 80+ countries.</em>
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>International Barcode Support</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        Our Services support international barcode formats (EAN-8, EAN-13, UPC-A, GTIN-14) and integrate with multiple international databases:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li><strong>Open Food Facts:</strong> We access product information from Open Food Facts databases (UK/EU/Global) for international product recognition</li>
+                        <li><strong>USDA Database:</strong> We use USDA nutritional information for US-based products</li>
+                        <li><strong>Regional Databases:</strong> We may access other regional food databases to provide accurate product information for your location</li>
+                        <li><strong>GS1 Prefix Analysis:</strong> We analyze barcode prefixes to determine product origin and optimize regional searches</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Multi-Currency and Regional Support</h3>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>We store your preferred currency and regional settings</li>
+                        <li>Price tracking information may be converted between currencies using third-party exchange rate services</li>
+                        <li>Regional preferences help us prioritize relevant databases and product information</li>
+                        <li>Localization preferences are stored to provide appropriate cultural adaptations</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Data Sharing with International Services</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        When you scan international barcodes or request product information, we may share UPC codes and product identifiers with international databases. We do not share your personal information, only the product codes necessary to retrieve product details.
+                    </p>
+                </div>
+
                 <div id="ai-processing" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>4. AI PROCESSING OF PUBLIC VIDEO CONTENT</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>6. AI PROCESSING OF PUBLIC VIDEO CONTENT</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>When you provide public video URLs for recipe extraction, we may process this content using third-party AI services that use the data to improve their models.</em>
                     </p>
@@ -204,8 +291,35 @@ const PrivacyPolicy = () => {
                     </p>
                 </div>
 
+                <div id="price-tracking" style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>7. PRICE TRACKING AND MULTI-CURRENCY SUPPORT</h2>
+                    <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
+                        <strong><em>In Short:</em></strong> <em>We collect and store price information you provide and may use third-party services for currency conversion and market data.</em>
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Price Information Collection</h3>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>We store price information you manually enter for inventory items</li>
+                        <li>We track price history and trends for your personal use</li>
+                        <li>We may store store names and locations you associate with prices</li>
+                        <li>We calculate averages and trends based on your price data</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Currency Conversion and Market Data</h3>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>We may use third-party currency conversion services to display prices in your preferred currency</li>
+                        <li>We may access market data services to provide price comparison features</li>
+                        <li>Currency preferences and regional settings are stored in your profile</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Price Data Privacy</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        Your price tracking information is kept private and is not shared with third parties except for the currency conversion and market data services necessary to provide the features. We do not sell or share your spending patterns or price data with retailers or marketing companies.
+                    </p>
+                </div>
+
                 <div id="cookies" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>5. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>8. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We may use cookies and other tracking technologies to collect and store your information.</em>
                     </p>
@@ -224,7 +338,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="inforetain" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>6. HOW LONG DO WE KEEP YOUR INFORMATION?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>9. HOW LONG DO WE KEEP YOUR INFORMATION?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We keep your information for as long as necessary to fulfill the purposes outlined in this Privacy Notice unless otherwise required by law.</em>
                     </p>
@@ -239,7 +353,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="infosafe" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>7. HOW DO WE KEEP YOUR INFORMATION SAFE?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>10. HOW DO WE KEEP YOUR INFORMATION SAFE?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We aim to protect your personal information through a system of organizational and technical security measures.</em>
                     </p>
@@ -250,9 +364,9 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="infominors" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>8. DO WE COLLECT INFORMATION FROM MINORS?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>11. DO WE COLLECT INFORMATION FROM MINORS?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
-                        <strong><em>In Short:</em></strong> <em>We welcome users 13 years of age and older. Users under 18 must have verifiable parental consent. We comply with COPPA and GDPR requirements for all users under 18.</em>
+                        <strong><em>In Short:</em></strong> <em>We welcome users 13 years of age and older. Users under 18 must have verifiable parental consent. We comply with COPPA and GDPR requirements for all users under 18, including special protections for voice input features.</em>
                     </p>
 
                     <h3 style={{ fontSize: '17px', color: '#000000' }}>Age Requirements and Parental Consent</h3>
@@ -260,10 +374,16 @@ const PrivacyPolicy = () => {
                         Our Services are intended for users who are 13 years of age or older. Users between 13 and 17 years of age must have verifiable parental or guardian consent before using our Services. By using the Services, users under 18 represent that they have obtained proper parental consent for their use of the Services.
                     </p>
 
-                    <h3 style={{ fontSize: '17px', color: '#000000' }}>COPPA Compliance</h3>
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Special Protections for Voice Input</h3>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
-                        We comply with the Children's Online Privacy Protection Act (COPPA) and similar international regulations. For users under 13, we do not knowingly collect personal information without verifiable parental consent. If we become aware that we have collected personal information from a child under 13 without proper parental consent, we will take immediate steps to delete such information.
+                        For users under 18, we implement additional safeguards for voice input features:
                     </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Parents can disable voice input features entirely for their child's account</li>
+                        <li>Voice features require explicit parental consent in addition to general app consent</li>
+                        <li>We provide clear instructions to parents about how voice input works and privacy protections</li>
+                        <li>Parents can monitor their child's use of voice features through parental controls</li>
+                    </ul>
 
                     <h3 style={{ fontSize: '17px', color: '#000000' }}>Limited Data Collection for Minors</h3>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -274,6 +394,8 @@ const PrivacyPolicy = () => {
                         <li>Use behavioral advertising or targeted marketing directed at users under 18</li>
                         <li>Share personal information of users under 18 with third parties for marketing purposes</li>
                         <li>Allow public sharing of personal information by users under 18</li>
+                        <li>Store voice recordings or audio data from users under 18</li>
+                        <li>Enable advanced price tracking features that might reveal spending patterns for users under 16</li>
                     </ul>
 
                     <h3 style={{ fontSize: '17px', color: '#000000' }}>Parental Rights and Controls</h3>
@@ -285,6 +407,9 @@ const PrivacyPolicy = () => {
                         <li>Request that we delete their child's personal information</li>
                         <li>Refuse to permit further collection or use of their child's information</li>
                         <li>Request information about our data practices regarding their child's account</li>
+                        <li>Control their child's access to voice input features</li>
+                        <li>Monitor their child's use of international features and price tracking</li>
+                        <li>Set restrictions on currency and regional settings</li>
                     </ul>
 
                     <p style={{ color: '#595959', fontSize: '15px' }}>
@@ -307,7 +432,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="privacyrights" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>9. WHAT ARE YOUR PRIVACY RIGHTS?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>12. WHAT ARE YOUR PRIVACY RIGHTS?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>You may review, change, or terminate your account at any time, depending on your country, province, or state of residence.</em>
                     </p>
@@ -343,8 +468,62 @@ const PrivacyPolicy = () => {
                     </p>
                 </div>
 
+                // Add this section to your Privacy Policy after Section 12 (Privacy Rights)
+
+                <div id="gdpr-rights" style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>13. ADDITIONAL RIGHTS FOR EU/EEA USERS</h2>
+                    <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
+                        <strong><em>In Short:</em></strong> <em>If you are located in the European Union or European Economic Area, you have additional rights regarding your personal data under the General Data Protection Regulation (GDPR).</em>
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Legal Basis for Processing</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        We process your personal data under the following legal bases:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li><strong>Consent:</strong> For voice input features, marketing communications, and optional data processing</li>
+                        <li><strong>Contract Performance:</strong> To provide our food inventory and recipe management services</li>
+                        <li><strong>Legitimate Interest:</strong> To improve our services, prevent fraud, and ensure security</li>
+                        <li><strong>Legal Obligation:</strong> To comply with applicable laws and regulations</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Your GDPR Rights</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        Under GDPR, you have the following rights regarding your personal data:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li><strong>Right of Access:</strong> Request copies of your personal data</li>
+                        <li><strong>Right to Rectification:</strong> Correct inaccurate personal data</li>
+                        <li><strong>Right to Erasure ("Right to be Forgotten"):</strong> Request deletion of your personal data</li>
+                        <li><strong>Right to Restrict Processing:</strong> Request limitation of processing under certain circumstances</li>
+                        <li><strong>Right to Data Portability:</strong> Receive your data in a structured, machine-readable format</li>
+                        <li><strong>Right to Object:</strong> Object to processing based on legitimate interests</li>
+                        <li><strong>Right to Withdraw Consent:</strong> Withdraw consent for voice input or other consent-based processing</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>International Data Transfers</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        When you use international barcode scanning or AI recipe scaling features, your data may be processed by services located outside the EU/EEA. We ensure adequate protection through:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>EU Standard Contractual Clauses with third-party processors</li>
+                        <li>Adequacy decisions by the European Commission where applicable</li>
+                        <li>Other appropriate safeguards as required by GDPR</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Data Protection Officer</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        For GDPR-related inquiries, you may contact our Data Protection Officer at: <strong>dpo@docbearscomfort.kitchen</strong>
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Supervisory Authority</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        You have the right to lodge a complaint with your local data protection supervisory authority if you believe your rights under GDPR have been violated.
+                    </p>
+                </div>
+
                 <div id="contact" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>10. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>14. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
                         If you have questions or comments about this notice, you may email us at <strong>privacy@docbearscomfort.kitchen</strong> or contact us by post at:
                     </p>
@@ -359,7 +538,7 @@ const PrivacyPolicy = () => {
 
                 <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '5px' }}>
                     <p style={{ color: '#666', fontSize: '14px', textAlign: 'center', margin: '0' }}>
-                        This privacy policy is specifically tailored for Doc Bear's Comfort Kitchen application and its food inventory management features.
+                        This privacy policy is specifically tailored for Doc Bear's Comfort Kitchen application and its food inventory management features, including voice input, international barcode support, AI-powered recipe scaling, and comprehensive price tracking capabilities.
                     </p>
                 </div>
             </div>

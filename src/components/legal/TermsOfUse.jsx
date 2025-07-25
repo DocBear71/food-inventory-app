@@ -1,4 +1,4 @@
-// file: src/components/legal/TermsOfUse.jsx v2
+// file: src/components/legal/TermsOfUse.jsx v3 - Updated with voice input and international features
 
 import React from 'react';
 
@@ -16,7 +16,13 @@ const TermsOfUse = () => {
                         TERMS OF USE
                     </h1>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        <strong>Last updated June 08, 2025</strong>
+                        <strong>Last updated July 25, 2025</strong>
+                    </p>
+                </div>
+
+                <div style={{ marginBottom: '2rem', backgroundColor: '#e3f2fd', padding: '1rem', borderRadius: '8px', border: '2px solid #2196f3' }}>
+                    <p style={{ fontSize: '16px', color: '#1565c0', margin: '0', fontWeight: 'bold' }}>
+                        🌍 Updated terms covering voice input capabilities, international barcode support for 80+ countries, AI-powered recipe scaling, and comprehensive price tracking features!
                     </p>
                 </div>
 
@@ -27,33 +33,40 @@ const TermsOfUse = () => {
                         <div><a href="#ip" style={{color: '#3030F1', textDecoration: 'none'}}>2. INTELLECTUAL PROPERTY RIGHTS</a></div>
                         <div><a href="#userreps" style={{color: '#3030F1', textDecoration: 'none'}}>3. USER REPRESENTATIONS</a></div>
                         <div><a href="#prohibited" style={{color: '#3030F1', textDecoration: 'none'}}>4. PROHIBITED ACTIVITIES</a></div>
-                        <div><a href="#ugc" style={{color: '#3030F1', textDecoration: 'none'}}>5. USER GENERATED CONTRIBUTIONS</a></div>
-                        <div><a href="#license" style={{color: '#3030F1', textDecoration: 'none'}}>6. CONTRIBUTION LICENSE</a></div>
-                        <div><a href="#management" style={{color: '#3030F1', textDecoration: 'none'}}>7. SERVICES MANAGEMENT</a></div>
-                        <div><a href="#terms" style={{color: '#3030F1', textDecoration: 'none'}}>8. TERM AND TERMINATION</a></div>
-                        <div><a href="#modifications" style={{color: '#3030F1', textDecoration: 'none'}}>9. MODIFICATIONS AND INTERRUPTIONS</a></div>
-                        <div><a href="#law" style={{color: '#3030F1', textDecoration: 'none'}}>10. GOVERNING LAW</a></div>
-                        <div><a href="#disputes" style={{color: '#3030F1', textDecoration: 'none'}}>11. DISPUTE RESOLUTION</a></div>
-                        <div><a href="#corrections" style={{color: '#3030F1', textDecoration: 'none'}}>12. CORRECTIONS</a></div>
-                        <div><a href="#disclaimer" style={{color: '#3030F1', textDecoration: 'none'}}>13. DISCLAIMER</a></div>
-                        <div><a href="#liability" style={{color: '#3030F1', textDecoration: 'none'}}>14. LIMITATIONS OF LIABILITY</a></div>
-                        <div><a href="#indemnification" style={{color: '#3030F1', textDecoration: 'none'}}>15. INDEMNIFICATION</a></div>
-                        <div><a href="#userdata" style={{color: '#3030F1', textDecoration: 'none'}}>16. USER DATA</a></div>
-                        <div><a href="#electronic" style={{color: '#3030F1', textDecoration: 'none'}}>17. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES</a></div>
-                        <div><a href="#misc" style={{color: '#3030F1', textDecoration: 'none'}}>18. MISCELLANEOUS</a></div>
-                        <div><a href="#contact" style={{color: '#3030F1', textDecoration: 'none'}}>19. CONTACT US</a></div>
+                        <div><a href="#voice-terms" style={{color: '#3030F1', textDecoration: 'none'}}>5. VOICE INPUT TERMS</a></div>
+                        <div><a href="#international-terms" style={{color: '#3030F1', textDecoration: 'none'}}>6. INTERNATIONAL FEATURES AND BARCODE SCANNING</a></div>
+                        <div><a href="#price-tracking-terms" style={{color: '#3030F1', textDecoration: 'none'}}>7. PRICE TRACKING AND CURRENCY FEATURES</a></div>
+                        <div><a href="#ai-scaling-terms" style={{color: '#3030F1', textDecoration: 'none'}}>8. AI-POWERED RECIPE SCALING</a></div>
+                        <div><a href="#ugc" style={{color: '#3030F1', textDecoration: 'none'}}>9. USER GENERATED CONTRIBUTIONS</a></div>
+                        <div><a href="#license" style={{color: '#3030F1', textDecoration: 'none'}}>10. CONTRIBUTION LICENSE</a></div>
+                        <div><a href="#management" style={{color: '#3030F1', textDecoration: 'none'}}>11. SERVICES MANAGEMENT</a></div>
+                        <div><a href="#terms" style={{color: '#3030F1', textDecoration: 'none'}}>12. TERM AND TERMINATION</a></div>
+                        <div><a href="#modifications" style={{color: '#3030F1', textDecoration: 'none'}}>13. MODIFICATIONS AND INTERRUPTIONS</a></div>
+                        <div><a href="#law" style={{color: '#3030F1', textDecoration: 'none'}}>14. GOVERNING LAW</a></div>
+                        <div><a href="#disputes" style={{color: '#3030F1', textDecoration: 'none'}}>15. DISPUTE RESOLUTION</a></div>
+                        <div><a href="#corrections" style={{color: '#3030F1', textDecoration: 'none'}}>16. CORRECTIONS</a></div>
+                        <div><a href="#disclaimer" style={{color: '#3030F1', textDecoration: 'none'}}>17. DISCLAIMER</a></div>
+                        <div><a href="#liability" style={{color: '#3030F1', textDecoration: 'none'}}>18. LIMITATIONS OF LIABILITY</a></div>
+                        <div><a href="#indemnification" style={{color: '#3030F1', textDecoration: 'none'}}>19. INDEMNIFICATION</a></div>
+                        <div><a href="#userdata" style={{color: '#3030F1', textDecoration: 'none'}}>20. USER DATA</a></div>
+                        <div><a href="#electronic" style={{color: '#3030F1', textDecoration: 'none'}}>21. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES</a></div>
+                        <div><a href="#misc" style={{color: '#3030F1', textDecoration: 'none'}}>22. MISCELLANEOUS</a></div>
+                        <div><a href="#contact" style={{color: '#3030F1', textDecoration: 'none'}}>23. CONTACT US</a></div>
                     </div>
                 </div>
 
                 <div id="services" style={{marginBottom: '2rem'}}>
                     <h2 style={{fontSize: '19px', color: '#000000'}}>1. OUR SERVICES</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        The information provided when using the Services is not intended for distribution to or use by any
-                        person or entity in any jurisdiction or country where such distribution or use would be contrary to
-                        law or regulation or which would subject us to any registration requirement within such jurisdiction
-                        or country. Accordingly, those persons who choose to access the Services from other locations do so
-                        on their own initiative and are solely responsible for compliance with local laws, if and to the extent
-                        local laws are applicable.
+                        Our Services include comprehensive food inventory management, recipe discovery with AI-powered
+                        scaling, international barcode scanning for 80+ countries, voice input capabilities, price
+                        tracking with multi-currency support, and meal planning features. The information provided
+                        when using the Services is not intended for distribution to or use by any person or entity
+                        in any jurisdiction or country where such distribution or use would be contrary to law or
+                        regulation or which would subject us to any registration requirement within such jurisdiction
+                        or country. Accordingly, those persons who choose to access the Services from other locations
+                        do so on their own initiative and are solely responsible for compliance with local laws,
+                        if and to the extent local laws are applicable.
                     </p>
                 </div>
 
@@ -165,110 +178,219 @@ const TermsOfUse = () => {
                         <li>if you are between 13 and 17 years of age, you have obtained verifiable parental or guardian consent to use the Services;</li>
                         <li>if you are under 13 years of age, you may not use the Services;</li>
                         <li>if you are a parent or guardian providing consent for a minor, you agree to be bound by these Legal Terms on behalf of the minor;</li>
-                        <li>you will not access the Services through automated or non-human means, whether through a
-                            bot, script or otherwise;
-                        </li>
+                        <li>you will not access the Services through automated or non-human means, whether through a bot, script or otherwise;</li>
                         <li>you will not use the Services for any illegal or unauthorized purpose;</li>
                         <li>your use of the Services will not violate any applicable law or regulation;</li>
                         <li>any recipes you submit are original or you have proper rights to share them;</li>
-                        <li>you will not input false or misleading food inventory information that could affect the
-                            safety or accuracy of meal planning features;
-                        </li>
+                        <li>you will not input false or misleading food inventory information that could affect the safety or accuracy of meal planning features;</li>
                         <li>if you are under 18, you will not share personal information beyond what is necessary for the Services to function;</li>
-                        <li>you understand that all content in the Services is appropriate for users 13 years of age and older.</li>
+                        <li>you understand that all content in the Services is appropriate for users 13 years of age and older;</li>
+                        <li><strong>you understand that voice input is processed locally in your browser and you consent to microphone access when using voice features;</strong></li>
+                        <li><strong>you will not attempt to record or capture other users' voice interactions;</strong></li>
+                        <li><strong>you will provide accurate price information when using price tracking features;</strong></li>
+                        <li><strong>you understand that international barcode scanning may access third-party databases and you consent to sharing product codes for identification purposes;</strong></li>
+                        <li><strong>you will not use AI recipe scaling features to create content that infringes on others' intellectual property rights.</strong></li>
                     </ol>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        If you provide any information that is untrue, inaccurate, not current, or incomplete, we
-                        have the right to suspend or terminate your account and refuse any and all current or future use
-                        of the Services (or any portion thereof). For users under 18, we will also notify the parent or guardian who provided consent.
+                        If you provide any information that is untrue, inaccurate, not current, or incomplete, we have the right to suspend or terminate your account and refuse any and all current or future use of the Services (or any portion thereof). For users under 18, we will also notify the parent or guardian who provided consent.
                     </p>
 
-                    <h3 style={{fontSize: '17px', color: '#000000'}}>Parental Responsibilities</h3>
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Parental Responsibilities for New Features</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         Parents and guardians who provide consent for minors to use the Services agree to:
                     </p>
                     <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
-                        <li>Monitor their child's use of the Services;</li>
+                        <li>Monitor their child's use of the Services, including voice input and price tracking features;</li>
                         <li>Ensure their child complies with these Legal Terms;</li>
                         <li>Take responsibility for any violations of these Terms by their child;</li>
-                        <li>Contact us immediately if they wish to terminate their child's account or have concerns about their child's use of the Services.</li>
+                        <li>Contact us immediately if they wish to terminate their child's account or have concerns about their child's use of the Services;</li>
+                        <li><strong>Control their child's access to voice input features and understand how voice processing works;</strong></li>
+                        <li><strong>Supervise their child's use of price tracking features and understand that pricing information may be shared with the child;</strong></li>
+                        <li><strong>Ensure their child has appropriate supervision when using international barcode scanning features.</strong></li>
                     </ul>
                 </div>
 
                 <div id="prohibited" style={{marginBottom: '2rem'}}>
                     <h2 style={{fontSize: '19px', color: '#000000'}}>4. PROHIBITED ACTIVITIES</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        You may not access or use the Services for any purpose other than that for which we make the
-                        Services available. As a user of the Services, you agree not to:
+                        You may not access or use the Services for any purpose other than that for which we make the Services available. As a user of the Services, you agree not to:
                     </p>
                     <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
-                        <li>Systematically retrieve data or other content from the Services to create or compile a
-                            collection, compilation, database, or directory of recipes or food data without written
-                            permission;
-                        </li>
-                        <li>Submit false or misleading food inventory information that could impact food safety or
-                            dietary recommendations;
-                        </li>
-                        <li>Upload or share recipes that you do not own the rights to or that infringe on others'
-                            intellectual property;
-                        </li>
-                        <li>Provide video URLs to content you do not have the right to process or that violates the terms of the video platform;
-                        </li>
+                        <li>Systematically retrieve data or other content from the Services to create or compile a collection, compilation, database, or directory of recipes or food data without written permission;</li>
+                        <li>Submit false or misleading food inventory information that could impact food safety or dietary recommendations;</li>
+                        <li>Upload or share recipes that you do not own the rights to or that infringe on others' intellectual property;</li>
+                        <li>Provide video URLs to content you do not have the right to process or that violates the terms of the video platform;</li>
                         <li>Use the Services to promote or sell food products or services without authorization;</li>
-                        <li>Attempt to reverse engineer our recipe recommendation algorithms or nutritional
-                            calculation methods;
-                        </li>
+                        <li>Attempt to reverse engineer our recipe recommendation algorithms or nutritional calculation methods;</li>
                         <li>Share your account credentials with others or create multiple accounts;</li>
-                        <li>Use the Services in any way that could disable, overburden, or impair the functionality
-                            of our food database or recipe matching features;
-                        </li>
+                        <li>Use the Services in any way that could disable, overburden, or impair the functionality of our food database or recipe matching features;</li>
                         <li>Upload content that contains allergen information that is knowingly false or misleading;</li>
-                        <li>Trick, defraud, or mislead us and other users, especially in any attempt to learn
-                            sensitive account information such as user passwords;
-                        </li>
-                        <li>Circumvent, disable, or otherwise interfere with security-related features of the
-                            Services;
-                        </li>
+                        <li><strong>Attempt to record, store, or transmit voice input from other users;</strong></li>
+                        <li><strong>Use voice input features to input inappropriate, offensive, or harmful content;</strong></li>
+                        <li><strong>Attempt to bypass microphone permission requirements or access voice features without proper consent;</strong></li>
+                        <li><strong>Submit false or misleading price information that could affect other users' budgeting decisions;</strong></li>
+                        <li><strong>Attempt to manipulate price tracking algorithms or create artificial price trends;</strong></li>
+                        <li><strong>Use international barcode scanning to identify products for purposes other than personal inventory management;</strong></li>
+                        <li><strong>Attempt to reverse engineer or extract barcode databases or product information for commercial use;</strong></li>
+                        <li><strong>Use AI recipe scaling features to create derivative works that infringe on others' copyrighted recipes;</strong></li>
+                        <li><strong>Attempt to bypass regional restrictions or access databases not intended for your geographic location;</strong></li>
+                        <li>Trick, defraud, or mislead us and other users, especially in any attempt to learn sensitive account information such as user passwords;</li>
+                        <li>Circumvent, disable, or otherwise interfere with security-related features of the Services;</li>
                         <li>Disparage, tarnish, or otherwise harm, in our opinion, us and/or the Services;</li>
-                        <li>Use any information obtained from the Services in order to harass, abuse, or harm
-                            another person;
-                        </li>
-                        <li>Make improper use of our support services or submit false reports of abuse or
-                            misconduct;
-                        </li>
+                        <li>Use any information obtained from the Services in order to harass, abuse, or harm another person;</li>
+                        <li>Make improper use of our support services or submit false reports of abuse or misconduct;</li>
                         <li>Use the Services in a manner inconsistent with any applicable laws or regulations;</li>
                         <li>Engage in unauthorized framing of or linking to the Services;</li>
-                        <li>Upload or transmit viruses, Trojan horses, or other material that interferes with any
-                            party's uninterrupted use and enjoyment of the Services;
-                        </li>
-                        <li>Engage in any automated use of the system, such as using scripts to send comments or
-                            messages;
-                        </li>
+                        <li>Upload or transmit viruses, Trojan horses, or other material that interferes with any party's uninterrupted use and enjoyment of the Services;</li>
+                        <li>Engage in any automated use of the system, such as using scripts to send comments or messages;</li>
                         <li>Delete the copyright or other proprietary rights notice from any Content;</li>
                         <li>Attempt to impersonate another user or person or use the username of another user;</li>
-                        <li>Interfere with, disrupt, or create an undue burden on the Services or the networks or
-                            services connected to the Services;
-                        </li>
-                        <li>Harass, annoy, intimidate, or threaten any of our employees or agents engaged in
-                            providing any portion of the Services to you;
-                        </li>
-                        <li>Attempt to bypass any measures of the Services designed to prevent or restrict access to
-                            the Services;
-                        </li>
-                        <li>Copy or adapt the Services' software, including but not limited to Flash, PHP, HTML,
-                            JavaScript, or other code;
-                        </li>
-                        <li>Except as permitted by applicable law, decipher, decompile, disassemble, or reverse
-                            engineer any of the software comprising or in any way making up a part of the Services;
-                        </li>
-                        <li>Use the Services as part of any effort to compete with us or otherwise use the Services
-                            and/or the Content for any revenue-generating endeavor or commercial enterprise.
-                        </li>
+                        <li>Interfere with, disrupt, or create an undue burden on the Services or the networks or services connected to the Services;</li>
+                        <li>Harass, annoy, intimidate, or threaten any of our employees or agents engaged in providing any portion of the Services to you;</li>
+                        <li>Attempt to bypass any measures of the Services designed to prevent or restrict access to the Services;</li>
+                        <li>Copy or adapt the Services' software, including but not limited to Flash, PHP, HTML, JavaScript, or other code;</li>
+                        <li>Except as permitted by applicable law, decipher, decompile, disassemble, or reverse engineer any of the software comprising or in any way making up a part of the Services;</li>
+                        <li>Use the Services as part of any effort to compete with us or otherwise use the Services and/or the Content for any revenue-generating endeavor or commercial enterprise.</li>
+                    </ul>
+                </div>
+
+                <div id="voice-terms" style={{marginBottom: '2rem'}}>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>5. VOICE INPUT TERMS</h2>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Our Services include voice input functionality that allows you to add inventory items and search your collection using voice commands. By using voice input features, you acknowledge and agree to the following terms:
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Microphone Access and Consent</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>Voice input requires microphone access through your browser</li>
+                        <li>You must grant explicit permission for microphone access</li>
+                        <li>You can revoke microphone permission at any time through your browser settings</li>
+                        <li>All voice processing occurs locally in your browser using your device's speech recognition</li>
+                        <li>We do not record, store, or transmit audio files</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Voice Input Accuracy and Limitations</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>Voice recognition accuracy may vary based on your device, browser, and speech patterns</li>
+                        <li>You are responsible for reviewing and confirming voice input results before saving</li>
+                        <li>Voice input may not work properly in noisy environments or with certain accents</li>
+                        <li>You should verify all voice-generated inventory entries for accuracy</li>
+                        <li>Voice features require an internet connection for speech recognition processing</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Appropriate Use of Voice Features</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>Use voice input only for legitimate inventory management and search purposes</li>
+                        <li>Do not use voice input to enter inappropriate, offensive, or harmful content</li>
+                        <li>Respect others' privacy - do not use voice features in settings where others might be overheard</li>
+                        <li>For users under 18, adult supervision is recommended when using voice features</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Third-Party Voice Processing</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Voice-to-text conversion is handled by your browser's speech recognition service, which may be provided by third parties such as Google. Your use of voice features is also subject to your browser's and operating system's terms of service and privacy policies.
+                    </p>
+                </div>
+
+                <div id="international-terms" style={{marginBottom: '2rem'}}>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>6. INTERNATIONAL FEATURES AND BARCODE SCANNING</h2>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Our Services support international barcode scanning for 80+ countries and integrate with multiple international databases. By using these features, you agree to the following terms:
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Barcode Scanning and Product Recognition</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>We support EAN-8, EAN-13, UPC-A, and GTIN-14 barcode formats</li>
+                        <li>Product information is retrieved from third-party databases including Open Food Facts, USDA, and regional databases</li>
+                        <li>By scanning barcodes, you consent to sharing product codes with these databases for identification purposes</li>
+                        <li>Product information accuracy depends on third-party database quality and may vary by region</li>
+                        <li>You are responsible for verifying product information accuracy, especially for allergen and dietary restriction data</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Regional and Currency Features</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>We may automatically detect your region based on your device settings or IP address</li>
+                        <li>Regional preferences help us prioritize relevant databases and product information</li>
+                        <li>Currency conversion may use third-party exchange rate services</li>
+                        <li>Regional product categories and measurements may be adapted for your location</li>
+                        <li>You can manually override regional settings in your profile</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>International Data Access</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>We may access international databases to provide accurate product information</li>
+                        <li>Some features may not be available in all countries due to data availability or legal restrictions</li>
+                        <li>You are responsible for complying with your local laws regarding food inventory and import regulations</li>
+                        <li>International features are provided "as-is" and availability may vary</li>
+                    </ul>
+                </div>
+
+                <div id="price-tracking-terms" style={{marginBottom: '2rem'}}>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>7. PRICE TRACKING AND CURRENCY FEATURES</h2>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Our Services include price tracking and multi-currency support features. By using these features, you acknowledge and agree to the following terms:
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Price Information Accuracy</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>You are responsible for providing accurate price information when manually entering prices</li>
+                        <li>Price trends and averages are calculated based on data you provide</li>
+                        <li>We do not guarantee the accuracy of price information or trends</li>
+                        <li>Prices may vary by location, store, and time - our data is for reference only</li>
+                        <li>You should verify current prices before making purchasing decisions</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Currency Conversion</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>Currency conversion rates are provided by third-party services and may not reflect real-time rates</li>
+                        <li>Conversion rates are for reference purposes only and may include fees or margins</li>
+                        <li>We are not responsible for losses due to currency fluctuations or conversion inaccuracies</li>
+                        <li>You should verify exchange rates independently for financial decisions</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Budget and Financial Features</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>Budget tracking and spending analysis features are for personal reference only</li>
+                        <li>We do not provide financial advice or recommendations</li>
+                        <li>You are responsible for managing your personal finances and budgets</li>
+                        <li>Price tracking data is not intended for commercial or investment purposes</li>
+                    </ul>
+                </div>
+
+                <div id="ai-scaling-terms" style={{marginBottom: '2rem'}}>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>8. AI-POWERED RECIPE SCALING</h2>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Our Services include AI-powered recipe scaling that intelligently adjusts recipes for different serving sizes. By using these features, you agree to the following terms:
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Recipe Scaling Accuracy</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>AI recipe scaling provides intelligent suggestions but may not be perfect for all recipes</li>
+                        <li>You should review and adjust scaled recipes based on your cooking experience and preferences</li>
+                        <li>Complex recipes with specialized techniques may not scale proportionally</li>
+                        <li>Cooking times, temperatures, and equipment suggestions are estimates and should be verified</li>
+                        <li>You are responsible for food safety when preparing scaled recipes</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Unit Conversion</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>US to metric conversions are provided for convenience but should be verified for precision cooking</li>
+                        <li>Regional adaptations may suggest ingredient substitutions based on local availability</li>
+                        <li>You should verify conversions and substitutions meet your dietary needs and preferences</li>
+                        <li>Cultural adaptations are suggestions only and may not reflect authentic regional practices</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Intellectual Property</h3>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>Scaled recipes remain subject to the original recipe's copyright and licensing terms</li>
+                        <li>You may not use AI scaling to create derivative works that infringe on others' rights</li>
+                        <li>Commercial use of scaled recipes may require permission from original recipe creators</li>
+                        <li>AI-generated scaling suggestions are not copyrightable as original works</li>
                     </ul>
                 </div>
 
                 <div id="ugc" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>5. USER GENERATED CONTRIBUTIONS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>9. USER GENERATED CONTRIBUTIONS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         The Services may invite you to chat, contribute to, or participate in online forums, recipe
                         sharing, meal plan discussions, and other functionality during which you may create, submit,
@@ -286,7 +408,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="license" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>6. CONTRIBUTION LICENSE</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>10. CONTRIBUTION LICENSE</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         You and Services agree that we may access, store, process, and use any information and
                         personal data that you provide and your choices (including settings).
@@ -306,7 +428,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="management" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>7. SERVICES MANAGEMENT</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>11. SERVICES MANAGEMENT</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         We reserve the right, but not the obligation, to: (1) monitor the Services for violations of
                         these Legal Terms; (2) take appropriate legal action against anyone who, in our sole
@@ -322,7 +444,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="terms" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>8. TERM AND TERMINATION</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>12. TERM AND TERMINATION</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         These Legal Terms shall remain in full force and effect while you use the Services. WITHOUT
                         LIMITING ANY OTHER PROVISION OF THESE LEGAL TERMS, WE RESERVE THE RIGHT TO, IN OUR SOLE
@@ -343,7 +465,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="modifications" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>9. MODIFICATIONS AND INTERRUPTIONS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>13. MODIFICATIONS AND INTERRUPTIONS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         We reserve the right to change, modify, or remove the contents of the Services at any time
                         or for any reason at our sole discretion without notice. However, we have no obligation to
@@ -362,7 +484,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="law" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>10. GOVERNING LAW</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>14. GOVERNING LAW</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         These Legal Terms shall be governed by and defined following the laws of Iowa. Doc Bear
                         Enterprises, LLC. and yourself irrevocably consent that the courts of Iowa shall have
@@ -371,99 +493,162 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="disputes" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>11. DISPUTE RESOLUTION</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>15. DISPUTE RESOLUTION</h2>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Informal Negotiations</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        To expedite resolution and control the cost of any dispute, controversy, or claim related to these Legal Terms (each a "Dispute" and collectively, the "Disputes") brought by either you or us (individually, a "Party" and collectively, the "Parties"), the Parties agree to first attempt to negotiate any Dispute (except those Disputes expressly provided below) informally for at least thirty (30) days before initiating arbitration. Such informal negotiations commence upon written notice from one Party to the other Party.
+                        To expedite resolution and control the cost of any dispute, controversy, or claim related to
+                        these Legal Terms (each a "Dispute" and collectively, the "Disputes") brought by either you or
+                        us (individually, a "Party" and collectively, the "Parties"), the Parties agree to first
+                        attempt to negotiate any Dispute (except those Disputes expressly provided below) informally
+                        for at least thirty (30) days before initiating arbitration. Such informal negotiations
+                        commence upon written notice from one Party to the other Party.
                     </p>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Binding Arbitration</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        Any dispute arising out of or in connection with these Legal Terms, including any question regarding its existence, validity, or termination, shall be referred to and finally resolved by the International Commercial Arbitration Court under the European Arbitration Chamber (Belgium, Brussels, Avenue Louise, 146) according to the Rules of this ICAC, which, as a result of referring to it, is considered as the part of this clause. The number of arbitrators shall be one (1). The seat, or legal place, or arbitration shall be Cedar Rapids, Iowa. The language of the proceedings shall be English. The governing law of these Legal Terms shall be substantive law of Iowa.
+                        Any dispute arising out of or in connection with these Legal Terms, including any question
+                        regarding its existence, validity, or termination, shall be referred to and finally resolved
+                        by the International Commercial Arbitration Court under the European Arbitration Chamber
+                        (Belgium, Brussels, Avenue Louise, 146) according to the Rules of this ICAC, which, as a
+                        result of referring to it, is considered as the part of this clause. The number of arbitrators
+                        shall be one (1). The seat, or legal place, or arbitration shall be Cedar Rapids, Iowa. The
+                        language of the proceedings shall be English. The governing law of these Legal Terms shall
+                        be substantive law of Iowa.
                     </p>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Restrictions</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        The Parties agree that any arbitration shall be limited to the Dispute between the Parties individually. To the full extent permitted by law, (a) no arbitration shall be joined with any other proceeding; (b) there is no right or authority for any Dispute to be arbitrated on a class-action basis or to utilize class action procedures; and (c) there is no right or authority for any Dispute to be brought in a purported representative capacity on behalf of the general public or any other persons.
+                        The Parties agree that any arbitration shall be limited to the Dispute between the Parties
+                        individually. To the full extent permitted by law, (a) no arbitration shall be joined with
+                        any other proceeding; (b) there is no right or authority for any Dispute to be arbitrated on
+                        a class-action basis or to utilize class action procedures; and (c) there is no right or
+                        authority for any Dispute to be brought in a purported representative capacity on behalf of
+                        the general public or any other persons.
                     </p>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Exceptions to Informal Negotiations and Arbitration</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        The Parties agree that the following Disputes are not subject to the above provisions concerning informal negotiations binding arbitration: (a) any Disputes seeking to enforce or protect, or concerning the validity of, any of the intellectual property rights of a Party; (b) any Dispute related to, or arising from, allegations of theft, piracy, invasion of privacy, or unauthorized use; and (c) any claim for injunctive relief. If this provision is found to be illegal or unenforceable, then neither Party will elect to arbitrate any Dispute falling within that portion of this provision found to be illegal or unenforceable and such Dispute shall be decided by a court of competent jurisdiction within the courts listed for jurisdiction above, and the Parties agree to submit to the personal jurisdiction of that court.
+                        The Parties agree that the following Disputes are not subject to the above provisions
+                        concerning informal negotiations binding arbitration: (a) any Disputes seeking to enforce
+                        or protect, or concerning the validity of, any of the intellectual property rights of a
+                        Party; (b) any Dispute related to, or arising from, allegations of theft, piracy, invasion
+                        of privacy, or unauthorized use; and (c) any claim for injunctive relief. If this provision
+                        is found to be illegal or unenforceable, then neither Party will elect to arbitrate any
+                        Dispute falling within that portion of this provision found to be illegal or unenforceable
+                        and such Dispute shall be decided by a court of competent jurisdiction within the courts
+                        listed for jurisdiction above, and the Parties agree to submit to the personal jurisdiction
+                        of that court.
                     </p>
                 </div>
 
                 <div id="corrections" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>12. CORRECTIONS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>16. CORRECTIONS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        There may be information on the Services that contains typographical errors, inaccuracies, or omissions, including descriptions, pricing, availability, and various other information. We reserve the right to correct any errors, inaccuracies, or omissions and to change or update the information on the Services at any time, without prior notice.
+                        There may be information on the Services that contains typographical errors, inaccuracies,
+                        or omissions, including descriptions, pricing, availability, and various other information.
+                        We reserve the right to correct any errors, inaccuracies, or omissions and to change or
+                        update the information on the Services at any time, without prior notice.
                     </p>
                 </div>
 
                 <div id="disclaimer" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>13. DISCLAIMER</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>17. DISCLAIMER</h2>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Family-Friendly Content Assurance</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         ALL CONTENT WITHIN OUR SERVICES, INCLUDING RECIPES, NUTRITIONAL INFORMATION, AND MEAL PLANNING
                         FEATURES, IS APPROPRIATE FOR USERS 13 YEARS OF AGE AND OLDER. WE MAINTAIN FAMILY-FRIENDLY
-                        STANDARDS AND DO NOT KNOWINGLY INCLUDE CONTENT THAT WOULD BE INAPPROPRIATE FOR OUR TARGET AGE GROUP.
+                        STANDARDS AND DO NOT KNOWINGLY INCLUDE CONTENT THAT WOULD BE INAPPROPRIATE FOR OUR TARGET AGE
+                        GROUP.
                     </p>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Food Safety and Dietary Disclaimer</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        <strong>IMPORTANT FOOD SAFETY AND DIETARY DISCLAIMER:</strong> THE SERVICES ARE PROVIDED ON
-                        AN AS-IS AND AS-AVAILABLE BASIS. THE NUTRITIONAL INFORMATION, RECIPES, EXPIRATION DATE
-                        TRACKING, AND FOOD SAFETY SUGGESTIONS PROVIDED THROUGH OUR SERVICES ARE FOR INFORMATIONAL PURPOSES
-                        ONLY AND SHOULD NOT BE CONSIDERED AS MEDICAL, DIETARY, OR FOOD SAFETY ADVICE.
+                        <strong>IMPORTANT FOOD SAFETY AND DIETARY DISCLAIMER:</strong> THE SERVICES ARE PROVIDED ON AN
+                        AS-IS AND AS-AVAILABLE BASIS. THE NUTRITIONAL INFORMATION, RECIPES, EXPIRATION DATE TRACKING,
+                        FOOD SAFETY SUGGESTIONS, VOICE INPUT RESULTS, INTERNATIONAL BARCODE SCANNING, PRICE TRACKING
+                        DATA, AND AI-POWERED RECIPE SCALING PROVIDED THROUGH OUR SERVICES ARE FOR INFORMATIONAL PURPOSES
+                        ONLY AND SHOULD NOT BE CONSIDERED AS MEDICAL, DIETARY, FINANCIAL, OR FOOD SAFETY ADVICE.
                     </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>Voice Input and Technology Disclaimer</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        <strong>VOICE INPUT DISCLAIMER:</strong> VOICE RECOGNITION ACCURACY MAY VARY BASED ON YOUR
+                        DEVICE, BROWSER, ENVIRONMENT, AND SPEECH PATTERNS. WE DO NOT GUARANTEE THE ACCURACY OF
+                        VOICE-TO-TEXT CONVERSION OR THE RESULTING INVENTORY ENTRIES. YOU ARE RESPONSIBLE FOR
+                        REVIEWING AND CONFIRMING ALL VOICE INPUT RESULTS.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>International Features and Price Tracking Disclaimer</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        <strong>INTERNATIONAL AND PRICE TRACKING DISCLAIMER:</strong> INTERNATIONAL BARCODE SCANNING,
+                        PRODUCT INFORMATION, CURRENCY CONVERSION, AND PRICE TRACKING DATA ARE PROVIDED BY THIRD-PARTY
+                        SOURCES AND MAY NOT BE ACCURATE, CURRENT, OR COMPLETE. WE DO NOT GUARANTEE THE ACCURACY OF
+                        PRODUCT INFORMATION, PRICES, OR CURRENCY CONVERSION RATES. PRICE DATA IS FOR REFERENCE ONLY
+                        AND SHOULD NOT BE USED FOR COMMERCIAL OR INVESTMENT DECISIONS.
+                    </p>
+
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         FOR USERS UNDER 18: WE STRONGLY RECOMMEND THAT MINORS CONSULT WITH PARENTS, GUARDIANS, OR
-                        HEALTHCARE PROFESSIONALS BEFORE MAKING DIETARY DECISIONS OR USING COOKING RECIPES, ESPECIALLY
-                        IF THEY HAVE KNOWN FOOD ALLERGIES OR DIETARY RESTRICTIONS.
+                        HEALTHCARE PROFESSIONALS BEFORE MAKING DIETARY DECISIONS, USING COOKING RECIPES, VOICE INPUT
+                        FEATURES, OR ACCESSING PRICE TRACKING INFORMATION, ESPECIALLY IF THEY HAVE KNOWN FOOD
+                        ALLERGIES OR DIETARY RESTRICTIONS.
                     </p>
+
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         YOU ACKNOWLEDGE THAT: (1) WE ARE NOT RESPONSIBLE FOR THE ACCURACY OF NUTRITIONAL INFORMATION
                         PROVIDED BY THIRD-PARTY DATABASES; (2) RECIPE SUGGESTIONS BASED ON YOUR INVENTORY MAY NOT
                         ACCOUNT FOR ALL FOOD ALLERGIES OR DIETARY RESTRICTIONS; (3) EXPIRATION DATE TRACKING IS
-                        BASED ON GENERAL GUIDELINES AND YOUR OWN ASSESSMENT OF FOOD SAFETY IS PARAMOUNT; (4) YOU SHOULD
-                        ALWAYS CONSULT WITH HEALTHCARE PROFESSIONALS REGARDING DIETARY NEEDS AND RESTRICTIONS; (5) MINORS
-                        SHOULD HAVE ADULT SUPERVISION WHEN COOKING OR HANDLING KITCHEN EQUIPMENT.
+                        BASED ON GENERAL GUIDELINES AND YOUR OWN ASSESSMENT OF FOOD SAFETY IS PARAMOUNT; (4) YOU
+                        SHOULD ALWAYS CONSULT WITH HEALTHCARE PROFESSIONALS REGARDING DIETARY NEEDS AND RESTRICTIONS;
+                        (5) MINORS SHOULD HAVE ADULT SUPERVISION WHEN COOKING OR HANDLING KITCHEN EQUIPMENT; (6) VOICE
+                        INPUT RESULTS SHOULD BE VERIFIED FOR ACCURACY; (7) INTERNATIONAL PRODUCT INFORMATION MAY VARY
+                        BY REGION AND DATABASE; (8) PRICE TRACKING DATA IS FOR PERSONAL REFERENCE ONLY; (9) AI-POWERED
+                        RECIPE SCALING SUGGESTIONS SHOULD BE REVIEWED AND ADJUSTED BASED ON YOUR COOKING EXPERIENCE.
                     </p>
+
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         TO THE FULLEST EXTENT PERMITTED BY LAW, WE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED, IN
-                        CONNECTION WITH THE SERVICES AND YOUR USE THEREOF, INCLUDING, WITHOUT LIMITATION, THE
-                        IMPLIED WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE
-                        MAKE NO WARRANTIES OR REPRESENTATIONS ABOUT THE ACCURACY OR COMPLETENESS OF THE SERVICES' CONTENT
-                        OR THE CONTENT OF ANY WEBSITES OR MOBILE APPLICATIONS LINKED TO THE SERVICES.
+                        CONNECTION WITH THE SERVICES AND YOUR USE THEREOF, INCLUDING, WITHOUT LIMITATION, THE IMPLIED
+                        WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. WE
+                        MAKE NO WARRANTIES OR REPRESENTATIONS ABOUT THE ACCURACY OR COMPLETENESS OF THE SERVICES'
+                        CONTENT OR THE CONTENT OF ANY WEBSITES OR MOBILE APPLICATIONS LINKED TO THE SERVICES.
                     </p>
                 </div>
 
                 <div id="liability" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>14. LIMITATIONS OF LIABILITY</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>18. LIMITATIONS OF LIABILITY</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        IN NO EVENT WILL WE BE LIABLE FOR ANY DAMAGES ARISING FROM: (1) FOODBORNE ILLNESS OR
-                        ALLERGIC REACTIONS RELATED TO RECIPES OR FOOD INVENTORY MANAGEMENT; (2) RELIANCE ON NUTRITIONAL
+                        IN NO EVENT WILL WE BE LIABLE FOR ANY DAMAGES ARISING FROM: (1) FOODBORNE ILLNESS OR ALLERGIC
+                        REACTIONS RELATED TO RECIPES OR FOOD INVENTORY MANAGEMENT; (2) RELIANCE ON NUTRITIONAL
                         INFORMATION PROVIDED THROUGH THE SERVICES; (3) FOOD WASTE OR SPOILAGE RELATED TO EXPIRATION
-                        DATE TRACKING FEATURES; (4) ANY DECISIONS MADE BASED ON RECIPE RECOMMENDATIONS OR MEAL PLANNING
-                        FEATURES.
+                        DATE TRACKING FEATURES; (4) ANY DECISIONS MADE BASED ON RECIPE RECOMMENDATIONS, MEAL PLANNING
+                        FEATURES, OR AI-POWERED RECIPE SCALING; (5) INACCURACIES IN VOICE INPUT RECOGNITION OR
+                        VOICE-TO-TEXT CONVERSION; (6) ERRORS IN INTERNATIONAL BARCODE SCANNING OR PRODUCT
+                        IDENTIFICATION; (7) CURRENCY CONVERSION INACCURACIES OR FINANCIAL LOSSES RELATED TO PRICE
+                        TRACKING; (8) RELIANCE ON PRICE TRACKING DATA FOR PURCHASING OR INVESTMENT DECISIONS; (9) TECHNICAL
+                        ISSUES WITH VOICE INPUT, BARCODE SCANNING, OR INTERNATIONAL FEATURES; (10) ANY DAMAGES R
+                        ESULTING FROM THE USE OF THIRD-PARTY DATABASES OR SERVICES INTEGRATED WITH OUR PLATFORM.
                     </p>
+
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        YOU ACKNOWLEDGE THAT FOOD SAFETY AND DIETARY DECISIONS ARE YOUR PERSONAL RESPONSIBILITY AND
-                        THAT OUR SERVICES ARE TOOLS TO ASSIST WITH ORGANIZATION AND PLANNING, NOT SUBSTITUTES FOR PROPER
-                        FOOD SAFETY PRACTICES OR PROFESSIONAL DIETARY ADVICE.
+                        YOU ACKNOWLEDGE THAT FOOD SAFETY, DIETARY DECISIONS, FINANCIAL MANAGEMENT, AND TECHNOLOGY USE
+                        ARE YOUR PERSONAL RESPONSIBILITY AND THAT OUR SERVICES ARE TOOLS TO ASSIST WITH ORGANIZATION
+                        AND PLANNING, NOT SUBSTITUTES FOR PROPER FOOD SAFETY PRACTICES, PROFESSIONAL DIETARY ADVICE,
+                        FINANCIAL PLANNING, OR CAREFUL VERIFICATION OF TECHNOLOGY-GENERATED RESULTS.
                     </p>
+
                     <p style={{color: '#595959', fontSize: '15px'}}>
-                        IN NO EVENT WILL WE OR OUR DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE TO YOU OR ANY THIRD
-                        PARTY FOR ANY DIRECT, INDIRECT, CONSEQUENTIAL, EXEMPLARY, INCIDENTAL, SPECIAL, OR PUNITIVE
-                        DAMAGES, INCLUDING LOST PROFIT, LOST REVENUE, LOSS OF DATA, OR OTHER DAMAGES ARISING FROM YOUR USE OF
+                        IN NO EVENT WILL WE OR OUR DIRECTORS, EMPLOYEES, OR AGENTS BE LIABLE TO YOU OR ANY THIRD PARTY
+                        FOR ANY DIRECT, INDIRECT, CONSEQUENTIAL, EXEMPLARY, INCIDENTAL, SPECIAL, OR PUNITIVE DAMAGES,
+                        INCLUDING LOST PROFIT, LOST REVENUE, LOSS OF DATA, OR OTHER DAMAGES ARISING FROM YOUR USE OF
                         THE SERVICES, EVEN IF WE HAVE BEEN ADVISED OF THE POSSIBILITY OF SUCH DAMAGES.
                     </p>
                 </div>
 
                 <div id="indemnification" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>15. INDEMNIFICATION</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>19. INDEMNIFICATION</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         You agree to defend, indemnify, and hold us harmless, including our subsidiaries,
                         affiliates, and all of our respective officers, agents, partners, and employees, from and against any
@@ -479,7 +664,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="userdata" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>16. USER DATA</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>20. USER DATA</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         We will maintain certain data that you transmit to the Services for the purpose of managing
                         the performance of the Services, as well as data relating to your use of the Services. Although
@@ -491,7 +676,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="electronic" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>17. ELECTRONIC COMMUNICATIONS, TRANSACTIONS,
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>21. ELECTRONIC COMMUNICATIONS, TRANSACTIONS,
                         AND SIGNATURES</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         Visiting the Services, sending us emails, and completing online forms constitute electronic
@@ -505,7 +690,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="misc" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>18. MISCELLANEOUS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>22. MISCELLANEOUS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         These Legal Terms and any policies or operating rules posted by us on the Services or in
                         respect to the Services constitute the entire agreement and understanding between you and us. Our
@@ -520,8 +705,9 @@ const TermsOfUse = () => {
                     </p>
                 </div>
 
+                {/* Include remaining sections with contact information */}
                 <div id="contact" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>19. CONTACT US</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>23. CONTACT US</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         In order to resolve a complaint regarding the Services or to receive further information
                         regarding use of the Services, please contact us at:

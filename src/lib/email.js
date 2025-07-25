@@ -1960,10 +1960,419 @@ Questions? Contact us at ${supportEmail || 'support@docbearscomfort.kitchen'}
         return { html, text };
     }
 
-    // Updated getPasswordResetTemplate with better HTML structure and fallback link
+    // 4. Parental Consent Email Template
+    static getParentalConsentTemplate(verificationUrl, parentEmail, childName, childEmail) {
+        const currentYear = new Date().getFullYear();
+        const requestDate = new Date().toLocaleDateString('en-US', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
 
-    // Updated getPasswordResetTemplate with better HTML structure and fallback link
+        const html = `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Parental Consent Required - Doc Bear's Comfort Kitchen</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #333333;
+            background-color: #f8fafc;
+        }
+        
+        .email-container {
+            max-width: 600px;
+            margin: 0 auto;
+            background-color: #ffffff;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            padding: 40px 30px;
+            text-align: center;
+        }
+        
+        .logo {
+            font-size: 28px;
+            font-weight: bold;
+            color: #ffffff;
+            margin-bottom: 8px;
+        }
+        
+        .header-subtitle {
+            color: #fef3c7;
+            font-size: 16px;
+            margin: 0;
+        }
+        
+        .content {
+            padding: 40px 30px;
+        }
+        
+        .title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a202c;
+            margin: 0 0 20px 0;
+            text-align: center;
+        }
+        
+        .consent-card {
+            background: #fffbeb;
+            border: 2px solid #f59e0b;
+            border-radius: 12px;
+            padding: 25px;
+            margin: 25px 0;
+        }
+        
+        .consent-card h3 {
+            color: #92400e;
+            margin: 0 0 15px 0;
+            font-size: 18px;
+        }
+        
+        .child-details {
+            background: #f8fafc;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+        
+        .detail-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        
+        .detail-row:last-child {
+            border-bottom: none;
+        }
+        
+        .detail-label {
+            font-weight: 500;
+            color: #4a5568;
+        }
+        
+        .detail-value {
+            font-weight: 600;
+            color: #1a202c;
+        }
+        
+        .consent-button {
+            display: block;
+            width: fit-content;
+            margin: 30px auto;
+            padding: 16px 32px;
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: #ffffff !important;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            transition: all 0.2s;
+        }
+        
+        .consent-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(245, 158, 11, 0.4);
+        }
+        
+        .consent-button:visited {
+            color: #ffffff !important;
+        }
+        
+        .backup-link {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .backup-link p {
+            margin: 0 0 10px 0;
+        }
+        
+        .backup-link a {
+            color: #f59e0b;
+            word-break: break-all;
+        }
+        
+        .safety-info {
+            background: #f0f9ff;
+            border: 1px solid #0ea5e9;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 25px 0;
+        }
+        
+        .safety-info h4 {
+            margin: 0 0 15px 0;
+            color: #0c4a6e;
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .safety-info ul {
+            margin: 10px 0 0 0;
+            padding-left: 20px;
+            color: #0c4a6e;
+        }
+        
+        .safety-info li {
+            margin: 5px 0;
+            font-size: 14px;
+        }
+        
+        .legal-notice {
+            background: #f9fafb;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 20px 0;
+            font-size: 14px;
+            color: #4b5563;
+        }
+        
+        .footer {
+            background-color: #f7fafc;
+            padding: 30px;
+            text-align: center;
+            border-top: 1px solid #e2e8f0;
+        }
+        
+        .footer p {
+            margin: 0 0 10px 0;
+            color: #718096;
+            font-size: 14px;
+        }
+        
+        .footer .copyright {
+            font-size: 12px;
+            color: #a0aec0;
+            margin-top: 20px;
+        }
+        
+        /* Button compatibility for email clients */
+        .consent-button-table {
+            width: 100%;
+            border: 0;
+            cellpadding: 0;
+            cellspacing: 0;
+        }
+        
+        .consent-button-table td {
+            text-align: center;
+            padding: 30px 0;
+        }
+        
+        .consent-button-cell {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            border-radius: 8px;
+            padding: 16px 32px;
+            display: inline-block;
+        }
+        
+        .consent-button-cell a {
+            color: #ffffff !important;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        /* Mobile responsive */
+        @media only screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .detail-row {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            
+            .detail-value {
+                margin-top: 5px;
+            }
+            
+            .consent-button {
+                width: calc(100% - 40px) !important;
+                padding: 16px 20px !important;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="email-container">
+        <div class="header">
+            <div class="logo">🐻 Doc Bear's Comfort Kitchen</div>
+            <p class="header-subtitle">Parental Consent Required</p>
+        </div>
+        
+        <div class="content">
+            <h1 class="title">👨‍👩‍👧‍👦 Parental Consent Required</h1>
+            
+            <p>Dear Parent/Guardian,</p>
+            
+            <p>We are writing to request your consent for a minor to create an account on Doc Bear's Comfort Kitchen, a family-friendly food inventory and recipe management application.</p>
+            
+            <div class="consent-card">
+                <h3>🔒 Your Consent is Required</h3>
+                <p>Under COPPA (Children's Online Privacy Protection Act) and GDPR regulations, we need verifiable parental consent before allowing users under 18 to create accounts.</p>
+            </div>
+            
+            <div class="child-details">
+                <h4 style="margin: 0 0 15px 0; color: #1a202c; font-size: 16px; font-weight: 600;">Account Request Details</h4>
+                <div class="detail-row">
+                    <span class="detail-label">Child's Name:</span>
+                    <span class="detail-value">${childName}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Child's Email:</span>
+                    <span class="detail-value">${childEmail}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Parent/Guardian Email:</span>
+                    <span class="detail-value">${parentEmail}</span>
+                </div>
+                <div class="detail-row">
+                    <span class="detail-label">Request Date:</span>
+                    <span class="detail-value">${requestDate}</span>
+                </div>
+            </div>
+            
+            <div class="safety-info">
+                <h4>🛡️ Safety Features for Minors</h4>
+                <p>Doc Bear's Comfort Kitchen is designed to be safe for users of all ages. Here's how we protect young users:</p>
+                <ul>
+                    <li><strong>No Social Features:</strong> No chat, messaging, or user-to-user communication</li>
+                    <li><strong>Educational Focus:</strong> Focused on food management, nutrition, and cooking education</li>
+                    <li><strong>Data Protection:</strong> Minimal data collection with strong privacy protections</li>
+                    <li><strong>Parental Controls:</strong> Parents can request account deletion or data export anytime</li>
+                    <li><strong>No Advertising:</strong> No targeted advertising or third-party trackers</li>
+                    <li><strong>Educational Content:</strong> Age-appropriate recipes and nutrition information</li>
+                </ul>
+            </div>
+            
+            <!-- Primary consent button using table structure for better email client compatibility -->
+            <table class="consent-button-table">
+                <tr>
+                    <td>
+                        <div class="consent-button-cell">
+                            <a href="${verificationUrl}" target="_blank" rel="noopener noreferrer">Give Parental Consent</a>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Fallback link for email clients that don't support the button -->
+            <div class="backup-link">
+                <p><strong>Button not working?</strong> Copy and paste this link into your browser:</p>
+                <p><a href="${verificationUrl}" target="_blank" rel="noopener noreferrer">${verificationUrl}</a></p>
+            </div>
+            
+            <div class="legal-notice">
+                <h4 style="margin: 0 0 10px 0; color: #374151; font-size: 14px; font-weight: 600;">📋 What This Consent Includes</h4>
+                <p style="margin: 0 0 10px 0;">By clicking the consent button above, you are:</p>
+                <ul style="margin: 0; padding-left: 20px;">
+                    <li>Verifying that you are the parent/legal guardian of ${childName}</li>
+                    <li>Consenting to the collection and use of your child's information as described in our Privacy Policy</li>
+                    <li>Allowing your child to use Doc Bear's Comfort Kitchen services</li>
+                    <li>Acknowledging that you can revoke this consent at any time by contacting us</li>
+                </ul>
+            </div>
+            
+            <p><strong>This consent link will expire in 7 days.</strong> If you do not provide consent within this timeframe, the account request will be automatically canceled.</p>
+            
+            <p>If you did not expect this email or do not wish to provide consent, you can safely ignore this message and the account will not be created.</p>
+            
+            <p>If you have any questions about our privacy practices or this consent process, please don't hesitate to contact our support team at <a href="mailto:privacy@docbearscomfort.kitchen" style="color: #f59e0b;">privacy@docbearscomfort.kitchen</a></p>
+            
+            <p>Thank you for considering Doc Bear's Comfort Kitchen for your family's food management needs.</p>
+            
+            <p>Best regards,<br>
+            <em>The Doc Bear's Comfort Kitchen Team</em></p>
+        </div>
+        
+        <div class="footer">
+            <p>This parental consent request was sent because a minor attempted to create an account</p>
+            <p>Questions? Contact us at <a href="mailto:privacy@docbearscomfort.kitchen" style="color: #4f46e5;">privacy@docbearscomfort.kitchen</a></p>
+            <p class="copyright">© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.</p>
+        </div>
+    </div>
+</body>
+</html>`;
 
+        const text = `
+Parental Consent Required - Doc Bear's Comfort Kitchen
+
+Dear Parent/Guardian,
+
+We are writing to request your consent for a minor to create an account on Doc Bear's Comfort Kitchen, a family-friendly food inventory and recipe management application.
+
+PARENTAL CONSENT REQUIRED
+Under COPPA (Children's Online Privacy Protection Act) and GDPR regulations, we need verifiable parental consent before allowing users under 18 to create accounts.
+
+ACCOUNT REQUEST DETAILS:
+- Child's Name: ${childName}
+- Child's Email: ${childEmail}
+- Parent/Guardian Email: ${parentEmail}
+- Request Date: ${requestDate}
+
+SAFETY FEATURES FOR MINORS:
+Doc Bear's Comfort Kitchen is designed to be safe for users of all ages. Here's how we protect young users:
+
+• No Social Features: No chat, messaging, or user-to-user communication
+• Educational Focus: Focused on food management, nutrition, and cooking education
+• Data Protection: Minimal data collection with strong privacy protections
+• Parental Controls: Parents can request account deletion or data export anytime
+• No Advertising: No targeted advertising or third-party trackers
+• Educational Content: Age-appropriate recipes and nutrition information
+
+GIVE PARENTAL CONSENT:
+Click this link to provide consent: ${verificationUrl}
+
+Or copy and paste the link into your browser.
+
+WHAT THIS CONSENT INCLUDES:
+By clicking the consent link above, you are:
+• Verifying that you are the parent/legal guardian of ${childName}
+• Consenting to the collection and use of your child's information as described in our Privacy Policy
+• Allowing your child to use Doc Bear's Comfort Kitchen services
+• Acknowledging that you can revoke this consent at any time by contacting us
+
+IMPORTANT: This consent link will expire in 7 days. If you do not provide consent within this timeframe, the account request will be automatically canceled.
+
+If you did not expect this email or do not wish to provide consent, you can safely ignore this message and the account will not be created.
+
+If you have any questions about our privacy practices or this consent process, please contact our support team at privacy@docbearscomfort.kitchen
+
+Thank you for considering Doc Bear's Comfort Kitchen for your family's food management needs.
+
+Best regards,
+The Doc Bear's Comfort Kitchen Team
+
+Questions? Contact us at privacy@docbearscomfort.kitchen
+© ${currentYear} Doc Bear's Comfort Kitchen. All rights reserved.
+    `;
+
+        return { html, text };
+    }
+
+    // 5. getPasswordResetTemplate with better HTML structure and fallback link
     static getPasswordResetTemplate(resetUrl, userEmail, expiryMinutes = 10) {
         const currentYear = new Date().getFullYear();
 
@@ -2865,6 +3274,18 @@ const emailService = new EmailService();
 export default emailService;
 
 // Helper functions for easy use
+export async function sendParentalConsentEmail(parentEmail, verificationToken, childName, childEmail) {
+    const verificationUrl = `${process.env.NEXTAUTH_URL || process.env.APP_URL || 'https://docbearscomfort.kitchen'}/auth/verify-parental-consent?token=${verificationToken}`;
+    const template = EmailTemplates.getParentalConsentTemplate(verificationUrl, parentEmail, childName, childEmail);
+
+    return await emailService.sendEmail(
+        parentEmail,
+        `Parental Consent Required for ${childName} - Doc Bear's Comfort Kitchen`,
+        template.html,
+        template.text
+    );
+}
+
 export async function sendPasswordResetEmail(email, resetToken) {
     const resetUrl = `${emailService.baseUrl}/auth/reset-password?token=${resetToken}`;
     const template = EmailTemplates.getPasswordResetTemplate(resetUrl, email);
