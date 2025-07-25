@@ -2176,9 +2176,7 @@ function InventoryContent() {
                                         onChange={(e) => setSearchQuery(e.target.value)}
                                         className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                     />
-                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                        <span className="text-gray-400">🔍</span>
-                                    </div>
+
                                     {searchQuery && (
                                         <TouchEnhancedButton
                                             onClick={() => setSearchQuery('')}
@@ -3257,7 +3255,7 @@ function InventoryContent() {
                     </div>
                 </div>
             )}
-
+            <br/>
             <Footer/>
         </MobileOptimizedLayout>
     );

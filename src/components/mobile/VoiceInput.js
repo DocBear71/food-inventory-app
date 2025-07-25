@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/mobile/VoiceInput.js v2 - Enhanced for iOS/Android compatibility
+// file: /src/components/mobile/VoiceInput.js v3 - Fixed permission handling
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { TouchEnhancedButton } from './TouchEnhancedButton';
@@ -11,6 +11,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
     const [isSupported, setIsSupported] = useState(false);
     const [transcript, setTranscript] = useState('');
     const [confidence, setConfidence] = useState(0);
+    const [permissionStatus, setPermissionStatus] = useState('unknown'); // 'granted', 'denied', 'prompt', 'unknown'
     const [browserInfo, setBrowserInfo] = useState({ browser: '', version: '', platform: '' });
     const recognitionRef = useRef(null);
     const { vibrateDevice } = usePWA();
@@ -40,6 +41,75 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
         detectBrowser();
     }, []);
 
+    // Check microphone permission status
+    const checkMicrophonePermission = useCallback(async () => {
+        try {
+            if (navigator.permissions && navigator.permissions.query) {
+                const result = await navigator.permissions.query({ name: 'microphone' });
+                setPermissionStatus(result.state);
+
+                // Listen for permission changes
+                result.onchange = () => {
+                    setPermissionStatus(result.state);
+                };
+
+                return result.state;
+            } else {
+                // Fallback for browsers that don't support permissions API
+                setPermissionStatus('unknown');
+                return 'unknown';
+            }
+        } catch (error) {
+            console.log('Permission API not supported:', error);
+            setPermissionStatus('unknown');
+            return 'unknown';
+        }
+    }, []);
+
+    // Request microphone permission explicitly
+    const requestMicrophonePermission = useCallback(async () => {
+        try {
+            console.log('🎤 Requesting microphone permission...');
+
+            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                const stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    }
+                });
+
+                // Stop the stream immediately - we just wanted permission
+                stream.getTracks().forEach(track => track.stop());
+
+                setPermissionStatus('granted');
+                console.log('✅ Microphone permission granted');
+                return true;
+            } else {
+                throw new Error('getUserMedia not supported');
+            }
+        } catch (error) {
+            console.error('❌ Microphone permission denied:', error);
+            setPermissionStatus('denied');
+
+            let errorMessage = 'Microphone access denied. ';
+
+            if (browserInfo.platform === 'ios') {
+                errorMessage += 'Go to Settings > Safari > Camera & Microphone > Allow websites to ask.';
+            } else if (browserInfo.platform === 'android') {
+                errorMessage += 'Check your browser settings to allow microphone access.';
+            } else {
+                errorMessage += 'Click the microphone icon in your browser\'s address bar to allow access.';
+            }
+
+            if (onError) {
+                onError(errorMessage);
+            }
+            return false;
+        }
+    }, [browserInfo.platform, onError]);
+
     // Check browser support with mobile-specific considerations
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -60,7 +130,17 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
         setIsSupported(isSupported && mobileSupported);
 
-        if (SpeechRecognition && mobileSupported) {
+        // Check initial permission status
+        if (isSupported && mobileSupported) {
+            checkMicrophonePermission();
+        }
+    }, [browserInfo, checkMicrophonePermission]);
+
+    // Initialize Speech Recognition
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition && isSupported) {
             const recognition = new SpeechRecognition();
 
             // Mobile-optimized configuration
@@ -71,7 +151,6 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
             // iOS-specific optimizations
             if (browserInfo.platform === 'ios') {
-                // Shorter timeout for iOS
                 recognition.continuous = false;
                 recognition.interimResults = false; // iOS works better without interim results
             }
@@ -89,7 +168,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
-                    const confidence = event.results[i][0].confidence || 0.8; // iOS sometimes doesn't provide confidence
+                    const confidence = event.results[i][0].confidence || 0.8;
 
                     if (event.results[i].isFinal) {
                         finalTranscript += transcript;
@@ -115,17 +194,14 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 let errorMessage = 'Voice recognition failed';
                 switch (event.error) {
                     case 'no-speech':
-                        errorMessage = browserInfo.platform === 'ios'
-                            ? 'No speech detected. Make sure microphone access is allowed.'
-                            : 'No speech detected. Please try again.';
+                        errorMessage = 'No speech detected. Please try again.';
                         break;
                     case 'audio-capture':
                         errorMessage = 'Microphone not available. Check your device settings.';
                         break;
                     case 'not-allowed':
-                        errorMessage = browserInfo.platform === 'ios'
-                            ? 'Microphone access denied. Go to Settings > Safari > Microphone to allow access.'
-                            : 'Microphone access denied. Please allow microphone access and try again.';
+                        errorMessage = 'Microphone access denied. Please allow microphone access and try again.';
+                        setPermissionStatus('denied');
                         break;
                     case 'network':
                         errorMessage = 'Network error. Voice recognition requires an internet connection.';
@@ -146,7 +222,6 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             recognition.onstart = () => {
                 setIsListening(true);
                 setTranscript('');
-                // Stronger vibration feedback for mobile
                 vibrateDevice([100, 50, 100]);
             };
 
@@ -155,14 +230,12 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 vibrateDevice([50]);
             };
 
-            // Mobile-specific timeout handling
             recognition.onspeechstart = () => {
                 console.log('Speech detected');
             };
 
             recognition.onspeechend = () => {
                 console.log('Speech ended');
-                // On mobile, auto-stop after speech ends
                 if (browserInfo.platform === 'ios' || browserInfo.platform === 'android') {
                     setTimeout(() => {
                         if (recognition && isListening) {
@@ -180,69 +253,58 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 recognitionRef.current.abort();
             }
         };
-    }, [onResult, onError, vibrateDevice, browserInfo]);
+    }, [onResult, onError, vibrateDevice, browserInfo, isSupported, isListening]);
 
-    // Mobile-optimized start function
-    const startListening = useCallback(() => {
-        if (recognitionRef.current && !isListening) {
-            try {
-                // Mobile-specific preparation
-                if (browserInfo.platform === 'ios' || browserInfo.platform === 'android') {
-                    // Clear any previous state
-                    setTranscript('');
-                    setConfidence(0);
-                }
+    // Enhanced start function with permission check
+    const startListening = useCallback(async () => {
+        if (!recognitionRef.current || isListening) return;
 
-                recognitionRef.current.start();
-            } catch (error) {
-                console.error('Failed to start recognition:', error);
-                if (onError) {
-                    const errorMsg = browserInfo.platform === 'ios'
-                        ? 'Voice recognition failed. Make sure you have iOS 14.5 or later.'
-                        : 'Failed to start voice recognition. Please try again.';
-                    onError(errorMsg);
-                }
+        try {
+            // Always check/request permission before starting
+            console.log('🎤 Starting voice input, checking permissions...');
+
+            const hasPermission = await requestMicrophonePermission();
+
+            if (!hasPermission) {
+                console.log('❌ No microphone permission, cannot start voice input');
+                return;
+            }
+
+            // Clear any previous state
+            setTranscript('');
+            setConfidence(0);
+
+            console.log('🎤 Starting speech recognition...');
+            recognitionRef.current.start();
+        } catch (error) {
+            console.error('Failed to start recognition:', error);
+            if (onError) {
+                const errorMsg = browserInfo.platform === 'ios'
+                    ? 'Voice recognition failed. Make sure you have iOS 14.5 or later and microphone access is allowed.'
+                    : 'Failed to start voice recognition. Please try again.';
+                onError(errorMsg);
             }
         }
-    }, [isListening, onError, browserInfo.platform]);
+    }, [isListening, requestMicrophonePermission, onError, browserInfo.platform]);
 
-    // Mobile-optimized stop function
+    // Stop function
     const stopListening = useCallback(() => {
         if (recognitionRef.current && isListening) {
             recognitionRef.current.stop();
         }
     }, [isListening]);
 
-    // Toggle with mobile considerations
-    const toggleListening = useCallback(() => {
+    // Toggle function with better permission handling
+    const toggleListening = useCallback(async () => {
         if (isListening) {
             stopListening();
         } else {
-            // Request microphone permission on mobile before starting
-            if (browserInfo.platform === 'ios' || browserInfo.platform === 'android') {
-                if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                    navigator.mediaDevices.getUserMedia({ audio: true })
-                        .then(() => {
-                            startListening();
-                        })
-                        .catch((error) => {
-                            console.error('Microphone permission denied:', error);
-                            if (onError) {
-                                onError('Microphone access is required for voice input. Please grant permission and try again.');
-                            }
-                        });
-                } else {
-                    startListening();
-                }
-            } else {
-                startListening();
-            }
+            await startListening();
         }
-    }, [isListening, startListening, stopListening, browserInfo.platform, onError]);
+    }, [isListening, startListening, stopListening]);
 
     // Don't render if not supported
     if (!isSupported) {
-        // Show helpful message for unsupported browsers
         if (browserInfo.browser === 'firefox') {
             return (
                 <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
@@ -263,7 +325,38 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             );
         }
 
-        return null;
+        return (
+            <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                <p className="text-gray-800 text-sm">
+                    🎤 Voice input is not supported in this browser. Try Chrome, Safari, or Edge.
+                </p>
+            </div>
+        );
+    }
+
+    // Show permission denied state
+    if (permissionStatus === 'denied') {
+        return (
+            <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-center gap-3">
+                    <span className="text-red-600 text-xl">🚫</span>
+                    <div className="flex-1">
+                        <p className="text-red-800 text-sm font-medium">Microphone Access Denied</p>
+                        <p className="text-red-700 text-xs mt-1">
+                            {browserInfo.platform === 'ios' && 'Go to Settings > Safari > Camera & Microphone to allow access.'}
+                            {browserInfo.platform === 'android' && 'Check your browser settings to allow microphone access.'}
+                            {browserInfo.platform === 'desktop' && 'Click the microphone icon in your browser\'s address bar to allow access.'}
+                        </p>
+                    </div>
+                    <TouchEnhancedButton
+                        onClick={requestMicrophonePermission}
+                        className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
+                    >
+                        Retry
+                    </TouchEnhancedButton>
+                </div>
+            </div>
+        );
     }
 
     return (
@@ -276,7 +369,6 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             borderRadius: '12px',
             border: `2px solid ${isListening ? '#3b82f6' : '#e5e7eb'}`,
             transition: 'all 0.2s ease',
-            // Mobile-specific touch improvements
             touchAction: 'manipulation',
             userSelect: 'none'
         }}>
@@ -288,7 +380,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                     color: 'white',
                     border: 'none',
                     borderRadius: '50%',
-                    width: '52px', // Slightly larger for mobile
+                    width: '52px',
                     height: '52px',
                     display: 'flex',
                     alignItems: 'center',
@@ -297,7 +389,6 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                     cursor: 'pointer',
                     transition: 'all 0.2s ease',
                     animation: isListening ? 'pulse 1.5s infinite' : 'none',
-                    // Mobile touch improvements
                     WebkitTapHighlightColor: 'transparent',
                     touchAction: 'manipulation'
                 }}
@@ -322,7 +413,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                             fontSize: '1rem',
                             color: '#374151',
                             minHeight: '1.5rem',
-                            wordBreak: 'break-word' // Better for mobile
+                            wordBreak: 'break-word'
                         }}>
                             {transcript || 'Say something...'}
                         </div>
@@ -341,7 +432,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                         fontSize: '0.875rem',
                         color: '#6b7280'
                     }}>
-                        {placeholder}
+                        {permissionStatus === 'prompt' ? 'Click microphone to start' : placeholder}
                     </div>
                 )}
             </div>
@@ -351,14 +442,14 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 <div style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: '3px' // Slightly larger gap for mobile
+                    gap: '3px'
                 }}>
                     {[1, 2, 3].map((i) => (
                         <div
                             key={i}
                             style={{
-                                width: '4px', // Slightly wider for mobile
-                                height: '24px', // Slightly taller for mobile
+                                width: '4px',
+                                height: '24px',
                                 backgroundColor: '#3b82f6',
                                 borderRadius: '2px',
                                 animation: `voice-wave 1.2s ease-in-out infinite`,
