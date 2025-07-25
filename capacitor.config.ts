@@ -10,16 +10,44 @@ const config: CapacitorConfig = {
         androidScheme: 'https'
     },
     plugins: {
+        // ADDED: StatusBar configuration for Android 15+ compatibility
         StatusBar: {
-            style: 'default',
-            backgroundColor: '#ffffff',
+            style: 'LIGHT_CONTENT',
+            backgroundColor: '#00000000', // Transparent - handled by theme
+            overlaysWebView: false, // Prevents deprecated overlay methods
+            androidColorScheme: 'auto' // Let system handle color scheme
         },
+
         SplashScreen: {
-            launchAutoHide: false
+            launchAutoHide: false,
+            androidScaleType: 'CENTER_CROP',
+            androidSpinnerStyle: 'large',
+            iosSpinnerStyle: 'small',
+            spinnerColor: '#4f46e5',
+            showSpinner: true,
+            splashFullScreen: true,
+            splashImmersive: true
         },
+
         Camera: {
-            // FIXED: Proper camera permissions configuration for Capacitor 7
             permissions: ['camera']
+        },
+
+        Microphone: {
+            permissions: ['microphone']
+        },
+
+        Geolocation: {
+            permissions: ['coarse-location', 'fine-location']
+        },
+
+        PushNotifications: {
+            presentationOptions: ["badge", "sound", "alert"]
+        },
+
+        LocalNotifications: {
+            smallIcon: "ic_stat_icon_config_sample",
+            iconColor: "#4f46e5"
         },
 
         CapacitorHttp: {
@@ -30,13 +58,12 @@ const config: CapacitorConfig = {
             enabled: true
         },
 
-        // Add ImageToText plugin configuration
         ImageToText: {
-            // ML Kit Text Recognition configuration
-            language: 'en' // Default language for OCR
+            language: 'en'
         },
-        Purchases: {
 
+        Purchases: {
+            // Your existing purchases config
         }
     },
 
@@ -44,15 +71,10 @@ const config: CapacitorConfig = {
         allowMixedContent: true,
         captureInput: true,
         webContentsDebuggingEnabled: true,
-
-        // FIXED: Add proper Android-specific settings
         loggingBehavior: 'debug',
-
-        // Handle system bars properly
         backgroundColor: '#ffffff'
     },
 
-    // Add iOS config for completeness
     ios: {
         contentInset: 'automatic'
     }

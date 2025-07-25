@@ -11,6 +11,11 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.util.Log;
 
+// AndroidX imports for proper edge-to-edge (non-deprecated)
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import androidx.core.view.WindowInsetsControllerCompat;
+
 import com.getcapacitor.BridgeActivity;
 
 public class MainActivity extends BridgeActivity {
@@ -21,22 +26,23 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
 
-        // FIXED: Comprehensive system bar setup for all Android versions
-        setupEdgeToEdge();
+        // FIXED: Use only non-deprecated edge-to-edge APIs
+        setupEdgeToEdgeAndroid15();
 
-        // ADD: Handle share intent on app launch
+        // Enhanced large screen support
+        setupLargeScreenSupport();
+
+        // Handle share intent on app launch
         handleShareIntent(getIntent());
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-
-        // ADD: Handle share intent when app is already running
         handleShareIntent(intent);
     }
 
-    // FIXED: Share intent handling method - removed debug popups
+    // Your existing share intent handling (unchanged)
     private void handleShareIntent(Intent intent) {
         if (intent == null) {
             Log.d(TAG, "handleShareIntent: Intent is null");
@@ -50,14 +56,12 @@ public class MainActivity extends BridgeActivity {
 
         Bundle extras = intent.getExtras();
         if (extras != null) {
-            // Log extras for debugging (console only, no popup)
             Log.d(TAG, "Share intent contains extras:");
             for (String key : extras.keySet()) {
                 Object value = extras.get(key);
                 Log.d(TAG, "  " + key + ": " + value);
             }
 
-            // Look for specific extras
             String title = extras.getString(Intent.EXTRA_TITLE);
             String subject = extras.getString(Intent.EXTRA_SUBJECT);
             String htmlText = extras.getString(Intent.EXTRA_HTML_TEXT);
@@ -69,11 +73,9 @@ public class MainActivity extends BridgeActivity {
                 if (htmlText != null) Log.d(TAG, "  HTML: " + htmlText.substring(0, Math.min(200, htmlText.length())) + "...");
             }
         } else {
-            // Log that no extras were found (no popup)
             Log.d(TAG, "No extras found in share intent - Facebook is only sending the URL");
         }
 
-        // Handle text share (like Facebook URLs)
         if (Intent.ACTION_SEND.equals(action) && "text/plain".equals(type)) {
             String sharedText = intent.getStringExtra(Intent.EXTRA_TEXT);
             Log.d(TAG, "Android received share: " + sharedText);
@@ -94,8 +96,6 @@ public class MainActivity extends BridgeActivity {
                 Log.w(TAG, "Shared text is null or empty");
             }
         }
-
-        // Handle URL intents (direct Facebook links)
         else if (Intent.ACTION_VIEW.equals(action)) {
             android.net.Uri data = intent.getData();
             if (data != null) {
@@ -113,65 +113,64 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    // EXISTING: Your edge-to-edge setup (unchanged)
-    private void setupEdgeToEdge() {
+    // FIXED: Use only non-deprecated APIs for Android 15+
+    private void setupEdgeToEdgeAndroid15() {
         Window window = getWindow();
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            // Android 11+ (API 30+) - Use WindowInsetsController
-            window.setDecorFitsSystemWindows(false);
+        Log.d(TAG, "Setting up Android 15+ compatible edge-to-edge (no deprecated APIs)");
 
-            WindowInsetsController controller = window.getInsetsController();
-            if (controller != null) {
-                // Set light status bar (dark icons)
-                controller.setSystemBarsAppearance(
-                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS |
-                    WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS,
-                    WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS |
-                    WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS
-                );
+        // ALWAYS use AndroidX WindowCompat - works on all API levels and avoids deprecated APIs
+        WindowCompat.setDecorFitsSystemWindows(window, false);
+
+        // Use AndroidX WindowInsetsControllerCompat (non-deprecated)
+        WindowInsetsControllerCompat controller = WindowCompat.getInsetsController(window, window.getDecorView());
+        if (controller != null) {
+            // Set light system bars using non-deprecated AndroidX APIs
+            controller.setAppearanceLightStatusBars(true);
+            controller.setAppearanceLightNavigationBars(true);
+
+            // ADDED: Prevent system UI from hiding automatically
+            controller.setSystemBarsBehavior(WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+        }
+
+        // Handle window insets properly for all Android versions
+        View decorView = window.getDecorView();
+        decorView.setOnApplyWindowInsetsListener((view, insets) -> {
+            androidx.core.graphics.Insets systemBars =
+                WindowInsetsCompat.toWindowInsetsCompat(insets).getInsets(WindowInsetsCompat.Type.systemBars());
+
+            // Apply minimal padding to avoid system bars overlapping content
+            view.setPadding(0, systemBars.top, 0, 0);
+
+            return insets;
+        });
+
+        Log.d(TAG, "Edge-to-edge setup complete using AndroidX APIs only");
+    }
+
+    // Enhanced large screen support for Android 16
+    private void setupLargeScreenSupport() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            Log.d(TAG, "Setting up large screen support for Android 16");
+
+            // Enhanced task description for multi-window
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                setTaskDescription(new android.app.ActivityManager.TaskDescription(
+                    "Doc Bear's Comfort Kitchen"
+                    // Removed deprecated icon and color parameters for Android 15+
+                ));
+            } else {
+                // Legacy support for older versions
+                setTaskDescription(new android.app.ActivityManager.TaskDescription(
+                    "Doc Bear's Comfort Kitchen",
+                    null,
+                    Color.WHITE
+                ));
             }
-
-        } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            // Android 6-10 (API 23-29)
-            window.addFlags(WindowManager.LayoutParams.FLAG_DRAWS_SYSTEM_BAR_BACKGROUNDS);
-            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_STATUS);
-            window.clearFlags(WindowManager.LayoutParams.FLAG_TRANSLUCENT_NAVIGATION);
-
-            View decorView = window.getDecorView();
-            int flags = decorView.getSystemUiVisibility();
-
-            // Light status bar
-            flags |= View.SYSTEM_UI_FLAG_LIGHT_STATUS_BAR;
-
-            // Light navigation bar (API 26+)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                flags |= View.SYSTEM_UI_FLAG_LIGHT_NAVIGATION_BAR;
-            }
-
-            decorView.setSystemUiVisibility(flags);
-        }
-
-        // Set semi-transparent system bars
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
-            window.setStatusBarColor(Color.argb(64, 0, 0, 0)); // 25% black
-            window.setNavigationBarColor(Color.argb(64, 0, 0, 0)); // 25% black
         }
     }
 
-    @Override
-    public void onResume() {
-        super.onResume();
-        // Reapply edge-to-edge when app resumes
-        setupEdgeToEdge();
-    }
-
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        if (hasFocus) {
-            // Ensure edge-to-edge is maintained when window gains focus
-            setupEdgeToEdge();
-        }
-    }
+    // REMOVED: onResume and onWindowFocusChanged calls to setupEdgeToEdgeAndroid15()
+    // These were causing redundant calls and potential issues
+    // The setup in onCreate() is sufficient for modern Android versions
 }

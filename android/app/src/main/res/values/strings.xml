@@ -4,4 +4,10 @@
     <string name="title_activity_main">Doc Bear\'s Comfort Kitchen</string>
     <string name="package_name">kitchen.docbearscomfort</string>
     <string name="custom_url_scheme">kitchen.docbearscomfort</string>
+
+    <!-- ADD THESE NEW PERMISSION DESCRIPTIONS -->
+    <string name="camera_permission_description">Take photos of food items and scan barcodes</string>
+    <string name="microphone_permission_description">Voice commands for hands-free inventory management</string>
+    <string name="location_permission_description">Find nearby stores and local deals</string>
+    <string name="notification_permission_description">Get alerts about expiring food and price deals</string>
 </resources>

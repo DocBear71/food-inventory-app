@@ -1,11 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Base application theme. -->
+    <!-- Base application theme -->
     <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
         <item name="colorPrimary">@color/colorPrimary</item>
         <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
         <item name="colorAccent">@color/colorAccent</item>
+
+        <!-- Android 15+ edge-to-edge support -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowTranslucentStatus">false</item>
+        <item name="android:windowTranslucentNavigation">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
+        <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
+        <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
     </style>
 
     <style name="AppTheme.NoActionBar" parent="Theme.AppCompat.DayNight.NoActionBar">
@@ -13,27 +22,31 @@
         <item name="windowNoTitle">true</item>
         <item name="android:background">@null</item>
 
-        <!-- FIXED: Proper system bar handling for Capacitor -->
+        <!-- Enhanced system bar handling for Android 15+ -->
         <item name="android:windowTranslucentStatus">false</item>
         <item name="android:windowTranslucentNavigation">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
 
-        <!-- Make status bar and nav bar semi-transparent -->
-        <item name="android:statusBarColor">#40000000</item>
-        <item name="android:navigationBarColor">#40000000</item>
+        <!-- Transparent system bars for edge-to-edge -->
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
 
-        <!-- CRITICAL: Don't use fitsSystemWindows - let Capacitor handle it -->
+        <!-- Don't use fitsSystemWindows - let Capacitor handle it -->
         <item name="android:fitsSystemWindows">false</item>
 
-        <!-- Handle display cutouts (notches) properly -->
+        <!-- Display cutout support for all Android versions -->
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="28">shortEdges</item>
 
-        <!-- For Android 10+ gesture navigation -->
+        <!-- Android 10+ gesture navigation support -->
         <item name="android:enforceNavigationBarContrast" tools:targetApi="29">false</item>
         <item name="android:enforceStatusBarContrast" tools:targetApi="29">false</item>
 
-        <!-- For Android 11+ edge-to-edge -->
-        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="30">always</item>
+        <!-- Android 15+ edge-to-edge enhancements -->
+        <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="35">always</item>
+
+        <!-- Large screen and foldable support -->
+        <item name="android:resizeableActivity" tools:targetApi="24">true</item>
+        <item name="android:supportsPictureInPicture" tools:targetApi="24">false</item>
     </style>
 
     <style name="AppTheme.NoActionBarLaunch" parent="Theme.SplashScreen">
@@ -41,14 +54,19 @@
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
 
-        <!-- Same system bar handling as main theme -->
+        <!-- Same enhanced system bar handling -->
         <item name="android:windowTranslucentStatus">false</item>
         <item name="android:windowTranslucentNavigation">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:statusBarColor">#40000000</item>
-        <item name="android:navigationBarColor">#40000000</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:fitsSystemWindows">false</item>
         <item name="android:windowLayoutInDisplayCutoutMode" tools:targetApi="28">shortEdges</item>
+
+        <!-- Android 12+ splash screen API support -->
+        <item name="android:windowSplashScreenBackground" tools:targetApi="31">@color/splashBackground</item>
+        <item name="android:windowSplashScreenAnimatedIcon" tools:targetApi="31">@mipmap/ic_launcher</item>
+        <item name="android:windowSplashScreenIconBackgroundColor" tools:targetApi="31">@color/splashPrimary</item>
     </style>
 
 </resources>
