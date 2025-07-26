@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/MobileDashboardLayout.js v11 - ENHANCED: Responsive bottom navigation
+// file: /src/components/layout/MobileDashboardLayout.js v12 - FIXED: StatusBar layout issues
 
 import {useState, useEffect} from 'react';
 import {handleMobileSignOut} from '@/lib/mobile-signout';
@@ -25,21 +25,41 @@ export default function MobileDashboardLayout({children}) {
     const [platformInfo, setPlatformInfo] = useState({
         isNative: false,
         isPWA: false,
-        isReady: false
+        isReady: false,
+        statusBarHeight: 0
     });
 
-    // Enhanced platform detection
+    // Enhanced platform detection with StatusBar handling
     useEffect(() => {
         async function detectPlatform() {
             try {
                 let isNative = false;
                 let isPWA = false;
+                let statusBarHeight = 0;
 
                 // Check for Capacitor (native app)
                 if (typeof window !== 'undefined' && window.Capacitor) {
                     try {
                         const { Capacitor } = await import('@capacitor/core');
                         isNative = Capacitor.isNativePlatform();
+
+                        // If native, try to get StatusBar info
+                        if (isNative) {
+                            try {
+                                const { StatusBar } = await import('@capacitor/status-bar');
+                                const info = await StatusBar.getInfo();
+                                statusBarHeight = info.height || 0;
+                                console.log('📱 StatusBar info:', info);
+                            } catch (statusBarError) {
+                                console.log('StatusBar plugin not available:', statusBarError);
+                                // Fallback: estimate status bar height based on platform
+                                if (Capacitor.getPlatform() === 'android') {
+                                    statusBarHeight = 24; // Typical Android status bar height in dp
+                                } else if (Capacitor.getPlatform() === 'ios') {
+                                    statusBarHeight = 44; // Typical iOS status bar height
+                                }
+                            }
+                        }
                     } catch (capacitorError) {
                         console.log('Capacitor import failed:', capacitorError);
                         isNative = false;
@@ -53,11 +73,12 @@ export default function MobileDashboardLayout({children}) {
                         document.referrer.includes('android-app://');
                 }
 
-                console.log('🔧 Platform detection:', { isNative, isPWA });
+                console.log('🔧 Platform detection:', { isNative, isPWA, statusBarHeight });
 
                 setPlatformInfo({
                     isNative,
                     isPWA,
+                    statusBarHeight,
                     isReady: true
                 });
 
@@ -66,6 +87,7 @@ export default function MobileDashboardLayout({children}) {
                 setPlatformInfo({
                     isNative: false,
                     isPWA: false,
+                    statusBarHeight: 0,
                     isReady: true
                 });
             }
@@ -350,19 +372,55 @@ export default function MobileDashboardLayout({children}) {
         }
     };
 
+    // FIXED: Improved layout calculations for StatusBar
     const getMainContentStyle = () => {
-        const baseTopPadding = platformInfo.isNative ? '88px' : '80px';
-        let bottomPadding;
+        let topPadding, bottomPadding;
+
+        if (platformInfo.isNative) {
+            // For native apps, account for the StatusBar height
+            // Since overlaysWebView is false, the StatusBar takes up real space
+            topPadding = '80px'; // Header height, no need to add extra for status bar
+        } else {
+            topPadding = '80px'; // Regular header height for web/PWA
+        }
 
         if (showPWABanner) {
-            bottomPadding = '160px';
+            bottomPadding = '160px'; // Extra space for PWA banner + bottom nav
         } else {
-            bottomPadding = '112px';
+            bottomPadding = '112px'; // Just bottom nav + safe area
         }
 
         return {
-            paddingTop: baseTopPadding,
+            paddingTop: topPadding,
             paddingBottom: bottomPadding
+        };
+    };
+
+    // FIXED: Improved header positioning
+    const getHeaderStyle = () => {
+        if (platformInfo.isNative) {
+            // For native apps with overlaysWebView: false, StatusBar takes up space
+            // So we position the header right at the top (0)
+            return {
+                top: '0',
+                paddingTop: '8px' // Small padding for visual spacing
+            };
+        } else {
+            // For web/PWA, normal positioning
+            return {
+                top: '0',
+                paddingTop: '0'
+            };
+        }
+    };
+
+    // FIXED: Improved bottom nav positioning
+    const getBottomNavStyle = () => {
+        return {
+            bottom: '0',
+            paddingBottom: platformInfo.isNative ?
+                'max(env(safe-area-inset-bottom, 0px), 8px)' : // Native: use safe area or small padding
+                'max(env(safe-area-inset-bottom, 0px), 0px)'   // Web: just safe area
         };
     };
 
@@ -379,19 +437,18 @@ export default function MobileDashboardLayout({children}) {
 
     console.log('🎯 MobileDashboardLayout rendering with children:', !!children);
     console.log('📱 Screen width:', screenWidth, 'Bottom nav items:', navigation.length);
+    console.log('📱 Platform info:', platformInfo);
 
     return (
         <div className="min-h-screen bg-gray-50">
-            {/* FIXED: Improved Mobile Header */}
-            <header className={`fixed left-0 right-0 z-40 transition-all duration-200 ${
-                isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
-            }`}
-                    style={{
-                        top: platformInfo.isNative ? '32px' : '0',
-                        paddingTop: platformInfo.isNative ? '8px' : '0'
-                    }}
+            {/* FIXED: Improved Mobile Header with proper StatusBar handling */}
+            <header
+                className={`fixed left-0 right-0 z-40 transition-all duration-200 ${
+                    isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
+                }`}
+                style={getHeaderStyle()}
             >
-                {/* FIXED: Cleaner header layout without redundant logo */}
+                {/* FIXED: Cleaner header layout */}
                 <div className="flex items-center justify-between px-4 py-3">
                     {/* Left side: Just the Menu button */}
                     <div className="flex items-center">
@@ -631,8 +688,8 @@ export default function MobileDashboardLayout({children}) {
                                                 />
                                             ) : (
                                                 <span className="text-indigo-600 text-sm font-medium">
-                                                    {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                                                </span>
+                                            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                                        </span>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">
@@ -682,12 +739,10 @@ export default function MobileDashboardLayout({children}) {
                 </div>
             </main>
 
-            {/* ENHANCED: Responsive Bottom Navigation */}
-            <nav className="fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg z-30"
-                 style={{
-                     bottom: '0',
-                     paddingBottom: 'max(env(safe-area-inset-bottom, 0px), 0px)'
-                 }}
+            {/* FIXED: Responsive Bottom Navigation with proper positioning */}
+            <nav
+                className="fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg z-30"
+                style={getBottomNavStyle()}
             >
                 <div className="flex justify-around items-center px-2" style={{
                     height: '68px',
@@ -710,8 +765,8 @@ export default function MobileDashboardLayout({children}) {
                             <span className={`font-medium leading-tight text-center max-w-full truncate px-1 ${
                                 navigation.length > 4 ? 'text-xs' : 'text-xs'
                             }`}>
-                                {item.name}
-                            </span>
+                        {item.name}
+                    </span>
                             {item.current && (
                                 <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 w-1 h-1 bg-indigo-600 rounded-full"/>
                             )}

@@ -33,8 +33,18 @@ const config: CapacitorConfig = {
             permissions: ['camera']
         },
 
+        // UPDATED: Enhanced microphone configuration for @gachlab/capacitor-permissions
         Microphone: {
             permissions: ['microphone']
+        },
+
+        // ADDED: @gachlab/capacitor-permissions configuration
+        Permissions: {
+            permissions: [
+                'microphone',
+                'camera',
+                'geolocation'
+            ]
         },
 
         Geolocation: {

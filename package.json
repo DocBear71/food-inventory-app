@@ -30,6 +30,7 @@
     "@capacitor/preferences": "^7.0.1",
     "@capacitor/status-bar": "^7.0.1",
     "@ericblade/quagga2": "^1.8.4",
+    "@gachlab/capacitor-permissions": "^2.0.3",
     "@heroicons/react": "^2.2.0",
     "@revenuecat/purchases-capacitor": "^10.3.7",
     "@stripe/stripe-js": "^7.4.0",
