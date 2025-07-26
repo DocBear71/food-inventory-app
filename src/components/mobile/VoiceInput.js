@@ -14,6 +14,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
     const [permissionStatus, setPermissionStatus] = useState('unknown'); // 'granted', 'denied', 'prompt', 'unknown'
     const [browserInfo, setBrowserInfo] = useState({ browser: '', version: '', platform: '' });
     const [isCapacitor, setIsCapacitor] = useState(false);
+    const [recognitionState, setRecognitionState] = useState('idle');
     const recognitionRef = useRef(null);
     const { vibrateDevice } = usePWA();
 
@@ -309,121 +310,103 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
     // Initialize Speech Recognition with Capacitor optimizations
     useEffect(() => {
-        // Check for Speech Recognition support
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         if (SpeechRecognition && isSupported) {
             const recognition = new SpeechRecognition();
 
-            // Mobile and Capacitor-optimized configuration
-            recognition.continuous = false; // Important for mobile and Capacitor
+            // Configuration - keep simple for Capacitor
+            recognition.continuous = false; // Single phrase for better reliability
             recognition.interimResults = true;
             recognition.lang = 'en-US';
             recognition.maxAlternatives = 1;
 
-            // Platform-specific optimizations
-            if (browserInfo.platform === 'ios') {
-                recognition.continuous = false;
-                recognition.interimResults = false; // iOS works better without interim results
-            }
+            // Handle start event with state management
+            recognition.onstart = () => {
+                console.log('✅ Speech recognition actually started');
+                setRecognitionState('listening');
+                setIsListening(true);
+                setTranscript('Listening... speak now');
+                setConfidence(0);
+                vibrateDevice([100, 50, 100]);
+            };
 
-            if (browserInfo.platform === 'android' || isCapacitor) {
-                recognition.continuous = false;
-                recognition.interimResults = true;
-                // Note: Grammars are left as default for better compatibility
-            }
+            // Handle end event with state management
+            recognition.onend = () => {
+                console.log('🏁 Speech recognition ended, previous state:', recognitionState);
+                setRecognitionState('idle');
+                setIsListening(false);
+                vibrateDevice([50]);
+            };
 
-            // Handle results with mobile considerations
+            // Handle error with better logging
+            recognition.onerror = (event) => {
+                console.error('🚨 Speech recognition error:', event.error);
+                console.log('🔍 Error details:', {
+                    error: event.error,
+                    timeStamp: event.timeStamp,
+                    message: event.message,
+                    recognitionState: recognitionState
+                });
+
+                setRecognitionState('idle');
+                setIsListening(false);
+
+                // Only show error for non-abort cases
+                if (event.error !== 'aborted') {
+                    let errorMessage = '';
+                    switch (event.error) {
+                        case 'no-speech':
+                            errorMessage = 'No speech detected. Please speak clearly.';
+                            break;
+                        case 'audio-capture':
+                            errorMessage = 'Could not access microphone.';
+                            break;
+                        case 'not-allowed':
+                            errorMessage = 'Microphone access denied.';
+                            setPermissionStatus('denied');
+                            break;
+                        default:
+                            errorMessage = `Speech recognition error: ${event.error}`;
+                    }
+
+                    if (onError) {
+                        onError(errorMessage);
+                    }
+                } else {
+                    console.log('🛑 Speech recognition was aborted (this may be normal)');
+                }
+            };
+
+            // Handle results
             recognition.onresult = (event) => {
+                console.log('🎯 Speech result received');
+
                 let finalTranscript = '';
                 let interimTranscript = '';
 
-                // Safely access the resultIndex and results from the event
-                const startIndex = event.resultIndex !== undefined ? event.resultIndex : 0;
-                const results = event.results;
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    const confidence = event.results[i][0].confidence || 0.8;
 
-                for (let i = startIndex; i < results.length; i++) {
-                    const transcript = results[i][0].transcript;
-                    const confidence = results[i][0].confidence || 0.8;
-
-                    if (results[i].isFinal) {
+                    if (event.results[i].isFinal) {
                         finalTranscript += transcript;
                         setConfidence(confidence);
+                        console.log('✅ Final transcript:', transcript);
                     } else {
                         interimTranscript += transcript;
+                        console.log('📝 Interim transcript:', transcript);
                     }
                 }
 
                 const currentTranscript = finalTranscript || interimTranscript;
                 setTranscript(currentTranscript);
 
-                if (finalTranscript && onResult) {
-                    onResult(finalTranscript.trim(), confidence);
-                }
-            };
-
-            // Enhanced error handling for mobile and Capacitor
-            recognition.onerror = (event) => {
-                console.error('🎤 Voice input error:', event.error);
-                setIsListening(false);
-
-                let errorMessage = 'Voice recognition failed';
-                switch (event.error) {
-                    case 'no-speech':
-                        errorMessage = 'No speech detected. Please try again.';
-                        break;
-                    case 'audio-capture':
-                        errorMessage = isCapacitor
-                            ? 'Microphone not accessible. Please check permissions in Settings > Apps > Doc Bear\'s Comfort Kitchen > Permissions > Microphone and restart the app.'
-                            : 'Microphone not available. Check your device settings.';
-                        break;
-                    case 'not-allowed':
-                        errorMessage = isCapacitor
-                            ? 'Microphone permission denied. Please enable microphone access in Settings > Apps > Doc Bear\'s Comfort Kitchen > Permissions > Microphone, then restart the app.'
-                            : 'Microphone access denied. Please allow microphone access and try again.';
-                        setPermissionStatus('denied');
-                        break;
-                    case 'network':
-                        errorMessage = 'Network error. Voice recognition requires an internet connection.';
-                        break;
-                    case 'service-not-allowed':
-                        errorMessage = 'Speech recognition service not allowed. Try reloading the page.';
-                        break;
-                    default:
-                        errorMessage = `Voice recognition error: ${event.error}`;
-                }
-
-                if (onError) {
-                    onError(errorMessage);
-                }
-            };
-
-            // Handle start/end with mobile feedback
-            recognition.onstart = () => {
-                console.log('🎤 Speech recognition started');
-                setIsListening(true);
-                setTranscript('');
-                vibrateDevice([100, 50, 100]);
-            };
-
-            recognition.onend = () => {
-                console.log('🎤 Speech recognition ended');
-                setIsListening(false);
-                vibrateDevice([50]);
-            };
-
-            recognition.onspeechstart = () => {
-                console.log('🎤 Speech detected');
-            };
-
-            recognition.onspeechend = () => {
-                console.log('🎤 Speech ended');
-                if (browserInfo.platform === 'ios' || browserInfo.platform === 'android' || isCapacitor) {
-                    setTimeout(() => {
-                        if (recognition && isListening) {
-                            recognition.stop();
-                        }
-                    }, 500);
+                if (finalTranscript && finalTranscript.trim().length > 0) {
+                    console.log('🎯 Processing final result:', finalTranscript.trim());
+                    if (onResult) {
+                        onResult(finalTranscript.trim(), confidence);
+                    }
                 }
             };
 
@@ -432,10 +415,15 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
         return () => {
             if (recognitionRef.current) {
-                recognitionRef.current.abort();
+                try {
+                    recognitionRef.current.abort();
+                } catch (e) {
+                    console.log('Error aborting recognition on cleanup:', e);
+                }
             }
+            setRecognitionState('idle');
         };
-    }, [onResult, onError, vibrateDevice, browserInfo, isSupported, isListening, isCapacitor]);
+    }, [onResult, onError, vibrateDevice, browserInfo, isSupported, recognitionState]);
 
     // Enhanced Speech Recognition configuration for web browsers
     useEffect(() => {
@@ -667,9 +655,21 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
     // Enhanced start function with permission check
     const startListening = useCallback(async () => {
-        if (!recognitionRef.current || isListening) return;
+        console.log('🎤 startListening called, current state:', recognitionState);
+
+        if (!recognitionRef.current) {
+            console.log('❌ No recognition object available');
+            return;
+        }
+
+        if (recognitionState !== 'idle') {
+            console.log('⚠️ Recognition not idle, current state:', recognitionState);
+            return;
+        }
 
         try {
+            setRecognitionState('starting');
+
             // Always check/request permission before starting
             console.log('🎤 Starting voice input, checking permissions...');
 
@@ -677,6 +677,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
             if (!hasPermission) {
                 console.log('❌ No microphone permission, cannot start voice input');
+                setRecognitionState('idle');
                 return;
             }
 
@@ -685,38 +686,60 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             setConfidence(0);
 
             console.log('🎤 Starting speech recognition...');
-            recognitionRef.current.start();
-        } catch (error) {
-            console.error('Failed to start recognition:', error);
-            if (onError) {
-                let errorMsg = 'Failed to start voice recognition. Please try again.';
 
-                if (isCapacitor) {
-                    errorMsg = 'Voice recognition failed. Please ensure microphone access is enabled in your device settings and restart the app.';
-                } else if (browserInfo.platform === 'ios') {
-                    errorMsg = 'Voice recognition failed. Make sure you have iOS 14.5 or later and microphone access is allowed.';
+            // CRITICAL: Add a small delay to prevent immediate abort
+            setTimeout(() => {
+                if (recognitionRef.current && recognitionState === 'starting') {
+                    try {
+                        recognitionRef.current.start();
+                        console.log('🎤 Recognition.start() called successfully');
+                    } catch (startError) {
+                        console.error('❌ Error calling recognition.start():', startError);
+                        setRecognitionState('idle');
+                        setIsListening(false);
+                    }
                 }
+            }, 100); // 100ms delay to prevent race conditions
 
-                onError(errorMsg);
+        } catch (error) {
+            console.error('❌ Failed to start recognition:', error);
+            setRecognitionState('idle');
+            setIsListening(false);
+
+            if (onError) {
+                onError('Failed to start voice recognition. Please try again.');
             }
         }
-    }, [isListening, requestMicrophonePermission, onError, browserInfo.platform, isCapacitor]);
+    }, [recognitionState, requestMicrophonePermission, onError]);
 
-    // Stop function
+// 3. UPDATE: Enhanced stop function with state management
     const stopListening = useCallback(() => {
-        if (recognitionRef.current && isListening) {
-            recognitionRef.current.stop();
-        }
-    }, [isListening]);
+        console.log('🛑 stopListening called, current state:', recognitionState);
 
-    // Toggle function with better permission handling
+        if (recognitionRef.current && (recognitionState === 'listening' || recognitionState === 'starting')) {
+            console.log('🛑 Manually stopping speech recognition');
+            setRecognitionState('stopping');
+
+            try {
+                recognitionRef.current.stop(); // Use stop() instead of abort()
+            } catch (e) {
+                console.log('Error stopping recognition:', e);
+                setRecognitionState('idle');
+                setIsListening(false);
+            }
+        }
+    }, [recognitionState]);
+
+// 4. UPDATE: Enhanced toggle function
     const toggleListening = useCallback(async () => {
-        if (isListening) {
+        console.log('🔄 toggleListening called, current state:', recognitionState, 'isListening:', isListening);
+
+        if (isListening || recognitionState === 'listening' || recognitionState === 'starting') {
             stopListening();
-        } else {
+        } else if (recognitionState === 'idle') {
             await startListening();
         }
-    }, [isListening, startListening, stopListening]);
+    }, [isListening, recognitionState, startListening, stopListening]);
 
     // Enhanced support detection messaging
     if (!isSupported) {
