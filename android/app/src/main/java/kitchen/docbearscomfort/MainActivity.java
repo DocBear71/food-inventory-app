@@ -11,6 +11,12 @@ import android.view.Window;
 import android.view.WindowManager;
 import android.util.Log;
 
+// ADDED: Microphone permission imports
+import android.Manifest;
+import android.content.pm.PackageManager;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
+
 // AndroidX imports for proper edge-to-edge (non-deprecated)
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -21,6 +27,8 @@ import com.getcapacitor.BridgeActivity;
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "MainActivity";
+    // ADDED: Permission request code for microphone
+    private static final int MICROPHONE_PERMISSION_REQUEST_CODE = 200;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -32,8 +40,78 @@ public class MainActivity extends BridgeActivity {
         // Enhanced large screen support
         setupLargeScreenSupport();
 
+        // ADDED: Request microphone permissions on app start
+        requestMicrophonePermissions();
+
         // Handle share intent on app launch
         handleShareIntent(getIntent());
+    }
+
+    // ADDED: Request microphone permissions at runtime
+    private void requestMicrophonePermissions() {
+        Log.d(TAG, "🎤 Checking microphone permissions...");
+
+        // Check if we already have permissions
+        boolean hasRecordAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                == PackageManager.PERMISSION_GRANTED;
+        boolean hasModifyAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.MODIFY_AUDIO_SETTINGS)
+                == PackageManager.PERMISSION_GRANTED;
+
+        Log.d(TAG, "RECORD_AUDIO permission: " + (hasRecordAudio ? "GRANTED" : "DENIED"));
+        Log.d(TAG, "MODIFY_AUDIO_SETTINGS permission: " + (hasModifyAudio ? "GRANTED" : "DENIED"));
+
+        if (!hasRecordAudio || !hasModifyAudio) {
+            Log.d(TAG, "🎤 Requesting microphone permissions...");
+
+            // Request permissions
+            ActivityCompat.requestPermissions(this,
+                new String[]{
+                    Manifest.permission.RECORD_AUDIO,
+                    Manifest.permission.MODIFY_AUDIO_SETTINGS
+                },
+                MICROPHONE_PERMISSION_REQUEST_CODE);
+        } else {
+            Log.d(TAG, "✅ All microphone permissions already granted");
+        }
+    }
+
+    // ADDED: Handle permission request results
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+
+        if (requestCode == MICROPHONE_PERMISSION_REQUEST_CODE) {
+            Log.d(TAG, "🎤 Microphone permission request results:");
+
+            boolean allPermissionsGranted = true;
+
+            for (int i = 0; i < permissions.length; i++) {
+                boolean granted = grantResults[i] == PackageManager.PERMISSION_GRANTED;
+                Log.d(TAG, "  " + permissions[i] + ": " + (granted ? "GRANTED" : "DENIED"));
+
+                if (!granted) {
+                    allPermissionsGranted = false;
+                }
+            }
+
+            if (allPermissionsGranted) {
+                Log.d(TAG, "✅ All microphone permissions granted - voice input should work");
+
+                // Notify the web view that permissions are now available
+                getBridge().getWebView().post(() -> {
+                    String jsCode = "window.dispatchEvent(new CustomEvent('microphonePermissionGranted', { detail: { granted: true } }));";
+                    getBridge().getWebView().evaluateJavascript(jsCode, null);
+                });
+            } else {
+                Log.w(TAG, "❌ Some microphone permissions denied - voice input may not work");
+
+                // Notify the web view that permissions were denied
+                getBridge().getWebView().post(() -> {
+                    String jsCode = "window.dispatchEvent(new CustomEvent('microphonePermissionDenied', { detail: { granted: false } }));";
+                    getBridge().getWebView().evaluateJavascript(jsCode, null);
+                });
+            }
+        }
     }
 
     @Override

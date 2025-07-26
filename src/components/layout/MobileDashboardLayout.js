@@ -419,7 +419,7 @@ export default function MobileDashboardLayout({children}) {
         return {
             bottom: '0',
             // FIXED: Proper CSS env() syntax - env() doesn't support max() function
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 68px)',
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 48px)',
             // Alternative: Use CSS custom properties for better browser support
             // paddingBottom: 'env(safe-area-inset-bottom, 8px)',
             // Ensure minimum height for touch targets
