@@ -67,11 +67,8 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                     const { Capacitor } = await import('@capacitor/core');
 
                     if (Capacitor.isNativePlatform()) {
-                        // For native platforms, use Device plugin to check/request microphone permission
+                        // For native platforms, request microphone permission directly
                         try {
-                            const { Device } = await import('@capacitor/device');
-                            const { CapacitorHttp } = await import('@capacitor/core');
-
                             console.log('🎤 Using Capacitor native microphone permission flow...');
 
                             // First, try to request permission using getUserMedia which will trigger native permission dialog
@@ -245,6 +242,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
     // Check browser support with mobile-specific considerations
     useEffect(() => {
+        // Check for Speech Recognition support
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
         const isSupported = !!SpeechRecognition;
 
@@ -273,6 +271,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
     // Initialize Speech Recognition with Capacitor optimizations
     useEffect(() => {
+        // Check for Speech Recognition support
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         if (SpeechRecognition && isSupported) {
@@ -293,10 +292,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             if (browserInfo.platform === 'android' || isCapacitor) {
                 recognition.continuous = false;
                 recognition.interimResults = true;
-                // Additional timeout for Android/Capacitor
-                if (isCapacitor) {
-                    recognition.grammars = null; // Disable grammars for better Capacitor compatibility
-                }
+                // Note: Grammars are left as default for better compatibility
             }
 
             // Handle results with mobile considerations
@@ -304,11 +300,15 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 let finalTranscript = '';
                 let interimTranscript = '';
 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    const confidence = event.results[i][0].confidence || 0.8;
+                // Safely access the resultIndex and results from the event
+                const startIndex = event.resultIndex !== undefined ? event.resultIndex : 0;
+                const results = event.results;
 
-                    if (event.results[i].isFinal) {
+                for (let i = startIndex; i < results.length; i++) {
+                    const transcript = results[i][0].transcript;
+                    const confidence = results[i][0].confidence || 0.8;
+
+                    if (results[i].isFinal) {
                         finalTranscript += transcript;
                         setConfidence(confidence);
                     } else {
