@@ -966,8 +966,8 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                 {/* Enhanced Search Bar */}
                 <div className="p-4 border-b border-gray-200">
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-400">🔍</span>
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                            <span className="text-gray-400 text-sm">🔍</span>
                         </div>
                         <KeyboardOptimizedInput
                             type="text"
@@ -979,10 +979,10 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                         {searchTerm && (
                             <TouchEnhancedButton
                                 onClick={clearSearch}
-                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 z-10"
                                 title="Clear search"
                             >
-                                ✕
+                                <span className="text-sm">✕</span>
                             </TouchEnhancedButton>
                         )}
                     </div>
@@ -1063,7 +1063,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                         onDragOver={(e) => handleDragOver(e, index)}
                                         onDragLeave={handleDragLeave}
                                         onDrop={(e) => handleDrop(e, index)}
-                                        className={`flex items-center justify-between p-4 bg-gray-50 rounded-lg border-2 transition-all cursor-move ${
+                                        className={`p-4 bg-gray-50 rounded-lg border-2 transition-all cursor-move ${
                                             isDraggedOver
                                                 ? 'border-purple-400 bg-purple-100 shadow-lg transform scale-[1.02]'
                                                 : selectedCategory === category
@@ -1072,32 +1072,35 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                         }`}
                                         onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
                                     >
-                                        <div className="flex items-center gap-3 flex-1">
-                                            {/* Drag Handle */}
-                                            <div className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing">
-                                                ⋮⋮
+                                        {/* Mobile-First Layout */}
+                                        <div className="space-y-3">
+                                            {/* Top Row: Drag Handle, Position, Icon, Name */}
+                                            <div className="flex items-center gap-3">
+                                                <div className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0">
+                                                    <span className="text-sm">⋮⋮</span>
+                                                </div>
+
+                                                <div className="flex items-center justify-center w-8 h-8 bg-purple-100 text-purple-600 rounded-full font-bold text-sm flex-shrink-0">
+                                                    {actualIndex + 1}
+                                                </div>
+
+                                                <div className="text-xl flex-shrink-0">
+                                                    {categoryInfo.icon}
+                                                </div>
+
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium text-gray-900 truncate">
+                                                        {categoryInfo.name}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {categoryInfo.section} • Position {actualIndex + 1} of {visibleCategories.length}
+                                                    </div>
+                                                </div>
                                             </div>
 
-                                            <div className="flex items-center justify-center w-10 h-10 bg-purple-100 text-purple-600 rounded-full font-bold text-sm">
-                                                {actualIndex + 1}
-                                            </div>
-                                            <div className="text-2xl">
-                                                {categoryInfo.icon}
-                                            </div>
-                                            <div className="flex-1">
-                                                <div className="font-medium text-gray-900">
-                                                    {categoryInfo.name}
-                                                </div>
-                                                <div className="text-sm text-gray-500">
-                                                    {categoryInfo.section} • Position {actualIndex + 1} of {visibleCategories.length}
-                                                </div>
-                                            </div>
-                                        </div>
-
-                                        {/* Enhanced Controls */}
-                                        <div className="flex items-center gap-2 ml-2">
-                                            {/* Jump to Position */}
-                                            <div className="flex items-center gap-1">
+                                            {/* Middle Row: Jump to Position */}
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-sm text-gray-600 flex-shrink-0">Jump to:</span>
                                                 <KeyboardOptimizedInput
                                                     type="number"
                                                     min="1"
@@ -1107,7 +1110,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                         ...prev,
                                                         [category]: e.target.value
                                                     }))}
-                                                    className="w-12 px-1 py-1 text-xs border border-gray-300 rounded text-center"
+                                                    className="w-16 px-2 py-1 text-sm border border-gray-300 rounded text-center"
                                                     placeholder="#"
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
@@ -1117,116 +1120,123 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                         jumpToPosition(category, jumpToPositions[category]);
                                                     }}
                                                     disabled={!jumpToPositions[category]}
-                                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                    className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
                                                     title="Jump to position"
                                                 >
                                                     Go
                                                 </TouchEnhancedButton>
                                             </div>
 
-                                            {/* Quick Move Buttons */}
-                                            <div className="flex items-center gap-1">
-                                                <TouchEnhancedButton
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        moveToTop(category);
-                                                    }}
-                                                    className="p-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                                                    title="Move to top"
-                                                >
-                                                    ⏫
-                                                </TouchEnhancedButton>
-                                                <TouchEnhancedButton
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        moveBulkUp(category, 5);
-                                                    }}
-                                                    disabled={actualIndex < 5}
-                                                    className="p-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
-                                                    title="Move up 5"
-                                                >
-                                                    ⬆️5
-                                                </TouchEnhancedButton>
-                                                <TouchEnhancedButton
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        moveBulkDown(category, 5);
-                                                    }}
-                                                    disabled={actualIndex >= visibleCategories.length - 5}
-                                                    className="p-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
-                                                    title="Move down 5"
-                                                >
-                                                    ⬇️5
-                                                </TouchEnhancedButton>
-                                                <TouchEnhancedButton
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        moveToBottom(category);
-                                                    }}
-                                                    className="p-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
-                                                    title="Move to bottom"
-                                                >
-                                                    ⏬
-                                                </TouchEnhancedButton>
-                                            </div>
+                                            {/* Bottom Row: Movement Controls */}
+                                            <div className="space-y-2">
+                                                {/* Quick Moves Row */}
+                                                <div className="flex items-center gap-2 flex-wrap">
+                                                    <span className="text-sm text-gray-600 flex-shrink-0">Quick:</span>
+                                                    <TouchEnhancedButton
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            moveToTop(category);
+                                                        }}
+                                                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                        title="Move to top"
+                                                    >
+                                                        ⏫ Top
+                                                    </TouchEnhancedButton>
+                                                    <TouchEnhancedButton
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            moveBulkUp(category, 5);
+                                                        }}
+                                                        disabled={actualIndex < 5}
+                                                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                        title="Move up 5"
+                                                    >
+                                                        ⬆️ 5
+                                                    </TouchEnhancedButton>
+                                                    <TouchEnhancedButton
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            moveBulkDown(category, 5);
+                                                        }}
+                                                        disabled={actualIndex >= visibleCategories.length - 5}
+                                                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                        title="Move down 5"
+                                                    >
+                                                        ⬇️ 5
+                                                    </TouchEnhancedButton>
+                                                    <TouchEnhancedButton
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            moveToBottom(category);
+                                                        }}
+                                                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                        title="Move to bottom"
+                                                    >
+                                                        ⏬ Bottom
+                                                    </TouchEnhancedButton>
+                                                </div>
 
-                                            {/* Standard Move Buttons */}
-                                            <div className="flex items-center gap-1">
-                                                <TouchEnhancedButton
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const visibleIndex = visibleCategories.indexOf(category);
-                                                        if (visibleIndex > 0) {
-                                                            const prevCategory = visibleCategories[visibleIndex - 1];
-                                                            const actualCurrentIndex = categoryOrder.indexOf(category);
-                                                            const actualPrevIndex = categoryOrder.indexOf(prevCategory);
-                                                            moveCategory(actualCurrentIndex, actualPrevIndex);
-                                                        }
-                                                    }}
-                                                    disabled={actualIndex === 0}
-                                                    className={`p-1 rounded border ${
-                                                        actualIndex === 0
-                                                            ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                                            : 'border-purple-200 text-purple-600 hover:bg-purple-50'
-                                                    }`}
-                                                    title="Move up one"
-                                                >
-                                                    ⬆️
-                                                </TouchEnhancedButton>
-                                                <TouchEnhancedButton
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        const visibleIndex = visibleCategories.indexOf(category);
-                                                        if (visibleIndex < visibleCategories.length - 1) {
-                                                            const nextCategory = visibleCategories[visibleIndex + 1];
-                                                            const actualCurrentIndex = categoryOrder.indexOf(category);
-                                                            const actualNextIndex = categoryOrder.indexOf(nextCategory);
-                                                            moveCategory(actualCurrentIndex, actualNextIndex);
-                                                        }
-                                                    }}
-                                                    disabled={actualIndex === visibleCategories.length - 1}
-                                                    className={`p-1 rounded border ${
-                                                        actualIndex === visibleCategories.length - 1
-                                                            ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                                            : 'border-purple-200 text-purple-600 hover:bg-purple-50'
-                                                    }`}
-                                                    title="Move down one"
-                                                >
-                                                    ⬇️
-                                                </TouchEnhancedButton>
-                                            </div>
+                                                {/* Standard & Hide Controls Row */}
+                                                <div className="flex items-center gap-2 justify-between">
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-sm text-gray-600 flex-shrink-0">Step:</span>
+                                                        <TouchEnhancedButton
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const visibleIndex = visibleCategories.indexOf(category);
+                                                                if (visibleIndex > 0) {
+                                                                    const prevCategory = visibleCategories[visibleIndex - 1];
+                                                                    const actualCurrentIndex = categoryOrder.indexOf(category);
+                                                                    const actualPrevIndex = categoryOrder.indexOf(prevCategory);
+                                                                    moveCategory(actualCurrentIndex, actualPrevIndex);
+                                                                }
+                                                            }}
+                                                            disabled={actualIndex === 0}
+                                                            className={`px-2 py-1 text-xs rounded border ${
+                                                                actualIndex === 0
+                                                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                                                    : 'border-purple-200 text-purple-600 hover:bg-purple-50'
+                                                            }`}
+                                                            title="Move up one"
+                                                        >
+                                                            ⬆️
+                                                        </TouchEnhancedButton>
+                                                        <TouchEnhancedButton
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                const visibleIndex = visibleCategories.indexOf(category);
+                                                                if (visibleIndex < visibleCategories.length - 1) {
+                                                                    const nextCategory = visibleCategories[visibleIndex + 1];
+                                                                    const actualCurrentIndex = categoryOrder.indexOf(category);
+                                                                    const actualNextIndex = categoryOrder.indexOf(nextCategory);
+                                                                    moveCategory(actualCurrentIndex, actualNextIndex);
+                                                                }
+                                                            }}
+                                                            disabled={actualIndex === visibleCategories.length - 1}
+                                                            className={`px-2 py-1 text-xs rounded border ${
+                                                                actualIndex === visibleCategories.length - 1
+                                                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                                                    : 'border-purple-200 text-purple-600 hover:bg-purple-50'
+                                                            }`}
+                                                            title="Move down one"
+                                                        >
+                                                            ⬇️
+                                                        </TouchEnhancedButton>
+                                                    </div>
 
-                                            {/* Hide/Remove Button */}
-                                            <TouchEnhancedButton
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    hideCategory(category);
-                                                }}
-                                                className="p-1 rounded border border-red-200 text-red-600 hover:bg-red-50"
-                                                title="Hide this category"
-                                            >
-                                                🗑️
-                                            </TouchEnhancedButton>
+                                                    {/* Hide Button */}
+                                                    <TouchEnhancedButton
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            hideCategory(category);
+                                                        }}
+                                                        className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
+                                                        title="Hide this category"
+                                                    >
+                                                        🗑️ Hide
+                                                    </TouchEnhancedButton>
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 );
