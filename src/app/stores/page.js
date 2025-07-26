@@ -1,18 +1,18 @@
 'use client';
 // file: /src/app/stores/page.js v2 - Updated with new comprehensive grocery categories system
 
-import { useState, useEffect } from 'react';
-import { useSafeSession } from '@/hooks/useSafeSession';
-import { useRouter } from 'next/navigation';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import {useState, useEffect} from 'react';
+import {useSafeSession} from '@/hooks/useSafeSession';
+import {useRouter} from 'next/navigation';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { apiDelete, apiPost, apiPut } from "@/lib/api-config.js";
-import { CategoryUtils, GROCERY_CATEGORIES } from '@/lib/groceryCategories';
+import {apiDelete, apiPost, apiPut} from "@/lib/api-config.js";
+import {CategoryUtils, GROCERY_CATEGORIES} from '@/lib/groceryCategories';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function StoresPage() {
-    const { data: session, status } = useSafeSession();
+    const {data: session, status} = useSafeSession();
     const router = useRouter();
     const [stores, setStores] = useState([]);
     const [loading, setLoading] = useState(true);
@@ -161,7 +161,7 @@ export default function StoresPage() {
                 setStores(prev => prev.filter(store => store._id !== storeId));
 
                 // Clean up category orders for deleted store
-                const updated = { ...storeCategories };
+                const updated = {...storeCategories};
                 delete updated[storeId];
                 localStorage.setItem(`store-categories-${session?.user?.id}`, JSON.stringify(updated));
                 setStoreCategories(updated);
@@ -278,7 +278,8 @@ export default function StoresPage() {
                             </div>
                         ) : (
                             filteredStores.map(store => (
-                                <div key={store._id} className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
+                                <div key={store._id}
+                                     className="bg-white rounded-lg shadow hover:shadow-md transition-shadow p-6">
                                     <div className="flex justify-between items-start mb-4">
                                         <div>
                                             <h3 className="text-lg font-semibold text-gray-900">{store.name}</h3>
@@ -445,7 +446,10 @@ export default function StoresPage() {
                                             <input
                                                 type="text"
                                                 value={newStore.state}
-                                                onChange={(e) => setNewStore(prev => ({...prev, state: e.target.value}))}
+                                                onChange={(e) => setNewStore(prev => ({
+                                                    ...prev,
+                                                    state: e.target.value
+                                                }))}
                                                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 placeholder="State"
                                                 maxLength={2}
@@ -550,7 +554,10 @@ export default function StoresPage() {
                                         <input
                                             type="text"
                                             value={editingStore.chain || ''}
-                                            onChange={(e) => setEditingStore(prev => ({...prev, chain: e.target.value}))}
+                                            onChange={(e) => setEditingStore(prev => ({
+                                                ...prev,
+                                                chain: e.target.value
+                                            }))}
                                             className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                             style={{fontSize: '16px'}}
                                         />
@@ -564,7 +571,10 @@ export default function StoresPage() {
                                             <input
                                                 type="text"
                                                 value={editingStore.city || ''}
-                                                onChange={(e) => setEditingStore(prev => ({...prev, city: e.target.value}))}
+                                                onChange={(e) => setEditingStore(prev => ({
+                                                    ...prev,
+                                                    city: e.target.value
+                                                }))}
                                                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 style={{fontSize: '16px'}}
                                             />
@@ -576,7 +586,10 @@ export default function StoresPage() {
                                             <input
                                                 type="text"
                                                 value={editingStore.state || ''}
-                                                onChange={(e) => setEditingStore(prev => ({...prev, state: e.target.value}))}
+                                                onChange={(e) => setEditingStore(prev => ({
+                                                    ...prev,
+                                                    state: e.target.value
+                                                }))}
                                                 className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                                 maxLength={2}
                                                 style={{fontSize: '16px'}}
@@ -634,14 +647,14 @@ export default function StoresPage() {
                     )}
                 </div>
 
-                <Footer />
+                <Footer/>
             </div>
         </MobileOptimizedLayout>
     );
 }
 
 // Enhanced Category Order Modal Component with ALL Movement Features
-function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
+function EnhancedCategoryOrderModal({store, currentOrder, onSave, onClose}) {
     // Use the new comprehensive category system
     const defaultCategories = CategoryUtils.getDefaultCategoryOrder();
 
@@ -739,7 +752,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
 
     // Drag and Drop Functions
     const handleDragStart = (e, category, index) => {
-        setDraggedItem({ category, index });
+        setDraggedItem({category, index});
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/html', e.target);
     };
@@ -824,18 +837,6 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
         }));
     };
 
-    const moveCategoryUp = (index) => {
-        if (index > 0) {
-            moveCategory(index, index - 1);
-        }
-    };
-
-    const moveCategoryDown = (index) => {
-        if (index < categoryOrder.length - 1) {
-            moveCategory(index, index + 1);
-        }
-    };
-
     // Hide/Remove category functionality
     const hideCategory = (category) => {
         setHiddenCategories(prev => new Set([...prev, category]));
@@ -879,80 +880,77 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
     };
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col">
-                {/* Header */}
-                <div className="bg-purple-600 text-white p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-2 z-50">
+            <div className="bg-white rounded-lg max-w-5xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                {/* Header - Smaller */}
+                <div className="bg-purple-600 text-white p-3">
                     <div className="flex items-center justify-between">
                         <div>
-                            <h2 className="text-lg font-bold">📂 Category Order</h2>
-                            <p className="text-sm text-purple-100">{store.name}</p>
+                            <h2 className="text-base font-bold">📂 Category Order</h2>
+                            <p className="text-xs text-purple-100">{store.name}</p>
                         </div>
                         <TouchEnhancedButton
                             onClick={onClose}
-                            className="text-white hover:text-purple-200 text-2xl"
+                            className="text-white hover:text-purple-200 text-xl"
                         >
                             ×
                         </TouchEnhancedButton>
                     </div>
                 </div>
 
-                {/* Collapsible Instructions */}
+                {/* Collapsible Instructions - Smaller */}
                 <div className="border-b border-purple-200">
                     <TouchEnhancedButton
                         onClick={() => setShowInstructions(!showInstructions)}
-                        className="w-full p-4 bg-purple-50 hover:bg-purple-100 transition-colors text-left"
+                        className="w-full p-2 bg-purple-50 hover:bg-purple-100 transition-colors text-left"
                     >
-                        <div className="flex items-start justify-between">
-                            <div className="flex items-start gap-3">
-                                <span className="text-2xl">💡</span>
-                                <div>
-                                    <h3 className="font-semibold text-purple-900 mb-1">Customize Your Shopping Flow</h3>
-                                    {showInstructions && (
-                                        <p className="text-sm text-purple-700">
-                                            Arrange categories to match how you shop through {store.name}.
-                                            Use drag & drop, quick moves, or templates for fast setup.
-                                        </p>
-                                    )}
-                                </div>
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">💡</span>
+                                <h3 className="text-sm font-medium text-purple-900">Shopping Flow</h3>
                             </div>
-                            <div className="text-purple-600 ml-2">
+                            <div className="text-purple-600 text-sm">
                                 {showInstructions ? '🔼' : '🔽'}
                             </div>
                         </div>
+                        {showInstructions && (
+                            <p className="text-xs text-purple-700 mt-1 pl-7">
+                                Use drag & drop, quick moves, or templates for fast setup.
+                            </p>
+                        )}
                     </TouchEnhancedButton>
                 </div>
 
-                {/* Store Layout Templates */}
+                {/* Store Layout Templates - Smaller */}
                 <div className="border-b border-gray-200">
                     <TouchEnhancedButton
                         onClick={() => setShowTemplates(!showTemplates)}
-                        className="w-full p-3 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+                        className="w-full p-2 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
                     >
                         <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                                <span className="text-xl">🏪</span>
-                                <h3 className="font-medium text-blue-900">Quick Start Templates</h3>
+                            <div className="flex items-center gap-2">
+                                <span className="text-lg">🏪</span>
+                                <h3 className="text-sm font-medium text-blue-900">Templates</h3>
                             </div>
-                            <div className="text-blue-600">
+                            <div className="text-blue-600 text-sm">
                                 {showTemplates ? '🔼' : '🔽'}
                             </div>
                         </div>
                     </TouchEnhancedButton>
 
                     {showTemplates && (
-                        <div className="p-4 bg-blue-50">
-                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div className="p-3 bg-blue-50">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
                                 {Object.entries(storeLayoutTemplates).map(([key, template]) => (
                                     <TouchEnhancedButton
                                         key={key}
                                         onClick={() => applyTemplate(key)}
-                                        className="p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 text-left transition-colors"
+                                        className="p-2 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 text-left transition-colors"
                                     >
-                                        <div className="flex items-start gap-3">
-                                            <span className="text-2xl">{template.icon}</span>
+                                        <div className="flex items-start gap-2">
+                                            <span className="text-lg">{template.icon}</span>
                                             <div>
-                                                <div className="font-medium text-blue-900">{template.name}</div>
+                                                <div className="text-sm font-medium text-blue-900">{template.name}</div>
                                                 <div className="text-xs text-blue-700 mt-1">{template.description}</div>
                                             </div>
                                         </div>
@@ -963,35 +961,35 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                     )}
                 </div>
 
-                {/* Enhanced Search Bar */}
-                <div className="p-4 border-b border-gray-200">
+                {/* Enhanced Search Bar - Fixed Icons */}
+                <div className="p-3 border-b border-gray-200">
                     <div className="relative">
-                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
-                            <span className="text-gray-400 text-base">🔍</span>
-                        </div>
                         <KeyboardOptimizedInput
                             type="text"
                             placeholder="Search categories..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
+                        <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2 pointer-events-none">
+                            <span className="text-gray-400 text-sm">🔍</span>
+                        </div>
                         {searchTerm && (
                             <TouchEnhancedButton
                                 onClick={clearSearch}
-                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
+                                className="absolute right-2.5 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1"
                                 title="Clear search"
                             >
-                                <span className="text-base leading-none">✕</span>
+                                <span className="text-sm">✕</span>
                             </TouchEnhancedButton>
                         )}
                     </div>
-                    <div className="mt-2 flex items-center justify-between text-sm">
+                    <div className="mt-2 flex items-center justify-between text-xs">
                         <div className="text-gray-600">
-                            {filteredCategories.length} of {visibleCategories.length} visible categories
+                            {filteredCategories.length} of {visibleCategories.length} visible
                             {searchTerm && ` matching "${searchTerm}"`}
                             {hiddenCategories.size > 0 && (
-                                <span className="text-orange-600 ml-2">
+                                <span className="text-orange-600 ml-1">
                                     • {hiddenCategories.size} hidden
                                 </span>
                             )}
@@ -1010,18 +1008,18 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
 
                 {/* Add Back Hidden Categories Section */}
                 {showAddCategoriesSection && hiddenCategories.size > 0 && (
-                    <div className="p-4 bg-green-50 border-b border-green-200">
-                        <h4 className="font-medium text-green-900 mb-2">📂 Add Back Hidden Categories</h4>
-                        <div className="flex flex-wrap gap-2">
+                    <div className="p-3 bg-green-50 border-b border-green-200">
+                        <h4 className="text-sm font-medium text-green-900 mb-2">📂 Add Back Hidden Categories</h4>
+                        <div className="flex flex-wrap gap-1">
                             {availableHiddenCategories.map(category => {
                                 const categoryInfo = getCategoryInfo(category);
                                 return (
                                     <TouchEnhancedButton
                                         key={category}
                                         onClick={() => showCategory(category)}
-                                        className="flex items-center gap-2 px-3 py-1 bg-white border border-green-300 rounded-full text-sm hover:bg-green-100 transition-colors"
+                                        className="flex items-center gap-1 px-2 py-1 bg-white border border-green-300 rounded-full text-xs hover:bg-green-100 transition-colors"
                                     >
-                                        <span>{categoryInfo.icon}</span>
+                                        <span className="text-sm">{categoryInfo.icon}</span>
                                         <span>{categoryInfo.name}</span>
                                         <span className="text-green-600">+</span>
                                     </TouchEnhancedButton>
@@ -1031,8 +1029,8 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                     </div>
                 )}
 
-                {/* Category List with Drag & Drop */}
-                <div className="flex-1 overflow-y-auto p-4 min-h-0">
+                {/* Category List with Drag & Drop - More Compact */}
+                <div className="flex-1 overflow-y-auto p-3 min-h-0">
                     {filteredCategories.length === 0 ? (
                         <div className="text-center py-8">
                             <div className="text-gray-400 text-4xl mb-2">🔍</div>
@@ -1049,7 +1047,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                             )}
                         </div>
                     ) : (
-                        <div className="space-y-3">
+                        <div className="space-y-2">
                             {filteredCategories.map((category, index) => {
                                 const actualIndex = visibleCategories.indexOf(category);
                                 const categoryInfo = getCategoryInfo(category);
@@ -1063,7 +1061,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                         onDragOver={(e) => handleDragOver(e, index)}
                                         onDragLeave={handleDragLeave}
                                         onDrop={(e) => handleDrop(e, index)}
-                                        className={`p-4 bg-gray-50 rounded-lg border-2 transition-all cursor-move ${
+                                        className={`p-3 bg-gray-50 rounded-lg border-2 transition-all cursor-move ${
                                             isDraggedOver
                                                 ? 'border-purple-400 bg-purple-100 shadow-lg transform scale-[1.02]'
                                                 : selectedCategory === category
@@ -1072,35 +1070,37 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                         }`}
                                         onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
                                     >
-                                        {/* Mobile-First Layout */}
-                                        <div className="space-y-3">
+                                        {/* Mobile-First Layout - More Compact */}
+                                        <div className="space-y-2">
                                             {/* Top Row: Drag Handle, Position, Icon, Name */}
-                                            <div className="flex items-center gap-3">
-                                                <div className="flex items-center justify-center w-6 h-6 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0">
-                                                    <span className="text-sm">⋮⋮</span>
+                                            <div className="flex items-center gap-2">
+                                                <div
+                                                    className="flex items-center justify-center w-5 h-5 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing flex-shrink-0">
+                                                    <span className="text-xs">⋮⋮</span>
                                                 </div>
 
-                                                <div className="flex items-center justify-center w-8 h-8 bg-purple-100 text-purple-600 rounded-full font-bold text-sm flex-shrink-0">
+                                                <div
+                                                    className="flex items-center justify-center w-6 h-6 bg-purple-100 text-purple-600 rounded-full font-bold text-xs flex-shrink-0">
                                                     {actualIndex + 1}
                                                 </div>
 
-                                                <div className="text-xl flex-shrink-0">
+                                                <div className="text-lg flex-shrink-0">
                                                     {categoryInfo.icon}
                                                 </div>
 
                                                 <div className="flex-1 min-w-0">
-                                                    <div className="font-medium text-gray-900 truncate">
+                                                    <div className="font-medium text-gray-900 truncate text-sm">
                                                         {categoryInfo.name}
                                                     </div>
-                                                    <div className="text-sm text-gray-500">
-                                                        {categoryInfo.section} • Position {actualIndex + 1} of {visibleCategories.length}
+                                                    <div className="text-xs text-gray-500">
+                                                        {categoryInfo.section} • #{actualIndex + 1}
                                                     </div>
                                                 </div>
                                             </div>
 
                                             {/* Middle Row: Jump to Position */}
                                             <div className="flex items-center gap-2">
-                                                <span className="text-sm text-gray-600 flex-shrink-0">Jump to:</span>
+                                                <span className="text-xs text-gray-600 flex-shrink-0">Jump:</span>
                                                 <KeyboardOptimizedInput
                                                     type="number"
                                                     min="1"
@@ -1110,7 +1110,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                         ...prev,
                                                         [category]: e.target.value
                                                     }))}
-                                                    className="w-16 px-2 py-1 text-sm border border-gray-300 rounded text-center"
+                                                    className="w-12 px-1 py-1 text-xs border border-gray-300 rounded text-center"
                                                     placeholder="#"
                                                     onClick={(e) => e.stopPropagation()}
                                                 />
@@ -1120,7 +1120,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                         jumpToPosition(category, jumpToPositions[category]);
                                                     }}
                                                     disabled={!jumpToPositions[category]}
-                                                    className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
                                                     title="Jump to position"
                                                 >
                                                     Go
@@ -1128,19 +1128,19 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                             </div>
 
                                             {/* Bottom Row: Movement Controls */}
-                                            <div className="space-y-2">
+                                            <div className="space-y-1">
                                                 {/* Quick Moves Row */}
-                                                <div className="flex items-center gap-2 flex-wrap">
-                                                    <span className="text-sm text-gray-600 flex-shrink-0">Quick:</span>
+                                                <div className="flex items-center gap-1 flex-wrap">
+                                                    <span className="text-xs text-gray-600 flex-shrink-0">Quick:</span>
                                                     <TouchEnhancedButton
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             moveToTop(category);
                                                         }}
-                                                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                        className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
                                                         title="Move to top"
                                                     >
-                                                        ⏫ Top
+                                                        ⏫
                                                     </TouchEnhancedButton>
                                                     <TouchEnhancedButton
                                                         onClick={(e) => {
@@ -1148,10 +1148,10 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                             moveBulkUp(category, 5);
                                                         }}
                                                         disabled={actualIndex < 5}
-                                                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                        className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
                                                         title="Move up 5"
                                                     >
-                                                        ⬆️ 5
+                                                        ⬆️5
                                                     </TouchEnhancedButton>
                                                     <TouchEnhancedButton
                                                         onClick={(e) => {
@@ -1159,27 +1159,28 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                             moveBulkDown(category, 5);
                                                         }}
                                                         disabled={actualIndex >= visibleCategories.length - 5}
-                                                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                        className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
                                                         title="Move down 5"
                                                     >
-                                                        ⬇️ 5
+                                                        ⬇️5
                                                     </TouchEnhancedButton>
                                                     <TouchEnhancedButton
                                                         onClick={(e) => {
                                                             e.stopPropagation();
                                                             moveToBottom(category);
                                                         }}
-                                                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                        className="px-1.5 py-0.5 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
                                                         title="Move to bottom"
                                                     >
-                                                        ⏬ Bottom
+                                                        ⏬
                                                     </TouchEnhancedButton>
                                                 </div>
 
                                                 {/* Standard & Hide Controls Row */}
-                                                <div className="flex items-center gap-2 justify-between">
-                                                    <div className="flex items-center gap-2">
-                                                        <span className="text-sm text-gray-600 flex-shrink-0">Step:</span>
+                                                <div className="flex items-center gap-1 justify-between">
+                                                    <div className="flex items-center gap-1">
+                                                        <span
+                                                            className="text-xs text-gray-600 flex-shrink-0">Step:</span>
                                                         <TouchEnhancedButton
                                                             onClick={(e) => {
                                                                 e.stopPropagation();
@@ -1192,7 +1193,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                                 }
                                                             }}
                                                             disabled={actualIndex === 0}
-                                                            className={`px-2 py-1 text-xs rounded border ${
+                                                            className={`px-1.5 py-0.5 text-xs rounded border ${
                                                                 actualIndex === 0
                                                                     ? 'border-gray-200 text-gray-300 cursor-not-allowed'
                                                                     : 'border-purple-200 text-purple-600 hover:bg-purple-50'
@@ -1213,7 +1214,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                                 }
                                                             }}
                                                             disabled={actualIndex === visibleCategories.length - 1}
-                                                            className={`px-2 py-1 text-xs rounded border ${
+                                                            className={`px-1.5 py-0.5 text-xs rounded border ${
                                                                 actualIndex === visibleCategories.length - 1
                                                                     ? 'border-gray-200 text-gray-300 cursor-not-allowed'
                                                                     : 'border-purple-200 text-purple-600 hover:bg-purple-50'
@@ -1230,10 +1231,10 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                                             e.stopPropagation();
                                                             hideCategory(category);
                                                         }}
-                                                        className="px-2 py-1 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
+                                                        className="px-1.5 py-0.5 text-xs rounded border border-red-200 text-red-600 hover:bg-red-50"
                                                         title="Hide this category"
                                                     >
-                                                        🗑️ Hide
+                                                        🗑️
                                                     </TouchEnhancedButton>
                                                 </div>
                                             </div>
