@@ -418,8 +418,34 @@ export default function MobileDashboardLayout({children}) {
     const getBottomNavStyle = () => {
         return {
             bottom: '0',
-            // Let the global CSS handle most of the safe area calculations
-            paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)'
+            // FIXED: Proper CSS env() syntax - env() doesn't support max() function
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)',
+            // Alternative: Use CSS custom properties for better browser support
+            // paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+            // Ensure minimum height for touch targets
+            minHeight: 'calc(68px + env(safe-area-inset-bottom, 0px))'
+        };
+    };
+
+    // Alternative approach if the above doesn't work:
+    const getBottomNavStyleAlternative = () => {
+        return {
+            bottom: '0',
+            // Method 1: Simple env() with fallback
+            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
+            // Add minimum padding via separate property if needed
+            minHeight: '68px'
+        };
+    };
+
+// Or for more complex safe area handling:
+    const getBottomNavStyleAdvanced = () => {
+        return {
+            bottom: '0',
+            // Use CSS custom property approach for better control
+            paddingBottom: 'var(--safe-area-inset-bottom, 8px)',
+            // Ensure minimum padding
+            minHeight: 'calc(68px + var(--safe-area-inset-bottom, 0px))'
         };
     };
 

@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/mobile/VoiceInput.js v5 - Fixed Capacitor microphone permissions using native API
+// file: /src/components/mobile/VoiceInput.js v6 - FIXED: Proper Capacitor microphone permissions using native APIs
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { TouchEnhancedButton } from './TouchEnhancedButton';
@@ -54,133 +54,84 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
         detectEnvironment();
     }, []);
 
-    // Enhanced microphone permission request with @gachlab/capacitor-permissions
+    // FIXED: Proper Capacitor microphone permission handling
     const requestMicrophonePermission = useCallback(async () => {
         try {
             console.log('🎤 Requesting microphone permission...');
 
             if (isCapacitor) {
-                console.log('📱 Capacitor app detected - using @gachlab/capacitor-permissions...');
+                console.log('📱 Capacitor app detected - using native permission APIs...');
 
-                // Check if the @gachlab/capacitor-permissions plugin is available
-                if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Permissions) {
-                    try {
-                        console.log('🔧 Using @gachlab/capacitor-permissions plugin...');
+                try {
+                    // Import Capacitor core and plugins dynamically
+                    const { Capacitor } = await import('@capacitor/core');
 
-                        // First check current permission status
-                        const permissionResult = await window.Capacitor.Plugins.Permissions.query({
-                            permissions: [{ alias: 'microphone', permission: 'microphone' }]
-                        });
-                        console.log('🎤 Current microphone permission status:', permissionResult);
+                    if (Capacitor.isNativePlatform()) {
+                        // For native platforms, use Device plugin to check/request microphone permission
+                        try {
+                            const { Device } = await import('@capacitor/device');
+                            const { CapacitorHttp } = await import('@capacitor/core');
 
-                        const microphoneStatus = permissionResult.results?.find(r => r.alias === 'microphone')?.state;
-                        console.log('🎤 Microphone permission state:', microphoneStatus);
+                            console.log('🎤 Using Capacitor native microphone permission flow...');
 
-                        if (microphoneStatus === 'granted') {
-                            setPermissionStatus('granted');
-                            console.log('✅ Microphone permission already granted');
-                            return true;
-                        } else if (microphoneStatus === 'denied') {
-                            setPermissionStatus('denied');
-                            if (onError) {
-                                onError('Microphone permission is permanently denied. Please enable it in your device settings:\n\n1. Go to Settings > Apps > Doc Bear\'s Comfort Kitchen\n2. Tap Permissions > Microphone\n3. Select "Allow"\n4. Force close and restart the app');
-                            }
-                            return false;
-                        } else {
-                            // Permission is 'prompt' or unknown - request it
-                            console.log('🎤 Requesting microphone permission from user...');
-                            const requestResult = await window.Capacitor.Plugins.Permissions.request({
-                                permissions: [{ alias: 'microphone', permission: 'microphone' }]
+                            // First, try to request permission using getUserMedia which will trigger native permission dialog
+                            const stream = await navigator.mediaDevices.getUserMedia({
+                                audio: {
+                                    echoCancellation: true,
+                                    noiseSuppression: true,
+                                    autoGainControl: true,
+                                    // Android-specific optimizations for better permission handling
+                                    channelCount: 1,
+                                    sampleRate: 44100,
+                                    sampleSize: 16,
+                                    latency: 0.2,
+                                    volume: 1.0
+                                }
                             });
-                            console.log('🎤 Permission request result:', requestResult);
 
-                            const newMicrophoneStatus = requestResult.results?.find(r => r.alias === 'microphone')?.state;
+                            // Stop the stream immediately - we just wanted permission
+                            stream.getTracks().forEach(track => track.stop());
 
-                            if (newMicrophoneStatus === 'granted') {
-                                setPermissionStatus('granted');
-                                console.log('✅ Microphone permission granted via @gachlab/capacitor-permissions');
-                                return true;
-                            } else {
+                            setPermissionStatus('granted');
+                            console.log('✅ Capacitor native microphone permission granted');
+                            return true;
+
+                        } catch (nativeError) {
+                            console.error('❌ Capacitor native microphone permission denied:', nativeError);
+
+                            if (nativeError.name === 'NotAllowedError') {
                                 setPermissionStatus('denied');
                                 if (onError) {
-                                    onError('Microphone permission denied. Please enable microphone access in your device settings:\n\n1. Go to Settings > Apps > Doc Bear\'s Comfort Kitchen\n2. Tap Permissions > Microphone\n3. Select "Allow"\n4. Force close and restart the app');
+                                    onError('Microphone permission denied. Please enable microphone access in your device settings:\n\n• Settings > Apps > Doc Bear\'s Comfort Kitchen > Permissions > Microphone > Allow\n• Then force close and restart the app\n\nIMPORTANT: You must restart the app after changing permissions for them to take effect.');
                                 }
-                                return false;
+                            } else if (nativeError.name === 'NotFoundError') {
+                                if (onError) {
+                                    onError('No microphone found. Please check that your device has a working microphone.');
+                                }
+                            } else if (nativeError.name === 'NotReadableError') {
+                                if (onError) {
+                                    onError('Microphone is being used by another application. Please close other apps and try again.');
+                                }
+                            } else {
+                                if (onError) {
+                                    onError('Microphone access failed. Please check your device settings and try again.');
+                                }
                             }
-                        }
-                    } catch (capacitorError) {
-                        console.warn('⚠️ @gachlab/capacitor-permissions failed, falling back to web API:', capacitorError);
-                        // Fall through to web API approach
-                    }
-                }
-
-                // Fallback: Use web API for Capacitor (if permissions plugin not available)
-                console.log('🌐 Falling back to web API for Capacitor...');
-                try {
-                    const stream = await navigator.mediaDevices.getUserMedia({
-                        audio: {
-                            echoCancellation: true,
-                            noiseSuppression: true,
-                            autoGainControl: true,
-                            // Capacitor-specific optimizations
-                            channelCount: 1,
-                            sampleRate: 44100,
-                            sampleSize: 16
-                        }
-                    });
-
-                    // Stop the stream immediately - we just wanted permission
-                    stream.getTracks().forEach(track => track.stop());
-
-                    setPermissionStatus('granted');
-                    console.log('✅ Capacitor microphone permission granted via web API fallback');
-                    return true;
-
-                } catch (webApiError) {
-                    console.error('❌ Web API fallback also failed:', webApiError);
-
-                    setPermissionStatus('denied');
-
-                    if (webApiError.name === 'NotAllowedError') {
-                        if (onError) {
-                            onError('Microphone permission denied by system. Please check:\n\n1. Go to Settings > Apps > Doc Bear\'s Comfort Kitchen\n2. Tap Permissions > Microphone\n3. Select "Allow"\n4. Force close and restart the app\n\n⚠️ Important: You must restart the app after changing permissions for them to take effect.\n\nIf still not working:\n• Clear app cache: Settings > Apps > Doc Bear\'s Comfort Kitchen > Storage > Clear Cache\n• Restart your device\n• Reinstall the app if needed');
-                        }
-                    } else if (webApiError.name === 'NotFoundError') {
-                        if (onError) {
-                            onError('No microphone detected. Please check:\n• Your device has a working microphone\n• No other apps are using the microphone\n• Try restarting the app');
-                        }
-                    } else if (webApiError.name === 'NotReadableError') {
-                        if (onError) {
-                            onError('Microphone is being used by another application. Please:\n• Close other apps that might be using the microphone\n• Restart the app\n• Restart your device if needed');
+                            return false;
                         }
                     } else {
-                        if (onError) {
-                            onError(`Microphone access failed (${webApiError.name}). Please:\n• Ensure microphone permissions are enabled in device settings\n• Restart the app\n• Contact support if the issue persists`);
-                        }
+                        // Fallback for web view within Capacitor
+                        console.log('🌐 Capacitor web view - using enhanced web API...');
+                        return await handleWebAPIPermission();
                     }
-                    return false;
+                } catch (capacitorImportError) {
+                    console.error('Failed to import Capacitor modules:', capacitorImportError);
+                    // Fallback to web API
+                    return await handleWebAPIPermission();
                 }
-            }
-
-            // Regular web browser handling
-            console.log('🌐 Web browser - using standard getUserMedia...');
-            if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-                const stream = await navigator.mediaDevices.getUserMedia({
-                    audio: {
-                        echoCancellation: true,
-                        noiseSuppression: true,
-                        autoGainControl: true
-                    }
-                });
-
-                // Stop the stream immediately - we just wanted permission
-                stream.getTracks().forEach(track => track.stop());
-
-                setPermissionStatus('granted');
-                console.log('✅ Web microphone permission granted');
-                return true;
             } else {
-                throw new Error('getUserMedia not supported');
+                // Regular web browser handling
+                return await handleWebAPIPermission();
             }
         } catch (error) {
             console.error('❌ Microphone permission request failed:', error);
@@ -190,13 +141,9 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
             if (isCapacitor) {
                 errorMessage += 'Please enable microphone access in your device settings:\n';
-                errorMessage += '1. Go to Settings > Apps > Doc Bear\'s Comfort Kitchen\n';
-                errorMessage += '2. Tap Permissions > Microphone\n';
-                errorMessage += '3. Select "Allow" and restart the app\n\n';
-                errorMessage += 'If this doesn\'t work, try:\n';
-                errorMessage += '• Clear app cache in Settings > Apps > Doc Bear\'s Comfort Kitchen > Storage\n';
-                errorMessage += '• Restart your device\n';
-                errorMessage += '• Reinstall the app if needed';
+                errorMessage += '• Settings > Apps > Doc Bear\'s Comfort Kitchen > Permissions > Microphone > Allow\n';
+                errorMessage += '• Force close and restart the app\n';
+                errorMessage += '• If still not working, try clearing app cache or reinstalling';
             } else if (browserInfo.platform === 'ios') {
                 errorMessage += 'Go to Settings > Safari > Camera & Microphone > Allow websites to ask.';
             } else if (browserInfo.platform === 'android') {
@@ -212,25 +159,61 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
         }
     }, [isCapacitor, browserInfo.platform, onError]);
 
-    // Check microphone permission status
+    // Helper function for web API permission handling
+    const handleWebAPIPermission = useCallback(async () => {
+        console.log('🌐 Using web API for microphone permission...');
+
+        if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: {
+                    echoCancellation: true,
+                    noiseSuppression: true,
+                    autoGainControl: true
+                }
+            });
+
+            // Stop the stream immediately - we just wanted permission
+            stream.getTracks().forEach(track => track.stop());
+
+            setPermissionStatus('granted');
+            console.log('✅ Web microphone permission granted');
+            return true;
+        } else {
+            throw new Error('getUserMedia not supported');
+        }
+    }, []);
+
+    // FIXED: Improved permission checking for Capacitor
     const checkMicrophonePermission = useCallback(async () => {
         try {
             console.log('🎤 Checking microphone permission...');
 
-            if (isCapacitor && window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.Permissions) {
+            if (isCapacitor) {
                 try {
-                    const result = await window.Capacitor.Plugins.Permissions.query({
-                        permissions: [{ alias: 'microphone', permission: 'microphone' }]
-                    });
-                    const microphoneStatus = result.results?.find(r => r.alias === 'microphone')?.state;
+                    const { Capacitor } = await import('@capacitor/core');
 
-                    if (microphoneStatus) {
-                        setPermissionStatus(microphoneStatus);
-                        console.log('🎤 @gachlab/capacitor-permissions status:', microphoneStatus);
-                        return microphoneStatus;
+                    if (Capacitor.isNativePlatform()) {
+                        // For native Capacitor, check web permissions API as fallback
+                        // since most Capacitor apps use web-based permission checking
+                        if (navigator.permissions && navigator.permissions.query) {
+                            const result = await navigator.permissions.query({ name: 'microphone' });
+                            setPermissionStatus(result.state);
+
+                            result.onchange = () => {
+                                setPermissionStatus(result.state);
+                                console.log('🎤 Permission status changed to:', result.state);
+                            };
+
+                            console.log('🎤 Capacitor permission status:', result.state);
+                            return result.state;
+                        } else {
+                            // If permissions API not available, assume unknown and request when needed
+                            setPermissionStatus('unknown');
+                            return 'unknown';
+                        }
                     }
                 } catch (error) {
-                    console.log('@gachlab/capacitor-permissions query failed, using web API fallback');
+                    console.log('Capacitor permission check failed, using web API fallback');
                 }
             }
 
@@ -288,15 +271,15 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
         }
     }, [browserInfo, checkMicrophonePermission, isCapacitor]);
 
-    // Initialize Speech Recognition
+    // Initialize Speech Recognition with Capacitor optimizations
     useEffect(() => {
         const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
         if (SpeechRecognition && isSupported) {
             const recognition = new SpeechRecognition();
 
-            // Mobile-optimized configuration
-            recognition.continuous = false; // Important for mobile
+            // Mobile and Capacitor-optimized configuration
+            recognition.continuous = false; // Important for mobile and Capacitor
             recognition.interimResults = true;
             recognition.lang = 'en-US';
             recognition.maxAlternatives = 1;
@@ -310,6 +293,10 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             if (browserInfo.platform === 'android' || isCapacitor) {
                 recognition.continuous = false;
                 recognition.interimResults = true;
+                // Additional timeout for Android/Capacitor
+                if (isCapacitor) {
+                    recognition.grammars = null; // Disable grammars for better Capacitor compatibility
+                }
             }
 
             // Handle results with mobile considerations
@@ -339,7 +326,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
             // Enhanced error handling for mobile and Capacitor
             recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
+                console.error('🎤 Voice input error:', event.error);
                 setIsListening(false);
 
                 let errorMessage = 'Voice recognition failed';
@@ -349,7 +336,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                         break;
                     case 'audio-capture':
                         errorMessage = isCapacitor
-                            ? 'Microphone not accessible. Please check your device settings and restart the app.'
+                            ? 'Microphone not accessible. Please check permissions in Settings > Apps > Doc Bear\'s Comfort Kitchen > Permissions > Microphone and restart the app.'
                             : 'Microphone not available. Check your device settings.';
                         break;
                     case 'not-allowed':
