@@ -880,7 +880,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-5xl w-full max-h-[95vh] overflow-hidden">
+            <div className="bg-white rounded-lg max-w-5xl w-full max-h-[85vh] overflow-hidden flex flex-col">
                 {/* Header */}
                 <div className="bg-purple-600 text-white p-4">
                     <div className="flex items-center justify-between">
@@ -966,8 +966,8 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                 {/* Enhanced Search Bar */}
                 <div className="p-4 border-b border-gray-200">
                     <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                            <span className="text-gray-400 text-sm">🔍</span>
+                        <div className="absolute left-3 top-1/2 transform -translate-y-1/2 pointer-events-none z-10">
+                            <span className="text-gray-400 text-base">🔍</span>
                         </div>
                         <KeyboardOptimizedInput
                             type="text"
@@ -979,10 +979,10 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                         {searchTerm && (
                             <TouchEnhancedButton
                                 onClick={clearSearch}
-                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 z-10"
+                                className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 z-10"
                                 title="Clear search"
                             >
-                                <span className="text-sm">✕</span>
+                                <span className="text-base leading-none">✕</span>
                             </TouchEnhancedButton>
                         )}
                     </div>
@@ -1032,7 +1032,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                 )}
 
                 {/* Category List with Drag & Drop */}
-                <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: '55vh' }}>
+                <div className="flex-1 overflow-y-auto p-4 min-h-0">
                     {filteredCategories.length === 0 ? (
                         <div className="text-center py-8">
                             <div className="text-gray-400 text-4xl mb-2">🔍</div>
@@ -1316,12 +1316,12 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                 </div>
 
                 {/* Footer Actions */}
-                <div className="p-4 border-t border-gray-200 bg-gray-50">
+                <div className="p-4 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                     <div className="flex flex-col sm:flex-row gap-3">
                         {/* Reset to Default */}
                         <TouchEnhancedButton
                             onClick={resetToDefault}
-                            className="sm:w-auto bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 text-sm font-medium"
+                            className="sm:w-auto bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300 text-sm font-medium"
                         >
                             🔄 Reset to Default
                         </TouchEnhancedButton>
@@ -1329,15 +1329,15 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                         <div className="flex gap-3 sm:ml-auto">
                             <TouchEnhancedButton
                                 onClick={onClose}
-                                className="flex-1 sm:flex-none bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300"
+                                className="flex-1 sm:flex-none bg-gray-200 text-gray-700 py-3 px-4 rounded-lg hover:bg-gray-300"
                             >
                                 Cancel
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
                                 onClick={handleSave}
-                                className="flex-1 sm:flex-none bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 font-medium"
+                                className="flex-1 sm:flex-none bg-purple-600 text-white py-3 px-6 rounded-lg hover:bg-purple-700 font-medium"
                             >
-                                💾 Save Order ({visibleCategories.length} categories)
+                                💾 Save ({visibleCategories.length})
                             </TouchEnhancedButton>
                         </div>
                     </div>
@@ -1345,16 +1345,13 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                     {/* Status indicator */}
                     <div className="mt-3 text-center text-sm text-gray-500">
                         {currentOrder.length > 0 ? (
-                            <span className="text-green-600">✅ This store has a custom category order</span>
+                            <span className="text-green-600">✅ Custom order set</span>
                         ) : (
-                            <span className="text-blue-600">🆕 Setting up category order for the first time</span>
+                            <span className="text-blue-600">🆕 Setting up for first time</span>
                         )}
-                        <div className="mt-1 text-xs">
-                            💡 Your category order will be used in AI-enhanced shopping lists for {store.name}
-                            {hiddenCategories.size > 0 && (
-                                <span className="text-orange-600"> • {hiddenCategories.size} categories will be hidden from lists</span>
-                            )}
-                        </div>
+                        {hiddenCategories.size > 0 && (
+                            <span className="text-orange-600"> • {hiddenCategories.size} hidden</span>
+                        )}
                     </div>
                 </div>
             </div>
