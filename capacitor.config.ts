@@ -10,11 +10,10 @@ const config: CapacitorConfig = {
         androidScheme: 'https'
     },
     plugins: {
-        // UPDATED: StatusBar configuration for Android 15+ compatibility
         StatusBar: {
             style: 'LIGHT_CONTENT',
-            backgroundColor: '#00000000', // Transparent - handled by theme
-            overlaysWebView: false, // Prevents deprecated overlay methods - IMPORTANT for bottom nav
+            backgroundColor: '#00000000',
+            overlaysWebView: false, // IMPORTANT: This fixes bottom nav issues
         },
 
         SplashScreen: {
@@ -32,39 +31,13 @@ const config: CapacitorConfig = {
             permissions: ['camera']
         },
 
-        // UPDATED: Enhanced microphone configuration
         Microphone: {
-            permissions: ['microphone'],
-            // Add audio quality settings for better voice recognition
-            audioQuality: 'high',
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true
+            permissions: ['microphone']
         },
 
-        // UPDATED: @gachlab/capacitor-permissions configuration for microphone
+        // FIXED: Proper @gachlab/capacitor-permissions configuration
         Permissions: {
-            permissions: [
-                'microphone',
-                'camera',
-                'geolocation'
-            ],
-            // Configure specific permission behavior
-            microphone: {
-                alias: 'microphone',
-                permission: 'microphone',
-                // Android-specific settings
-                android: {
-                    permissions: [
-                        'android.permission.RECORD_AUDIO',
-                        'android.permission.MODIFY_AUDIO_SETTINGS'
-                    ]
-                },
-                // iOS-specific settings
-                ios: {
-                    usage: 'This app needs microphone access for voice input features.'
-                }
-            }
+            // This should match the plugin's expected configuration
         },
 
         Geolocation: {
@@ -92,7 +65,7 @@ const config: CapacitorConfig = {
             language: 'en'
         },
 
-        // ADDED: Device plugin configuration for better permission handling
+        // ADDED: Device plugin for better permission handling
         Device: {
             // This helps with platform detection in VoiceInput component
         },
@@ -117,15 +90,15 @@ const config: CapacitorConfig = {
     android: {
         allowMixedContent: true,
         captureInput: true,
-        webContentsDebuggingEnabled: true, // Set to false for production
-        loggingBehavior: 'debug', // Set to 'none' for production
-        backgroundColor: '#ffffff',
-        useLegacyBridge: false,
+        webContentsDebuggingEnabled: true,
+        loggingBehavior: 'debug',
+        backgroundColor: '#ffffff'
     },
 
     ios: {
-        contentInset: 'automatic',
+        contentInset: 'automatic'
     }
+
 };
 
 export default config;

@@ -17,6 +17,7 @@ dependencies {
     implementation project(':capacitor-filesystem')
     implementation project(':capacitor-preferences')
     implementation project(':capacitor-status-bar')
+    implementation project(':gachlab-capacitor-permissions')
     implementation project(':revenuecat-purchases-capacitor')
 
 }

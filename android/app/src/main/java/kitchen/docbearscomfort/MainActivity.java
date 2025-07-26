@@ -32,6 +32,11 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+    // ADD THESE DEBUG LINES FIRST:
+        Log.d(TAG, "🚀 MainActivity onCreate() called");
+        Log.d(TAG, "📱 Device: " + Build.MANUFACTURER + " " + Build.MODEL);
+        Log.d(TAG, "🤖 Android version: " + Build.VERSION.RELEASE + " (API " + Build.VERSION.SDK_INT + ")");
+
         super.onCreate(savedInstanceState);
 
         // FIXED: Use only non-deprecated edge-to-edge APIs
@@ -49,29 +54,35 @@ public class MainActivity extends BridgeActivity {
 
     // ADDED: Request microphone permissions at runtime
     private void requestMicrophonePermissions() {
-        Log.d(TAG, "🎤 Checking microphone permissions...");
+        Log.d(TAG, "🎤 requestMicrophonePermissions() called");
 
-        // Check if we already have permissions
-        boolean hasRecordAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                == PackageManager.PERMISSION_GRANTED;
-        boolean hasModifyAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.MODIFY_AUDIO_SETTINGS)
-                == PackageManager.PERMISSION_GRANTED;
+        try {
+            // Check if we already have permissions
+            boolean hasRecordAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
+                    == PackageManager.PERMISSION_GRANTED;
+            boolean hasModifyAudio = ContextCompat.checkSelfPermission(this, Manifest.permission.MODIFY_AUDIO_SETTINGS)
+                    == PackageManager.PERMISSION_GRANTED;
 
-        Log.d(TAG, "RECORD_AUDIO permission: " + (hasRecordAudio ? "GRANTED" : "DENIED"));
-        Log.d(TAG, "MODIFY_AUDIO_SETTINGS permission: " + (hasModifyAudio ? "GRANTED" : "DENIED"));
+            Log.d(TAG, "🎤 RECORD_AUDIO permission: " + (hasRecordAudio ? "GRANTED" : "DENIED"));
+            Log.d(TAG, "🎤 MODIFY_AUDIO_SETTINGS permission: " + (hasModifyAudio ? "GRANTED" : "DENIED"));
 
-        if (!hasRecordAudio || !hasModifyAudio) {
-            Log.d(TAG, "🎤 Requesting microphone permissions...");
+            if (!hasRecordAudio || !hasModifyAudio) {
+                Log.d(TAG, "🎤 Some permissions missing - requesting permissions...");
 
-            // Request permissions
-            ActivityCompat.requestPermissions(this,
-                new String[]{
-                    Manifest.permission.RECORD_AUDIO,
-                    Manifest.permission.MODIFY_AUDIO_SETTINGS
-                },
-                MICROPHONE_PERMISSION_REQUEST_CODE);
-        } else {
-            Log.d(TAG, "✅ All microphone permissions already granted");
+                // Request permissions
+                ActivityCompat.requestPermissions(this,
+                    new String[]{
+                        Manifest.permission.RECORD_AUDIO,
+                        Manifest.permission.MODIFY_AUDIO_SETTINGS
+                    },
+                    MICROPHONE_PERMISSION_REQUEST_CODE);
+
+                Log.d(TAG, "🎤 Permission request sent to system");
+            } else {
+                Log.d(TAG, "✅ All microphone permissions already granted");
+            }
+        } catch (Exception e) {
+            Log.e(TAG, "❌ Error in requestMicrophonePermissions: " + e.getMessage(), e);
         }
     }
 
