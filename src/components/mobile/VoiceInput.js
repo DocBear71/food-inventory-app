@@ -195,7 +195,8 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
             console.log('🎯 Native speech recognition result:', result);
 
-            if (result.matches && result.matches.length > 0) {
+            // Handle different result formats and error cases
+            if (result && result.matches && result.matches.length > 0) {
                 const transcript = result.matches[0];
                 const confidence = result.confidence || 0.8;
 
@@ -207,10 +208,32 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 if (onResult) {
                     onResult(transcript.trim(), confidence);
                 }
-            } else {
-                console.log('⚠️ No speech detected');
+            } else if (result && result.message) {
+                // Handle plugin error messages
+                console.log('⚠️ Plugin returned message:', result.message);
+
+                if (result.message === 'No match') {
+                    if (onError) {
+                        onError('No speech detected. Please try speaking louder and clearer.');
+                    }
+                } else if (result.message === 'Client side error') {
+                    if (onError) {
+                        onError('Speech recognition error. Please check your microphone permissions and try again.');
+                    }
+                } else {
+                    if (onError) {
+                        onError(`Speech recognition: ${result.message}`);
+                    }
+                }
+            } else if (!result) {
+                console.log('⚠️ No result returned from speech recognition');
                 if (onError) {
                     onError('No speech detected. Please try speaking louder and clearer.');
+                }
+            } else {
+                console.log('⚠️ Unexpected result format:', result);
+                if (onError) {
+                    onError('Speech recognition completed but no text was detected.');
                 }
             }
 
@@ -220,15 +243,24 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
             let errorMessage = 'Voice recognition failed.';
 
-            if (error.message && error.message.includes('permission')) {
-                errorMessage = 'Microphone permission required. Please enable microphone access in device settings.';
-                setPermissionStatus('denied');
-            } else if (error.message && error.message.includes('network')) {
-                errorMessage = 'Network error. Please check your internet connection.';
-            } else if (error.message && error.message.includes('not available')) {
-                errorMessage = 'Speech recognition not available on this device.';
-            } else {
-                errorMessage = `Voice recognition error: ${error.message || error}`;
+            // Handle specific error types
+            if (error && error.message) {
+                if (error.message.includes('permission')) {
+                    errorMessage = 'Microphone permission required. Please enable microphone access in device settings.';
+                    setPermissionStatus('denied');
+                } else if (error.message.includes('network')) {
+                    errorMessage = 'Network error. Please check your internet connection.';
+                } else if (error.message.includes('not available')) {
+                    errorMessage = 'Speech recognition not available on this device.';
+                } else if (error.message === 'No match') {
+                    errorMessage = 'No speech detected. Please try speaking louder and clearer.';
+                } else if (error.message === 'Client side error') {
+                    errorMessage = 'Speech recognition error. Please check your microphone permissions.';
+                } else {
+                    errorMessage = `Voice recognition error: ${error.message}`;
+                }
+            } else if (typeof error === 'string') {
+                errorMessage = `Voice recognition error: ${error}`;
             }
 
             if (onError) {
