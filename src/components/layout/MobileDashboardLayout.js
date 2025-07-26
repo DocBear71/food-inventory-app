@@ -372,22 +372,22 @@ export default function MobileDashboardLayout({children}) {
         }
     };
 
-    // FIXED: Improved layout calculations for StatusBar
+    // FIXED: Improved layout calculations that work with global CSS
     const getMainContentStyle = () => {
         let topPadding, bottomPadding;
 
         if (platformInfo.isNative) {
             // For native apps, account for the StatusBar height
-            // Since overlaysWebView is false, the StatusBar takes up real space
-            topPadding = '80px'; // Header height, no need to add extra for status bar
+            topPadding = '80px'; // Header height
         } else {
             topPadding = '80px'; // Regular header height for web/PWA
         }
 
+        // FIXED: Let global CSS handle bottom padding, just add minimal extra for PWA banner
         if (showPWABanner) {
-            bottomPadding = '160px'; // Extra space for PWA banner + bottom nav
+            bottomPadding = '60px'; // Just enough for PWA banner, let CSS handle the rest
         } else {
-            bottomPadding = '112px'; // Just bottom nav + safe area
+            bottomPadding = '20px'; // Minimal padding, let global CSS safe area classes handle the rest
         }
 
         return {
@@ -414,13 +414,12 @@ export default function MobileDashboardLayout({children}) {
         }
     };
 
-    // FIXED: Improved bottom nav positioning
+    // FIXED: Simplified bottom nav positioning to work with global CSS
     const getBottomNavStyle = () => {
         return {
             bottom: '0',
-            paddingBottom: platformInfo.isNative ?
-                'max(env(safe-area-inset-bottom, 0px), 8px)' : // Native: use safe area or small padding
-                'max(env(safe-area-inset-bottom, 0px), 0px)'   // Web: just safe area
+            // Let the global CSS handle most of the safe area calculations
+            paddingBottom: 'max(env(safe-area-inset-bottom, 8px), 8px)'
         };
     };
 
@@ -440,7 +439,7 @@ export default function MobileDashboardLayout({children}) {
     console.log('📱 Platform info:', platformInfo);
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className={`min-h-screen bg-gray-50 ${platformInfo.isNative ? 'capacitor-android' : ''}`}>
             {/* FIXED: Improved Mobile Header with proper StatusBar handling */}
             <header
                 className={`fixed left-0 right-0 z-40 transition-all duration-200 ${
@@ -733,13 +732,13 @@ export default function MobileDashboardLayout({children}) {
             )}
 
             {/* Main Content */}
-            <main className="mobile-main-content" style={getMainContentStyle()}>
+            <main className="mobile-main-content mobile-safe-layout" style={getMainContentStyle()}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
             </main>
 
-            {/* FIXED: Responsive Bottom Navigation with proper positioning */}
+            {/* FIXED: Simplified Bottom Navigation that works with global CSS */}
             <nav
                 className="fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg z-30"
                 style={getBottomNavStyle()}
