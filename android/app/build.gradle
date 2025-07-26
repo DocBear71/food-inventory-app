@@ -8,7 +8,7 @@ android {
         applicationId "kitchen.docbearscomfort"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion 35
-        versionCode 12
+        versionCode 13
         versionName "1.4.1"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
