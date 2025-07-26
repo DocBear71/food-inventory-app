@@ -15,6 +15,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
     const [browserInfo, setBrowserInfo] = useState({ browser: '', version: '', platform: '' });
     const [isCapacitor, setIsCapacitor] = useState(false);
     const [recognitionState, setRecognitionState] = useState('idle');
+    const [startTimeout, setStartTimeout] = useState(null);
     const recognitionRef = useRef(null);
     const { vibrateDevice } = usePWA();
 
@@ -315,15 +316,22 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
         if (SpeechRecognition && isSupported) {
             const recognition = new SpeechRecognition();
 
-            // Configuration - keep simple for Capacitor
-            recognition.continuous = false; // Single phrase for better reliability
+            // SIMPLIFIED configuration for better Capacitor compatibility
+            recognition.continuous = false;
             recognition.interimResults = true;
             recognition.lang = 'en-US';
             recognition.maxAlternatives = 1;
 
-            // Handle start event with state management
+            // Handle start event with timeout clearing
             recognition.onstart = () => {
-                console.log('✅ Speech recognition actually started');
+                console.log('✅ Speech recognition actually started - clearing timeout');
+
+                // Clear the start timeout since recognition actually started
+                if (startTimeout) {
+                    clearTimeout(startTimeout);
+                    setStartTimeout(null);
+                }
+
                 setRecognitionState('listening');
                 setIsListening(true);
                 setTranscript('Listening... speak now');
@@ -331,15 +339,22 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 vibrateDevice([100, 50, 100]);
             };
 
-            // Handle end event with state management
+            // Handle end event with cleanup
             recognition.onend = () => {
                 console.log('🏁 Speech recognition ended, previous state:', recognitionState);
+
+                // Clear any remaining timeout
+                if (startTimeout) {
+                    clearTimeout(startTimeout);
+                    setStartTimeout(null);
+                }
+
                 setRecognitionState('idle');
                 setIsListening(false);
                 vibrateDevice([50]);
             };
 
-            // Handle error with better logging
+            // Handle error with timeout cleanup
             recognition.onerror = (event) => {
                 console.error('🚨 Speech recognition error:', event.error);
                 console.log('🔍 Error details:', {
@@ -349,47 +364,62 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                     recognitionState: recognitionState
                 });
 
+                // Clear timeout on error
+                if (startTimeout) {
+                    clearTimeout(startTimeout);
+                    setStartTimeout(null);
+                }
+
                 setRecognitionState('idle');
                 setIsListening(false);
 
-                // Only show error for non-abort cases
+                // Enhanced error handling for Capacitor
                 if (event.error !== 'aborted') {
                     let errorMessage = '';
                     switch (event.error) {
                         case 'no-speech':
-                            errorMessage = 'No speech detected. Please speak clearly.';
+                            errorMessage = 'No speech detected. Please speak clearly and try again.';
                             break;
                         case 'audio-capture':
-                            errorMessage = 'Could not access microphone.';
+                            errorMessage = 'Microphone error. Please check your device microphone and try again.';
                             break;
                         case 'not-allowed':
-                            errorMessage = 'Microphone access denied.';
+                            errorMessage = 'Microphone access denied. Please enable microphone permissions and restart the app.';
                             setPermissionStatus('denied');
                             break;
+                        case 'network':
+                            errorMessage = 'Network error. Voice recognition requires internet connection.';
+                            break;
+                        case 'service-not-allowed':
+                            errorMessage = 'Voice recognition service unavailable. Please try again later.';
+                            break;
                         default:
-                            errorMessage = `Speech recognition error: ${event.error}`;
+                            errorMessage = `Voice recognition failed: ${event.error}. Try restarting the app.`;
                     }
 
                     if (onError) {
                         onError(errorMessage);
                     }
                 } else {
-                    console.log('🛑 Speech recognition was aborted (this may be normal)');
+                    console.log('🛑 Speech recognition was aborted (normal)');
                 }
             };
 
-            // Handle results
+            // Handle results (unchanged)
             recognition.onresult = (event) => {
                 console.log('🎯 Speech result received');
 
                 let finalTranscript = '';
                 let interimTranscript = '';
 
-                for (let i = event.resultIndex; i < event.results.length; i++) {
-                    const transcript = event.results[i][0].transcript;
-                    const confidence = event.results[i][0].confidence || 0.8;
+                const startIndex = event.resultIndex !== undefined ? event.resultIndex : 0;
+                const results = event.results;
 
-                    if (event.results[i].isFinal) {
+                for (let i = startIndex; i < results.length; i++) {
+                    const transcript = results[i][0].transcript;
+                    const confidence = results[i][0].confidence || 0.8;
+
+                    if (results[i].isFinal) {
                         finalTranscript += transcript;
                         setConfidence(confidence);
                         console.log('✅ Final transcript:', transcript);
@@ -414,6 +444,12 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
         }
 
         return () => {
+            // Cleanup timeout on component unmount
+            if (startTimeout) {
+                clearTimeout(startTimeout);
+                setStartTimeout(null);
+            }
+
             if (recognitionRef.current) {
                 try {
                     recognitionRef.current.abort();
@@ -423,7 +459,8 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             }
             setRecognitionState('idle');
         };
-    }, [onResult, onError, vibrateDevice, browserInfo, isSupported, recognitionState]);
+    }, [onResult, onError, vibrateDevice, browserInfo, isSupported, recognitionState, startTimeout]);
+
 
     // Enhanced Speech Recognition configuration for web browsers
     useEffect(() => {
@@ -687,22 +724,71 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
 
             console.log('🎤 Starting speech recognition...');
 
-            // CRITICAL: Add a small delay to prevent immediate abort
+            // CRITICAL: Set a timeout to detect if recognition.start() fails to trigger onstart
+            const timeoutId = setTimeout(() => {
+                console.log('⏰ TIMEOUT: Speech recognition failed to start within 3 seconds');
+                console.log('🔧 This is likely a Capacitor WebView issue - attempting recovery...');
+
+                if (recognitionState === 'starting') {
+                    setRecognitionState('idle');
+                    setIsListening(false);
+
+                    if (onError) {
+                        onError('Voice recognition failed to start. This may be a compatibility issue with your device.\n\nTry:\n• Restarting the app\n• Using a different keyboard\n• Speaking into a different microphone app first');
+                    }
+                }
+            }, 3000); // 3 second timeout
+
+            setStartTimeout(timeoutId);
+
+            // ENHANCED: Try recognition start with better error handling
             setTimeout(() => {
                 if (recognitionRef.current && recognitionState === 'starting') {
                     try {
+                        console.log('🎤 Calling recognition.start()...');
                         recognitionRef.current.start();
-                        console.log('🎤 Recognition.start() called successfully');
+                        console.log('🎤 recognition.start() called - waiting for onstart event...');
                     } catch (startError) {
                         console.error('❌ Error calling recognition.start():', startError);
+
+                        // Clear timeout
+                        if (timeoutId) {
+                            clearTimeout(timeoutId);
+                            setStartTimeout(null);
+                        }
+
                         setRecognitionState('idle');
                         setIsListening(false);
+
+                        // Try to provide helpful error message
+                        let errorMessage = 'Failed to start voice recognition.';
+
+                        if (startError.name === 'InvalidStateError') {
+                            errorMessage = 'Voice recognition is already in use. Please wait a moment and try again.';
+                        } else if (startError.name === 'NotAllowedError') {
+                            errorMessage = 'Microphone access was denied. Please check your device settings.';
+                        } else if (startError.name === 'ServiceNotAllowedError') {
+                            errorMessage = 'Voice recognition service is not available. Check your internet connection.';
+                        } else {
+                            errorMessage = `Voice recognition error: ${startError.message || startError.name}`;
+                        }
+
+                        if (onError) {
+                            onError(errorMessage);
+                        }
                     }
                 }
-            }, 100); // 100ms delay to prevent race conditions
+            }, 100); // Small delay to prevent race conditions
 
         } catch (error) {
             console.error('❌ Failed to start recognition:', error);
+
+            // Clear timeout
+            if (startTimeout) {
+                clearTimeout(startTimeout);
+                setStartTimeout(null);
+            }
+
             setRecognitionState('idle');
             setIsListening(false);
 
@@ -710,25 +796,32 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 onError('Failed to start voice recognition. Please try again.');
             }
         }
-    }, [recognitionState, requestMicrophonePermission, onError]);
+    }, [recognitionState, requestMicrophonePermission, onError, startTimeout]);
+
 
 // 3. UPDATE: Enhanced stop function with state management
     const stopListening = useCallback(() => {
         console.log('🛑 stopListening called, current state:', recognitionState);
+
+        // Clear any start timeout
+        if (startTimeout) {
+            clearTimeout(startTimeout);
+            setStartTimeout(null);
+        }
 
         if (recognitionRef.current && (recognitionState === 'listening' || recognitionState === 'starting')) {
             console.log('🛑 Manually stopping speech recognition');
             setRecognitionState('stopping');
 
             try {
-                recognitionRef.current.stop(); // Use stop() instead of abort()
+                recognitionRef.current.stop();
             } catch (e) {
                 console.log('Error stopping recognition:', e);
                 setRecognitionState('idle');
                 setIsListening(false);
             }
         }
-    }, [recognitionState]);
+    }, [recognitionState, startTimeout]);
 
 // 4. UPDATE: Enhanced toggle function
     const toggleListening = useCallback(async () => {
