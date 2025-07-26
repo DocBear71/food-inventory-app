@@ -437,6 +437,234 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
         };
     }, [onResult, onError, vibrateDevice, browserInfo, isSupported, isListening, isCapacitor]);
 
+    // Enhanced Speech Recognition configuration for web browsers
+    useEffect(() => {
+        const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+        if (SpeechRecognition && isSupported) {
+            const recognition = new SpeechRecognition();
+
+            // CRITICAL: Web browser settings to prevent immediate stopping
+            recognition.continuous = true;  // Keep listening for multiple phrases
+            recognition.interimResults = true;  // Show results as user speaks
+            recognition.lang = 'en-US';
+            recognition.maxAlternatives = 1;
+
+            // Web-specific timeout settings
+            if (!isCapacitor) {  // Web browser only
+                // These help prevent the "no speech" timeout
+                recognition.serviceURI = '';  // Use default service
+            }
+
+            let finalTranscriptReceived = false;
+            let speechTimeout = null;
+            let silenceTimeout = null;
+
+            // Handle results with better web support
+            recognition.onresult = (event) => {
+                console.log('🎤 Speech result received, event length:', event.results.length);
+
+                let finalTranscript = '';
+                let interimTranscript = '';
+
+                // Process all results
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    const confidence = event.results[i][0].confidence || 0.8;
+
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                        finalTranscriptReceived = true;
+                        setConfidence(confidence);
+                        console.log('✅ Final transcript:', transcript);
+                    } else {
+                        interimTranscript += transcript;
+                        console.log('📝 Interim transcript:', transcript);
+                    }
+                }
+
+                const currentTranscript = finalTranscript || interimTranscript;
+                setTranscript(currentTranscript);
+
+                // Clear any existing silence timeout
+                if (silenceTimeout) {
+                    clearTimeout(silenceTimeout);
+                    silenceTimeout = null;
+                }
+
+                // If we have interim results, reset the silence timer
+                if (interimTranscript) {
+                    silenceTimeout = setTimeout(() => {
+                        console.log('🔇 Silence detected, stopping recognition');
+                        if (recognitionRef.current && isListening) {
+                            recognitionRef.current.stop();
+                        }
+                    }, 3000); // Stop after 3 seconds of silence
+                }
+
+                // If we have a final result, process it
+                if (finalTranscript && finalTranscript.trim().length > 0) {
+                    console.log('🎯 Processing final result:', finalTranscript.trim());
+                    if (onResult) {
+                        onResult(finalTranscript.trim(), confidence);
+                    }
+
+                    // Stop after getting a final result
+                    setTimeout(() => {
+                        if (recognitionRef.current && isListening) {
+                            recognitionRef.current.stop();
+                        }
+                    }, 500);
+                }
+            };
+
+            // Handle speech start/end events
+            recognition.onspeechstart = () => {
+                console.log('🗣️ User started speaking');
+                finalTranscriptReceived = false;
+
+                // Clear any speech timeout
+                if (speechTimeout) {
+                    clearTimeout(speechTimeout);
+                    speechTimeout = null;
+                }
+            };
+
+            recognition.onspeechend = () => {
+                console.log('🤐 User stopped speaking');
+
+                // Give a moment for final results to come in
+                speechTimeout = setTimeout(() => {
+                    if (recognitionRef.current && isListening && !finalTranscriptReceived) {
+                        console.log('⏰ No final transcript received, stopping recognition');
+                        recognitionRef.current.stop();
+                    }
+                }, 1000);
+            };
+
+            // Handle audio events
+            recognition.onaudiostart = () => {
+                console.log('🎵 Audio capture started');
+            };
+
+            recognition.onaudioend = () => {
+                console.log('🔇 Audio capture ended');
+            };
+
+            recognition.onsoundstart = () => {
+                console.log('🔊 Sound detected');
+            };
+
+            recognition.onsoundend = () => {
+                console.log('🔇 Sound ended');
+            };
+
+            // Enhanced error handling for web
+            recognition.onerror = (event) => {
+                console.error('🚨 Speech recognition error:', event.error);
+
+                // Clear timeouts
+                if (speechTimeout) clearTimeout(speechTimeout);
+                if (silenceTimeout) clearTimeout(silenceTimeout);
+
+                setIsListening(false);
+
+                let errorMessage = '';
+                let shouldRetry = false;
+
+                switch (event.error) {
+                    case 'no-speech':
+                        errorMessage = 'No speech detected. Please speak clearly into your microphone.';
+                        console.log('💡 Tip: Speak louder and closer to your microphone');
+                        shouldRetry = true;
+                        break;
+
+                    case 'audio-capture':
+                        errorMessage = 'Could not capture audio. Please check your microphone.';
+                        break;
+
+                    case 'not-allowed':
+                        errorMessage = 'Microphone access denied. Please allow microphone access.';
+                        setPermissionStatus('denied');
+                        break;
+
+                    case 'network':
+                        errorMessage = 'Network error. Please check your internet connection.';
+                        shouldRetry = true;
+                        break;
+
+                    case 'service-not-allowed':
+                        errorMessage = 'Speech service not available. Please try again.';
+                        shouldRetry = true;
+                        break;
+
+                    case 'aborted':
+                        console.log('🛑 Speech recognition was stopped (normal)');
+                        return; // Don't show error for manual stop
+
+                    default:
+                        errorMessage = `Speech recognition error: ${event.error}`;
+                        shouldRetry = true;
+                }
+
+                if (onError && !shouldRetry) {
+                    onError(errorMessage);
+                } else if (shouldRetry) {
+                    console.log('🔄 Error suggests retry might work:', errorMessage);
+                    if (onError) {
+                        onError(errorMessage + '\n\nTip: Try speaking immediately after clicking the microphone button.');
+                    }
+                }
+            };
+
+            // Handle start event
+            recognition.onstart = () => {
+                console.log('🎤 Speech recognition started - speak now!');
+                setIsListening(true);
+                setTranscript('Listening... speak now');
+                setConfidence(0);
+                finalTranscriptReceived = false;
+
+                vibrateDevice([100, 50, 100]);
+
+                // Set a maximum timeout for the entire session
+                speechTimeout = setTimeout(() => {
+                    console.log('⏰ Maximum listening time reached');
+                    if (recognitionRef.current && isListening) {
+                        recognitionRef.current.stop();
+                    }
+                }, 30000); // 30 seconds maximum
+            };
+
+            // Handle end event
+            recognition.onend = () => {
+                console.log('🏁 Speech recognition ended');
+
+                // Clean up timeouts
+                if (speechTimeout) {
+                    clearTimeout(speechTimeout);
+                    speechTimeout = null;
+                }
+                if (silenceTimeout) {
+                    clearTimeout(silenceTimeout);
+                    silenceTimeout = null;
+                }
+
+                setIsListening(false);
+                vibrateDevice([50]);
+            };
+
+            recognitionRef.current = recognition;
+        }
+
+        return () => {
+            if (recognitionRef.current) {
+                recognitionRef.current.abort();
+            }
+        };
+    }, [onResult, onError, vibrateDevice, browserInfo, isSupported, isListening, isCapacitor]);
+
+
     // Enhanced start function with permission check
     const startListening = useCallback(async () => {
         if (!recognitionRef.current || isListening) return;
