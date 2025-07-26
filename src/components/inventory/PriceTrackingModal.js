@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/inventory/PriceTrackingModal.js v3 - Enhanced with feature gates
+// file: /src/components/inventory/PriceTrackingModal.js v4 - Fixed currency symbol positioning
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -252,15 +252,15 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                         <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg p-4 mb-6 border border-blue-200">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
                                 <div>
-                                    <div className="text-lg font-semibold text-blue-600">${formatPrice(priceStats.lowest)}</div>
+                                    <div className="text-lg font-semibold text-blue-600">{formatPrice(priceStats.lowest)}</div>
                                     <div className="text-xs text-gray-600">Lowest Price</div>
                                 </div>
                                 <div>
-                                    <div className="text-lg font-semibold text-blue-600">${formatPrice(priceStats.average)}</div>
+                                    <div className="text-lg font-semibold text-blue-600">{formatPrice(priceStats.average)}</div>
                                     <div className="text-xs text-gray-600">Average Price</div>
                                 </div>
                                 <div>
-                                    <div className="text-lg font-semibold text-blue-600">${formatPrice(priceStats.highest)}</div>
+                                    <div className="text-lg font-semibold text-blue-600">{formatPrice(priceStats.highest)}</div>
                                     <div className="text-xs text-gray-600">Highest Price</div>
                                 </div>
                                 <div>
@@ -321,9 +321,9 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                                             Price *
                                         </label>
                                         <div className="relative">
-        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-            {userCurrency.preferences?.currencySymbol || '$'}
-        </span>
+                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500 z-10">
+                                                {userCurrency.preferences?.currencySymbol || '$'}
+                                            </span>
                                             <input
                                                 type="number"
                                                 step={userCurrency.preferences?.decimalPlaces === 0 ? '1' : '0.01'}
@@ -331,9 +331,9 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                                                 required
                                                 value={formData.price}
                                                 onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
-                                                className="pl-8 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                className="w-full border border-gray-300 rounded-md py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ paddingLeft: '2rem', paddingRight: '0.75rem', fontSize: '16px' }}
                                                 placeholder={userCurrency.preferences?.decimalPlaces === 0 ? '0' : '0.00'}
-                                                style={{fontSize: '16px'}}
                                             />
                                         </div>
                                         <p className="text-xs text-gray-500 mt-1">
@@ -358,8 +358,6 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                                                     {store.name} {store.chain && `(${store.chain})`}
                                                 </option>
                                             ))}
-                                            <option value="">Select chain</option>
-                                            <option value="add-new">+ Add New Store</option>
                                             <option value="Albertsons">Albertsons</option>
                                             <option value="Aldi">Aldi</option>
                                             <option value="Costco">Costco</option>
@@ -378,33 +376,6 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                                             <option value="Other">Other</option>
                                         </select>
                                     </div>
-
-                                    {formData.store === 'add-new' && (
-                                        <div className="mt-2 p-3 border border-gray-200 rounded-lg bg-gray-50">
-                                            <h4 className="text-sm font-medium text-gray-700 mb-2">Add New Store</h4>
-                                            <div className="grid grid-cols-2 gap-2">
-                                                <input
-                                                    type="text"
-                                                    placeholder="Store name"
-                                                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    onChange={(e) => setQuickAddStore(prev => ({...prev, name: e.target.value}))}
-                                                />
-                                                <input
-                                                    type="text"
-                                                    placeholder="Chain (optional)"
-                                                    className="text-sm border border-gray-300 rounded px-2 py-1 focus:ring-indigo-500 focus:border-indigo-500"
-                                                    onChange={(e) => setQuickAddStore(prev => ({...prev, chain: e.target.value}))}
-                                                />
-                                            </div>
-                                            <TouchEnhancedButton
-                                                type="button"
-                                                onClick={handleQuickAddStore}
-                                                className="mt-2 text-xs bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700"
-                                            >
-                                                Save & Use Store
-                                            </TouchEnhancedButton>
-                                        </div>
-                                    )}
 
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -516,7 +487,7 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex-1">
                                                         <div className="flex items-center space-x-3 mb-2">
-                                                            <div className="text-xl font-bold text-green-600">${formatPrice(entry.price)}</div>
+                                                            <div className="text-xl font-bold text-green-600">{formatPrice(entry.price)}</div>
                                                             <div className="text-sm font-medium text-gray-700">{entry.store}</div>
                                                             {entry.isOnSale && (
                                                                 <span className="inline-block bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">
@@ -553,75 +524,76 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                             </div>
                         )}
 
-                    {/* For the Alerts tab, update the feature detection: */}
-                    {activeTab === 'alerts' && (
-                        <div className="space-y-6">
-                            {!priceAlertsGate.canUse ? (
-                                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                    <div className="flex items-start">
-                                        <div className="text-yellow-600 mr-3 text-xl">⚠️</div>
-                                        <div>
-                                            <h3 className="font-medium text-yellow-800">Platinum Feature</h3>
-                                            <p className="text-sm text-yellow-700 mt-1">
-                                                Price alerts are available with Platinum subscription. Get notified when prices drop below your target!
-                                            </p>
+                        {/* For the Alerts tab, update the feature detection: */}
+                        {activeTab === 'alerts' && (
+                            <div className="space-y-6">
+                                {!priceAlertsGate.canUse ? (
+                                    <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                                        <div className="flex items-start">
+                                            <div className="text-yellow-600 mr-3 text-xl">⚠️</div>
+                                            <div>
+                                                <h3 className="font-medium text-yellow-800">Platinum Feature</h3>
+                                                <p className="text-sm text-yellow-700 mt-1">
+                                                    Price alerts are available with Platinum subscription. Get notified when prices drop below your target!
+                                                </p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
-                            ) : null}
-                            <div className="space-y-4 opacity-50">
-                                <div className="flex items-center">
-                                    <input
-                                        type="checkbox"
-                                        id="enableAlerts"
-                                        checked={alerts.enabled}
-                                        onChange={(e) => setAlerts(prev => ({...prev, enabled: e.target.checked}))}
-                                        className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                        disabled
-                                    />
-                                    <label htmlFor="enableAlerts" className="ml-2 block text-sm text-gray-700">
-                                        Enable price alerts for this item
-                                    </label>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                                        Target Price
-                                    </label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                ) : null}
+                                <div className="space-y-4 opacity-50">
+                                    <div className="flex items-center">
                                         <input
-                                            type="number"
-                                            step="0.01"
-                                            min="0"
-                                            value={alerts.targetPrice}
-                                            onChange={(e) => setAlerts(prev => ({...prev, targetPrice: e.target.value}))}
-                                            className="pl-6 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                            placeholder="0.00"
+                                            type="checkbox"
+                                            id="enableAlerts"
+                                            checked={alerts.enabled}
+                                            onChange={(e) => setAlerts(prev => ({...prev, enabled: e.target.checked}))}
+                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                             disabled
                                         />
+                                        <label htmlFor="enableAlerts" className="ml-2 block text-sm text-gray-700">
+                                            Enable price alerts for this item
+                                        </label>
                                     </div>
+
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Target Price
+                                        </label>
+                                        <div className="relative">
+                                            <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                min="0"
+                                                value={alerts.targetPrice}
+                                                onChange={(e) => setAlerts(prev => ({...prev, targetPrice: e.target.value}))}
+                                                className="w-full border border-gray-300 rounded-md py-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                                style={{ paddingLeft: '2rem', paddingRight: '0.75rem' }}
+                                                placeholder="0.00"
+                                                disabled
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <TouchEnhancedButton
+                                        onClick={handleUpdateAlerts}
+                                        disabled
+                                        className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
+                                    >
+                                        Save Alert Settings
+                                    </TouchEnhancedButton>
                                 </div>
 
-                                <TouchEnhancedButton
-                                    onClick={handleUpdateAlerts}
-                                    disabled
-                                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 disabled:bg-gray-400"
-                                >
-                                    Save Alert Settings
-                                </TouchEnhancedButton>
+                                <div className="text-center">
+                                    <TouchEnhancedButton
+                                        onClick={() => window.location.href = '/pricing?source=price-alerts'}
+                                        className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold"
+                                    >
+                                        Upgrade to Platinum
+                                    </TouchEnhancedButton>
+                                </div>
                             </div>
-
-                            <div className="text-center">
-                                <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=price-alerts'}
-                                    className="bg-yellow-600 hover:bg-yellow-700 text-white px-6 py-3 rounded-lg font-semibold"
-                                >
-                                    Upgrade to Platinum
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
-                    )}
+                        )}
                     </div>
                 </div>
             </div>

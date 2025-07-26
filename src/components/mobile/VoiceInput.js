@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/mobile/VoiceInput.js v7 - NATIVE: Using @capacitor-community/speech-recognition
+// file: /src/components/mobile/VoiceInput.js v8 - NATIVE: Added app selection popup for better UX
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { TouchEnhancedButton } from './TouchEnhancedButton';
@@ -15,6 +15,8 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
     const [browserInfo, setBrowserInfo] = useState({ browser: '', version: '', platform: '' });
     const [isCapacitor, setIsCapacitor] = useState(false);
     const [speechRecognition, setSpeechRecognition] = useState(null);
+    const [showAppSelectionTip, setShowAppSelectionTip] = useState(false);
+    const [processingComplete, setProcessingComplete] = useState(false);
     const { vibrateDevice } = usePWA();
 
     // Detect Capacitor and browser/platform
@@ -91,6 +93,16 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             initializeSpeechRecognition();
         }
     }, [browserInfo, isCapacitor]);
+
+    // Check if user has seen the app selection tip
+    useEffect(() => {
+        if (isCapacitor && browserInfo.platform === 'android') {
+            const hasSeenTip = localStorage.getItem('voice-app-selection-tip-shown');
+            if (!hasSeenTip) {
+                setShowAppSelectionTip(true);
+            }
+        }
+    }, [isCapacitor, browserInfo]);
 
     // Check native permissions using the plugin
     const checkNativePermissions = async (SpeechRecognition) => {
@@ -183,6 +195,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             setIsListening(true);
             setTranscript('Listening... speak now');
             setConfidence(0);
+            setProcessingComplete(false);
             vibrateDevice([100, 50, 100]);
 
             // First, check if the plugin is available
@@ -230,10 +243,17 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 console.log('✅ Successfully got transcript:', transcript);
                 setTranscript(transcript);
                 setConfidence(confidence);
+                setProcessingComplete(true);
 
                 if (onResult) {
                     onResult(transcript.trim(), confidence);
                 }
+
+                // Show success message briefly, then auto-close
+                setTimeout(() => {
+                    setProcessingComplete(false);
+                }, 1500);
+
                 return true;
             }
 
@@ -322,6 +342,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                 console.log('🎤 Web speech recognition started');
                 setIsListening(true);
                 setTranscript('Listening... speak now');
+                setProcessingComplete(false);
                 vibrateDevice([100, 50, 100]);
             };
 
@@ -351,6 +372,7 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                     if (event.results[i].isFinal) {
                         finalTranscript += transcript;
                         setConfidence(confidence);
+                        setProcessingComplete(true);
                     } else {
                         interimTranscript += transcript;
                     }
@@ -363,6 +385,11 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
                     if (onResult) {
                         onResult(finalTranscript.trim(), confidence);
                     }
+
+                    // Show success message briefly, then auto-close
+                    setTimeout(() => {
+                        setProcessingComplete(false);
+                    }, 1500);
                 }
             };
 
@@ -423,6 +450,121 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             await startListening();
         }
     }, [isListening, startListening, stopListening]);
+
+    // Dismiss app selection tip
+    const dismissAppSelectionTip = () => {
+        setShowAppSelectionTip(false);
+        localStorage.setItem('voice-app-selection-tip-shown', 'true');
+    };
+
+    // App Selection Tip Modal
+    if (showAppSelectionTip) {
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white rounded-lg max-w-md w-full p-6">
+                    <div className="text-center">
+                        <div className="text-4xl mb-4">🎤</div>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                            Voice Recognition Setup
+                        </h3>
+                        <div className="text-left space-y-3 mb-6">
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-8 h-8 bg-blue-500 rounded flex items-center justify-center">
+                                        <span className="text-white text-sm">🎤</span>
+                                    </div>
+                                    <div className="font-medium text-blue-900">
+                                        Select "Speech Recognition and Synt..."
+                                    </div>
+                                </div>
+                                <p className="text-sm text-blue-800">
+                                    When prompted to complete the action, choose the option with the <strong>blue microphone icon</strong>.
+                                </p>
+                            </div>
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                                <div className="flex items-center gap-3 mb-2">
+                                    <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center">
+                                        <span className="text-white text-sm">✓</span>
+                                    </div>
+                                    <div className="font-medium text-green-900">
+                                        Choose "Always"
+                                    </div>
+                                </div>
+                                <p className="text-sm text-green-800">
+                                    This ensures voice recognition works smoothly every time.
+                                </p>
+                            </div>
+                        </div>
+                        <TouchEnhancedButton
+                            onClick={dismissAppSelectionTip}
+                            className="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-3 px-4 rounded-lg font-medium"
+                        >
+                            Got it! Continue to Voice Input
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    // Success completion modal
+    if (processingComplete && transcript && transcript !== 'Listening... speak now') {
+        return (
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem',
+                backgroundColor: '#dcfce7',
+                borderRadius: '12px',
+                border: '2px solid #22c55e',
+                transition: 'all 0.3s ease',
+                touchAction: 'manipulation',
+                userSelect: 'none'
+            }}>
+                <div style={{
+                    backgroundColor: '#22c55e',
+                    color: 'white',
+                    borderRadius: '50%',
+                    width: '52px',
+                    height: '52px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    fontSize: '1.5rem'
+                }}>
+                    ✓
+                </div>
+
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{
+                        fontSize: '0.875rem',
+                        fontWeight: '500',
+                        color: '#16a34a',
+                        marginBottom: '0.25rem'
+                    }}>
+                        Voice input successful!
+                    </div>
+                    <div style={{
+                        fontSize: '1rem',
+                        color: '#374151',
+                        wordBreak: 'break-word'
+                    }}>
+                        {transcript}
+                    </div>
+                    {confidence > 0 && (
+                        <div style={{
+                            fontSize: '0.75rem',
+                            color: '#6b7280',
+                            marginTop: '0.25rem'
+                        }}>
+                            Confidence: {Math.round(confidence * 100)}%
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    }
 
     // Support detection messaging
     if (!isSupported) {

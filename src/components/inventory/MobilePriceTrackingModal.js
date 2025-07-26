@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/inventory/MobilePriceTrackingModal.js - Mobile-optimized price tracking
+// file: /src/components/inventory/MobilePriceTrackingModal.js v4 - Fixed currency symbol positioning
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -85,7 +85,7 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
 
         try {
             const response = await apiPost(`/api/inventory/${item._id}/prices`, {
-               formData
+                formData
             });
 
             const data = await response.json();
@@ -208,11 +208,11 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
                     {priceStats && priceStats.totalEntries > 0 && (
                         <div className="mt-3 grid grid-cols-3 gap-3">
                             <div className="text-center">
-                                <div className="text-lg font-bold text-green-600">${formatPrice(priceStats.lowest)}</div>
+                                <div className="text-lg font-bold text-green-600">{formatPrice(priceStats.lowest)}</div>
                                 <div className="text-xs text-gray-500">Lowest</div>
                             </div>
                             <div className="text-center">
-                                <div className="text-lg font-bold text-blue-600">${formatPrice(priceStats.average)}</div>
+                                <div className="text-lg font-bold text-blue-600">{formatPrice(priceStats.average)}</div>
                                 <div className="text-xs text-gray-500">Average</div>
                             </div>
                             <div className="text-center">
@@ -263,15 +263,15 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
                     {activeTab === 'add-price' && (
                         <div className="p-4">
                             <form onSubmit={handleSubmit} className="space-y-4">
-                                {/* Price Input - Large and prominent */}
+                                {/* Price Input - Large and prominent - FIXED CURRENCY SYMBOL POSITIONING */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         💵 Price
                                     </label>
                                     <div className="relative">
-            <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-500">
-                {userCurrency.preferences?.currencySymbol || '$'}
-            </span>
+                                        <span className="absolute left-4 top-1/2 transform -translate-y-1/2 text-lg text-gray-500 z-10">
+                                            {userCurrency.preferences?.currencySymbol || '$'}
+                                        </span>
                                         <input
                                             type="number"
                                             step={userCurrency.preferences?.decimalPlaces === 0 ? '1' : '0.01'}
@@ -279,7 +279,8 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
                                             required
                                             value={formData.price}
                                             onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
-                                            className="pl-8 w-full text-xl font-semibold border-2 border-gray-300 rounded-xl px-4 py-4 focus:ring-indigo-500 focus:border-indigo-500"
+                                            className="w-full text-xl font-semibold border-2 border-gray-300 rounded-xl py-4 focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{ paddingLeft: '3rem', paddingRight: '1rem' }}
                                             placeholder={userCurrency.preferences?.decimalPlaces === 0 ? '0' : '0.00'}
                                             inputMode="decimal"
                                         />
@@ -416,7 +417,7 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
                                             <div className="flex justify-between items-start mb-2">
                                                 <div className="flex items-center space-x-3">
                                                     <div className="text-xl font-bold text-green-600">
-                                                        ${formatPrice(entry.price)}
+                                                        {formatPrice(entry.price)}
                                                     </div>
                                                     {entry.isOnSale && (
                                                         <span className="bg-red-100 text-red-800 text-xs px-2 py-1 rounded-full">

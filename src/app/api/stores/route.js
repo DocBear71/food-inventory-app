@@ -1,4 +1,4 @@
-// file: src/app/api/stores/route.js v1
+// file: src/app/api/stores/route.js v2 - Fixed store name validation
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
@@ -55,7 +55,8 @@ export async function GET(request) {
                 city: store.city || '',
                 state: store.state || '',
                 zipCode: store.zipCode || '',
-                isActive: store.isActive
+                isActive: store.isActive,
+                createdAt: store.createdAt
             })),
             total: stores.length
         });
@@ -80,7 +81,20 @@ export async function POST(request) {
         await connectDB();
 
         const body = await request.json();
-        const { name, chain, address, city, state, zipCode, storeId } = body;
+        console.log('🔍 POST stores - received body:', body);
+
+        // ✅ FIXED: Extract from the correct structure
+        const { newStore } = body;
+
+        if (!newStore) {
+            return NextResponse.json({
+                error: 'Store data is required'
+            }, { status: 400 });
+        }
+
+        const { name, chain, address, city, state, zipCode, storeId } = newStore;
+
+        console.log('🔍 POST stores - extracted data:', { name, chain, address, city, state, zipCode });
 
         // Validation
         if (!name || name.trim().length === 0) {
@@ -109,7 +123,7 @@ export async function POST(request) {
         }
 
         // Create new store
-        const newStore = new Store({
+        const newStoreDoc = new Store({
             name: name.trim(),
             chain: chain?.trim() || '',
             address: address?.trim() || '',
@@ -123,7 +137,7 @@ export async function POST(request) {
             updatedAt: new Date()
         });
 
-        const savedStore = await newStore.save();
+        const savedStore = await newStoreDoc.save();
 
         return NextResponse.json({
             success: true,

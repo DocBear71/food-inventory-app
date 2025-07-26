@@ -1,37 +1,29 @@
 'use client';
-// file: /src/app/inventory/page.js - v13 - FIXED - PART 1
+// file: /src/app/inventory/page.js - v14 - FIXED currency symbol positioning and removed unused PriceTrackingForm
 
 import {useSafeSession} from '@/hooks/useSafeSession';
-import {useEffect, useState, Suspense} from 'react';
-import {useSearchParams} from 'next/navigation';
+import {Suspense, useEffect, useState} from 'react';
+import {redirect, useSearchParams} from 'next/navigation';
 import UPCLookup from '@/components/inventory/UPCLookup';
 import InventoryConsumption from '@/components/inventory/InventoryConsumption';
 import ConsumptionHistory from '@/components/inventory/ConsumptionHistory';
 import CommonItemsWizard from '@/components/inventory/CommonItemsWizard';
-import {redirect} from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import {useSubscription} from '@/hooks/useSubscription';
-import {useFeatureGate} from '@/hooks/useSubscription';
+import {useFeatureGate, useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
-import {apiPut, apiGet, apiPost, apiDelete} from '@/lib/api-config';
+import {apiDelete, apiGet, apiPost, apiPut} from '@/lib/api-config';
 import AddToShoppingListModal from '@/components/shopping/AddToShoppingListModal';
 import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashboard';
 import MobilePriceTrackingModal from '@/components/inventory/MobilePriceTrackingModal';
 import AdvancedPriceSearch from '@/components/inventory/AdvancedPriceSearch';
-import { VoiceInput } from '@/components/mobile/VoiceInput';
+import {VoiceInput} from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 // Import smart display utilities
-import {
-    formatInventoryDisplayText,
-    getPrimaryDisplayText,
-    getSecondaryDisplayText,
-    hasDualUnits,
-    getShortDisplayText
-} from '@/lib/inventoryDisplayUtils';
+import {formatInventoryDisplayText} from '@/lib/inventoryDisplayUtils';
 
 // Helper function to parse quantity/serving size and extract size info
 function parseProductSize(product) {
@@ -623,7 +615,7 @@ function InventoryContent() {
                 setShowAddForm(true); // Open the form for user to review
                 setVoiceResults('');
 
-                alert(`✅ Added item details: "${parsedItem.name}"\n\nPlease review and save the item.`);
+                showToast(`✅ Added item details: "${parsedItem.name}"\n\nPlease review and save the item.`);
 
                 // Auto-scroll to form
                 setTimeout(() => {
@@ -633,11 +625,11 @@ function InventoryContent() {
                     }
                 }, 100);
             } else {
-                alert('❌ Could not understand the item. Try saying something like "2 pounds ground beef in the freezer"');
+                showToast('❌ Could not understand the item. Try saying something like "2 pounds ground beef in the freezer"', 'error');
             }
         } catch (error) {
             console.error('Error processing voice add item:', error);
-            alert('❌ Error processing voice input. Please try again.');
+            showToast('❌ Error processing voice input. Please try again.', 'error');
         } finally {
             setProcessingVoice(false);
         }
@@ -672,10 +664,10 @@ function InventoryContent() {
             setShowVoiceSearch(false);
             setVoiceResults('');
 
-            alert(`✅ Applied search: "${transcript}"`);
+            showToast(`✅ Applied search: "${transcript}"`);
         } catch (error) {
             console.error('Error processing voice search:', error);
-            alert('❌ Error processing voice search. Please try again.');
+            showToast('❌ Error processing voice search. Please try again.', 'error');
         } finally {
             setProcessingVoice(false);
         }
@@ -694,7 +686,7 @@ function InventoryContent() {
             userMessage += 'Please try again.';
         }
 
-        alert(`🎤 ${userMessage}`);
+        showToast(`🎤 ${userMessage}`, 'error');
     };
 
     const parseVoiceInventoryItem = (transcript) => {
@@ -940,26 +932,6 @@ function InventoryContent() {
         };
     };
 
-    // Add limit checking functions
-    const getUsageColor = (isActive = false) => {
-        if (subscription.loading) {
-            return isActive ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-600';
-        }
-
-        const usage = getUsageInfo();
-        const percentage = usage.isUnlimited ? 0 : (usage.current / (typeof usage.limit === 'number' ? usage.limit : 999999)) * 100;
-
-        if (isActive) {
-            if (percentage >= 100) return 'bg-red-100 text-red-600';
-            if (percentage >= 80) return 'bg-orange-100 text-orange-600';
-            return 'bg-indigo-100 text-indigo-600';
-        } else {
-            if (percentage >= 100) return 'bg-red-200 text-red-700';
-            if (percentage >= 80) return 'bg-orange-200 text-orange-700';
-            return 'bg-gray-200 text-gray-600';
-        }
-    };
-
     const fetchInventory = async () => {
         try {
             const response = await apiGet('/api/inventory');
@@ -1020,7 +992,7 @@ function InventoryContent() {
             }
         } catch (error) {
             console.error('Error consuming items:', error);
-            showToast('Error updating inventory: ' + error.message);
+            showToast('Error updating inventory: ' + error.message, 'error');
             throw error;
         }
     };
@@ -1409,13 +1381,11 @@ function InventoryContent() {
 
     // Get unique values for filter dropdowns
     const getUniqueLocations = () => {
-        const locations = [...new Set(inventory.map(item => item.location))].sort();
-        return locations;
+        return [...new Set(inventory.map(item => item.location))].sort();
     };
 
     const getUniqueCategories = () => {
-        const categories = [...new Set(inventory.map(item => item.category || '').filter(Boolean))].sort();
-        return categories;
+        return [...new Set(inventory.map(item => item.category || '').filter(Boolean))].sort();
     };
 
     // Clear all filters
@@ -3259,167 +3229,6 @@ function InventoryContent() {
             <br/>
             <Footer/>
         </MobileOptimizedLayout>
-    );
-}
-
-// PriceTrackingForm component
-function PriceTrackingForm({item, stores, onPriceAdded, onClose}) {
-    const [formData, setFormData] = useState({
-        price: '',
-        store: '',
-        size: '',
-        unit: '',
-        isOnSale: false,
-        notes: ''
-    });
-    const [loading, setLoading] = useState(false);
-    const [error, setError] = useState('');
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-
-        try {
-            // Check if online
-            const isOnline = navigator.onLine;
-
-            if (!isOnline) {
-                // Save offline using IndexedDB
-                try {
-                    const { OfflinePriceStorage } = await import('@/lib/offline-price-storage');
-                    const saved = await OfflinePriceStorage.savePriceOffline(item._id, formData);
-
-                    if (saved) {
-                        console.log('💾 Price saved offline');
-                        alert('💾 Price saved offline. Will sync when internet returns.');
-                        setFormData({
-                            price: '',
-                            store: '',
-                            size: '',
-                            unit: '',
-                            isOnSale: false,
-                            notes: ''
-                        });
-                        onClose();
-                    } else {
-                        throw new Error('Failed to save offline');
-                    }
-                } catch (offlineError) {
-                    console.error('Offline save failed:', offlineError);
-                    setError('Unable to save offline. Please check your connection.');
-                }
-
-                setLoading(false);
-                return;
-            }
-
-            // Online - normal submission
-            const response = await apiPost(`/api/inventory/${item._id}/prices`, {
-                formData
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                onPriceAdded(data.data);
-                onClose();
-                setFormData({
-                    price: '',
-                    store: '',
-                    size: '',
-                    unit: '',
-                    isOnSale: false,
-                    notes: ''
-                });
-            } else {
-                setError(data.error || 'Failed to add price');
-            }
-        } catch (error) {
-            console.error('Error adding price:', error);
-            setError('Network error. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-                <div className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded text-sm">
-                    {error}
-                </div>
-            )}
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price *</label>
-                <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2">$</span>
-                    <input
-                        type="number"
-                        step="0.01"
-                        min="0"
-                        required
-                        value={formData.price}
-                        onChange={(e) => setFormData(prev => ({...prev, price: e.target.value}))}
-                        className="pl-6 w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        style={{fontSize: '16px'}}
-                        placeholder="0.00"
-                    />
-                </div>
-            </div>
-
-            <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Store *</label>
-                <select
-                    required
-                    value={formData.store}
-                    onChange={(e) => setFormData(prev => ({...prev, store: e.target.value}))}
-                    className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                    style={{fontSize: '16px'}}
-                >
-                    <option value="">Select store</option>
-                    {stores.map(store => (
-                        <option key={store._id} value={store.name}>
-                            {store.name} {store.chain && `(${store.chain})`}
-                        </option>
-                    ))}
-                    <option value="Albertsons">Albertsons</option>
-                    <option value="Aldi">Aldi</option>
-                    <option value="Costco">Costco</option>
-                    <option value="H-E-B">H-E-B</option>
-                    <option value="Hy-Vee">Hy-Vee</option>
-                    <option value="Kroger">Kroger</option>
-                    <option value="Meijer">Meijer</option>
-                    <option value="Publix">Publix</option>
-                    <option value="Safeway">Safeway</option>
-                    <option value="Sam's Club">Sam's Club</option>
-                    <option value="Smiths">Smith's</option>
-                    <option value="Target">Target</option>
-                    <option value="Trader Joe's">Trader Joe's</option>
-                    <option value="Walmart">Walmart</option>
-                    <option value="Whole Foods">Whole Foods</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-
-            <div className="flex gap-3">
-                <TouchEnhancedButton
-                    type="button"
-                    onClick={onClose}
-                    className="flex-1 bg-gray-300 hover:bg-gray-400 text-gray-700 py-2 px-4 rounded-md font-medium"
-                >
-                    Cancel
-                </TouchEnhancedButton>
-                <TouchEnhancedButton
-                    type="submit"
-                    disabled={loading}
-                    className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 disabled:bg-indigo-400 font-medium"
-                >
-                    {loading ? 'Adding...' : 'Add Price'}
-                </TouchEnhancedButton>
-            </div>
-        </form>
     );
 }
 
