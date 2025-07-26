@@ -185,89 +185,119 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             setConfidence(0);
             vibrateDevice([100, 50, 100]);
 
+            // First, check if the plugin is available
+            const availability = await speechRecognition.available();
+            console.log('🔍 Plugin availability check:', availability);
+
+            if (!availability.available) {
+                throw new Error('Speech recognition not available on this device');
+            }
+
+            // Request permissions explicitly
+            const permissions = await speechRecognition.requestPermissions();
+            console.log('🔍 Permission check:', permissions);
+
+            if (permissions.speechRecognition !== 'granted') {
+                throw new Error('Microphone permission denied');
+            }
+
+            // Use minimal configuration for better compatibility
+            console.log('🎤 Calling speechRecognition.start() with minimal config...');
             const result = await speechRecognition.start({
                 language: 'en-US',
-                maxResults: 1,
-                prompt: 'Speak now...',
-                partialResults: true,
-                popup: false // Don't show system popup
+                maxResults: 5, // Get more results
+                prompt: '', // Remove custom prompt
+                partialResults: false, // Disable partial results for stability
+                popup: true // Enable popup for better user feedback
             });
 
-            console.log('🎯 Native speech recognition result:', result);
+            console.log('🎯 Raw plugin result:', JSON.stringify(result, null, 2));
 
-            // Handle different result formats and error cases
-            if (result && result.matches && result.matches.length > 0) {
+            // More thorough result checking
+            if (!result) {
+                console.log('❌ Plugin returned null/undefined');
+                if (onError) {
+                    onError('Speech recognition failed to start. Please try again.');
+                }
+                return false;
+            }
+
+            // Check for matches array
+            if (result.matches && Array.isArray(result.matches) && result.matches.length > 0) {
                 const transcript = result.matches[0];
                 const confidence = result.confidence || 0.8;
 
+                console.log('✅ Successfully got transcript:', transcript);
                 setTranscript(transcript);
                 setConfidence(confidence);
-
-                console.log('✅ Native speech result:', transcript);
 
                 if (onResult) {
                     onResult(transcript.trim(), confidence);
                 }
-            } else if (result && result.message) {
-                // Handle plugin error messages
-                console.log('⚠️ Plugin returned message:', result.message);
-
-                if (result.message === 'No match') {
-                    if (onError) {
-                        onError('No speech detected. Please try speaking louder and clearer.');
-                    }
-                } else if (result.message === 'Client side error') {
-                    if (onError) {
-                        onError('Speech recognition error. Please check your microphone permissions and try again.');
-                    }
-                } else {
-                    if (onError) {
-                        onError(`Speech recognition: ${result.message}`);
-                    }
-                }
-            } else if (!result) {
-                console.log('⚠️ No result returned from speech recognition');
-                if (onError) {
-                    onError('No speech detected. Please try speaking louder and clearer.');
-                }
-            } else {
-                console.log('⚠️ Unexpected result format:', result);
-                if (onError) {
-                    onError('Speech recognition completed but no text was detected.');
-                }
+                return true;
             }
 
-            return true;
+            // Check for error messages in result
+            if (result.message) {
+                console.log('⚠️ Plugin returned message:', result.message);
+
+                switch (result.message) {
+                    case 'No match':
+                    case "Didn't understand, please try again.":
+                        if (onError) {
+                            onError('Could not understand speech. Please speak clearly and try again.');
+                        }
+                        break;
+                    case 'Client side error':
+                        if (onError) {
+                            onError('Speech recognition error. Please check microphone permissions and try again.');
+                        }
+                        break;
+                    case 'Network error':
+                        if (onError) {
+                            onError('Network error. Please check your internet connection.');
+                        }
+                        break;
+                    default:
+                        if (onError) {
+                            onError(`Speech recognition: ${result.message}`);
+                        }
+                }
+                return false;
+            }
+
+            // If we get here, the result format is unexpected
+            console.log('⚠️ Unexpected result format - no matches or message');
+            if (onError) {
+                onError('Speech recognition completed but no speech was detected. Please try again.');
+            }
+            return false;
+
         } catch (error) {
             console.error('❌ Native speech recognition error:', error);
 
             let errorMessage = 'Voice recognition failed.';
 
-            // Handle specific error types
             if (error && error.message) {
-                if (error.message.includes('permission')) {
-                    errorMessage = 'Microphone permission required. Please enable microphone access in device settings.';
+                if (error.message.includes('permission') || error.message.includes('denied')) {
+                    errorMessage = 'Microphone permission denied. Please enable microphone access in Settings > Apps > Doc Bear\'s Comfort Kitchen > Permissions.';
                     setPermissionStatus('denied');
-                } else if (error.message.includes('network')) {
-                    errorMessage = 'Network error. Please check your internet connection.';
                 } else if (error.message.includes('not available')) {
-                    errorMessage = 'Speech recognition not available on this device.';
-                } else if (error.message === 'No match') {
-                    errorMessage = 'No speech detected. Please try speaking louder and clearer.';
-                } else if (error.message === 'Client side error') {
-                    errorMessage = 'Speech recognition error. Please check your microphone permissions.';
+                    errorMessage = 'Speech recognition is not available on this device.';
+                } else if (error.message.includes('network')) {
+                    errorMessage = 'Network error. Speech recognition requires internet connection.';
                 } else {
-                    errorMessage = `Voice recognition error: ${error.message}`;
+                    errorMessage = `Speech recognition error: ${error.message}`;
                 }
-            } else if (typeof error === 'string') {
-                errorMessage = `Voice recognition error: ${error}`;
             }
 
             if (onError) {
                 onError(errorMessage);
             }
             return false;
+
         } finally {
+            console.log('🏁 Native speech recognition finished');
             setIsListening(false);
             vibrateDevice([50]);
         }
