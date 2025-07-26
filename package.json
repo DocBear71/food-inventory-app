@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@capacitor-community/image-to-text": "^7.0.0",
+    "@capacitor-community/speech-recognition": "^7.0.1",
     "@capacitor-mlkit/barcode-scanning": "^7.2.1",
     "@capacitor/android": "^7.4.0",
     "@capacitor/app": "^7.0.1",
