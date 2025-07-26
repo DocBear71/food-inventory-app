@@ -640,14 +640,56 @@ export default function StoresPage() {
     );
 }
 
-// Enhanced Category Order Modal Component with New Category System
+// Enhanced Category Order Modal Component with ALL Movement Features
 function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
     // Use the new comprehensive category system
     const defaultCategories = CategoryUtils.getDefaultCategoryOrder();
 
+    // Store Layout Templates
+    const storeLayoutTemplates = {
+        'fresh-first': {
+            name: 'Fresh-First Layout',
+            description: 'Produce → Bakery → Deli → Meat → Dairy → Frozen → Dry Goods',
+            icon: '🥬',
+            order: [
+                'Fresh Fruits', 'Fresh Vegetables', 'Fresh Herbs', 'Organic Produce',
+                'Bakery Fresh', 'Bakery Packaged', 'Fresh Bread',
+                'Deli Prepared Foods', 'Deli Meats', 'Deli Cheese',
+                'Fresh/Frozen Beef', 'Fresh/Frozen Poultry', 'Fresh/Frozen Pork', 'Fresh/Frozen Fish & Seafood',
+                'Dairy', 'Eggs', 'Cheese',
+                'Frozen Meals', 'Frozen Vegetables', 'Frozen Fruit', 'Frozen Other Items',
+                'Canned Vegetables', 'Canned Fruit', 'Canned Meals', 'Pasta', 'Grains',
+                'Condiments', 'Seasonings', 'Spices', 'Baking & Cooking Ingredients',
+                'Beverages', 'Snacks', 'Other'
+            ]
+        },
+        'food-safety': {
+            name: 'Food Safety Layout',
+            description: 'Dry Goods → Refrigerated → Frozen → Fresh (prevents spoilage)',
+            icon: '🛡️',
+            order: [...defaultCategories] // Current default
+        },
+        'perimeter-first': {
+            name: 'Perimeter-First Layout',
+            description: 'Fresh perimeter items → Center aisles → Frozen',
+            icon: '🔄',
+            order: [
+                'Fresh Fruits', 'Fresh Vegetables', 'Organic Produce',
+                'Fresh/Frozen Beef', 'Fresh/Frozen Poultry', 'Fresh/Frozen Pork', 'Fresh/Frozen Fish & Seafood',
+                'Dairy', 'Eggs', 'Cheese',
+                'Bakery Fresh', 'Bakery Packaged', 'Fresh Bread',
+                'Deli Prepared Foods', 'Deli Meats', 'Deli Cheese',
+                'Canned Vegetables', 'Canned Fruit', 'Canned Meals', 'Pasta', 'Grains',
+                'Condiments', 'Seasonings', 'Spices', 'Baking & Cooking Ingredients',
+                'Beverages', 'Snacks',
+                'Frozen Meals', 'Frozen Vegetables', 'Frozen Fruit', 'Frozen Other Items',
+                'Other'
+            ]
+        }
+    };
+
     const [categoryOrder, setCategoryOrder] = useState(() => {
         if (currentOrder.length > 0) {
-            // Use existing order and add any new categories
             const existing = [...currentOrder];
             defaultCategories.forEach(cat => {
                 if (!existing.includes(cat)) {
@@ -656,19 +698,130 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
             });
             return existing;
         } else {
-            // Use default category order
             return [...defaultCategories];
         }
     });
 
+    // Track hidden/removed categories
+    const [hiddenCategories, setHiddenCategories] = useState(new Set());
     const [selectedCategory, setSelectedCategory] = useState(null);
     const [searchTerm, setSearchTerm] = useState('');
+
+    // Collapsible sections state
+    const [showInstructions, setShowInstructions] = useState(true);
+    const [showTemplates, setShowTemplates] = useState(false);
+    const [showAddCategoriesSection, setShowAddCategoriesSection] = useState(false);
+
+    // Drag and drop state
+    const [draggedItem, setDraggedItem] = useState(null);
+    const [dragOverIndex, setDragOverIndex] = useState(null);
+
+    // Jump to position states
+    const [jumpToPositions, setJumpToPositions] = useState({});
+
+    // Get visible categories (not hidden)
+    const visibleCategories = categoryOrder.filter(cat => !hiddenCategories.has(cat));
+
+    // Get hidden categories for the "add back" section
+    const availableHiddenCategories = Array.from(hiddenCategories);
+
+    // Apply template function
+    const applyTemplate = (templateKey) => {
+        const template = storeLayoutTemplates[templateKey];
+        if (template) {
+            const filteredOrder = template.order.filter(cat => defaultCategories.includes(cat));
+            const remainingCategories = defaultCategories.filter(cat => !filteredOrder.includes(cat));
+            setCategoryOrder([...filteredOrder, ...remainingCategories]);
+            setHiddenCategories(new Set());
+            setShowTemplates(false);
+        }
+    };
+
+    // Drag and Drop Functions
+    const handleDragStart = (e, category, index) => {
+        setDraggedItem({ category, index });
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/html', e.target);
+    };
+
+    const handleDragOver = (e, index) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = 'move';
+        setDragOverIndex(index);
+    };
+
+    const handleDragLeave = () => {
+        setDragOverIndex(null);
+    };
+
+    const handleDrop = (e, dropIndex) => {
+        e.preventDefault();
+        setDragOverIndex(null);
+
+        if (draggedItem && draggedItem.index !== dropIndex) {
+            const newOrder = [...categoryOrder];
+            const draggedCategory = visibleCategories[draggedItem.index];
+            const targetCategory = visibleCategories[dropIndex];
+
+            const draggedActualIndex = newOrder.indexOf(draggedCategory);
+            const targetActualIndex = newOrder.indexOf(targetCategory);
+
+            newOrder.splice(draggedActualIndex, 1);
+            const adjustedTargetIndex = draggedActualIndex < targetActualIndex ? targetActualIndex - 1 : targetActualIndex;
+            newOrder.splice(adjustedTargetIndex, 0, draggedCategory);
+
+            setCategoryOrder(newOrder);
+        }
+        setDraggedItem(null);
+    };
 
     const moveCategory = (fromIndex, toIndex) => {
         const newOrder = [...categoryOrder];
         const [movedCategory] = newOrder.splice(fromIndex, 1);
         newOrder.splice(toIndex, 0, movedCategory);
         setCategoryOrder(newOrder);
+    };
+
+    // Quick move functions
+    const moveToTop = (category) => {
+        const currentIndex = categoryOrder.indexOf(category);
+        moveCategory(currentIndex, 0);
+    };
+
+    const moveToBottom = (category) => {
+        const currentIndex = categoryOrder.indexOf(category);
+        moveCategory(currentIndex, categoryOrder.length - 1);
+    };
+
+    const moveBulkUp = (category, positions = 5) => {
+        const currentIndex = categoryOrder.indexOf(category);
+        const newIndex = Math.max(0, currentIndex - positions);
+        moveCategory(currentIndex, newIndex);
+    };
+
+    const moveBulkDown = (category, positions = 5) => {
+        const currentIndex = categoryOrder.indexOf(category);
+        const newIndex = Math.min(categoryOrder.length - 1, currentIndex + positions);
+        moveCategory(currentIndex, newIndex);
+    };
+
+    // Jump to position function
+    const jumpToPosition = (category, targetPosition) => {
+        const position = parseInt(targetPosition);
+        if (isNaN(position) || position < 1 || position > visibleCategories.length) {
+            return;
+        }
+
+        const currentIndex = categoryOrder.indexOf(category);
+        const targetCategory = visibleCategories[position - 1];
+        const targetIndex = categoryOrder.indexOf(targetCategory);
+
+        moveCategory(currentIndex, targetIndex);
+
+        setJumpToPositions(prev => ({
+            ...prev,
+            [category]: ''
+        }));
     };
 
     const moveCategoryUp = (index) => {
@@ -683,12 +836,28 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
         }
     };
 
+    // Hide/Remove category functionality
+    const hideCategory = (category) => {
+        setHiddenCategories(prev => new Set([...prev, category]));
+    };
+
+    // Show/Add back category functionality
+    const showCategory = (category) => {
+        setHiddenCategories(prev => {
+            const newSet = new Set(prev);
+            newSet.delete(category);
+            return newSet;
+        });
+    };
+
     const resetToDefault = () => {
         setCategoryOrder([...defaultCategories]);
+        setHiddenCategories(new Set());
     };
 
     const handleSave = () => {
-        onSave(categoryOrder);
+        const finalOrder = categoryOrder.filter(cat => !hiddenCategories.has(cat));
+        onSave(finalOrder);
     };
 
     const getCategoryInfo = (categoryName) => {
@@ -700,14 +869,18 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
         };
     };
 
-    // Filter categories based on search
-    const filteredCategories = categoryOrder.filter(category =>
+    // Filter visible categories based on search
+    const filteredCategories = visibleCategories.filter(category =>
         category.toLowerCase().includes(searchTerm.toLowerCase())
     );
 
+    const clearSearch = () => {
+        setSearchTerm('');
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-white rounded-lg max-w-5xl w-full max-h-[95vh] overflow-hidden">
                 {/* Header */}
                 <div className="bg-purple-600 text-white p-4">
                     <div className="flex items-center justify-between">
@@ -724,146 +897,398 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                     </div>
                 </div>
 
-                {/* Instructions */}
-                <div className="p-4 bg-purple-50 border-b border-purple-200">
-                    <div className="flex items-start gap-3">
-                        <span className="text-2xl">💡</span>
-                        <div>
-                            <h3 className="font-semibold text-purple-900 mb-1">Customize Your Shopping Flow</h3>
-                            <p className="text-sm text-purple-700">
-                                Arrange categories in the order you prefer to shop through {store.name}.
-                                This will automatically organize your shopping lists for optimal efficiency.
-                                Based on food safety: non-perishables → refrigerated → frozen → fresh produce.
-                            </p>
+                {/* Collapsible Instructions */}
+                <div className="border-b border-purple-200">
+                    <TouchEnhancedButton
+                        onClick={() => setShowInstructions(!showInstructions)}
+                        className="w-full p-4 bg-purple-50 hover:bg-purple-100 transition-colors text-left"
+                    >
+                        <div className="flex items-start justify-between">
+                            <div className="flex items-start gap-3">
+                                <span className="text-2xl">💡</span>
+                                <div>
+                                    <h3 className="font-semibold text-purple-900 mb-1">Customize Your Shopping Flow</h3>
+                                    {showInstructions && (
+                                        <p className="text-sm text-purple-700">
+                                            Arrange categories to match how you shop through {store.name}.
+                                            Use drag & drop, quick moves, or templates for fast setup.
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="text-purple-600 ml-2">
+                                {showInstructions ? '🔼' : '🔽'}
+                            </div>
                         </div>
-                    </div>
+                    </TouchEnhancedButton>
                 </div>
 
-                {/* Search Bar */}
+                {/* Store Layout Templates */}
+                <div className="border-b border-gray-200">
+                    <TouchEnhancedButton
+                        onClick={() => setShowTemplates(!showTemplates)}
+                        className="w-full p-3 bg-blue-50 hover:bg-blue-100 transition-colors text-left"
+                    >
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <span className="text-xl">🏪</span>
+                                <h3 className="font-medium text-blue-900">Quick Start Templates</h3>
+                            </div>
+                            <div className="text-blue-600">
+                                {showTemplates ? '🔼' : '🔽'}
+                            </div>
+                        </div>
+                    </TouchEnhancedButton>
+
+                    {showTemplates && (
+                        <div className="p-4 bg-blue-50">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                {Object.entries(storeLayoutTemplates).map(([key, template]) => (
+                                    <TouchEnhancedButton
+                                        key={key}
+                                        onClick={() => applyTemplate(key)}
+                                        className="p-3 bg-white border border-blue-200 rounded-lg hover:bg-blue-50 text-left transition-colors"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <span className="text-2xl">{template.icon}</span>
+                                            <div>
+                                                <div className="font-medium text-blue-900">{template.name}</div>
+                                                <div className="text-xs text-blue-700 mt-1">{template.description}</div>
+                                            </div>
+                                        </div>
+                                    </TouchEnhancedButton>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+                </div>
+
+                {/* Enhanced Search Bar */}
                 <div className="p-4 border-b border-gray-200">
                     <div className="relative">
-                        <input
+                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span className="text-gray-400">🔍</span>
+                        </div>
+                        <KeyboardOptimizedInput
                             type="text"
                             placeholder="Search categories..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
                         />
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <span className="text-gray-400">🔍</span>
-                        </div>
+                        {searchTerm && (
+                            <TouchEnhancedButton
+                                onClick={clearSearch}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600"
+                                title="Clear search"
+                            >
+                                ✕
+                            </TouchEnhancedButton>
+                        )}
                     </div>
-                    <div className="mt-2 text-sm text-gray-600">
-                        {filteredCategories.length} of {categoryOrder.length} categories
-                        {searchTerm && ` matching "${searchTerm}"`}
+                    <div className="mt-2 flex items-center justify-between text-sm">
+                        <div className="text-gray-600">
+                            {filteredCategories.length} of {visibleCategories.length} visible categories
+                            {searchTerm && ` matching "${searchTerm}"`}
+                            {hiddenCategories.size > 0 && (
+                                <span className="text-orange-600 ml-2">
+                                    • {hiddenCategories.size} hidden
+                                </span>
+                            )}
+                        </div>
+
+                        {hiddenCategories.size > 0 && (
+                            <TouchEnhancedButton
+                                onClick={() => setShowAddCategoriesSection(!showAddCategoriesSection)}
+                                className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded hover:bg-green-200"
+                            >
+                                {showAddCategoriesSection ? 'Hide' : 'Show'} Hidden ({hiddenCategories.size})
+                            </TouchEnhancedButton>
+                        )}
                     </div>
                 </div>
 
-                {/* Category List */}
-                <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: '50vh' }}>
-                    <div className="space-y-3">
-                        {filteredCategories.map((category, index) => {
-                            const actualIndex = categoryOrder.indexOf(category);
-                            const categoryInfo = getCategoryInfo(category);
-
-                            return (
-                                <div
-                                    key={category}
-                                    className={`flex items-center justify-between p-4 bg-gray-50 rounded-lg border-2 transition-all ${
-                                        selectedCategory === category
-                                            ? 'border-purple-300 bg-purple-50 shadow-md'
-                                            : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                                    onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
-                                >
-                                    <div className="flex items-center gap-3 flex-1">
-                                        <div className="flex items-center justify-center w-10 h-10 bg-purple-100 text-purple-600 rounded-full font-bold text-sm">
-                                            {actualIndex + 1}
-                                        </div>
-                                        <div className="text-2xl">
-                                            {categoryInfo.icon}
-                                        </div>
-                                        <div className="flex-1">
-                                            <div className="font-medium text-gray-900">
-                                                {categoryInfo.name}
-                                            </div>
-                                            <div className="text-sm text-gray-500">
-                                                {categoryInfo.section} • Position {actualIndex + 1} of {categoryOrder.length}
-                                            </div>
-                                        </div>
-                                    </div>
-
-                                    {/* Mobile-Friendly Controls */}
-                                    <div className="flex items-center gap-2">
-                                        <TouchEnhancedButton
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                moveCategoryUp(actualIndex);
-                                            }}
-                                            disabled={actualIndex === 0}
-                                            className={`p-2 rounded-lg border ${
-                                                actualIndex === 0
-                                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                                    : 'border-purple-200 text-purple-600 hover:bg-purple-50 active:bg-purple-100'
-                                            }`}
-                                            title="Move up"
-                                        >
-                                            ⬆️
-                                        </TouchEnhancedButton>
-                                        <TouchEnhancedButton
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                moveCategoryDown(actualIndex);
-                                            }}
-                                            disabled={actualIndex === categoryOrder.length - 1}
-                                            className={`p-2 rounded-lg border ${
-                                                actualIndex === categoryOrder.length - 1
-                                                    ? 'border-gray-200 text-gray-300 cursor-not-allowed'
-                                                    : 'border-purple-200 text-purple-600 hover:bg-purple-50 active:bg-purple-100'
-                                            }`}
-                                            title="Move down"
-                                        >
-                                            ⬇️
-                                        </TouchEnhancedButton>
-                                    </div>
-                                </div>
-                            );
-                        })}
+                {/* Add Back Hidden Categories Section */}
+                {showAddCategoriesSection && hiddenCategories.size > 0 && (
+                    <div className="p-4 bg-green-50 border-b border-green-200">
+                        <h4 className="font-medium text-green-900 mb-2">📂 Add Back Hidden Categories</h4>
+                        <div className="flex flex-wrap gap-2">
+                            {availableHiddenCategories.map(category => {
+                                const categoryInfo = getCategoryInfo(category);
+                                return (
+                                    <TouchEnhancedButton
+                                        key={category}
+                                        onClick={() => showCategory(category)}
+                                        className="flex items-center gap-2 px-3 py-1 bg-white border border-green-300 rounded-full text-sm hover:bg-green-100 transition-colors"
+                                    >
+                                        <span>{categoryInfo.icon}</span>
+                                        <span>{categoryInfo.name}</span>
+                                        <span className="text-green-600">+</span>
+                                    </TouchEnhancedButton>
+                                );
+                            })}
+                        </div>
                     </div>
+                )}
 
-                    {/* Shopping Flow Preview */}
-                    <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                        <h4 className="font-semibold text-blue-900 mb-2">🗺️ Your Shopping Flow Preview</h4>
-                        <div className="text-sm text-blue-700">
-                            <div className="flex flex-wrap gap-2">
-                                {categoryOrder.slice(0, 8).map((category, index) => {
-                                    const categoryInfo = getCategoryInfo(category);
-                                    return (
-                                        <span key={category} className="flex items-center gap-1">
-                                            <span>{categoryInfo.icon}</span>
-                                            <span>{category.split(' ')[0]}</span>
-                                            {index < Math.min(7, categoryOrder.length - 1) && (
-                                                <span className="text-blue-500 mx-1">→</span>
-                                            )}
-                                        </span>
-                                    );
-                                })}
-                                {categoryOrder.length > 8 && (
-                                    <span className="text-blue-500">... +{categoryOrder.length - 8} more</span>
-                                )}
+                {/* Category List with Drag & Drop */}
+                <div className="flex-1 overflow-y-auto p-4" style={{ maxHeight: '55vh' }}>
+                    {filteredCategories.length === 0 ? (
+                        <div className="text-center py-8">
+                            <div className="text-gray-400 text-4xl mb-2">🔍</div>
+                            <p className="text-gray-500">
+                                {searchTerm ? `No categories match "${searchTerm}"` : 'No visible categories'}
+                            </p>
+                            {searchTerm && (
+                                <TouchEnhancedButton
+                                    onClick={clearSearch}
+                                    className="mt-2 text-purple-600 hover:text-purple-800 underline"
+                                >
+                                    Clear search
+                                </TouchEnhancedButton>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {filteredCategories.map((category, index) => {
+                                const actualIndex = visibleCategories.indexOf(category);
+                                const categoryInfo = getCategoryInfo(category);
+                                const isDraggedOver = dragOverIndex === index;
+
+                                return (
+                                    <div
+                                        key={category}
+                                        draggable
+                                        onDragStart={(e) => handleDragStart(e, category, index)}
+                                        onDragOver={(e) => handleDragOver(e, index)}
+                                        onDragLeave={handleDragLeave}
+                                        onDrop={(e) => handleDrop(e, index)}
+                                        className={`flex items-center justify-between p-4 bg-gray-50 rounded-lg border-2 transition-all cursor-move ${
+                                            isDraggedOver
+                                                ? 'border-purple-400 bg-purple-100 shadow-lg transform scale-[1.02]'
+                                                : selectedCategory === category
+                                                    ? 'border-purple-300 bg-purple-50 shadow-md'
+                                                    : 'border-gray-200 hover:border-gray-300'
+                                        }`}
+                                        onClick={() => setSelectedCategory(selectedCategory === category ? null : category)}
+                                    >
+                                        <div className="flex items-center gap-3 flex-1">
+                                            {/* Drag Handle */}
+                                            <div className="flex items-center justify-center w-8 h-8 text-gray-400 hover:text-gray-600 cursor-grab active:cursor-grabbing">
+                                                ⋮⋮
+                                            </div>
+
+                                            <div className="flex items-center justify-center w-10 h-10 bg-purple-100 text-purple-600 rounded-full font-bold text-sm">
+                                                {actualIndex + 1}
+                                            </div>
+                                            <div className="text-2xl">
+                                                {categoryInfo.icon}
+                                            </div>
+                                            <div className="flex-1">
+                                                <div className="font-medium text-gray-900">
+                                                    {categoryInfo.name}
+                                                </div>
+                                                <div className="text-sm text-gray-500">
+                                                    {categoryInfo.section} • Position {actualIndex + 1} of {visibleCategories.length}
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        {/* Enhanced Controls */}
+                                        <div className="flex items-center gap-2 ml-2">
+                                            {/* Jump to Position */}
+                                            <div className="flex items-center gap-1">
+                                                <KeyboardOptimizedInput
+                                                    type="number"
+                                                    min="1"
+                                                    max={visibleCategories.length}
+                                                    value={jumpToPositions[category] || ''}
+                                                    onChange={(e) => setJumpToPositions(prev => ({
+                                                        ...prev,
+                                                        [category]: e.target.value
+                                                    }))}
+                                                    className="w-12 px-1 py-1 text-xs border border-gray-300 rounded text-center"
+                                                    placeholder="#"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                                <TouchEnhancedButton
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        jumpToPosition(category, jumpToPositions[category]);
+                                                    }}
+                                                    disabled={!jumpToPositions[category]}
+                                                    className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                    title="Jump to position"
+                                                >
+                                                    Go
+                                                </TouchEnhancedButton>
+                                            </div>
+
+                                            {/* Quick Move Buttons */}
+                                            <div className="flex items-center gap-1">
+                                                <TouchEnhancedButton
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveToTop(category);
+                                                    }}
+                                                    className="p-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                    title="Move to top"
+                                                >
+                                                    ⏫
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveBulkUp(category, 5);
+                                                    }}
+                                                    disabled={actualIndex < 5}
+                                                    className="p-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                    title="Move up 5"
+                                                >
+                                                    ⬆️5
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveBulkDown(category, 5);
+                                                    }}
+                                                    disabled={actualIndex >= visibleCategories.length - 5}
+                                                    className="p-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:bg-gray-100 disabled:text-gray-400"
+                                                    title="Move down 5"
+                                                >
+                                                    ⬇️5
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        moveToBottom(category);
+                                                    }}
+                                                    className="p-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200"
+                                                    title="Move to bottom"
+                                                >
+                                                    ⏬
+                                                </TouchEnhancedButton>
+                                            </div>
+
+                                            {/* Standard Move Buttons */}
+                                            <div className="flex items-center gap-1">
+                                                <TouchEnhancedButton
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const visibleIndex = visibleCategories.indexOf(category);
+                                                        if (visibleIndex > 0) {
+                                                            const prevCategory = visibleCategories[visibleIndex - 1];
+                                                            const actualCurrentIndex = categoryOrder.indexOf(category);
+                                                            const actualPrevIndex = categoryOrder.indexOf(prevCategory);
+                                                            moveCategory(actualCurrentIndex, actualPrevIndex);
+                                                        }
+                                                    }}
+                                                    disabled={actualIndex === 0}
+                                                    className={`p-1 rounded border ${
+                                                        actualIndex === 0
+                                                            ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                                            : 'border-purple-200 text-purple-600 hover:bg-purple-50'
+                                                    }`}
+                                                    title="Move up one"
+                                                >
+                                                    ⬆️
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        const visibleIndex = visibleCategories.indexOf(category);
+                                                        if (visibleIndex < visibleCategories.length - 1) {
+                                                            const nextCategory = visibleCategories[visibleIndex + 1];
+                                                            const actualCurrentIndex = categoryOrder.indexOf(category);
+                                                            const actualNextIndex = categoryOrder.indexOf(nextCategory);
+                                                            moveCategory(actualCurrentIndex, actualNextIndex);
+                                                        }
+                                                    }}
+                                                    disabled={actualIndex === visibleCategories.length - 1}
+                                                    className={`p-1 rounded border ${
+                                                        actualIndex === visibleCategories.length - 1
+                                                            ? 'border-gray-200 text-gray-300 cursor-not-allowed'
+                                                            : 'border-purple-200 text-purple-600 hover:bg-purple-50'
+                                                    }`}
+                                                    title="Move down one"
+                                                >
+                                                    ⬇️
+                                                </TouchEnhancedButton>
+                                            </div>
+
+                                            {/* Hide/Remove Button */}
+                                            <TouchEnhancedButton
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    hideCategory(category);
+                                                }}
+                                                className="p-1 rounded border border-red-200 text-red-600 hover:bg-red-50"
+                                                title="Hide this category"
+                                            >
+                                                🗑️
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    )}
+
+                    {/* Movement Legend */}
+                    <div className="mt-6 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                        <h4 className="font-medium text-gray-900 mb-2">🎯 Quick Movement Guide</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-gray-700">
+                            <div>
+                                <div className="font-medium mb-1">Drag & Drop:</div>
+                                <div>Click and drag any category to reorder</div>
                             </div>
-                            <div className="mt-2 text-xs text-blue-600">
-                                💡 Food Safety Tip: Non-perishables first, frozen foods minimize thaw time, produce last to prevent crushing
+                            <div>
+                                <div className="font-medium mb-1">Jump to Position:</div>
+                                <div>Type position number and click "Go"</div>
+                            </div>
+                            <div>
+                                <div className="font-medium mb-1">Quick Moves:</div>
+                                <div>⏫ Top • ⬆️5 Up 5 • ⬇️5 Down 5 • ⏬ Bottom</div>
+                            </div>
+                            <div>
+                                <div className="font-medium mb-1">Templates:</div>
+                                <div>Use store layout templates for quick setup</div>
                             </div>
                         </div>
                     </div>
+
+                    {/* Shopping Flow Preview */}
+                    {visibleCategories.length > 0 && (
+                        <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                            <h4 className="font-semibold text-blue-900 mb-2">🗺️ Your Shopping Flow Preview</h4>
+                            <div className="text-sm text-blue-700">
+                                <div className="flex flex-wrap gap-2">
+                                    {visibleCategories.slice(0, 8).map((category, index) => {
+                                        const categoryInfo = getCategoryInfo(category);
+                                        return (
+                                            <span key={category} className="flex items-center gap-1">
+                                                <span>{categoryInfo.icon}</span>
+                                                <span>{category.split(' ')[0]}</span>
+                                                {index < Math.min(7, visibleCategories.length - 1) && (
+                                                    <span className="text-blue-500 mx-1">→</span>
+                                                )}
+                                            </span>
+                                        );
+                                    })}
+                                    {visibleCategories.length > 8 && (
+                                        <span className="text-blue-500">... +{visibleCategories.length - 8} more</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Category Sections Summary */}
                     <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
                         <h4 className="font-semibold text-green-900 mb-2">📊 Category Breakdown</h4>
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                             {Object.entries(CategoryUtils.getCategoriesBySection()).map(([section, categories]) => {
-                                const sectionCount = categories.filter(cat => categoryOrder.includes(cat.key)).length;
+                                const sectionCount = categories.filter(cat => visibleCategories.includes(cat.key)).length;
                                 return (
                                     <div key={section} className="text-center">
                                         <div className="font-bold text-green-800">{sectionCount}</div>
@@ -872,6 +1297,11 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                 );
                             })}
                         </div>
+                        {hiddenCategories.size > 0 && (
+                            <div className="mt-2 text-center text-sm text-orange-600">
+                                {hiddenCategories.size} categories hidden
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -883,7 +1313,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                             onClick={resetToDefault}
                             className="sm:w-auto bg-gray-200 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-300 text-sm font-medium"
                         >
-                            🔄 Reset to Food Safety Default
+                            🔄 Reset to Default
                         </TouchEnhancedButton>
 
                         <div className="flex gap-3 sm:ml-auto">
@@ -897,7 +1327,7 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                                 onClick={handleSave}
                                 className="flex-1 sm:flex-none bg-purple-600 text-white py-2 px-6 rounded-lg hover:bg-purple-700 font-medium"
                             >
-                                💾 Save Order ({categoryOrder.length} categories)
+                                💾 Save Order ({visibleCategories.length} categories)
                             </TouchEnhancedButton>
                         </div>
                     </div>
@@ -911,6 +1341,9 @@ function EnhancedCategoryOrderModal({ store, currentOrder, onSave, onClose }) {
                         )}
                         <div className="mt-1 text-xs">
                             💡 Your category order will be used in AI-enhanced shopping lists for {store.name}
+                            {hiddenCategories.size > 0 && (
+                                <span className="text-orange-600"> • {hiddenCategories.size} categories will be hidden from lists</span>
+                            )}
                         </div>
                     </div>
                 </div>
