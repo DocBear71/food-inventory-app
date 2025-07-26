@@ -1,12 +1,11 @@
-// file: src/app/api/stores/route.js v2 - Fixed store name validation
+// file: src/app/api/stores/route.js v3 - FIXED: User-specific store filtering
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
-import mongoose from 'mongoose';
 import { Store } from '@/lib/models.js';
 
-// GET - Fetch stores
+// GET - Fetch stores (FIXED: Now filters by user)
 export async function GET(request) {
     try {
         const session = await auth();
@@ -21,8 +20,11 @@ export async function GET(request) {
         const chain = searchParams.get('chain');
         const search = searchParams.get('search');
 
-        // Build query
-        let query = { isActive: true };
+        // 🔧 FIXED: Build query with user filter FIRST
+        let query = {
+            isActive: true,
+            addedBy: session.user.id  // ✅ CRITICAL FIX: Filter by current user
+        };
 
         if (zipCode) {
             query.zipCode = zipCode;
@@ -40,10 +42,14 @@ export async function GET(request) {
             ];
         }
 
+        console.log('🔍 Stores GET query:', query); // Debug log
+
         const stores = await Store.find(query)
             .sort({ name: 1 })
             .limit(100) // Limit results to prevent huge responses
             .lean();
+
+        console.log(`✅ Found ${stores.length} stores for user ${session.user.id}`); // Debug log
 
         return NextResponse.json({
             success: true,
@@ -109,11 +115,11 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
-        // Check if store already exists for this user (prevent duplicates)
+        // 🔧 FIXED: Check for duplicates ONLY within user's stores
         const existingStore = await Store.findOne({
             name: { $regex: new RegExp(`^${name.trim()}$`, 'i') },
             city: city ? { $regex: new RegExp(`^${city.trim()}$`, 'i') } : { $exists: false },
-            addedBy: session.user.id
+            addedBy: session.user.id  // ✅ CRITICAL: Only check current user's stores
         });
 
         if (existingStore) {
@@ -131,13 +137,15 @@ export async function POST(request) {
             state: state?.trim() || '',
             zipCode: zipCode?.trim() || '',
             storeId: storeId?.trim() || '',
-            addedBy: session.user.id,
+            addedBy: session.user.id,  // ✅ Always set to current user
             isActive: true,
             createdAt: new Date(),
             updatedAt: new Date()
         });
 
         const savedStore = await newStoreDoc.save();
+
+        console.log(`✅ Created store for user ${session.user.id}:`, savedStore.name);
 
         return NextResponse.json({
             success: true,
@@ -193,14 +201,16 @@ export async function PUT(request) {
             }, { status: 400 });
         }
 
-        // Find store and verify ownership
-        const store = await Store.findById(storeId);
-        if (!store) {
-            return NextResponse.json({ error: 'Store not found' }, { status: 404 });
-        }
+        // 🔧 FIXED: Find store and verify ownership in one query
+        const store = await Store.findOne({
+            _id: storeId,
+            addedBy: session.user.id  // ✅ CRITICAL: Ensure user owns this store
+        });
 
-        if (store.addedBy.toString() !== session.user.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        if (!store) {
+            return NextResponse.json({
+                error: 'Store not found or you do not have permission to edit it'
+            }, { status: 404 });
         }
 
         // Update store
@@ -221,6 +231,8 @@ export async function PUT(request) {
             updateData,
             { new: true, runValidators: true }
         );
+
+        console.log(`✅ Updated store for user ${session.user.id}:`, updatedStore.name);
 
         return NextResponse.json({
             success: true,
@@ -266,14 +278,16 @@ export async function DELETE(request) {
             }, { status: 400 });
         }
 
-        // Find store and verify ownership
-        const store = await Store.findById(storeId);
-        if (!store) {
-            return NextResponse.json({ error: 'Store not found' }, { status: 404 });
-        }
+        // 🔧 FIXED: Find store and verify ownership in one query
+        const store = await Store.findOne({
+            _id: storeId,
+            addedBy: session.user.id  // ✅ CRITICAL: Ensure user owns this store
+        });
 
-        if (store.addedBy.toString() !== session.user.id) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
+        if (!store) {
+            return NextResponse.json({
+                error: 'Store not found or you do not have permission to delete it'
+            }, { status: 404 });
         }
 
         // Soft delete (mark as inactive) instead of hard delete
@@ -282,6 +296,8 @@ export async function DELETE(request) {
             isActive: false,
             updatedAt: new Date()
         });
+
+        console.log(`✅ Deleted store for user ${session.user.id}:`, store.name);
 
         return NextResponse.json({
             success: true,
