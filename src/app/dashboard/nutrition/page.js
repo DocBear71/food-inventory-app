@@ -1,19 +1,25 @@
-// file: /src/app/dashboard/nutrition/page.js v2 - Updated to use full NutritionDashboard component
-
 'use client';
 
+// file: /src/app/dashboard/nutrition/page.js v3 - Updated with NutritionModal integration
+
 import { useSafeSession } from '@/hooks/useSafeSession';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 
 // Import the full-featured nutrition dashboard component
 import NutritionDashboard from '@/components/integrations/NutritionDashboard';
+import NutritionModal from '@/components/nutrition/NutritionModal';
 
 export default function NutritionDashboardPage() {
     const { data: session, status } = useSafeSession();
     const router = useRouter();
+
+    // Modal state for nutrition display
+    const [showNutritionModal, setShowNutritionModal] = useState(false);
+    const [modalNutritionData, setModalNutritionData] = useState(null);
+    const [modalRecipeTitle, setModalRecipeTitle] = useState('');
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -41,10 +47,33 @@ export default function NutritionDashboardPage() {
     return (
         <MobileOptimizedLayout>
             <div className="dashboard-container">
-                {/* Use the full-featured NutritionDashboard component */}
-                <NutritionDashboard />
+                {/* Pass modal controls to NutritionDashboard */}
+                <NutritionDashboard
+                    // Pass modal control functions as props
+                    onShowNutritionModal={(nutrition, title) => {
+                        setModalNutritionData(nutrition);
+                        setModalRecipeTitle(title);
+                        setShowNutritionModal(true);
+                    }}
+                />
                 <Footer />
             </div>
+
+            {/* Nutrition Modal - placed at page level for proper z-index */}
+            {showNutritionModal && (
+                <NutritionModal
+                    nutrition={modalNutritionData}
+                    isOpen={showNutritionModal}
+                    onClose={() => {
+                        setShowNutritionModal(false);
+                        setModalNutritionData(null);
+                        setModalRecipeTitle('');
+                    }}
+                    servings={1}
+                    recipeTitle={modalRecipeTitle}
+                    isVoiceAnalysis={true}
+                />
+            )}
         </MobileOptimizedLayout>
     );
 }

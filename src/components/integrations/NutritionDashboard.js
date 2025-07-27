@@ -6,8 +6,9 @@ import React, {useState, useEffect, useCallback} from 'react';
 import {useSession} from 'next-auth/react';
 import {useModalIntegration} from '@/hooks/useModalIntegration';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
+import NutritionModal from '@/components/nutrition/NutritionModal';
 
-export default function NutritionDashboard() {
+export default function NutritionDashboard({ onShowNutritionModal }) {
     const {data: session} = useSession();
     const {
         loading,
@@ -24,6 +25,10 @@ export default function NutritionDashboard() {
     // Voice nutrition state
     const [showVoiceNutrition, setShowVoiceNutrition] = useState(false);
     const [processingVoiceNutrition, setProcessingVoiceNutrition] = useState(false);
+    const [showNutritionModal, setShowNutritionModal] = useState(false);
+    const [modalNutritionData, setModalNutritionData] = useState(null);
+    const [modalRecipeTitle, setModalRecipeTitle] = useState('');
+
 
     useEffect(() => {
         if (session?.user?.id) {
@@ -92,7 +97,7 @@ export default function NutritionDashboard() {
         }
     };
 
-    // Enhanced voice nutrition handler with better debugging
+    // UPDATED: Enhanced voice nutrition handler with modal integration
     const handleVoiceNutrition = useCallback(async (transcript, confidence) => {
         console.log('🎤 Voice nutrition query:', transcript);
         console.log('🎤 Confidence level:', confidence);
@@ -135,10 +140,8 @@ export default function NutritionDashboard() {
                     throw new Error('No nutrition data received');
                 }
 
-                // Use the enhanced formatting function
-                const message = formatNutritionForDisplay(nutrition, result.analyzedItem || nutritionQuery.itemName, result);
-
-                alert(message);
+                // Use the enhanced display function (modal or alert)
+                displayNutritionResults(nutrition, result.analyzedItem || nutritionQuery.itemName, result);
 
             } else if (nutritionQuery.action === 'get_suggestions') {
                 setActiveTab('recipes');
@@ -149,7 +152,26 @@ export default function NutritionDashboard() {
                 setShowVoiceNutrition(false);
                 alert('✅ Switched to Smart Optimization tab');
             } else if (nutritionQuery.action === 'list_items') {
-                // ... existing list_items code
+                const itemList = dashboardData.inventory
+                    .slice(0, 10)
+                    .map((item, index) => {
+                        let itemText = `${index + 1}. ${item.name}`;
+                        if (item.brand) itemText += ` (${item.brand})`;
+                        if (item.location) itemText += ` - ${item.location}`;
+                        if (item.nutrition) itemText += ` ✅`;
+                        else itemText += ` 🤖`;
+                        return itemText;
+                    })
+                    .join('\n');
+
+                let message = `📦 Your inventory items:\n\n${itemList}`;
+                if (dashboardData.inventory.length > 10) {
+                    message += `\n... and ${dashboardData.inventory.length - 10} more items`;
+                }
+                message += `\n\n✅ = Has nutrition data\n🤖 = Can analyze with AI`;
+
+                setShowVoiceNutrition(false);
+                alert(message);
             }
         } catch (error) {
             console.error('❌ Error processing voice nutrition:', error);
@@ -465,17 +487,35 @@ export default function NutritionDashboard() {
 
         let nutrition = null;
 
-        // The Modal service returns: { success: true, nutrition: {...}, analysis: {...} }
-        // But the Python code has a bug where it returns nutrition: {} (empty object)
-        // Let's handle multiple possible response formats:
+        // Handle the specific format returned by your Modal service
+        if (result.nutrition && result.nutrition.nutrition_per_serving) {
+            const rawNutrition = result.nutrition.nutrition_per_serving;
+            console.log('✅ Found nutrition_per_serving data:', rawNutrition);
 
-        // Path 1: Check if result.nutrition exists and has data
+            // Convert the raw format to your expected format
+            nutrition = convertRawNutritionToStandardFormat(rawNutrition);
+
+            // Add additional metadata from the response
+            if (result.nutrition.calculationMethod) {
+                nutrition.calculationMethod = result.nutrition.calculationMethod;
+            }
+            if (result.nutrition.confidence) {
+                nutrition.confidence = result.nutrition.confidence;
+            }
+            if (result.nutrition.aiAnalysis) {
+                nutrition.aiAnalysis = result.nutrition.aiAnalysis;
+            }
+
+            console.log('✅ Converted to standard format:', nutrition);
+            return nutrition;
+        }
+
+        // Fallback to existing logic for other formats
         if (result.nutrition && typeof result.nutrition === 'object') {
             const nutritionKeys = Object.keys(result.nutrition);
             console.log('🔍 Nutrition keys found:', nutritionKeys);
 
             if (nutritionKeys.length > 0) {
-                // Check if it has actual nutrition values (not just metadata)
                 const hasNutrientData = nutritionKeys.some(key =>
                     result.nutrition[key] &&
                     typeof result.nutrition[key] === 'object' &&
@@ -488,41 +528,10 @@ export default function NutritionDashboard() {
                 } else {
                     console.log('⚠️ result.nutrition exists but appears empty or malformed');
                 }
-            } else {
-                console.log('⚠️ result.nutrition exists but is empty object');
             }
         }
 
-        // Path 2: If nutrition is still null, try result.data.nutrition
-        if (!nutrition && result.data?.nutrition && typeof result.data.nutrition === 'object') {
-            nutrition = result.data.nutrition;
-            console.log('✅ Found nutrition at result.data.nutrition');
-        }
-
-        // Path 3: Try result.analysis.nutrition
-        if (!nutrition && result.analysis?.nutrition && typeof result.analysis.nutrition === 'object') {
-            nutrition = result.analysis.nutrition;
-            console.log('✅ Found nutrition at result.analysis.nutrition');
-        }
-
-        // Path 4: The nutrition data might be at the root level (OpenAI response parsing issue)
-        if (!nutrition) {
-            // Look for nutrition-like fields directly in the result
-            const nutritionFields = ['calories', 'protein', 'fat', 'carbs', 'fiber', 'sodium'];
-            const foundFields = nutritionFields.filter(field =>
-                result[field] && typeof result[field] === 'object' && 'value' in result[field]
-            );
-
-            if (foundFields.length > 0) {
-                nutrition = {};
-                foundFields.forEach(field => {
-                    nutrition[field] = result[field];
-                });
-                console.log('✅ Reconstructed nutrition from root-level fields:', foundFields);
-            }
-        }
-
-        // Path 5: Try recursive search for nutrition-like objects
+        // Try recursive search if still not found
         if (!nutrition) {
             nutrition = findNutritionObjectRecursively(result);
             if (nutrition) {
@@ -530,12 +539,9 @@ export default function NutritionDashboard() {
             }
         }
 
-        // DEBUGGING: If still no nutrition found, create mock data for testing
+        // Create mock data for debugging if nothing found
         if (!nutrition) {
             console.error('❌ Could not find nutrition data in response, creating mock data for debugging');
-            console.log('🔍 Full response structure:', JSON.stringify(result, null, 2));
-
-            // Create mock nutrition data so we can see the UI working
             nutrition = {
                 calories: { value: 350, unit: 'kcal', name: 'Energy' },
                 protein: { value: 25, unit: 'g', name: 'Protein' },
@@ -546,7 +552,6 @@ export default function NutritionDashboard() {
                 calculationMethod: 'mock_data_for_debugging',
                 confidence: 0.5
             };
-
             console.log('🧪 Using mock nutrition data:', nutrition);
         }
 
@@ -554,8 +559,73 @@ export default function NutritionDashboard() {
         return nutrition;
     };
 
-    // Enhanced nutrition display helper
-    const formatNutritionForDisplay = (nutrition, analyzedItem, result) => {
+    // NEW: Convert raw nutrition format to standard format
+    const convertRawNutritionToStandardFormat = (rawNutrition) => {
+        const standardNutrition = {};
+
+        // Mapping from Modal response field names to your standard field names
+        const fieldMapping = {
+            calories: { key: 'calories', unit: 'kcal', name: 'Energy' },
+            total_fat: { key: 'fat', unit: 'g', name: 'Total Fat' },
+            saturated_fat: { key: 'saturatedFat', unit: 'g', name: 'Saturated Fat' },
+            trans_fat: { key: 'transFat', unit: 'g', name: 'Trans Fat' },
+            cholesterol: { key: 'cholesterol', unit: 'mg', name: 'Cholesterol' },
+            sodium: { key: 'sodium', unit: 'mg', name: 'Sodium' },
+            total_carbohydrates: { key: 'carbs', unit: 'g', name: 'Total Carbohydrate' },
+            dietary_fiber: { key: 'fiber', unit: 'g', name: 'Dietary Fiber' },
+            sugars: { key: 'sugars', unit: 'g', name: 'Total Sugars' },
+            protein: { key: 'protein', unit: 'g', name: 'Protein' },
+            vitamin_a: { key: 'vitaminA', unit: 'µg', name: 'Vitamin A (RAE)' },
+            vitamin_c: { key: 'vitaminC', unit: 'mg', name: 'Vitamin C' },
+            calcium: { key: 'calcium', unit: 'mg', name: 'Calcium' },
+            iron: { key: 'iron', unit: 'mg', name: 'Iron' },
+            magnesium: { key: 'magnesium', unit: 'mg', name: 'Magnesium' },
+            potassium: { key: 'potassium', unit: 'mg', name: 'Potassium' },
+            zinc: { key: 'zinc', unit: 'mg', name: 'Zinc' }
+        };
+
+        // Convert each field
+        Object.entries(fieldMapping).forEach(([modalField, config]) => {
+            if (rawNutrition[modalField] !== undefined && rawNutrition[modalField] !== null) {
+                standardNutrition[config.key] = {
+                    value: Number(rawNutrition[modalField]),
+                    unit: config.unit,
+                    name: config.name
+                };
+            }
+        });
+
+        console.log('🔄 Converted raw nutrition:', rawNutrition);
+        console.log('🔄 To standard format:', standardNutrition);
+
+        return standardNutrition;
+    };
+
+    // ENHANCED: Show nutrition data using modal or alert
+    const displayNutritionResults = (nutrition, analyzedItem, result) => {
+        console.log('🎨 Displaying nutrition results for:', analyzedItem);
+
+        // Check if we have enough data for the modal
+        const hasRichData = nutrition && (
+            nutrition.calories?.value ||
+            nutrition.protein?.value ||
+            nutrition.fat?.value
+        );
+
+        if (hasRichData && onShowNutritionModal) {
+            // Use the fancy NutritionModal via props
+            onShowNutritionModal(nutrition, analyzedItem || 'Voice Analysis Result');
+            console.log('✅ Showing nutrition modal with data:', nutrition);
+        } else {
+            // Fallback to alert for incomplete data or if no modal handler
+            const message = formatNutritionForAlert(nutrition, analyzedItem, result);
+            alert(message);
+            console.log('⚠️ Using alert fallback due to incomplete data or missing modal handler');
+        }
+    };
+
+    // ENHANCED: Format nutrition for alert (fallback)
+    const formatNutritionForAlert = (nutrition, analyzedItem, result) => {
         if (!nutrition) {
             return '❌ No nutrition data available';
         }
@@ -585,11 +655,8 @@ export default function NutritionDashboard() {
             sodium: { label: 'Sodium', unit: 'mg', decimals: 0 },
             saturatedFat: { label: 'Saturated Fat', unit: 'g', decimals: 1 },
             sugars: { label: 'Sugars', unit: 'g', decimals: 1 },
-            potassium: { label: 'Potassium', unit: 'mg', decimals: 0 },
-            calcium: { label: 'Calcium', unit: 'mg', decimals: 0 },
-            iron: { label: 'Iron', unit: 'mg', decimals: 1 },
-            vitaminC: { label: 'Vitamin C', unit: 'mg', decimals: 0 },
-            vitaminA: { label: 'Vitamin A', unit: 'µg', decimals: 0 }
+            cholesterol: { label: 'Cholesterol', unit: 'mg', decimals: 0 },
+            transFat: { label: 'Trans Fat', unit: 'g', decimals: 1 }
         };
 
         // Display nutrition values
@@ -605,39 +672,9 @@ export default function NutritionDashboard() {
             }
         });
 
-        // If no standard format worked, try alternative access patterns
-        if (nutritionCount === 0) {
-            console.log('🔍 No nutrition found in standard format, trying alternatives...');
-            console.log('🔍 Nutrition object keys:', Object.keys(nutrition));
-
-            // Try flattened structure (calories_value, protein_value, etc.)
-            if (nutrition.calories_value || nutrition.protein_value) {
-                message += `Calories: ${Math.round(nutrition.calories_value || 0)} kcal\n`;
-                message += `Protein: ${(nutrition.protein_value || 0).toFixed(1)} g\n`;
-                message += `Carbs: ${(nutrition.carbs_value || 0).toFixed(1)} g\n`;
-                message += `Fat: ${(nutrition.fat_value || 0).toFixed(1)} g\n`;
-                nutritionCount = 4;
-            }
-            // Try direct numeric values
-            else if (typeof nutrition.calories === 'number') {
-                message += `Calories: ${Math.round(nutrition.calories)} kcal\n`;
-                message += `Protein: ${(nutrition.protein || 0).toFixed(1)} g\n`;
-                message += `Carbs: ${(nutrition.carbs || 0).toFixed(1)} g\n`;
-                message += `Fat: ${(nutrition.fat || 0).toFixed(1)} g\n`;
-                nutritionCount = 4;
-            }
-            // Show raw data for debugging
-            else {
-                message += `[DEBUG] Raw nutrition structure:\n`;
-                message += `Keys: ${Object.keys(nutrition).join(', ')}\n`;
-                const nutritionStr = JSON.stringify(nutrition, null, 2);
-                message += `Sample data: ${nutritionStr.substring(0, 300)}...\n`;
-            }
-        }
-
         // Add metadata
         const confidence = result.confidence || nutrition.confidence || 0.8;
-        message += `\n📊 Method: ${getAnalysisMethodDescription(method)}`;
+        message += `\n📊 Method: ${getAnalysisMethodDescription(result.method || 'ai_analysis')}`;
         message += `\nConfidence: ${Math.round(confidence * 100)}%`;
 
         // Add any warnings
@@ -645,8 +682,8 @@ export default function NutritionDashboard() {
             message += `\n⚠️ ${result.warning}`;
         }
 
-        if (result.inventoryUpdated) {
-            message += `\n💾 Saved to inventory`;
+        if (nutritionCount === 0) {
+            message += `\n\n[DEBUG] No standard nutrition found. Raw data keys: ${Object.keys(nutrition).join(', ')}`;
         }
 
         return message;

@@ -1,7 +1,15 @@
+// Enhanced NutritionModal.js with improved close button and voice analysis support
 import React, { useState } from 'react';
-import { X, Info } from 'lucide-react';
+import { X, Info, Mic } from 'lucide-react';
 
-const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle = "Recipe" }) => {
+const NutritionModal = ({
+                            nutrition,
+                            isOpen,
+                            onClose,
+                            servings = 1,
+                            recipeTitle = "Recipe",
+                            isVoiceAnalysis = false // NEW: Flag to indicate this is from voice analysis
+                        }) => {
     if (!isOpen || !nutrition) return null;
 
     // Calculate nutritional score and grade
@@ -10,30 +18,30 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
         let factors = 0;
 
         // Positive factors
-        if (nutrition.protein?.value >= 20) { score += 25; factors++; } // High protein
-        else if (nutrition.protein?.value >= 10) { score += 15; factors++; } // Moderate protein
+        if (nutrition.protein?.value >= 20) { score += 25; factors++; }
+        else if (nutrition.protein?.value >= 10) { score += 15; factors++; }
 
-        if (nutrition.fiber?.value >= 5) { score += 20; factors++; } // High fiber
-        else if (nutrition.fiber?.value >= 3) { score += 10; factors++; } // Moderate fiber
+        if (nutrition.fiber?.value >= 5) { score += 20; factors++; }
+        else if (nutrition.fiber?.value >= 3) { score += 10; factors++; }
 
-        if (nutrition.vitaminC?.value >= 15) { score += 15; factors++; } // Good vitamin C
-        if (nutrition.calcium?.value >= 100) { score += 10; factors++; } // Good calcium
-        if (nutrition.iron?.value >= 2) { score += 10; factors++; } // Good iron
+        if (nutrition.vitaminC?.value >= 15) { score += 15; factors++; }
+        if (nutrition.calcium?.value >= 100) { score += 10; factors++; }
+        if (nutrition.iron?.value >= 2) { score += 10; factors++; }
 
         // Negative factors
-        if (nutrition.saturatedFat?.value >= 10) { score -= 20; factors++; } // High saturated fat
-        else if (nutrition.saturatedFat?.value >= 5) { score -= 10; factors++; } // Moderate saturated fat
+        if (nutrition.saturatedFat?.value >= 10) { score -= 20; factors++; }
+        else if (nutrition.saturatedFat?.value >= 5) { score -= 10; factors++; }
 
-        if (nutrition.sodium?.value >= 800) { score -= 25; factors++; } // Very high sodium
-        else if (nutrition.sodium?.value >= 400) { score -= 15; factors++; } // High sodium
+        if (nutrition.sodium?.value >= 800) { score -= 25; factors++; }
+        else if (nutrition.sodium?.value >= 400) { score -= 15; factors++; }
 
-        if (nutrition.sugars?.value >= 15) { score -= 15; factors++; } // High sugar
-        if (nutrition.transFat?.value > 0) { score -= 30; factors++; } // Any trans fat
+        if (nutrition.sugars?.value >= 15) { score -= 15; factors++; }
+        if (nutrition.transFat?.value > 0) { score -= 30; factors++; }
 
         // Calorie consideration
         const calories = nutrition.calories?.value || 0;
-        if (calories < 200) { score += 10; factors++; } // Low calorie
-        else if (calories > 600) { score -= 10; factors++; } // High calorie
+        if (calories < 200) { score += 10; factors++; }
+        else if (calories > 600) { score -= 10; factors++; }
 
         const avgScore = factors > 0 ? score / factors : 0;
 
@@ -91,13 +99,13 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
                 <span className="text-gray-700 font-medium">{label}</span>
                 <div className="flex items-center gap-4">
-          <span className="text-gray-900 font-semibold">
-            {value > 0 ? `${value} ${unit}` : '--'}
-          </span>
+                    <span className="text-gray-900 font-semibold">
+                        {value > 0 ? `${value} ${unit}` : '--'}
+                    </span>
                     {dailyValue && (
                         <span className="text-gray-600 text-sm w-12 text-right">
-              {dailyValue}%
-            </span>
+                            {dailyValue}%
+                        </span>
                     )}
                 </div>
             </div>
@@ -109,28 +117,38 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
             <div className="bg-white rounded-lg max-w-md w-full max-h-[95vh] overflow-hidden mx-auto relative">
-                {/* Header */}
+                {/* ENHANCED: Header with better close button positioning */}
                 <div className="bg-green-50 p-4 border-b relative">
-                    {/* FIXED: Close button with better positioning and visibility */}
-                    <button
-                        onClick={onClose}
-                        className="absolute top-3 right-3 z-10 p-2 hover:bg-gray-200 rounded-full transition-colors bg-white shadow-sm border border-gray-200"
-                        aria-label="Close nutrition modal"
-                    >
-                        <X size={18} className="text-gray-600" />
-                    </button>
+                    <div className="flex items-start justify-between">
+                        <div className="flex items-center gap-2 flex-1 min-w-0">
+                            <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
+                                {isVoiceAnalysis ? (
+                                    <Mic size={16} className="text-white" />
+                                ) : (
+                                    <span className="text-white font-bold text-sm">N</span>
+                                )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <h3 className="font-bold text-gray-900 text-lg truncate">
+                                    {isVoiceAnalysis ? 'Voice Analysis' : 'Nutrition'}
+                                </h3>
+                                <p className="text-sm text-gray-600 truncate">{recipeTitle}</p>
+                                {isVoiceAnalysis && (
+                                    <p className="text-xs text-green-600 mt-1">
+                                        🎤 AI-powered nutrition analysis
+                                    </p>
+                                )}
+                            </div>
+                        </div>
 
-                    <div className="flex items-center gap-2 flex-1 min-w-0 pr-12">
-                        <div className="w-8 h-8 bg-green-500 rounded flex items-center justify-center flex-shrink-0">
-                            <span className="text-white font-bold text-sm">N</span>
-                        </div>
-                        <div className="min-w-0 flex-1">
-                            <h3 className="font-bold text-gray-900 text-lg truncate">Nutrition</h3>
-                            <p className="text-sm text-gray-600 truncate">{recipeTitle}</p>
-                            <button className="text-green-600 text-sm flex items-center gap-1 mt-1">
-                                more info <Info size={12} />
-                            </button>
-                        </div>
+                        {/* IMPROVED: Close button positioned to the right */}
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-gray-200 rounded-full transition-colors bg-white shadow-sm border border-gray-200 flex-shrink-0 ml-2"
+                            aria-label="Close nutrition modal"
+                        >
+                            <X size={18} className="text-gray-600" />
+                        </button>
                     </div>
 
                     {/* Enhanced Nutritional Grade Display */}
@@ -143,7 +161,6 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                                     const activeIndex = ['A', 'B', 'C', 'D', 'F'].indexOf(gradeInfo.grade);
                                     const isPassed = gradeIndex <= activeIndex;
 
-                                    // Grade-specific colors with opacity
                                     const getGradeColor = (g) => {
                                         switch(g) {
                                             case 'A': return isPassed ? 'bg-green-500' : 'bg-green-500 opacity-30';
@@ -174,6 +191,11 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                             <p className="text-sm text-gray-700">
                                 Nutritional Score: <span className="font-semibold text-lg">{gradeInfo.description}</span>
                             </p>
+                            {nutrition.confidence && (
+                                <p className="text-xs text-gray-500 mt-1">
+                                    AI Confidence: {Math.round(nutrition.confidence * 100)}%
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
@@ -300,6 +322,12 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                                 unit="µg"
                             />
                             <NutrientRow
+                                label="Vitamin C"
+                                nutrient="vitaminC"
+                                value={nutrition.vitaminC?.value}
+                                unit="mg"
+                            />
+                            <NutrientRow
                                 label="Thiamin B1"
                                 nutrient="thiamin"
                                 value={nutrition.thiamin?.value}
@@ -335,6 +363,37 @@ const NutritionModal = ({ nutrition, isOpen, onClose, servings = 1, recipeTitle 
                                 value={nutrition.vitaminB12?.value}
                                 unit="µg"
                             />
+                        </div>
+
+                        {/* ENHANCED: Additional analysis info for voice analysis */}
+                        {isVoiceAnalysis && nutrition.calculationMethod && (
+                            <div className="mt-6 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                                <h4 className="text-sm font-semibold text-blue-900 mb-2">🤖 Analysis Details</h4>
+                                <div className="text-xs text-blue-700 space-y-1">
+                                    <p>Method: {nutrition.calculationMethod.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</p>
+                                    {nutrition.aiAnalysis?.modelUsed && (
+                                        <p>AI Model: {nutrition.aiAnalysis.modelUsed}</p>
+                                    )}
+                                    {nutrition.aiAnalysis?.processingTime && (
+                                        <p>Processing Time: {nutrition.aiAnalysis.processingTime}ms</p>
+                                    )}
+                                    {nutrition.aiAnalysis?.tokensUsed && (
+                                        <p>Tokens Used: {nutrition.aiAnalysis.tokensUsed}</p>
+                                    )}
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Analysis metadata footer */}
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                            <p className="text-xs text-gray-500 text-center">
+                                * Daily values are based on a 2000 calorie diet.
+                            </p>
+                            {isVoiceAnalysis && (
+                                <p className="text-xs text-gray-500 text-center mt-1">
+                                    🎤 Data generated by voice analysis AI
+                                </p>
+                            )}
                         </div>
                     </div>
                 </div>
