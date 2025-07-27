@@ -31,22 +31,6 @@ export default function NutritionDashboard() {
         }
     }, [session]);
 
-    // Expose functions to sub-components via window object
-    // useEffect(() => {
-    //     window.setNutritionActiveTab = setActiveTab;
-    //     window.generateSmartShoppingList = generateSmartShoppingList;
-    //     window.navigateToMealPlanning = navigateToMealPlanning;
-    //     window.setShowVoiceNutrition = setShowVoiceNutrition;
-    //
-    //     return () => {
-    //         // Cleanup
-    //         delete window.setNutritionActiveTab;
-    //         delete window.generateSmartShoppingList;
-    //         delete window.navigateToMealPlanning;
-    //         delete window.setShowVoiceNutrition;
-    //     };
-    // }, [generateSmartShoppingList, navigateToMealPlanning]);
-
     const loadDashboardData = async () => {
         try {
             setRefreshing(true);
@@ -108,31 +92,20 @@ export default function NutritionDashboard() {
         }
     };
 
-    // Ultra-conservative voice nutrition analysis with mandatory AI verification
+    // ROBUST: Voice nutrition analysis compatible with your Modal service
     const handleVoiceNutrition = useCallback(async (transcript, confidence) => {
         console.log('🎤 Voice nutrition query:', transcript);
         console.log('🎤 Confidence level:', confidence);
-        console.log('🎤 Dashboard data available:', !!dashboardData);
-        console.log('🎤 Inventory items count:', dashboardData?.inventory?.length || 0);
-
         setProcessingVoiceNutrition(true);
 
         try {
-            // Enhanced data validation with better error messages
-            if (!dashboardData) {
-                throw new Error('Dashboard data is still loading. Please wait a moment and try again.');
-            }
-
-            if (!dashboardData.inventory) {
-                throw new Error('Inventory data is not available. Please refresh the page and try again.');
-            }
-
-            if (!Array.isArray(dashboardData.inventory)) {
-                throw new Error('Invalid inventory data format. Please refresh the page and try again.');
+            // Data validation
+            if (!dashboardData?.inventory || !Array.isArray(dashboardData.inventory)) {
+                throw new Error('Inventory data not available. Please refresh and try again.');
             }
 
             if (dashboardData.inventory.length === 0) {
-                throw new Error('No inventory items found. Please add items to your inventory first, then try voice commands.');
+                throw new Error('No inventory items found. Please add items to your inventory first.');
             }
 
             console.log(`📦 Processing voice command with ${dashboardData.inventory.length} inventory items available`);
@@ -141,60 +114,96 @@ export default function NutritionDashboard() {
             console.log('🎯 Parsed query:', nutritionQuery);
 
             if (nutritionQuery.action === 'analyze_item') {
-                console.log('🔬 Starting ultra-conservative analysis for:', nutritionQuery.itemName);
+                console.log('🔬 Starting analysis for:', nutritionQuery.itemName);
 
-                const result = await analyzeWithMandatoryAIVerification(nutritionQuery.itemName);
+                const result = await analyzeItemWithModalService(nutritionQuery.itemName);
 
                 setShowVoiceNutrition(false);
 
+                // ROBUST: Handle all possible result formats
+                if (!result) {
+                    throw new Error('No result received from analysis');
+                }
+
+                console.log('🔍 ANALYSIS RESULT:', result);
+
                 const nutrition = result.nutrition;
-                const analysisMethod = result.method;
+                const analysisMethod = result.method || 'ai_analysis';
                 const confidence = result.confidence || 0.8;
 
+                if (!nutrition) {
+                    throw new Error('No nutrition data received');
+                }
+
+                // Build user-friendly message
                 let message = '';
 
-                // Different headers based on analysis method
-                if (analysisMethod === 'ai_verified_exact_match') {
-                    message = `✅ AI-Verified Match: ${result.item.name}\n\n`;
-                } else if (analysisMethod === 'ai_recipe_analysis') {
-                    message = `🤖 AI Recipe Analysis: "${result.analyzedItem}"\n\n`;
-                } else if (analysisMethod === 'ai_ingredient_analysis') {
-                    message = `🤖 AI Ingredient Analysis: "${result.analyzedItem}"\n\n`;
-                } else if (analysisMethod === 'ai_inventory_item_analysis') {
-                    message = `🤖 AI Analysis: ${result.item.name} (from inventory)\n\n`;
+                if (analysisMethod.includes('exact_match')) {
+                    message = `✅ Verified: ${result.item?.name || result.analyzedItem}\n\n`;
+                } else if (analysisMethod.includes('recipe')) {
+                    message = `🤖 Recipe Analysis: "${result.analyzedItem}"\n\n`;
+                } else if (analysisMethod.includes('ingredient')) {
+                    message = `🤖 Ingredient Analysis: "${result.analyzedItem}"\n\n`;
                 } else {
-                    message = `🔬 Analysis: "${result.analyzedItem || result.item?.name}"\n\n`;
+                    message = `🔬 Nutrition Analysis: "${result.analyzedItem || result.item?.name}"\n\n`;
                 }
 
-                // Build comprehensive nutrition info display
-                if (nutrition.calories && typeof nutrition.calories.value === 'number') {
-                    message += `Calories: ${Math.round(nutrition.calories.value)} kcal\n`;
-                }
-                if (nutrition.protein && typeof nutrition.protein.value === 'number') {
-                    message += `Protein: ${nutrition.protein.value.toFixed(1)}g\n`;
-                }
-                if (nutrition.carbs && typeof nutrition.carbs.value === 'number') {
-                    message += `Carbs: ${nutrition.carbs.value.toFixed(1)}g\n`;
-                }
-                if (nutrition.fat && typeof nutrition.fat.value === 'number') {
-                    message += `Fat: ${nutrition.fat.value.toFixed(1)}g\n`;
-                }
-                if (nutrition.fiber && typeof nutrition.fiber.value === 'number') {
-                    message += `Fiber: ${nutrition.fiber.value.toFixed(1)}g\n`;
-                }
-                if (nutrition.sodium && typeof nutrition.sodium.value === 'number') {
-                    message += `Sodium: ${Math.round(nutrition.sodium.value)}mg\n`;
+                // Extract and display nutrition values
+                let nutritionCount = 0;
+
+                const nutritionMap = {
+                    calories: { label: 'Calories', unit: 'kcal', decimals: 0 },
+                    protein: { label: 'Protein', unit: 'g', decimals: 1 },
+                    carbs: { label: 'Carbs', unit: 'g', decimals: 1 },
+                    fat: { label: 'Fat', unit: 'g', decimals: 1 },
+                    fiber: { label: 'Fiber', unit: 'g', decimals: 1 },
+                    sodium: { label: 'Sodium', unit: 'mg', decimals: 0 },
+                    saturatedFat: { label: 'Saturated Fat', unit: 'g', decimals: 1 },
+                    sugars: { label: 'Sugars', unit: 'g', decimals: 1 }
+                };
+
+                Object.entries(nutritionMap).forEach(([key, config]) => {
+                    const nutrientData = nutrition[key];
+
+                    if (nutrientData && typeof nutrientData.value === 'number' && nutrientData.value > 0) {
+                        const value = config.decimals === 0 ?
+                            Math.round(nutrientData.value) :
+                            nutrientData.value.toFixed(config.decimals);
+                        message += `${config.label}: ${value} ${config.unit}\n`;
+                        nutritionCount++;
+                    }
+                });
+
+                if (nutritionCount === 0) {
+                    // Try alternative nutrition data access patterns
+                    console.log('🔍 No nutrition found in standard format, trying alternatives...');
+                    console.log('🔍 Full nutrition object:', JSON.stringify(nutrition, null, 2));
+
+                    // Try flattened structure
+                    if (nutrition.calories_value || nutrition.protein_value) {
+                        message += `Calories: ${Math.round(nutrition.calories_value || 0)} kcal\n`;
+                        message += `Protein: ${(nutrition.protein_value || 0).toFixed(1)} g\n`;
+                        message += `Carbs: ${(nutrition.carbs_value || 0).toFixed(1)} g\n`;
+                        message += `Fat: ${(nutrition.fat_value || 0).toFixed(1)} g\n`;
+                        nutritionCount = 4;
+                    }
+                    // Try direct values
+                    else if (typeof nutrition.calories === 'number') {
+                        message += `Calories: ${Math.round(nutrition.calories)} kcal\n`;
+                        message += `Protein: ${(nutrition.protein || 0).toFixed(1)} g\n`;
+                        message += `Carbs: ${(nutrition.carbs || 0).toFixed(1)} g\n`;
+                        message += `Fat: ${(nutrition.fat || 0).toFixed(1)} g\n`;
+                        nutritionCount = 4;
+                    }
+                    // Show raw data for debugging
+                    else {
+                        message += `[DEBUG] Raw nutrition structure:\n`;
+                        message += `Keys: ${Object.keys(nutrition).join(', ')}\n`;
+                        message += `Sample data: ${JSON.stringify(nutrition, null, 2).substring(0, 200)}...\n`;
+                    }
                 }
 
-                // Show additional nutrients if available from comprehensive analysis
-                if (nutrition.saturatedFat && typeof nutrition.saturatedFat.value === 'number') {
-                    message += `Saturated Fat: ${nutrition.saturatedFat.value.toFixed(1)}g\n`;
-                }
-                if (nutrition.sugars && typeof nutrition.sugars.value === 'number') {
-                    message += `Sugars: ${nutrition.sugars.value.toFixed(1)}g\n`;
-                }
-
-                // Add analysis info
+                // Add analysis metadata
                 message += `\n📊 Method: ${getAnalysisMethodDescription(analysisMethod)}`;
                 message += `\nConfidence: ${Math.round(confidence * 100)}%`;
 
@@ -203,7 +212,7 @@ export default function NutritionDashboard() {
                 }
 
                 if (result.inventoryUpdated) {
-                    message += `\n💾 Nutrition data saved to inventory`;
+                    message += `\n💾 Saved to inventory`;
                 }
 
                 alert(message);
@@ -217,7 +226,6 @@ export default function NutritionDashboard() {
                 setShowVoiceNutrition(false);
                 alert('✅ Switched to Smart Optimization tab');
             } else if (nutritionQuery.action === 'list_items') {
-                // Enhanced item listing with nutrition status
                 const itemList = dashboardData.inventory
                     .slice(0, 10)
                     .map((item, index) => {
@@ -225,7 +233,7 @@ export default function NutritionDashboard() {
                         if (item.brand) itemText += ` (${item.brand})`;
                         if (item.location) itemText += ` - ${item.location}`;
                         if (item.nutrition) itemText += ` ✅`;
-                        else itemText += ` 🤖`; // Can be analyzed with AI
+                        else itemText += ` 🤖`;
                         return itemText;
                     })
                     .join('\n');
@@ -242,17 +250,14 @@ export default function NutritionDashboard() {
         } catch (error) {
             console.error('❌ Error processing voice nutrition:', error);
 
-            // Provide more helpful error messages based on error type
             let errorMessage = error.message;
 
             if (errorMessage.includes('not found in inventory')) {
-                errorMessage += '\n\n💡 Tip: Try saying "list my items" to see what\'s available, or add the item to your inventory first.';
-            } else if (errorMessage.includes('Dashboard data is still loading')) {
-                errorMessage = 'Dashboard is still loading your inventory. Please wait a moment and try again.';
+                errorMessage += '\n\n💡 Try saying "list my items" to see what\'s available.';
             } else if (errorMessage.includes('No inventory items found')) {
-                errorMessage = 'Your inventory is empty. Please add some items first, then try voice nutrition commands.';
+                errorMessage = 'Your inventory is empty. Please add some items first.';
             } else if (errorMessage.includes('Modal service')) {
-                errorMessage = 'AI nutrition service is temporarily unavailable. Using basic estimates.';
+                errorMessage = 'AI nutrition service is temporarily unavailable.';
             }
 
             alert(`❌ ${errorMessage}`);
@@ -261,173 +266,142 @@ export default function NutritionDashboard() {
         }
     }, [dashboardData, setActiveTab]);
 
-    // Helper function to describe analysis methods
-    const getAnalysisMethodDescription = (method) => {
-        switch (method) {
-            case 'ai_verified_exact_match':
-                return 'Perfect inventory match verified by AI';
-            case 'ai_recipe_analysis':
-                return 'AI analyzed this as a recipe/dish';
-            case 'ai_ingredient_analysis':
-                return 'AI analyzed this as an ingredient';
-            case 'ai_inventory_item_analysis':
-                return 'AI analyzed inventory item (no prior nutrition data)';
-            case 'basic_estimation':
-                return 'Basic estimate (AI unavailable)';
-            default:
-                return method || 'AI analysis';
-        }
-    };
-
-    // Enhanced voice query parser (same as before)
+    // FIXED: Better voice query parsing to extract item names correctly
     const parseVoiceNutritionQuery = useCallback((transcript) => {
         const cleanTranscript = transcript.toLowerCase().trim();
         console.log('🎯 Parsing voice query:', cleanTranscript);
 
-        // Check for listing items
+        // Check for special actions first
         if (cleanTranscript.includes('list') || cleanTranscript.includes('show me') || cleanTranscript.includes('what do i have')) {
             return { action: 'list_items' };
         }
 
-        // Check for recipe suggestions
         if (cleanTranscript.includes('recipe') || cleanTranscript.includes('suggest') || cleanTranscript.includes('cook')) {
             return { action: 'get_suggestions' };
         }
 
-        // Check for optimization
         if (cleanTranscript.includes('optim') || cleanTranscript.includes('improve') || cleanTranscript.includes('smart')) {
             return { action: 'optimization' };
         }
 
-        // Enhanced item name extraction for nutrition queries
+        // FIXED: Extract item names more accurately
         let itemName = '';
 
-        // Pattern 1: "analyze nutrition for [item]" or "nutrition for [item]"
-        const nutritionForMatch = cleanTranscript.match(/(?:analyze\s+)?nutrition\s+for\s+(.+)$/);
-        if (nutritionForMatch) {
-            itemName = nutritionForMatch[1].trim();
-            console.log('🎯 Extracted item name using "nutrition for" pattern:', itemName);
-            return { action: 'analyze_item', itemName };
+        // Try specific patterns first
+        const patterns = [
+            /(?:analyze\s+)?nutrition\s+(?:of|for)\s+(.+)$/,  // "nutrition of beef enchiladas"
+            /^analyze\s+(?!nutrition)(.+)$/,                   // "analyze beef enchiladas"
+            /(?:get|show|find)\s+nutrition\s+(?:for|of)\s+(.+)$/, // "get nutrition for beef"
+            /(?:how\s+much\s+)?(?:protein|calories|carbs|fat|fiber)\s+(?:in|for)\s+(.+)$/, // "protein in chicken"
+            /(?:tell\s+me\s+about|what\s+about|info\s+(?:on|about))\s+(.+)$/ // "tell me about beef"
+        ];
+
+        for (const pattern of patterns) {
+            const match = cleanTranscript.match(pattern);
+            if (match) {
+                itemName = match[1].trim();
+                console.log('🎯 Extracted item name using pattern:', itemName);
+                return { action: 'analyze_item', itemName };
+            }
         }
 
-        // Pattern 2: "analyze [item]" or "nutrition of [item]"
-        const analyzeMatch = cleanTranscript.match(/^(?:analyze|nutrition\s+(?:of|for))\s+(.+)$/);
-        if (analyzeMatch) {
-            itemName = analyzeMatch[1].trim();
-            console.log('🎯 Extracted item name using "analyze/nutrition of" pattern:', itemName);
-            return { action: 'analyze_item', itemName };
-        }
-
-        // Pattern 3: "get nutrition for [item]" or "show nutrition for [item]"
-        const getNutritionMatch = cleanTranscript.match(/(?:get|show|find)\s+nutrition\s+(?:for|of)\s+(.+)$/);
-        if (getNutritionMatch) {
-            itemName = getNutritionMatch[1].trim();
-            console.log('🎯 Extracted item name using "get/show nutrition" pattern:', itemName);
-            return { action: 'analyze_item', itemName };
-        }
-
-        // Pattern 4: "how much [nutrient] in [item]" or "[nutrient] in [item]"
-        const nutrientInMatch = cleanTranscript.match(/(?:how\s+much\s+)?(?:protein|calories|carbs|fat|fiber|nutrition)\s+(?:in|for)\s+(.+)$/);
-        if (nutrientInMatch) {
-            itemName = nutrientInMatch[1].trim();
-            console.log('🎯 Extracted item name using "nutrient in" pattern:', itemName);
-            return { action: 'analyze_item', itemName };
-        }
-
-        // Pattern 5: "tell me about [item]" or "what about [item]"
-        const tellMeMatch = cleanTranscript.match(/^(?:tell\s+me\s+about|what\s+about|info\s+(?:on|about))\s+(.+)$/);
-        if (tellMeMatch) {
-            itemName = tellMeMatch[1].trim();
-            console.log('🎯 Extracted item name using "tell me about" pattern:', itemName);
-            return { action: 'analyze_item', itemName };
-        }
-
-        // Pattern 6: Remove nutrition-related words and use the rest as item name
-        const nutritionWords = ['nutrition', 'analyze', 'analysis', 'get', 'show', 'find', 'tell', 'me', 'about', 'of', 'for', 'in'];
+        // Smart word filtering as fallback
+        const commandWords = ['analyze', 'nutrition', 'get', 'show', 'find', 'tell', 'me', 'about', 'of', 'for', 'in', 'the', 'a', 'an'];
         const words = cleanTranscript.split(/\s+/);
-        const filteredWords = words.filter(word => !nutritionWords.includes(word));
 
-        if (filteredWords.length > 0) {
-            itemName = filteredWords.join(' ').trim();
-            console.log('🎯 Extracted item name using word filtering:', itemName);
+        // Find the longest contiguous sequence of non-command words
+        let bestSequence = '';
+        let currentSequence = '';
+
+        for (const word of words) {
+            if (!commandWords.includes(word)) {
+                currentSequence += (currentSequence ? ' ' : '') + word;
+            } else {
+                if (currentSequence.length > bestSequence.length) {
+                    bestSequence = currentSequence;
+                }
+                currentSequence = '';
+            }
+        }
+
+        if (currentSequence.length > bestSequence.length) {
+            bestSequence = currentSequence;
+        }
+
+        if (bestSequence.trim()) {
+            itemName = bestSequence.trim();
+            console.log('🎯 Extracted item name using smart filtering:', itemName);
             return { action: 'analyze_item', itemName };
         }
 
-        // Fallback: use the entire transcript but warn about potential issues
-        console.warn('⚠️ Could not parse voice query effectively, using full transcript:', cleanTranscript);
+        console.warn('⚠️ Could not parse query, using full transcript:', cleanTranscript);
         return {
             action: 'analyze_item',
             itemName: cleanTranscript
         };
     }, []);
 
-    // NEW: Ultra-conservative analysis with mandatory AI verification
-    const analyzeWithMandatoryAIVerification = useCallback(async (itemName) => {
-        console.log('🔒 Ultra-conservative analysis for:', itemName);
+    // NEW: Main analysis function that uses your Modal service
+    const analyzeItemWithModalService = useCallback(async (itemName) => {
+        console.log('🧠 Modal service analysis for:', itemName);
 
-        // Step 1: Check for perfect inventory matches (score = 1.0 only)
+        // Step 1: Check for perfect inventory matches (exact only)
         const perfectMatch = findPerfectInventoryMatch(itemName, dashboardData.inventory);
 
         if (perfectMatch) {
             console.log('🎯 Perfect inventory match found:', perfectMatch.name);
 
-            // Even with perfect match, verify with AI that this is what user really wants
             if (perfectMatch.nutrition) {
-                console.log('🤖 Verifying perfect match with AI...');
-                return await verifyPerfectMatchWithAI(itemName, perfectMatch);
+                // Return existing nutrition with high confidence
+                return {
+                    item: perfectMatch,
+                    nutrition: perfectMatch.nutrition,
+                    method: 'perfect_inventory_match',
+                    confidence: 0.98,
+                    analyzedItem: perfectMatch.name
+                };
             } else {
-                console.log('🤖 Perfect match but no nutrition - analyzing with AI...');
-                return await analyzeInventoryItemWithAI(perfectMatch);
+                // Analyze the inventory item with Modal
+                return await analyzeInventoryItemWithModal(perfectMatch);
             }
         }
 
-        // Step 2: No perfect match - determine if it's a recipe or ingredient and use AI
-        console.log('🤖 No perfect inventory match - using AI analysis');
+        // Step 2: No perfect match - use Modal AI to analyze as recipe/ingredient
+        console.log('🤖 No perfect match - using Modal AI analysis');
 
         const isLikelyRecipe = detectRecipeOrDish(itemName);
-        const isLikelyIngredient = detectBasicIngredient(itemName);
-
-        console.log('🔍 Item classification:', {
-            itemName,
-            isLikelyRecipe,
-            isLikelyIngredient
-        });
 
         if (isLikelyRecipe) {
-            return await analyzeRecipeWithAI(itemName);
-        } else if (isLikelyIngredient) {
-            return await analyzeIngredientWithAI(itemName);
+            return await analyzeRecipeWithModal(itemName);
         } else {
-            // When in doubt, treat as recipe (more comprehensive analysis)
-            return await analyzeRecipeWithAI(itemName);
+            return await analyzeIngredientWithModal(itemName);
         }
     }, [dashboardData]);
 
-    // Helper function to find ONLY perfect matches (score = 1.0)
+    // Helper function to find perfect matches only
     const findPerfectInventoryMatch = (searchTerm, inventory) => {
         const searchTermLower = searchTerm.toLowerCase().trim();
 
-        // Remove quantity descriptors for better matching
+        // Remove quantity descriptors
         const cleanSearchTerm = searchTermLower.replace(/^\d+\s*(lbs?|pounds?|oz|ounces?|cups?|tbsp|tsp|grams?|kg)\s+/, '');
 
-        console.log('🎯 Looking for PERFECT inventory match for:', cleanSearchTerm);
+        console.log('🎯 Looking for perfect match:', cleanSearchTerm);
 
         // Only accept exact matches
-        const exactMatch = inventory.find(item => {
-            const itemNameLower = item.name.toLowerCase().trim();
-            return itemNameLower === cleanSearchTerm;
-        });
+        const exactMatch = inventory.find(item =>
+            item.name.toLowerCase().trim() === cleanSearchTerm
+        );
 
         if (exactMatch) {
             console.log('✅ Found perfect exact match:', exactMatch.name);
             return exactMatch;
         }
 
-        console.log('❌ No perfect matches found (this is actually good - we\'ll use AI)');
+        console.log('❌ No perfect matches - will use AI');
         return null;
     };
 
-    // Helper function to detect if something is likely a recipe or dish
+    // Helper function to detect recipes vs ingredients
     const detectRecipeOrDish = (itemName) => {
         const recipeKeywords = [
             'enchiladas', 'tacos', 'burrito', 'sandwich', 'salad', 'soup', 'stew', 'casserole',
@@ -437,93 +411,12 @@ export default function NutritionDashboard() {
         ];
 
         const nameLower = itemName.toLowerCase();
-
-        // Check for recipe keywords
-        if (recipeKeywords.some(keyword => nameLower.includes(keyword))) {
-            return true;
-        }
-
-        // Check for compound dishes (multiple ingredients mentioned)
-        const ingredientWords = nameLower.split(/\s+/);
-        const potentialIngredients = ['chicken', 'beef', 'pork', 'fish', 'cheese', 'rice', 'beans', 'potato'];
-        const ingredientCount = potentialIngredients.filter(ing =>
-            ingredientWords.some(word => word.includes(ing))
-        ).length;
-
-        return ingredientCount >= 2;
+        return recipeKeywords.some(keyword => nameLower.includes(keyword));
     };
 
-    // Helper function to detect basic ingredients
-    const detectBasicIngredient = (itemName) => {
-        const basicIngredients = [
-            'chicken', 'beef', 'pork', 'fish', 'salmon', 'tuna', 'turkey',
-            'milk', 'eggs', 'cheese', 'butter', 'yogurt',
-            'rice', 'pasta', 'bread', 'flour', 'sugar', 'salt',
-            'onion', 'garlic', 'tomato', 'potato', 'carrot', 'celery',
-            'apple', 'banana', 'orange', 'lemon'
-        ];
-
-        const nameLower = itemName.toLowerCase().trim();
-
-        // Remove quantity descriptors
-        const cleanName = nameLower.replace(/^\d+\s*(lbs?|pounds?|oz|ounces?|cups?|tbsp|tsp|grams?|kg)\s+/, '');
-
-        return basicIngredients.some(ingredient =>
-            cleanName === ingredient ||
-            (cleanName.includes(ingredient) && cleanName.split(/\s+/).length <= 2)
-        );
-    };
-
-    // AI verification of perfect matches
-    const verifyPerfectMatchWithAI = async (searchTerm, inventoryItem) => {
-        console.log('🔍 AI verifying perfect match:', searchTerm, 'vs', inventoryItem.name);
-
-        try {
-            const { modalBridge } = await import('@/lib/modal-bridge');
-
-            // Ask AI to confirm this is what the user wants
-            const result = await modalBridge.analyzeNutrition({
-                type: 'verification',
-                analysis_level: 'standard',
-                data: {
-                    userRequest: searchTerm,
-                    inventoryItem: {
-                        name: inventoryItem.name,
-                        brand: inventoryItem.brand || '',
-                        category: inventoryItem.category || ''
-                    },
-                    existingNutrition: inventoryItem.nutrition
-                }
-            });
-
-            // For now, since we don't have verification endpoint,
-            // assume perfect matches are correct and return existing nutrition
-            return {
-                item: inventoryItem,
-                nutrition: inventoryItem.nutrition,
-                method: 'ai_verified_exact_match',
-                confidence: 0.98, // Very high confidence for exact matches
-                analyzedItem: inventoryItem.name
-            };
-
-        } catch (error) {
-            console.error('❌ AI verification failed, using existing nutrition:', error);
-
-            // Fallback to existing nutrition with warning
-            return {
-                item: inventoryItem,
-                nutrition: inventoryItem.nutrition,
-                method: 'ai_verified_exact_match',
-                confidence: 0.95,
-                analyzedItem: inventoryItem.name,
-                warning: 'AI verification unavailable, using exact inventory match'
-            };
-        }
-    };
-
-    // AI analysis functions (same core logic but cleaner)
-    const analyzeRecipeWithAI = async (recipeName) => {
-        console.log('🍽️ Analyzing recipe with AI:', recipeName);
+    // ROBUST: Modal service calls with multiple response format handling
+    const analyzeRecipeWithModal = async (recipeName) => {
+        console.log('🍽️ Analyzing recipe with Modal:', recipeName);
         try {
             const { modalBridge } = await import('@/lib/modal-bridge');
 
@@ -538,24 +431,33 @@ export default function NutritionDashboard() {
                 }
             });
 
-            if (result.success && result.nutrition) {
+            console.log('🔍 MODAL RECIPE RESPONSE:', result);
+
+            if (result.success) {
+                // ROBUST: Handle multiple response formats
+                let nutrition = extractNutritionFromResponse(result);
+
+                if (!nutrition) {
+                    throw new Error('Could not extract nutrition data from Modal response');
+                }
+
                 return {
-                    nutrition: result.nutrition,
+                    nutrition: nutrition,
                     method: 'ai_recipe_analysis',
-                    confidence: result.confidence || 0.85,
+                    confidence: result.confidence || nutrition.confidence || 0.85,
                     analyzedItem: recipeName
                 };
+            } else {
+                throw new Error(result.error || 'Recipe analysis failed');
             }
-
-            throw new Error(result.error || 'Recipe analysis failed');
         } catch (error) {
-            console.error('❌ Recipe AI analysis failed:', error);
-            return generateBasicEstimateForItem(recipeName, 'recipe');
+            console.error('❌ Recipe Modal analysis failed:', error);
+            return generateBasicEstimate(recipeName, 'recipe');
         }
     };
 
-    const analyzeIngredientWithAI = async (ingredientName) => {
-        console.log('🥕 Analyzing ingredient with AI:', ingredientName);
+    const analyzeIngredientWithModal = async (ingredientName) => {
+        console.log('🥕 Analyzing ingredient with Modal:', ingredientName);
         try {
             const { modalBridge } = await import('@/lib/modal-bridge');
 
@@ -571,24 +473,32 @@ export default function NutritionDashboard() {
                 }
             });
 
-            if (result.success && result.nutrition) {
+            console.log('🔍 MODAL INGREDIENT RESPONSE:', result);
+
+            if (result.success) {
+                let nutrition = extractNutritionFromResponse(result);
+
+                if (!nutrition) {
+                    throw new Error('Could not extract nutrition data from Modal response');
+                }
+
                 return {
-                    nutrition: result.nutrition,
+                    nutrition: nutrition,
                     method: 'ai_ingredient_analysis',
-                    confidence: result.confidence || 0.85,
+                    confidence: result.confidence || nutrition.confidence || 0.85,
                     analyzedItem: ingredientName
                 };
+            } else {
+                throw new Error(result.error || 'Ingredient analysis failed');
             }
-
-            throw new Error(result.error || 'Ingredient analysis failed');
         } catch (error) {
-            console.error('❌ Ingredient AI analysis failed:', error);
-            return generateBasicEstimateForItem(ingredientName, 'ingredient');
+            console.error('❌ Ingredient Modal analysis failed:', error);
+            return generateBasicEstimate(ingredientName, 'ingredient');
         }
     };
 
-    const analyzeInventoryItemWithAI = async (item) => {
-        console.log('📦 Analyzing inventory item with AI (no existing nutrition):', item.name);
+    const analyzeInventoryItemWithModal = async (item) => {
+        console.log('📦 Analyzing inventory item with Modal:', item.name);
         try {
             const { modalBridge } = await import('@/lib/modal-bridge');
 
@@ -605,38 +515,121 @@ export default function NutritionDashboard() {
                 }
             });
 
-            if (result.success && result.nutrition) {
+            console.log('🔍 MODAL INVENTORY RESPONSE:', result);
+
+            if (result.success) {
+                let nutrition = extractNutritionFromResponse(result);
+
+                if (!nutrition) {
+                    throw new Error('Could not extract nutrition data from Modal response');
+                }
+
                 // Update inventory with new nutrition data
                 setDashboardData(prev => ({
                     ...prev,
                     inventory: prev.inventory.map(invItem =>
                         invItem._id === item._id
-                            ? { ...invItem, nutrition: result.nutrition }
+                            ? { ...invItem, nutrition: nutrition }
                             : invItem
                     )
                 }));
 
                 return {
-                    item: { ...item, nutrition: result.nutrition },
-                    nutrition: result.nutrition,
+                    item: { ...item, nutrition: nutrition },
+                    nutrition: nutrition,
                     method: 'ai_inventory_item_analysis',
-                    confidence: result.confidence || 0.85,
+                    confidence: result.confidence || nutrition.confidence || 0.85,
                     analyzedItem: item.name,
                     inventoryUpdated: true
                 };
+            } else {
+                throw new Error(result.error || 'AI analysis failed');
             }
-
-            throw new Error(result.error || 'AI analysis failed');
         } catch (error) {
-            console.error('❌ Inventory item AI analysis failed:', error);
-            return generateBasicEstimateForItem(item.name, 'ingredient');
+            console.error('❌ Inventory Modal analysis failed:', error);
+            return generateBasicEstimate(item.name, 'ingredient');
         }
     };
 
-    const generateBasicEstimateForItem = (itemName, type) => {
+    // ROBUST: Extract nutrition data from any response format
+    const extractNutritionFromResponse = (result) => {
+        console.log('🔍 Extracting nutrition from response...');
+
+        // Try multiple possible locations for nutrition data
+        let nutrition = null;
+
+        // Path 1: result.nutrition (most common)
+        if (result.nutrition && typeof result.nutrition === 'object') {
+            nutrition = result.nutrition;
+            console.log('✅ Found nutrition at result.nutrition');
+        }
+        // Path 2: result.data.nutrition
+        else if (result.data?.nutrition && typeof result.data.nutrition === 'object') {
+            nutrition = result.data.nutrition;
+            console.log('✅ Found nutrition at result.data.nutrition');
+        }
+        // Path 3: result.analysis.nutrition
+        else if (result.analysis?.nutrition && typeof result.analysis.nutrition === 'object') {
+            nutrition = result.analysis.nutrition;
+            console.log('✅ Found nutrition at result.analysis.nutrition');
+        }
+        // Path 4: Search recursively for nutrition-like objects
+        else {
+            nutrition = findNutritionObjectRecursively(result);
+            if (nutrition) {
+                console.log('✅ Found nutrition through recursive search');
+            }
+        }
+
+        if (!nutrition) {
+            console.error('❌ Could not find nutrition data in response');
+            return null;
+        }
+
+        console.log('📊 Final nutrition object:', nutrition);
+        return nutrition;
+    };
+
+    // Helper to recursively search for nutrition-like objects
+    const findNutritionObjectRecursively = (obj, path = '') => {
+        if (!obj || typeof obj !== 'object') return null;
+
+        // Check if current object looks like nutrition data
+        if (obj.calories || obj.protein || obj.carbs || obj.fat) {
+            console.log(`🎯 Found nutrition-like data at: ${path}`);
+            return obj;
+        }
+
+        // Recursively search nested objects
+        for (const [key, value] of Object.entries(obj)) {
+            const found = findNutritionObjectRecursively(value, path ? `${path}.${key}` : key);
+            if (found) return found;
+        }
+
+        return null;
+    };
+
+    // Helper functions
+    const getAnalysisMethodDescription = (method) => {
+        switch (method) {
+            case 'perfect_inventory_match':
+                return 'Exact inventory match';
+            case 'ai_recipe_analysis':
+                return 'AI analyzed this as a recipe/dish';
+            case 'ai_ingredient_analysis':
+                return 'AI analyzed this as an ingredient';
+            case 'ai_inventory_item_analysis':
+                return 'AI analyzed inventory item';
+            case 'basic_estimation':
+                return 'Basic estimate (AI unavailable)';
+            default:
+                return 'AI analysis';
+        }
+    };
+
+    const generateBasicEstimate = (itemName, type) => {
         console.log('📊 Generating basic estimate for:', itemName, 'type:', type);
 
-        // Basic estimates for different types
         const estimates = {
             recipe: { calories: 350, protein: 20, fat: 15, carbs: 35, fiber: 5, sodium: 600 },
             ingredient: { calories: 100, protein: 5, fat: 2, carbs: 15, fiber: 2, sodium: 50 }
@@ -658,7 +651,7 @@ export default function NutritionDashboard() {
             method: 'basic_estimation',
             confidence: 0.5,
             analyzedItem: itemName,
-            warning: 'AI service unavailable - basic estimate provided'
+            warning: 'Modal AI service unavailable - basic estimate provided'
         };
     };
 
