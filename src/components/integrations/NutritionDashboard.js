@@ -559,32 +559,86 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
         return nutrition;
     };
 
-    // NEW: Convert raw nutrition format to standard format
+    // UPDATED: convertRawNutritionToStandardFormat function for NutritionDashboard.js
     const convertRawNutritionToStandardFormat = (rawNutrition) => {
         const standardNutrition = {};
 
-        // Mapping from Modal response field names to your standard field names
+        console.log('🔍 Raw nutrition keys:', Object.keys(rawNutrition));
+
+        // UPDATED: Mapping from Modal response field names to your standard field names
+        // Handle both old format (total_fat) and new format (total_fat_g, protein_g, etc.)
         const fieldMapping = {
+            // Energy
             calories: { key: 'calories', unit: 'kcal', name: 'Energy' },
+
+            // Macronutrients - handle both formats
             total_fat: { key: 'fat', unit: 'g', name: 'Total Fat' },
+            total_fat_g: { key: 'fat', unit: 'g', name: 'Total Fat' },
             saturated_fat: { key: 'saturatedFat', unit: 'g', name: 'Saturated Fat' },
+            saturated_fat_g: { key: 'saturatedFat', unit: 'g', name: 'Saturated Fat' },
             trans_fat: { key: 'transFat', unit: 'g', name: 'Trans Fat' },
-            cholesterol: { key: 'cholesterol', unit: 'mg', name: 'Cholesterol' },
-            sodium: { key: 'sodium', unit: 'mg', name: 'Sodium' },
-            total_carbohydrates: { key: 'carbs', unit: 'g', name: 'Total Carbohydrate' },
-            dietary_fiber: { key: 'fiber', unit: 'g', name: 'Dietary Fiber' },
-            sugars: { key: 'sugars', unit: 'g', name: 'Total Sugars' },
+            trans_fat_g: { key: 'transFat', unit: 'g', name: 'Trans Fat' },
+
+            // Protein
             protein: { key: 'protein', unit: 'g', name: 'Protein' },
-            vitamin_a: { key: 'vitaminA', unit: 'µg', name: 'Vitamin A (RAE)' },
-            vitamin_c: { key: 'vitaminC', unit: 'mg', name: 'Vitamin C' },
+            protein_g: { key: 'protein', unit: 'g', name: 'Protein' },
+
+            // Carbohydrates
+            total_carbohydrates: { key: 'carbs', unit: 'g', name: 'Total Carbohydrate' },
+            carbohydrates: { key: 'carbs', unit: 'g', name: 'Total Carbohydrate' },
+            carbohydrates_g: { key: 'carbs', unit: 'g', name: 'Total Carbohydrate' },
+            dietary_fiber: { key: 'fiber', unit: 'g', name: 'Dietary Fiber' },
+            fiber: { key: 'fiber', unit: 'g', name: 'Dietary Fiber' },
+            fiber_g: { key: 'fiber', unit: 'g', name: 'Dietary Fiber' },
+            sugars: { key: 'sugars', unit: 'g', name: 'Total Sugars' },
+            sugars_g: { key: 'sugars', unit: 'g', name: 'Total Sugars' },
+
+            // Minerals - handle mg suffix
+            cholesterol: { key: 'cholesterol', unit: 'mg', name: 'Cholesterol' },
+            cholesterol_mg: { key: 'cholesterol', unit: 'mg', name: 'Cholesterol' },
+            sodium: { key: 'sodium', unit: 'mg', name: 'Sodium' },
+            sodium_mg: { key: 'sodium', unit: 'mg', name: 'Sodium' },
             calcium: { key: 'calcium', unit: 'mg', name: 'Calcium' },
+            calcium_mg: { key: 'calcium', unit: 'mg', name: 'Calcium' },
             iron: { key: 'iron', unit: 'mg', name: 'Iron' },
+            iron_mg: { key: 'iron', unit: 'mg', name: 'Iron' },
             magnesium: { key: 'magnesium', unit: 'mg', name: 'Magnesium' },
+            magnesium_mg: { key: 'magnesium', unit: 'mg', name: 'Magnesium' },
             potassium: { key: 'potassium', unit: 'mg', name: 'Potassium' },
-            zinc: { key: 'zinc', unit: 'mg', name: 'Zinc' }
+            potassium_mg: { key: 'potassium', unit: 'mg', name: 'Potassium' },
+            zinc: { key: 'zinc', unit: 'mg', name: 'Zinc' },
+            zinc_mg: { key: 'zinc', unit: 'mg', name: 'Zinc' },
+
+            // Vitamins - handle different units and suffixes
+            vitamin_a: { key: 'vitaminA', unit: 'µg', name: 'Vitamin A (RAE)' },
+            vitamin_a_iu: { key: 'vitaminA', unit: 'IU', name: 'Vitamin A' }, // IU format
+            vitamin_a_mcg: { key: 'vitaminA', unit: 'µg', name: 'Vitamin A (RAE)' },
+            vitamin_c: { key: 'vitaminC', unit: 'mg', name: 'Vitamin C' },
+            vitamin_c_mg: { key: 'vitaminC', unit: 'mg', name: 'Vitamin C' },
+            vitamin_d: { key: 'vitaminD', unit: 'µg', name: 'Vitamin D' },
+            vitamin_d_mcg: { key: 'vitaminD', unit: 'µg', name: 'Vitamin D' },
+            vitamin_e: { key: 'vitaminE', unit: 'mg', name: 'Vitamin E' },
+            vitamin_e_mg: { key: 'vitaminE', unit: 'mg', name: 'Vitamin E' },
+            vitamin_k: { key: 'vitaminK', unit: 'µg', name: 'Vitamin K' },
+            vitamin_k_mcg: { key: 'vitaminK', unit: 'µg', name: 'Vitamin K' },
+
+            // B Vitamins
+            thiamin: { key: 'thiamin', unit: 'mg', name: 'Thiamin (B1)' },
+            thiamin_mg: { key: 'thiamin', unit: 'mg', name: 'Thiamin (B1)' },
+            riboflavin: { key: 'riboflavin', unit: 'mg', name: 'Riboflavin (B2)' },
+            riboflavin_mg: { key: 'riboflavin', unit: 'mg', name: 'Riboflavin (B2)' },
+            niacin: { key: 'niacin', unit: 'mg', name: 'Niacin (B3)' },
+            niacin_mg: { key: 'niacin', unit: 'mg', name: 'Niacin (B3)' },
+            vitamin_b6: { key: 'vitaminB6', unit: 'mg', name: 'Vitamin B6' },
+            vitamin_b6_mg: { key: 'vitaminB6', unit: 'mg', name: 'Vitamin B6' },
+            folate: { key: 'folate', unit: 'µg', name: 'Folate (B9)' },
+            folate_mcg: { key: 'folate', unit: 'µg', name: 'Folate (B9)' },
+            vitamin_b12: { key: 'vitaminB12', unit: 'µg', name: 'Vitamin B12' },
+            vitamin_b12_mcg: { key: 'vitaminB12', unit: 'µg', name: 'Vitamin B12' }
         };
 
         // Convert each field
+        let convertedCount = 0;
         Object.entries(fieldMapping).forEach(([modalField, config]) => {
             if (rawNutrition[modalField] !== undefined && rawNutrition[modalField] !== null) {
                 standardNutrition[config.key] = {
@@ -592,11 +646,57 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                     unit: config.unit,
                     name: config.name
                 };
+                convertedCount++;
+                console.log(`✅ Converted ${modalField} (${rawNutrition[modalField]}) -> ${config.key}`);
             }
         });
 
-        console.log('🔄 Converted raw nutrition:', rawNutrition);
-        console.log('🔄 To standard format:', standardNutrition);
+        console.log(`🔄 Converted ${convertedCount} fields from raw nutrition`);
+        console.log('🔄 Raw nutrition fields found:', Object.keys(rawNutrition));
+        console.log('🔄 Converted standard nutrition fields:', Object.keys(standardNutrition));
+
+        // If no fields were converted, try a more flexible approach
+        if (convertedCount === 0) {
+            console.log('⚠️ No fields matched standard mapping, trying flexible conversion...');
+
+            // Try to map fields dynamically based on patterns
+            Object.keys(rawNutrition).forEach(key => {
+                const value = rawNutrition[key];
+                if (typeof value === 'number' && value > 0) {
+
+                    if (key.includes('protein')) {
+                        standardNutrition.protein = { value, unit: 'g', name: 'Protein' };
+                    } else if (key.includes('fat') && !key.includes('saturated') && !key.includes('trans')) {
+                        standardNutrition.fat = { value, unit: 'g', name: 'Total Fat' };
+                    } else if (key.includes('saturated')) {
+                        standardNutrition.saturatedFat = { value, unit: 'g', name: 'Saturated Fat' };
+                    } else if (key.includes('carb')) {
+                        standardNutrition.carbs = { value, unit: 'g', name: 'Total Carbohydrate' };
+                    } else if (key.includes('fiber')) {
+                        standardNutrition.fiber = { value, unit: 'g', name: 'Dietary Fiber' };
+                    } else if (key.includes('sugar')) {
+                        standardNutrition.sugars = { value, unit: 'g', name: 'Total Sugars' };
+                    } else if (key.includes('sodium')) {
+                        standardNutrition.sodium = { value, unit: 'mg', name: 'Sodium' };
+                    } else if (key.includes('calcium')) {
+                        standardNutrition.calcium = { value, unit: 'mg', name: 'Calcium' };
+                    } else if (key.includes('iron')) {
+                        standardNutrition.iron = { value, unit: 'mg', name: 'Iron' };
+                    } else if (key.includes('vitamin_c')) {
+                        standardNutrition.vitaminC = { value, unit: 'mg', name: 'Vitamin C' };
+                    } else if (key.includes('vitamin_a')) {
+                        const unit = key.includes('iu') ? 'IU' : 'µg';
+                        standardNutrition.vitaminA = { value, unit, name: 'Vitamin A' };
+                    } else if (key.includes('cholesterol')) {
+                        standardNutrition.cholesterol = { value, unit: 'mg', name: 'Cholesterol' };
+                    }
+
+                    console.log(`🔄 Flexible mapping: ${key} -> ${value}`);
+                }
+            });
+
+            console.log(`🔄 Flexible conversion created ${Object.keys(standardNutrition).length} fields`);
+        }
 
         return standardNutrition;
     };

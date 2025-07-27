@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/dashboard/nutrition/page.js v3 - Updated with NutritionModal integration
+// file: /src/app/dashboard/nutrition/page.js v4 - Fixed double scrollbar issue
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
@@ -46,7 +46,8 @@ export default function NutritionDashboardPage() {
 
     return (
         <MobileOptimizedLayout>
-            <div className="dashboard-container">
+            {/* FIXED: Remove dashboard-container class and overflow settings to prevent double scroll */}
+            <div className="w-full">
                 {/* Pass modal controls to NutritionDashboard */}
                 <NutritionDashboard
                     // Pass modal control functions as props

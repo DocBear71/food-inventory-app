@@ -2469,6 +2469,61 @@ div[style*="background-color: #f1f5f9"] {
     display: grid !important;
 }
 
+/* Add this CSS to your global styles or component styles to fix double scrollbar */
+
+/* Option 1: Force single scrollbar by removing overflow from nested containers */
+.dashboard-container {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+/* Option 2: Hide scrollbars on specific containers if needed */
+.nutrition-dashboard-content {
+    overflow-x: hidden;
+    overflow-y: visible;
+}
+
+/* Option 3: Ensure only the main viewport handles scrolling */
+.mobile-layout-main {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100vh;
+}
+
+.mobile-layout-main > * {
+    overflow: visible;
+}
+
+/* Option 4: Target specific containers that might be causing the issue */
+.max-w-6xl, .max-w-4xl {
+    overflow: visible !important;
+}
+
+/* Hide thin scrollbars (webkit browsers) */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar:horizontal {
+    height: 8px;
+}
+
+/* Style the remaining scrollbar to be more visible */
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #c1c1c1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #a1a1a1;
+}
+
 /* ===== FALLBACK GRADIENTS ===== */
 
 @supports not (background: color(display-p3 1 1 1)) {
