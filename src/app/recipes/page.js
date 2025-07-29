@@ -1166,7 +1166,7 @@ function RecipesContent() {
                                                     <div className="mb-3">
                                                         <Link
                                                             href={`/recipes/${recipe._id}`}
-                                                            className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2 block group-hover:text-indigo-600 transition-colors"
+                                                            className="pyt-6 text-base font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2 block group-hover:text-indigo-600 transition-colors"
                                                         >
                                                             {recipe.title || 'Untitled Recipe'}
                                                         </Link>
