@@ -1,11 +1,11 @@
-// file: /src/app/api/recipes/photos/[photoId]/route.js - SPECIFIC FIX for Binary.createFromBase64
+// file: /src/app/api/recipes/photos/[photoId]/route.js - FIXED for base64 string in Buffer
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { RecipePhoto, Recipe } from '@/lib/models';
 
-// GET - Serve photo binary data (SPECIFIC FIX for your Binary.createFromBase64 format)
+// GET - Serve photo binary data (FIXED for base64 string decoding)
 export async function GET(request, { params }) {
     try {
         const { photoId } = await params;
@@ -18,8 +18,7 @@ export async function GET(request, { params }) {
         console.log(`📸 Fetching photo: ${photoId}`);
         await connectDB();
 
-        // Find the photo
-        let photo = await RecipePhoto.findById(photoId).populate('recipeId');
+        const photo = await RecipePhoto.findById(photoId).populate('recipeId');
 
         if (!photo) {
             console.log(`❌ Photo not found: ${photoId}`);
@@ -27,10 +26,9 @@ export async function GET(request, { params }) {
         }
 
         console.log(`📸 Found photo: ${photo.originalName}`);
+        console.log(`📸 Expected size: ${photo.size} bytes`);
         console.log(`📸 Data type: ${typeof photo.data}`);
-        console.log(`📸 Data constructor: ${photo.data?.constructor?.name}`);
-        console.log(`📸 Has buffer: ${!!photo.data?.buffer}`);
-        console.log(`📸 BSON type: ${photo.data?._bsontype}`);
+        console.log(`📸 Is Buffer: ${Buffer.isBuffer(photo.data)}`);
 
         const recipe = photo.recipeId;
 
@@ -42,59 +40,29 @@ export async function GET(request, { params }) {
             }
         }
 
-        // SPECIFIC FIX: Handle Binary.createFromBase64 format
+        // FIXED: Handle base64 string stored in Buffer
         let imageBuffer;
 
         try {
-            // Your data is stored as Binary.createFromBase64, so we need to handle the MongoDB Binary type
-            if (photo.data && photo.data.constructor && photo.data.constructor.name === 'Binary') {
-                console.log('📸 Processing MongoDB Binary object');
+            if (Buffer.isBuffer(photo.data)) {
+                // Convert Buffer to string (this gives us the base64 string)
+                const base64String = photo.data.toString('utf8');
+                console.log(`📸 Converted to base64 string: ${base64String.length} characters`);
+                console.log(`📸 First 20 chars: ${base64String.substring(0, 20)}`);
 
-                // Method 1: Try the .buffer property (most common)
-                if (photo.data.buffer) {
-                    console.log('📸 Using .buffer property');
-                    imageBuffer = Buffer.from(photo.data.buffer);
-                }
-                // Method 2: Try the .value() method
-                else if (typeof photo.data.value === 'function') {
-                    console.log('📸 Using .value() method');
-                    imageBuffer = photo.data.value(true); // true returns Buffer
-                }
-                // Method 3: Try toString('base64') then convert back
-                else if (typeof photo.data.toString === 'function') {
-                    console.log('📸 Using .toString("base64") method');
-                    const base64String = photo.data.toString('base64');
+                // Check if it looks like base64 (starts with /9j/ which is JPEG in base64)
+                if (base64String.startsWith('/9j/') || base64String.startsWith('iVBOR') || base64String.match(/^[A-Za-z0-9+/]*={0,2}$/)) {
+                    console.log('📸 Detected base64 string, converting to binary');
                     imageBuffer = Buffer.from(base64String, 'base64');
+                } else {
+                    console.log('📸 Not a base64 string, using buffer directly');
+                    imageBuffer = photo.data;
                 }
-                // Method 4: Direct binary access for Binary.createFromBase64
-                else {
-                    console.log('📸 Attempting direct binary access');
-                    // For Binary.createFromBase64, the data might be in different properties
-                    const binaryData = photo.data.sub_type !== undefined ? photo.data : photo.data.buffer || photo.data;
-                    imageBuffer = Buffer.from(binaryData);
-                }
-            }
-            // Handle if it's already a buffer
-            else if (Buffer.isBuffer(photo.data)) {
-                console.log('📸 Data is already a Buffer');
-                imageBuffer = photo.data;
-            }
-            // Handle if it's a base64 string
-            else if (typeof photo.data === 'string') {
-                console.log('📸 Data is a base64 string');
+            } else if (typeof photo.data === 'string') {
+                console.log('📸 Data is string, converting from base64');
                 imageBuffer = Buffer.from(photo.data, 'base64');
-            }
-            // Handle BSON Binary type
-            else if (photo.data && photo.data._bsontype === 'Binary') {
-                console.log('📸 Processing BSON Binary type');
-                imageBuffer = Buffer.from(photo.data.buffer);
-            }
-            else {
-                console.error('❌ Unknown data format:', {
-                    type: typeof photo.data,
-                    constructor: photo.data?.constructor?.name,
-                    keys: photo.data ? Object.keys(photo.data) : []
-                });
+            } else {
+                console.error('❌ Unsupported data type:', typeof photo.data);
                 return NextResponse.json({ error: 'Unsupported photo data format' }, { status: 500 });
             }
 
@@ -104,11 +72,18 @@ export async function GET(request, { params }) {
             }
 
             console.log(`✅ Successfully created imageBuffer: ${imageBuffer.length} bytes`);
-            console.log(`✅ Expected size: ${photo.size} bytes`);
+            console.log(`📊 Expected: ${photo.size}, Actual: ${imageBuffer.length}`);
 
-            // Validate that we got the right amount of data
-            if (Math.abs(imageBuffer.length - photo.size) > 100) {
-                console.warn(`⚠️ Size mismatch: expected ${photo.size}, got ${imageBuffer.length}`);
+            // Validate JPEG header
+            const isValidJPEG = imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8;
+            console.log(`📸 Valid JPEG header: ${isValidJPEG}`);
+            console.log(`📸 First 4 bytes: ${imageBuffer.slice(0, 4).toString('hex')}`);
+
+            if (!isValidJPEG) {
+                console.warn('⚠️ Invalid JPEG header detected');
+                // For debugging, let's also check if it's a PNG
+                const isPNG = imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47;
+                console.log(`📸 Is PNG: ${isPNG}`);
             }
 
             // Return binary image with proper headers
@@ -119,7 +94,10 @@ export async function GET(request, { params }) {
                     'Cache-Control': 'public, max-age=31536000, immutable',
                     'ETag': `"${photoId}"`,
                     'Content-Disposition': `inline; filename="${photo.originalName || 'recipe-photo'}"`,
-                    'Accept-Ranges': 'bytes',
+                    // Debug headers
+                    'X-Original-Size': photo.size.toString(),
+                    'X-Decoded-Size': imageBuffer.length.toString(),
+                    'X-Valid-JPEG': isValidJPEG.toString(),
                 },
             });
 
@@ -163,7 +141,6 @@ export async function DELETE(request, { params }) {
             return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
         }
 
-        // Check if user owns this photo
         if (photo.uploadedBy.toString() !== session.user.id) {
             return NextResponse.json({ error: 'Not authorized to delete this photo' }, { status: 403 });
         }
@@ -171,10 +148,8 @@ export async function DELETE(request, { params }) {
         const recipeId = photo.recipeId;
         const wasPrimary = photo.isPrimary;
 
-        // Delete the photo from MongoDB
         await RecipePhoto.findByIdAndDelete(photoId);
 
-        // Update recipe references
         const remainingPhotos = await RecipePhoto.find({ recipeId });
 
         await Recipe.findByIdAndUpdate(recipeId, {

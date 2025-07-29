@@ -1,11 +1,10 @@
-// file: /src/app/api/recipes/photos/route.js - Fixed version for listing and uploading
+// file: /src/app/api/recipes/photos/route.js - FIXED upload to store binary data correctly
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { Recipe, RecipePhoto } from '@/lib/models';
 
-// POST - Upload photos to recipes
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -45,10 +44,20 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Not authorized to add photos to this recipe' }, { status: 403 });
         }
 
-        // Convert file to buffer and then to base64 for consistent storage
+        // FIXED: Store as actual binary data, not base64 string
         const buffer = await file.arrayBuffer();
         const photoBuffer = Buffer.from(buffer);
-        const base64Data = photoBuffer.toString('base64');
+
+        console.log(`📸 Upload: File size: ${file.size}, Buffer size: ${photoBuffer.length}`);
+        console.log(`📸 Upload: First 4 bytes: ${photoBuffer.slice(0, 4).toString('hex')}`);
+
+        // Validate it's a proper image
+        const isValidJPEG = photoBuffer[0] === 0xFF && photoBuffer[1] === 0xD8;
+        const isPNG = photoBuffer[0] === 0x89 && photoBuffer[1] === 0x50;
+
+        if (!isValidJPEG && !isPNG) {
+            return NextResponse.json({ error: 'Invalid image format' }, { status: 400 });
+        }
 
         // If this is set as primary, unset other primary photos
         if (isPrimary) {
@@ -58,14 +67,14 @@ export async function POST(request) {
             );
         }
 
-        // Create photo record with base64 storage
+        // FIXED: Create photo record with binary data (not base64)
         const photo = new RecipePhoto({
             recipeId,
             filename: `recipe_${recipeId}_${Date.now()}_${file.name}`,
             originalName: file.name,
             mimeType: file.type,
             size: file.size,
-            data: base64Data, // Store as base64 string
+            data: photoBuffer, // Store as binary Buffer, not base64 string
             isPrimary,
             source,
             uploadedBy: session.user.id
@@ -81,7 +90,7 @@ export async function POST(request) {
             ...(isPrimary && { primaryPhoto: photo._id })
         });
 
-        console.log(`📸 Photo uploaded successfully: ${photo.filename} (${file.size} bytes)`);
+        console.log(`✅ Photo uploaded successfully: ${photo.filename} (${file.size} bytes)`);
 
         // Return photo info without binary data
         const { data, ...photoInfo } = photo.toObject();
@@ -101,7 +110,7 @@ export async function POST(request) {
     }
 }
 
-// GET - List photos for recipes
+// GET - List photos for recipes (same as before)
 export async function GET(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -114,20 +123,17 @@ export async function GET(request) {
         let query = {};
 
         if (recipeId) {
-            // Check if recipe exists and is accessible
             const recipe = await Recipe.findById(recipeId);
             if (!recipe) {
                 return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
             }
 
-            // Check access permissions
             if (!recipe.isPublic && (!session?.user?.id || recipe.createdBy.toString() !== session.user.id)) {
                 return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
             }
 
             query.recipeId = recipeId;
         } else if (session?.user?.id) {
-            // If no specific recipe, show user's photos
             query.uploadedBy = session.user.id;
         } else {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
