@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/photos/route.js - FIXED upload to store binary data correctly
+// file: /src/app/api/recipes/photos/route.js - FIXED to properly update recipe
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
@@ -44,7 +44,7 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Not authorized to add photos to this recipe' }, { status: 403 });
         }
 
-        // FIXED: Store as actual binary data, not base64 string
+        // Store as actual binary data
         const buffer = await file.arrayBuffer();
         const photoBuffer = Buffer.from(buffer);
 
@@ -59,35 +59,64 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Invalid image format' }, { status: 400 });
         }
 
+        // FIXED: Get current photo count before adding new photo
+        const currentPhotoCount = await RecipePhoto.countDocuments({ recipeId });
+        const isFirstPhoto = currentPhotoCount === 0;
+        const shouldBePrimary = isPrimary || isFirstPhoto; // First photo is always primary
+
         // If this is set as primary, unset other primary photos
-        if (isPrimary) {
+        if (shouldBePrimary) {
             await RecipePhoto.updateMany(
                 { recipeId, isPrimary: true },
                 { isPrimary: false }
             );
         }
 
-        // FIXED: Create photo record with binary data (not base64)
+        // Create photo record with binary data
         const photo = new RecipePhoto({
             recipeId,
             filename: `recipe_${recipeId}_${Date.now()}_${file.name}`,
             originalName: file.name,
             mimeType: file.type,
             size: file.size,
-            data: photoBuffer, // Store as binary Buffer, not base64 string
-            isPrimary,
+            data: photoBuffer, // Store as binary Buffer
+            isPrimary: shouldBePrimary,
             source,
             uploadedBy: session.user.id
         });
 
         await photo.save();
 
-        // Update recipe with photo reference
-        await Recipe.findByIdAndUpdate(recipeId, {
-            $addToSet: { photos: photo._id },
-            $inc: { photoCount: 1 },
-            hasPhotos: true,
-            ...(isPrimary && { primaryPhoto: photo._id })
+        console.log(`✅ Photo saved: ${photo._id}`);
+
+        // FIXED: Properly update recipe with photo references
+        const updateData = {
+            $addToSet: { photos: photo._id }, // Add photo ID to photos array
+            $inc: { photoCount: 1 }, // Increment photo count
+            hasPhotos: true, // Set hasPhotos flag
+            updatedAt: new Date()
+        };
+
+        // If this is the primary photo, set primaryPhoto reference
+        if (shouldBePrimary) {
+            updateData.primaryPhoto = photo._id;
+        }
+
+        const updatedRecipe = await Recipe.findByIdAndUpdate(
+            recipeId,
+            updateData,
+            { new: true } // Return updated document
+        );
+
+        console.log(`✅ Recipe updated: primaryPhoto=${updatedRecipe.primaryPhoto}, photoCount=${updatedRecipe.photoCount}`);
+
+        // VERIFICATION: Double-check the update worked
+        const verifyRecipe = await Recipe.findById(recipeId);
+        console.log(`🔍 Verification - Recipe ${recipeId}:`, {
+            primaryPhoto: verifyRecipe.primaryPhoto,
+            photoCount: verifyRecipe.photoCount,
+            hasPhotos: verifyRecipe.hasPhotos,
+            photosArray: verifyRecipe.photos
         });
 
         console.log(`✅ Photo uploaded successfully: ${photo.filename} (${file.size} bytes)`);
@@ -101,22 +130,32 @@ export async function POST(request) {
                 ...photoInfo,
                 url: `/api/recipes/photos/${photo._id}`
             },
-            message: 'Photo uploaded successfully'
+            message: 'Photo uploaded successfully',
+            recipeUpdated: {
+                primaryPhoto: updatedRecipe.primaryPhoto,
+                photoCount: updatedRecipe.photoCount,
+                hasPhotos: updatedRecipe.hasPhotos
+            }
         });
 
     } catch (error) {
         console.error('Photo upload error:', error);
-        return NextResponse.json({ error: 'Failed to upload photo' }, { status: 500 });
+        return NextResponse.json({
+            error: 'Failed to upload photo',
+            details: error.message
+        }, { status: 500 });
     }
 }
 
-// GET - List photos for recipes (same as before)
+// GET - List photos for recipes (same as before but with better logging)
 export async function GET(request) {
     try {
         const session = await getEnhancedSession(request);
         const { searchParams } = new URL(request.url);
         const recipeId = searchParams.get('recipeId');
         const source = searchParams.get('source');
+
+        console.log(`📸 GET Photos: recipeId=${recipeId}, source=${source}`);
 
         await connectDB();
 
@@ -125,6 +164,7 @@ export async function GET(request) {
         if (recipeId) {
             const recipe = await Recipe.findById(recipeId);
             if (!recipe) {
+                console.log(`❌ Recipe not found: ${recipeId}`);
                 return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
             }
 
@@ -147,6 +187,8 @@ export async function GET(request) {
             .select('-data') // Exclude binary data from list
             .sort({ isPrimary: -1, uploadedAt: -1 })
             .limit(50);
+
+        console.log(`✅ Found ${photos.length} photos for recipe ${recipeId}`);
 
         const photosWithUrls = photos.map(photo => ({
             ...photo.toObject(),
