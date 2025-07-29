@@ -25,6 +25,8 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
             setLoading(true);
             setError(null);
 
+            console.log('🖼️ Gallery: Fetching photos for recipe:', recipeId);
+
             // Fetch both recipe data and separate photos
             const [recipeResponse, photosResponse] = await Promise.all([
                 apiGet(`/api/recipes/${recipeId}`),
@@ -33,8 +35,17 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
 
             // Handle recipe's built-in image
             const recipeData = await recipeResponse.json();
+            console.log('🖼️ Gallery: Recipe data:', recipeData.success, recipeData.recipe?.title);
+
             if (recipeData.success && recipeData.recipe) {
                 const recipe = recipeData.recipe;
+                console.log('🖼️ Gallery: Recipe image check:', {
+                    hasUploadedImage: !!recipe.uploadedImage?.data,
+                    hasExtractedImage: !!recipe.extractedImage?.data,
+                    hasPrimaryPhoto: !!recipe.primaryPhoto,
+                    hasPhotos: !!recipe.photos,
+                    photoCount: recipe.photoCount
+                });
 
                 // Check for uploadedImage or extractedImage
                 if (recipe.uploadedImage?.data) {
@@ -69,8 +80,10 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
             }
 
             // Handle separate photos collection
+            console.log('🖼️ Gallery: Photos response:', photosResponse.ok);
             if (photosResponse.ok) {
                 const photosData = await photosResponse.json();
+                console.log('🖼️ Gallery: Photos data:', photosData.success, photosData.photos?.length);
                 if (photosData.success) {
                     setPhotos(photosData.photos || []);
                 } else {

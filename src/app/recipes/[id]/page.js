@@ -169,7 +169,7 @@ const RecipeHeroImage = ({ recipe, className = "" }) => {
                         />
                         <TouchEnhancedButton
                             onClick={() => setShowFullImage(false)}
-                            className="absolute top-4 right-4 bg-white bg-opacity-20 text-white text-2xl w-10 h-10 rounded-full flex items-center justify-center hover:bg-opacity-30"
+                            className="absolute top-4 right-4 bg-red-500 bg-opacity-20 text-white text-2xl w-10 h-10 rounded-full flex items-center justify-center hover:bg-red-700"
                         >
                             ×
                         </TouchEnhancedButton>
