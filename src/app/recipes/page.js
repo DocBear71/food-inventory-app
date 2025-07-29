@@ -1074,27 +1074,29 @@ function RecipesContent() {
                                                         priority={index < 6} // Prioritize first 6 images
                                                     />
 
-                                                    {/* Overlay Actions - FIXED positioning and SaveRecipeButton styling */}
-                                                    <div className="absolute top-3 right-3 flex space-x-2">
+                                                    {/* Overlay Actions - FIXED positioning to avoid title overlap */}
+                                                    <div className="absolute top-1 right-1 flex space-x-1">
                                                         {activeTab === 'public-recipes' && (
-                                                            <div className="bg-green-500 bg-opacity-95 rounded-full p-2 shadow-lg transition-all duration-200 flex items-center justify-center hover:bg-green-600 hover:bg-opacity-100">
-                                                                <SaveRecipeButton
-                                                                    recipeId={recipe._id}
-                                                                    recipeName={recipe.title || 'Recipe'}
-                                                                    size="small"
-                                                                    showText={false}
-                                                                    iconOnly={true}
-                                                                    onSaveStateChange={handleRecipeSaveStateChange}
-                                                                    className="text-white"
-                                                                />
-                                                            </div>
+                                                            <TouchEnhancedButton
+                                                                onClick={() => {
+                                                                    // Trigger the SaveRecipeButton functionality directly
+                                                                    const saveButton = document.querySelector(`[data-recipe-id="${recipe._id}"] .save-recipe-button`);
+                                                                    if (saveButton) saveButton.click();
+                                                                }}
+                                                                className="bg-green-500 bg-opacity-95 rounded-full p-2 shadow-lg text-white hover:bg-green-600 hover:bg-opacity-100 transition-all duration-200 flex items-center justify-center w-8 h-8"
+                                                                title="Save to Collection"
+                                                            >
+                                                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
+                                                                </svg>
+                                                            </TouchEnhancedButton>
                                                         )}
 
                                                         {canEditRecipe(recipe) && (
-                                                            <div className="flex space-x-2">
+                                                            <>
                                                                 <TouchEnhancedButton
                                                                     onClick={async () => window.location.href = await getRecipeUrl(`${recipe._id}/edit`)}
-                                                                    className="bg-blue-500 bg-opacity-95 rounded-full p-2 shadow-lg text-white hover:bg-blue-600 hover:bg-opacity-100 transition-all duration-200 flex items-center justify-center"
+                                                                    className="bg-blue-500 bg-opacity-95 rounded-full p-2 shadow-lg text-white hover:bg-blue-600 hover:bg-opacity-100 transition-all duration-200 flex items-center justify-center w-8 h-8"
                                                                     title="Edit recipe"
                                                                 >
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
@@ -1103,16 +1105,31 @@ function RecipesContent() {
                                                                 </TouchEnhancedButton>
                                                                 <TouchEnhancedButton
                                                                     onClick={() => handleDelete(recipe._id)}
-                                                                    className="bg-red-500 bg-opacity-95 rounded-full p-2 shadow-lg text-white hover:bg-red-600 hover:bg-opacity-100 transition-all duration-200 flex items-center justify-center"
+                                                                    className="bg-red-500 bg-opacity-95 rounded-full p-2 shadow-lg text-white hover:bg-red-600 hover:bg-opacity-100 transition-all duration-200 flex items-center justify-center w-8 h-8"
                                                                     title="Delete recipe"
                                                                 >
                                                                     <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
                                                                         <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                                     </svg>
                                                                 </TouchEnhancedButton>
-                                                            </div>
+                                                            </>
                                                         )}
                                                     </div>
+
+                                                    {/* Hidden SaveRecipeButton for functionality */}
+                                                    {activeTab === 'public-recipes' && (
+                                                        <div className="hidden" data-recipe-id={recipe._id}>
+                                                            <SaveRecipeButton
+                                                                recipeId={recipe._id}
+                                                                recipeName={recipe.title || 'Recipe'}
+                                                                size="small"
+                                                                showText={false}
+                                                                iconOnly={true}
+                                                                onSaveStateChange={handleRecipeSaveStateChange}
+                                                                className="save-recipe-button"
+                                                            />
+                                                        </div>
+                                                    )}
 
                                                     {/* Quick Info Overlay */}
                                                     <div className="absolute bottom-2 left-2 right-2">
