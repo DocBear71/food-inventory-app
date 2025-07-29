@@ -1074,10 +1074,10 @@ function RecipesContent() {
                                                         priority={index < 6} // Prioritize first 6 images
                                                     />
 
-                                                    {/* Overlay Actions */}
-                                                    <div className="absolute top-2 right-2 flex space-x-1">
+                                                    {/* Overlay Actions - FIXED positioning and SaveRecipeButton styling */}
+                                                    <div className="absolute top-3 right-3 flex space-x-2">
                                                         {activeTab === 'public-recipes' && (
-                                                            <div className="bg-white bg-opacity-90 rounded-full p-1.5 shadow-sm">
+                                                            <div className="bg-green-500 bg-opacity-95 rounded-full p-2 shadow-lg transition-all duration-200 flex items-center justify-center hover:bg-green-600 hover:bg-opacity-100">
                                                                 <SaveRecipeButton
                                                                     recipeId={recipe._id}
                                                                     recipeName={recipe.title || 'Recipe'}
@@ -1085,6 +1085,7 @@ function RecipesContent() {
                                                                     showText={false}
                                                                     iconOnly={true}
                                                                     onSaveStateChange={handleRecipeSaveStateChange}
+                                                                    className="text-white"
                                                                 />
                                                             </div>
                                                         )}
