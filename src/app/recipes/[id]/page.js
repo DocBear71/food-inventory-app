@@ -487,6 +487,69 @@ export default function RecipeDetailPage() {
         }
     };
 
+    const debugImageData = async () => {
+        if (!recipe) return;
+
+        console.log('🔍 DEBUG - Recipe Image Data:');
+        console.log('Recipe ID:', recipe._id);
+        console.log('Recipe title:', recipe.title);
+
+        // Check recipe document fields
+        console.log('📄 Recipe Document Fields:');
+        console.log('- recipe.primaryPhoto:', recipe.primaryPhoto);
+        console.log('- recipe.photos (array):', recipe.photos);
+        console.log('- recipe.photoCount:', recipe.photoCount);
+        console.log('- recipe.hasPhotos:', recipe.hasPhotos);
+        console.log('- recipe.uploadedImage:', !!recipe.uploadedImage?.data);
+        console.log('- recipe.extractedImage:', !!recipe.extractedImage?.data);
+        console.log('- recipe.imageUrl:', recipe.imageUrl);
+        console.log('- recipe.hasUserImage:', recipe.hasUserImage);
+
+        // Check photos collection API
+        try {
+            const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+            if (photosResponse.ok) {
+                const photosData = await photosResponse.json();
+                console.log('📸 Photos Collection API Response:');
+                console.log('- Success:', photosData.success);
+                console.log('- Photos count:', photosData.photos?.length || 0);
+                console.log('- Photos data:', photosData.photos);
+
+                if (photosData.photos) {
+                    photosData.photos.forEach((photo, index) => {
+                        console.log(`- Photo ${index}:`, {
+                            id: photo._id,
+                            isPrimary: photo.isPrimary,
+                            originalName: photo.originalName,
+                            source: photo.source
+                        });
+                    });
+                }
+            } else {
+                console.log('❌ Photos API failed:', photosResponse.status);
+            }
+        } catch (error) {
+            console.error('❌ Photos API error:', error);
+        }
+
+        // Check what the hero image would use
+        console.log('🦸 Hero Image Logic Test:');
+        if (recipe.primaryPhoto) {
+            console.log('- Would use primaryPhoto:', recipe.primaryPhoto);
+        } else if (recipe.photos && recipe.photos.length > 0) {
+            console.log('- Would use photos array:', recipe.photos[0]);
+        } else if (recipe.uploadedImage?.data) {
+            console.log('- Would use uploadedImage');
+        } else if (recipe.extractedImage?.data) {
+            console.log('- Would use extractedImage');
+        } else if (recipe.imageUrl) {
+            console.log('- Would use imageUrl:', recipe.imageUrl);
+        } else {
+            console.log('- Would use placeholder');
+        }
+    };
+
+
     const fetchMealPlans = async () => {
         setLoadingMealPlans(true);
         try {
@@ -725,6 +788,13 @@ export default function RecipeDetailPage() {
         };
     }, [originalRecipe]);
 
+    useEffect(() => {
+        if (recipe) {
+            debugImageData();
+        }
+    }, [recipe]);
+
+
     const handleImageUpdate = () => {
         console.log('🖼️ Hero image updated, refreshing...');
         setRefreshHeroImage(prev => prev + 1);
@@ -887,6 +957,13 @@ export default function RecipeDetailPage() {
                             className="bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
                         >
                             Print
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={debugImageData}
+                            className="bg-yellow-600 text-white px-3 py-2 rounded-md hover:bg-yellow-700 text-sm font-medium"
+                        >
+                            🔍 Debug Images
                         </TouchEnhancedButton>
                     </div>
 
