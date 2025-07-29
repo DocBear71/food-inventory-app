@@ -28,16 +28,53 @@ const RecipeHeroImage = ({ recipe, className = "" }) => {
     const [showFullImage, setShowFullImage] = useState(false);
 
     const getImageSrc = () => {
+        console.log('🖼️ RecipeHeroImage - Checking image sources:');
+        console.log('🖼️ Recipe data structure:', {
+            hasUploadedImage: !!recipe.uploadedImage?.data,
+            hasExtractedImage: !!recipe.extractedImage?.data,
+            hasImageUrl: !!recipe.imageUrl,
+            photosArrayExists: !!(recipe.photos && recipe.photos.length > 0),
+            photosCount: recipe.photos?.length || 0,
+            hasPrimaryPhoto: !!recipe.primaryPhoto,
+            primaryPhoto: recipe.primaryPhoto,
+            photoCount: recipe.photoCount,
+            hasPhotosFlag: recipe.hasPhotos
+        });
+
         // Priority: User uploaded image > extracted image > external imageUrl > placeholder
         if (recipe.uploadedImage?.data && !imageError) {
-            return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+            const src = `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+            console.log('🖼️ Using uploadedImage (embedded base64)');
+            return src;
         }
+
         if (recipe.extractedImage?.data && !imageError) {
-            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+            const src = `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+            console.log('🖼️ Using extractedImage (embedded base64)');
+            return src;
         }
+
         if (recipe.imageUrl && !imageError) {
+            console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
             return recipe.imageUrl;
         }
+
+        // ADD THIS CHECK for your new photo system:
+        if (recipe.primaryPhoto && !imageError) {
+            const photoUrl = `/api/recipes/photos/${recipe.primaryPhoto}`;
+            console.log('🖼️ Using primaryPhoto API:', photoUrl);
+            return photoUrl;
+        }
+
+        if (recipe.photos && recipe.photos.length > 0 && !imageError) {
+            const primaryPhoto = recipe.photos.find(p => p.isPrimary) || recipe.photos[0];
+            const photoId = primaryPhoto._id || primaryPhoto;
+            const photoUrl = `/api/recipes/photos/${photoId}`;
+            console.log('🖼️ Using photos array API:', photoUrl);
+            return photoUrl;
+        }
+
+        console.log('🖼️ No image sources found, using placeholder');
         return '/images/recipe-placeholder.jpg';
     };
 
