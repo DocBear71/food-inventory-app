@@ -18,6 +18,18 @@ const nextConfig: NextConfig = {
         remotePatterns: [
             {
                 protocol: 'https',
+                hostname: 'www.docbearscomfort.kitchen',
+                pathname: '/api/recipes/photos/**',
+            },
+            // ADD LOCALHOST FOR DEVELOPMENT
+            {
+                protocol: 'http',
+                hostname: 'localhost',
+                pathname: '/api/recipes/photos/**',
+                port: '3000', // Add your dev port
+            },
+            {
+                protocol: 'https',
                 hostname: 'images.unsplash.com',
             },
             {
@@ -36,7 +48,15 @@ const nextConfig: NextConfig = {
                 protocol: 'https',
                 hostname: 'cdn.pixabay.com',
             }
-        ]
+        ],
+
+        // OPTIONAL: Configure image sizes for optimization
+        deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+        imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+
+        // OPTIONAL: Enable blur placeholder for API images
+        dangerouslyAllowSVG: true,
+        contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     },
 
     // Minimal webpack config to fix NextAuth issues
