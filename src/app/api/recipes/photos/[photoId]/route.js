@@ -1,104 +1,148 @@
-// file: /src/app/api/recipes/photos/[photoId]/route.js - Fixed version of your existing file
+// file: /src/app/api/recipes/photos/[photoId]/route.js - SPECIFIC FIX for Binary.createFromBase64
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { RecipePhoto, Recipe } from '@/lib/models';
-import { unlink } from 'fs/promises';
-import path from 'path';
-import fs from 'fs';
 
-// GET - Serve photo binary data (supports both storage methods)
+// GET - Serve photo binary data (SPECIFIC FIX for your Binary.createFromBase64 format)
 export async function GET(request, { params }) {
     try {
         const { photoId } = await params;
 
         if (!photoId) {
+            console.error('❌ No photoId provided');
             return NextResponse.json({ error: 'Photo ID is required' }, { status: 400 });
         }
 
+        console.log(`📸 Fetching photo: ${photoId}`);
         await connectDB();
 
-        // Try new MongoDB binary storage first
+        // Find the photo
         let photo = await RecipePhoto.findById(photoId).populate('recipeId');
 
-        if (photo) {
-            // NEW: MongoDB binary storage
-            const recipe = photo.recipeId;
+        if (!photo) {
+            console.log(`❌ Photo not found: ${photoId}`);
+            return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
+        }
 
-            // Check if recipe is public or user has access
-            if (!recipe.isPublic) {
-                const session = await getEnhancedSession(request);
-                if (!session?.user?.id || recipe.createdBy.toString() !== session.user.id) {
-                    return NextResponse.json({ error: 'Not authorized to view this photo' }, { status: 403 });
+        console.log(`📸 Found photo: ${photo.originalName}`);
+        console.log(`📸 Data type: ${typeof photo.data}`);
+        console.log(`📸 Data constructor: ${photo.data?.constructor?.name}`);
+        console.log(`📸 Has buffer: ${!!photo.data?.buffer}`);
+        console.log(`📸 BSON type: ${photo.data?._bsontype}`);
+
+        const recipe = photo.recipeId;
+
+        // Check if recipe is public or user has access
+        if (!recipe.isPublic) {
+            const session = await getEnhancedSession(request);
+            if (!session?.user?.id || recipe.createdBy.toString() !== session.user.id) {
+                return NextResponse.json({ error: 'Not authorized to view this photo' }, { status: 403 });
+            }
+        }
+
+        // SPECIFIC FIX: Handle Binary.createFromBase64 format
+        let imageBuffer;
+
+        try {
+            // Your data is stored as Binary.createFromBase64, so we need to handle the MongoDB Binary type
+            if (photo.data && photo.data.constructor && photo.data.constructor.name === 'Binary') {
+                console.log('📸 Processing MongoDB Binary object');
+
+                // Method 1: Try the .buffer property (most common)
+                if (photo.data.buffer) {
+                    console.log('📸 Using .buffer property');
+                    imageBuffer = Buffer.from(photo.data.buffer);
+                }
+                // Method 2: Try the .value() method
+                else if (typeof photo.data.value === 'function') {
+                    console.log('📸 Using .value() method');
+                    imageBuffer = photo.data.value(true); // true returns Buffer
+                }
+                // Method 3: Try toString('base64') then convert back
+                else if (typeof photo.data.toString === 'function') {
+                    console.log('📸 Using .toString("base64") method');
+                    const base64String = photo.data.toString('base64');
+                    imageBuffer = Buffer.from(base64String, 'base64');
+                }
+                // Method 4: Direct binary access for Binary.createFromBase64
+                else {
+                    console.log('📸 Attempting direct binary access');
+                    // For Binary.createFromBase64, the data might be in different properties
+                    const binaryData = photo.data.sub_type !== undefined ? photo.data : photo.data.buffer || photo.data;
+                    imageBuffer = Buffer.from(binaryData);
                 }
             }
-
-            // FIXED: Handle different data storage formats
-            let imageBuffer;
-
-            if (typeof photo.data === 'string') {
-                // Base64 string
-                imageBuffer = Buffer.from(photo.data, 'base64');
-            } else if (Buffer.isBuffer(photo.data)) {
-                // Already a buffer
+            // Handle if it's already a buffer
+            else if (Buffer.isBuffer(photo.data)) {
+                console.log('📸 Data is already a Buffer');
                 imageBuffer = photo.data;
-            } else if (photo.data && photo.data.buffer) {
-                // MongoDB Binary type
+            }
+            // Handle if it's a base64 string
+            else if (typeof photo.data === 'string') {
+                console.log('📸 Data is a base64 string');
+                imageBuffer = Buffer.from(photo.data, 'base64');
+            }
+            // Handle BSON Binary type
+            else if (photo.data && photo.data._bsontype === 'Binary') {
+                console.log('📸 Processing BSON Binary type');
                 imageBuffer = Buffer.from(photo.data.buffer);
-            } else if (photo.data && typeof photo.data === 'object' && photo.data.constructor.name === 'Binary') {
-                // MongoDB Binary type (another format)
-                imageBuffer = Buffer.from(photo.data.value());
-            } else {
-                console.error('Unknown data format for photo:', typeof photo.data, photo.data);
-                return NextResponse.json({ error: 'Invalid photo data format' }, { status: 500 });
+            }
+            else {
+                console.error('❌ Unknown data format:', {
+                    type: typeof photo.data,
+                    constructor: photo.data?.constructor?.name,
+                    keys: photo.data ? Object.keys(photo.data) : []
+                });
+                return NextResponse.json({ error: 'Unsupported photo data format' }, { status: 500 });
+            }
+
+            if (!imageBuffer || imageBuffer.length === 0) {
+                console.error('❌ Failed to create imageBuffer or buffer is empty');
+                return NextResponse.json({ error: 'Failed to process image data' }, { status: 500 });
+            }
+
+            console.log(`✅ Successfully created imageBuffer: ${imageBuffer.length} bytes`);
+            console.log(`✅ Expected size: ${photo.size} bytes`);
+
+            // Validate that we got the right amount of data
+            if (Math.abs(imageBuffer.length - photo.size) > 100) {
+                console.warn(`⚠️ Size mismatch: expected ${photo.size}, got ${imageBuffer.length}`);
             }
 
             // Return binary image with proper headers
             return new NextResponse(imageBuffer, {
                 headers: {
-                    'Content-Type': photo.mimeType,
+                    'Content-Type': photo.mimeType || 'image/jpeg',
                     'Content-Length': imageBuffer.length.toString(),
                     'Cache-Control': 'public, max-age=31536000, immutable',
                     'ETag': `"${photoId}"`,
                     'Content-Disposition': `inline; filename="${photo.originalName || 'recipe-photo'}"`,
+                    'Accept-Ranges': 'bytes',
                 },
             });
+
+        } catch (conversionError) {
+            console.error('❌ Error converting image data:', conversionError);
+            console.error('❌ Stack trace:', conversionError.stack);
+            return NextResponse.json({
+                error: 'Failed to process image data',
+                details: conversionError.message
+            }, { status: 500 });
         }
-
-        // LEGACY: Try old file system storage
-        const { db } = await connectDB();
-        const legacyPhoto = await db.collection('recipe_photos').findOne({ id: photoId });
-
-        if (legacyPhoto) {
-            // Check if file exists
-            const filePath = path.join(process.cwd(), 'public', legacyPhoto.url);
-
-            if (fs.existsSync(filePath)) {
-                // Read file and return
-                const fileBuffer = fs.readFileSync(filePath);
-                const mimeType = legacyPhoto.mimeType || 'image/jpeg';
-
-                return new NextResponse(fileBuffer, {
-                    headers: {
-                        'Content-Type': mimeType,
-                        'Content-Length': fileBuffer.length.toString(),
-                        'Cache-Control': 'public, max-age=31536000, immutable',
-                        'ETag': `"legacy-${photoId}"`,
-                    },
-                });
-            }
-        }
-
-        return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
 
     } catch (error) {
-        console.error('Serve photo error:', error);
-        return NextResponse.json({ error: 'Failed to serve photo' }, { status: 500 });
+        console.error('❌ Serve photo error:', error);
+        console.error('❌ Stack trace:', error.stack);
+        return NextResponse.json({
+            error: 'Failed to serve photo',
+            details: error.message
+        }, { status: 500 });
     }
 }
 
-// DELETE - Delete a photo (supports both storage methods)
+// DELETE - Delete a photo
 export async function DELETE(request, { params }) {
     try {
         const session = await getEnhancedSession(request);
@@ -113,77 +157,46 @@ export async function DELETE(request, { params }) {
         }
 
         await connectDB();
+        const photo = await RecipePhoto.findById(photoId);
 
-        // Try new MongoDB binary storage first
-        let photo = await RecipePhoto.findById(photoId);
-
-        if (photo) {
-            // NEW: MongoDB binary storage deletion
-
-            // Check if user owns this photo
-            if (photo.uploadedBy.toString() !== session.user.id) {
-                return NextResponse.json({ error: 'Not authorized to delete this photo' }, { status: 403 });
-            }
-
-            const recipeId = photo.recipeId;
-            const wasPrimary = photo.isPrimary;
-
-            // Delete the photo from MongoDB
-            await RecipePhoto.findByIdAndDelete(photoId);
-
-            // Update recipe references
-            const remainingPhotos = await RecipePhoto.find({ recipeId });
-
-            await Recipe.findByIdAndUpdate(recipeId, {
-                $pull: { photos: photoId },
-                photoCount: remainingPhotos.length,
-                hasPhotos: remainingPhotos.length > 0,
-                ...(wasPrimary && remainingPhotos.length > 0 && {
-                    primaryPhoto: remainingPhotos[0]._id
-                }),
-                ...(remainingPhotos.length === 0 && {
-                    $unset: { primaryPhoto: 1 }
-                })
-            });
-
-            // If this was the primary photo and there are other photos, make the first one primary
-            if (wasPrimary && remainingPhotos.length > 0) {
-                await RecipePhoto.findByIdAndUpdate(remainingPhotos[0]._id, { isPrimary: true });
-            }
-
-            return NextResponse.json({
-                success: true,
-                message: 'Photo deleted successfully',
-                storageType: 'mongodb'
-            });
+        if (!photo) {
+            return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
         }
 
-        // LEGACY: Try old file system storage
-        const { db } = await connectDB();
-        const legacyPhoto = await db.collection('recipe_photos').findOne({ id: photoId });
-
-        if (legacyPhoto) {
-            // Delete file from filesystem
-            const filePath = path.join(process.cwd(), 'public', legacyPhoto.url);
-            try {
-                await unlink(filePath);
-                console.log(`🗑️ Deleted legacy photo file: ${filePath}`);
-            } catch (fileError) {
-                console.error('Error deleting legacy file:', fileError);
-                // Continue with database deletion even if file delete fails
-            }
-
-            // Delete from legacy collection
-            await db.collection('recipe_photos').deleteOne({ id: photoId });
-
-            return NextResponse.json({
-                success: true,
-                message: 'Legacy photo deleted successfully',
-                storageType: 'filesystem'
-            });
+        // Check if user owns this photo
+        if (photo.uploadedBy.toString() !== session.user.id) {
+            return NextResponse.json({ error: 'Not authorized to delete this photo' }, { status: 403 });
         }
 
-        return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
+        const recipeId = photo.recipeId;
+        const wasPrimary = photo.isPrimary;
+
+        // Delete the photo from MongoDB
+        await RecipePhoto.findByIdAndDelete(photoId);
+
+        // Update recipe references
+        const remainingPhotos = await RecipePhoto.find({ recipeId });
+
+        await Recipe.findByIdAndUpdate(recipeId, {
+            $pull: { photos: photoId },
+            photoCount: remainingPhotos.length,
+            hasPhotos: remainingPhotos.length > 0,
+            ...(wasPrimary && remainingPhotos.length > 0 && {
+                primaryPhoto: remainingPhotos[0]._id
+            }),
+            ...(remainingPhotos.length === 0 && {
+                $unset: { primaryPhoto: 1 }
+            })
+        });
+
+        if (wasPrimary && remainingPhotos.length > 0) {
+            await RecipePhoto.findByIdAndUpdate(remainingPhotos[0]._id, { isPrimary: true });
+        }
+
+        return NextResponse.json({
+            success: true,
+            message: 'Photo deleted successfully'
+        });
 
     } catch (error) {
         console.error('Delete photo error:', error);
@@ -191,7 +204,7 @@ export async function DELETE(request, { params }) {
     }
 }
 
-// PUT - Update photo metadata (supports both storage methods)
+// PUT - Update photo metadata
 export async function PUT(request, { params }) {
     try {
         const session = await getEnhancedSession(request);
@@ -206,189 +219,51 @@ export async function PUT(request, { params }) {
         }
 
         const updates = await request.json();
-
         await connectDB();
 
-        // Try new MongoDB binary storage first
-        let photo = await RecipePhoto.findById(photoId);
+        const photo = await RecipePhoto.findById(photoId);
 
-        if (photo) {
-            // NEW: MongoDB binary storage update
+        if (!photo) {
+            return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
+        }
 
-            // Check if user owns this photo
-            if (photo.uploadedBy.toString() !== session.user.id) {
-                return NextResponse.json({ error: 'Not authorized to update this photo' }, { status: 403 });
-            }
+        if (photo.uploadedBy.toString() !== session.user.id) {
+            return NextResponse.json({ error: 'Not authorized to update this photo' }, { status: 403 });
+        }
 
-            // If setting as primary, unset other primary photos for this recipe
-            if (updates.isPrimary === true) {
-                await RecipePhoto.updateMany(
-                    { recipeId: photo.recipeId, _id: { $ne: photoId } },
-                    { isPrimary: false }
-                );
+        if (updates.isPrimary === true) {
+            await RecipePhoto.updateMany(
+                { recipeId: photo.recipeId, _id: { $ne: photoId } },
+                { isPrimary: false }
+            );
 
-                // Update recipe's primary photo reference
-                await Recipe.findByIdAndUpdate(photo.recipeId, {
-                    primaryPhoto: photoId
-                });
-            }
-
-            // Update allowed fields
-            const allowedUpdates = ['isPrimary', 'aiAnalysis', 'searchMetadata'];
-            allowedUpdates.forEach(field => {
-                if (updates[field] !== undefined) {
-                    photo[field] = updates[field];
-                }
-            });
-
-            await photo.save();
-
-            // Return photo info without binary data
-            const { data, ...photoInfo } = photo.toObject();
-
-            return NextResponse.json({
-                success: true,
-                photo: {
-                    ...photoInfo,
-                    url: `/api/recipes/photos/${photo._id}`
-                },
-                message: 'Photo updated successfully',
-                storageType: 'mongodb'
+            await Recipe.findByIdAndUpdate(photo.recipeId, {
+                primaryPhoto: photoId
             });
         }
 
-        // LEGACY: Handle old file system storage updates
-        const { db } = await connectDB();
-        const legacyPhoto = await db.collection('recipe_photos').findOne({ id: photoId });
-
-        if (legacyPhoto) {
-            // Update legacy photo metadata
-            const updateFields = {};
-
-            if (updates.isPrimary !== undefined) {
-                updateFields.isPrimary = updates.isPrimary;
-
-                // If setting as primary, unset other primary photos
-                if (updates.isPrimary === true) {
-                    await db.collection('recipe_photos').updateMany(
-                        { recipeId: legacyPhoto.recipeId, id: { $ne: photoId } },
-                        { $set: { isPrimary: false } }
-                    );
-                }
+        const allowedUpdates = ['isPrimary', 'aiAnalysis', 'searchMetadata'];
+        allowedUpdates.forEach(field => {
+            if (updates[field] !== undefined) {
+                photo[field] = updates[field];
             }
+        });
 
-            if (Object.keys(updateFields).length > 0) {
-                await db.collection('recipe_photos').updateOne(
-                    { id: photoId },
-                    { $set: updateFields }
-                );
-            }
+        await photo.save();
 
-            const updatedPhoto = await db.collection('recipe_photos').findOne({ id: photoId });
+        const { data, ...photoInfo } = photo.toObject();
 
-            return NextResponse.json({
-                success: true,
-                photo: {
-                    ...updatedPhoto,
-                    url: `/api/recipes/photos/${photoId}`
-                },
-                message: 'Legacy photo updated successfully',
-                storageType: 'filesystem'
-            });
-        }
-
-        return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
+        return NextResponse.json({
+            success: true,
+            photo: {
+                ...photoInfo,
+                url: `/api/recipes/photos/${photo._id}`
+            },
+            message: 'Photo updated successfully'
+        });
 
     } catch (error) {
         console.error('Update photo error:', error);
         return NextResponse.json({ error: 'Failed to update photo' }, { status: 500 });
-    }
-}
-
-// MIGRATION HELPER - Convert legacy photos to MongoDB binary storage
-export async function PATCH(request, { params }) {
-    try {
-        const session = await getEnhancedSession(request);
-        const { photoId } = await params;
-
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-        }
-
-        // Check if user is admin or owns the photo
-        // You might want to restrict this to admin users only
-
-        const { action } = await request.json();
-
-        if (action !== 'migrate-to-mongodb') {
-            return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-        }
-
-        await connectDB();
-        const { db } = await connectDB();
-
-        // Get legacy photo
-        const legacyPhoto = await db.collection('recipe_photos').findOne({ id: photoId });
-
-        if (!legacyPhoto) {
-            return NextResponse.json({ error: 'Legacy photo not found' }, { status: 404 });
-        }
-
-        // Check if file exists
-        const filePath = path.join(process.cwd(), 'public', legacyPhoto.url);
-
-        if (!fs.existsSync(filePath)) {
-            return NextResponse.json({ error: 'Photo file not found on filesystem' }, { status: 404 });
-        }
-
-        // Read file into buffer
-        const fileBuffer = fs.readFileSync(filePath);
-        const stats = fs.statSync(filePath);
-
-        // Create new MongoDB binary photo record
-        const newPhoto = new RecipePhoto({
-            recipeId: legacyPhoto.recipeId,
-            filename: path.basename(legacyPhoto.url),
-            originalName: legacyPhoto.originalName || path.basename(legacyPhoto.url),
-            mimeType: legacyPhoto.mimeType || 'image/jpeg',
-            size: stats.size,
-            data: fileBuffer.toString('base64'), // Store as base64 for consistency
-            isPrimary: legacyPhoto.isPrimary || false,
-            source: 'user_upload', // Assume legacy photos were user uploads
-            uploadedBy: session.user.id,
-            uploadedAt: legacyPhoto.createdAt || new Date()
-        });
-
-        await newPhoto.save();
-
-        // Update recipe to reference new photo
-        await Recipe.findByIdAndUpdate(legacyPhoto.recipeId, {
-            $addToSet: { photos: newPhoto._id },
-            $inc: { photoCount: 1 },
-            hasPhotos: true,
-            ...(legacyPhoto.isPrimary && { primaryPhoto: newPhoto._id })
-        });
-
-        // Delete legacy photo from database and filesystem
-        await db.collection('recipe_photos').deleteOne({ id: photoId });
-
-        try {
-            await unlink(filePath);
-            console.log(`🔄 Migrated and deleted legacy photo: ${filePath}`);
-        } catch (error) {
-            console.warn(`⚠️ Could not delete legacy file: ${filePath}`, error);
-        }
-
-        return NextResponse.json({
-            success: true,
-            message: 'Photo migrated to MongoDB binary storage',
-            newPhotoId: newPhoto._id,
-            legacyPhotoId: photoId,
-            fileSize: stats.size
-        });
-
-    } catch (error) {
-        console.error('Migration error:', error);
-        return NextResponse.json({ error: 'Failed to migrate photo' }, { status: 500 });
     }
 }
