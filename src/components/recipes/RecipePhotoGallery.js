@@ -212,6 +212,8 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                                 fill
                                 className="object-cover cursor-pointer transition-transform group-hover:scale-105"
                                 onClick={() => openModal(primaryPhoto)}
+                                unoptimized={true}
+                                sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                             />
                         </div>
 
@@ -256,6 +258,8 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                                         fill
                                         className="object-cover cursor-pointer transition-transform group-hover:scale-105"
                                         onClick={() => openModal(photo)}
+                                        unoptimized={true}
+                                        sizes="(max-width: 768px) 50vw, (max-width: 1200px) 33vw, 25vw"
                                     />
                                 </div>
 
