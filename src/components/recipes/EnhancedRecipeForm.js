@@ -1701,26 +1701,28 @@ export default function EnhancedRecipeForm({
                             )}
                         </div>
 
-                        {/* Ingredients - MOBILE RESPONSIVE */}
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                                Ingredients ({recipe.ingredients.length})
-                            </h3>
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={() => setShowVoiceIngredients(true)}
-                                className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
-                            >
-                                🎤 Add by Voice
-                            </TouchEnhancedButton>
+                        // FIXED: Ingredients Section - Replace in your EnhancedRecipeForm.js
+                        {/* Ingredients - MOBILE RESPONSIVE - FIXED STRUCTURE */}
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Ingredients ({recipe.ingredients.length})
+                                </h3>
+                                <TouchEnhancedButton
+                                    type="button"
+                                    onClick={() => setShowVoiceIngredients(true)}
+                                    className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
+                                >
+                                    🎤 Add by Voice
+                                </TouchEnhancedButton>
+                            </div>
 
                             <div className="space-y-4">
                                 {recipe.ingredients.map((ingredient, index) => (
                                     <div key={index} className="border border-gray-200 rounded-lg p-4">
                                         {/* Top row: Optional checkbox and Delete button */}
                                         <div className="flex items-center justify-between mb-3">
-                                            <label
-                                                className="flex items-center text-sm text-gray-600 pl-2"> {/* Add pl-2 for left padding */}
+                                            <label className="flex items-center text-sm text-gray-600 pl-2">
                                                 <input
                                                     type="checkbox"
                                                     checked={ingredient.optional}
@@ -1744,8 +1746,7 @@ export default function EnhancedRecipeForm({
                                             {/* Amount and Unit row on mobile, side by side */}
                                             <div className="flex gap-3 sm:w-auto">
                                                 <div className="flex-1 sm:w-24">
-                                                    <label
-                                                        className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                    <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                         Amount
                                                     </label>
                                                     <input
@@ -1758,8 +1759,7 @@ export default function EnhancedRecipeForm({
                                                     />
                                                 </div>
                                                 <div className="flex-1 sm:w-24">
-                                                    <label
-                                                        className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                    <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                         Unit
                                                     </label>
                                                     <input
@@ -1775,8 +1775,7 @@ export default function EnhancedRecipeForm({
 
                                             {/* Ingredient name - full width on mobile */}
                                             <div className="flex-1">
-                                                <label
-                                                    className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                     Ingredient
                                                 </label>
                                                 <input
@@ -1803,18 +1802,20 @@ export default function EnhancedRecipeForm({
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* Instructions Section - FIXED */}
-                        <div className="flex items-center justify-between mb-4">
-                            <h3 className="text-lg font-semibold text-gray-900">
-                                Instructions ({recipe.instructions.length})
-                            </h3>
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={() => setShowVoiceInstructions(true)}
-                                className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
-                            >
-                                🎤 Add by Voice
-                            </TouchEnhancedButton>
+                        {/* Instructions Section - FIXED STRUCTURE */}
+                        <div className="bg-white shadow rounded-lg p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">
+                                    Instructions ({recipe.instructions.length})
+                                </h3>
+                                <TouchEnhancedButton
+                                    type="button"
+                                    onClick={() => setShowVoiceInstructions(true)}
+                                    className="bg-purple-600 text-white px-3 py-2 rounded-md hover:bg-purple-700 text-sm font-medium flex items-center gap-2"
+                                >
+                                    🎤 Add by Voice
+                                </TouchEnhancedButton>
+                            </div>
 
                             <div className="space-y-4">
                                 {recipe.instructions.map((instruction, index) => {
@@ -1826,8 +1827,7 @@ export default function EnhancedRecipeForm({
                                         <div key={index} className="border border-gray-200 rounded-lg p-4">
                                             {/* Top row: Step number and Delete button */}
                                             <div className="flex justify-between items-center mb-3">
-                                                <div
-                                                    className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
+                                                <div className="flex-shrink-0 w-10 h-10 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
                                                     {stepNumber}
                                                 </div>
                                                 <TouchEnhancedButton
