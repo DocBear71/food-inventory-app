@@ -1,9 +1,10 @@
 'use client';
-// file: /src/app/recipes/[id]/page.js v11 - FIXED transformation handling and reset functionality
+// file: /src/app/recipes/[id]/page.js v12 - Enhanced with recipe images
 
 import { useEffect, useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useParams, useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
 import NutritionFacts from '@/components/nutrition/NutritionFacts';
@@ -20,6 +21,132 @@ import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
 
+// Hero Recipe Image Component
+const RecipeHeroImage = ({ recipe, className = "" }) => {
+    const [imageError, setImageError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [showFullImage, setShowFullImage] = useState(false);
+
+    const getImageSrc = () => {
+        // Priority: User uploaded image > extracted image > external imageUrl > placeholder
+        if (recipe.uploadedImage?.data && !imageError) {
+            return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+        }
+        if (recipe.extractedImage?.data && !imageError) {
+            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+        }
+        if (recipe.imageUrl && !imageError) {
+            return recipe.imageUrl;
+        }
+        return '/images/recipe-placeholder.jpg';
+    };
+
+    const getImageAlt = () => {
+        return recipe.title || 'Recipe image';
+    };
+
+    const getImageAttribution = () => {
+        // Show user upload status first
+        if (recipe.hasUserImage || recipe.uploadedImage?.data) {
+            return 'Photo uploaded by user';
+        }
+        if (recipe.extractedImage?.data) {
+            return `AI extracted from ${recipe.extractedImage.source || 'video'}`;
+        }
+        if (recipe.imageAttribution && recipe.imageAttribution !== 'Unknown from Unknown') {
+            return recipe.imageAttribution;
+        }
+        if (recipe.imageSource === 'unsplash') {
+            return 'Photo from Unsplash';
+        }
+        if (recipe.imageSource === 'pexels_enhanced') {
+            return 'Photo from Pexels';
+        }
+        return null;
+    };
+
+    return (
+        <>
+            <div className={`relative overflow-hidden ${className}`}>
+                <Image
+                    src={getImageSrc()}
+                    alt={getImageAlt()}
+                    fill
+                    className={`object-cover transition-all duration-500 cursor-pointer ${
+                        imageLoaded ? 'opacity-100' : 'opacity-0'
+                    } hover:scale-105`}
+                    onLoad={() => setImageLoaded(true)}
+                    onError={() => setImageError(true)}
+                    onClick={() => setShowFullImage(true)}
+                    priority={true}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
+                />
+
+                {/* Loading placeholder */}
+                {!imageLoaded && !imageError && (
+                    <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+                        <div className="text-gray-400">
+                            <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                            </svg>
+                        </div>
+                    </div>
+                )}
+
+                {/* Image attribution overlay */}
+                {getImageAttribution() && imageLoaded && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4">
+                        <div className="text-white text-sm opacity-75">
+                            📷 {getImageAttribution()}
+                        </div>
+                    </div>
+                )}
+
+                {                /* User image indicator */}
+                {(recipe.hasUserImage || recipe.uploadedImage?.data) && (
+                    <div className="absolute top-4 right-4 bg-green-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                        📷 User Photo
+                    </div>
+                )}
+
+                {/* Click to expand indicator */}
+                <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white text-sm px-3 py-1 rounded-full opacity-0 hover:opacity-100 transition-opacity">
+                    🔍 Click to enlarge
+                </div>
+            </div>
+
+            {/* Full Image Modal */}
+            {showFullImage && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+                    onClick={() => setShowFullImage(false)}
+                >
+                    <div className="relative max-w-4xl max-h-full">
+                        <Image
+                            src={getImageSrc()}
+                            alt={getImageAlt()}
+                            width={800}
+                            height={600}
+                            className="object-contain max-w-full max-h-full"
+                            onClick={(e) => e.stopPropagation()}
+                        />
+                        <TouchEnhancedButton
+                            onClick={() => setShowFullImage(false)}
+                            className="absolute top-4 right-4 bg-white bg-opacity-20 text-white text-2xl w-10 h-10 rounded-full flex items-center justify-center hover:bg-opacity-30"
+                        >
+                            ×
+                        </TouchEnhancedButton>
+                        {getImageAttribution() && (
+                            <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white text-sm px-3 py-1 rounded">
+                                📷 {getImageAttribution()}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </>
+    );
+};
 
 export default function RecipeDetailPage() {
     let session = null;
@@ -28,7 +155,6 @@ export default function RecipeDetailPage() {
         const sessionResult = useSafeSession();
         session = sessionResult?.data || null;
     } catch (error) {
-        // Mobile build fallback
         session = null;
     }
     const params = useParams();
@@ -63,11 +189,12 @@ export default function RecipeDetailPage() {
         }
     }, [recipe]);
 
-    // Add this function to handle photo uploads:
-    const handlePhotoUploaded = (photo) => {
+    // Handle photo uploads - updated to work with your existing RecipePhotoUpload component
+    const handlePhotoUploaded = () => {
+        console.log('📸 Photos updated, refreshing gallery');
         setRefreshPhotos(prev => prev + 1);
         setShowPhotoUpload(false);
-        // Optionally refresh the recipe to get updated photo count
+        // Optionally refresh the entire recipe to get updated data
         fetchRecipe();
     };
 
@@ -78,8 +205,7 @@ export default function RecipeDetailPage() {
 
             if (data.success) {
                 setRecipe(data.recipe);
-                setOriginalRecipe(data.recipe); // Store original for revert
-                // Increment view count
+                setOriginalRecipe(data.recipe);
                 await apiPost(`/api/recipes/${recipeId}/view`, {});
             } else {
                 setError(data.error || 'Recipe not found');
@@ -168,20 +294,16 @@ export default function RecipeDetailPage() {
         return colors[difficulty] || colors.medium;
     };
 
-    // FIXED: Improved scaling function to handle different data types
     const getScaledAmount = (amount) => {
         if (!amount || !recipe?.servings) return amount;
 
-        // Convert amount to string if it's not already
         const amountStr = String(amount);
 
-        // Extract number from amount string - handles decimals and fractions
         const match = amountStr.match(/^(\d+(?:\.\d+)?|\d+\/\d+)/);
         if (match) {
             const originalNumber = match[1];
             let number;
 
-            // Handle fractions like "1/2"
             if (originalNumber.includes('/')) {
                 const [numerator, denominator] = originalNumber.split('/');
                 number = parseFloat(numerator) / parseFloat(denominator);
@@ -191,17 +313,13 @@ export default function RecipeDetailPage() {
 
             const scaledNumber = (number * servings) / recipe.servings;
 
-            // Format the scaled number nicely
             let formattedNumber;
             if (scaledNumber % 1 === 0) {
-                // Whole number
                 formattedNumber = scaledNumber.toString();
             } else if (scaledNumber < 1) {
-                // Convert to fraction if it's a simple fraction
                 const fraction = getFractionFromDecimal(scaledNumber);
                 formattedNumber = fraction || scaledNumber.toFixed(2);
             } else {
-                // Round to 2 decimal places and remove trailing zeros
                 formattedNumber = parseFloat(scaledNumber.toFixed(2)).toString();
             }
 
@@ -210,7 +328,6 @@ export default function RecipeDetailPage() {
         return amountStr;
     };
 
-    // Helper function to convert decimals to common fractions
     const getFractionFromDecimal = (decimal) => {
         const commonFractions = {
             0.125: '1/8',
@@ -224,35 +341,28 @@ export default function RecipeDetailPage() {
             0.875: '7/8'
         };
 
-        // Round to 3 decimal places for comparison
         const rounded = Math.round(decimal * 1000) / 1000;
         return commonFractions[rounded] || null;
     };
 
-    // Check if recipe has nutrition data - handle both structured and simple formats
     const hasNutritionData = recipe?.nutrition && (
-        // Structured format: { calories: { value: 203 } }
         (recipe.nutrition.calories && (recipe.nutrition.calories.value > 0 || recipe.nutrition.calories > 0)) ||
         (recipe.nutrition.protein && (recipe.nutrition.protein.value > 0 || recipe.nutrition.protein > 0)) ||
         (recipe.nutrition.fat && (recipe.nutrition.fat.value > 0 || recipe.nutrition.fat > 0)) ||
         (recipe.nutrition.carbs && (recipe.nutrition.carbs.value > 0 || recipe.nutrition.carbs > 0)) ||
-        // Simple format: { calories: 203 }
         (typeof recipe.nutrition.calories === 'number' && recipe.nutrition.calories > 0) ||
         (typeof recipe.nutrition.protein === 'number' && recipe.nutrition.protein > 0) ||
         (typeof recipe.nutrition.fat === 'number' && recipe.nutrition.fat > 0) ||
         (typeof recipe.nutrition.carbs === 'number' && recipe.nutrition.carbs > 0)
     );
 
-    // Convert simple nutrition format to structured format for the component
     const getNormalizedNutrition = () => {
         if (!recipe?.nutrition) return null;
 
-        // If already in structured format, return as-is
         if (recipe.nutrition.calories && typeof recipe.nutrition.calories === 'object') {
             return recipe.nutrition;
         }
 
-        // Convert simple format to structured format
         return {
             calories: {
                 value: parseFloat(recipe.nutrition.calories) || 0,
@@ -287,10 +397,8 @@ export default function RecipeDetailPage() {
         };
     };
 
-    // Handle meal planning feature gate
     const handleMealPlanClick = () => {
         if (!mealPlanFeatureGate.canUse) {
-            // Redirect to pricing page for free users
             window.location.href = `/pricing?source=meal-planning&feature=${FEATURE_GATES.CREATE_MEAL_PLAN}&required=${mealPlanFeatureGate.requiredTier}`;
             return;
         }
@@ -299,15 +407,12 @@ export default function RecipeDetailPage() {
         setShowMealPlanModal(true);
     };
 
-    // FIXED: Enhanced transformation change handler
     const handleTransformationChange = (transformedRecipe) => {
         console.log('🔄 Recipe transformation applied:', transformedRecipe);
 
-        // Create a deep copy to avoid mutation issues
         const updatedRecipe = {
             ...recipe,
             ...transformedRecipe,
-            // Ensure we keep the original recipe metadata
             _id: recipe._id,
             title: recipe.title,
             description: recipe.description,
@@ -319,22 +424,18 @@ export default function RecipeDetailPage() {
         console.log('🔄 Setting updated recipe:', updatedRecipe);
         setRecipe(updatedRecipe);
 
-        // Update servings if changed
         if (transformedRecipe.servings && transformedRecipe.servings !== servings) {
             setServings(transformedRecipe.servings);
         }
     };
 
-    // FIXED: Enhanced revert functionality that actually works
     const handleRevert = () => {
         console.log('🔄 Reverting to original recipe - Current recipe:', recipe);
         console.log('🔄 Original recipe stored:', originalRecipe);
 
         if (originalRecipe) {
-            // Create a completely clean copy of the original recipe
             const revertedRecipe = JSON.parse(JSON.stringify(originalRecipe));
 
-            // Ensure transformation flags are cleared
             delete revertedRecipe.transformationApplied;
             delete revertedRecipe.currentMeasurementSystem;
             delete revertedRecipe.currentServings;
@@ -344,12 +445,10 @@ export default function RecipeDetailPage() {
             setServings(originalRecipe.servings || 4);
         } else {
             console.error('❌ No original recipe stored for revert');
-            // Fallback: reload the recipe from server
             fetchRecipe();
         }
     };
 
-    // FIXED: Make reset function globally available for widgets
     useEffect(() => {
         window.handleRevertFromWidget = handleRevert;
         return () => {
@@ -415,6 +514,16 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
+                    {/* Hero Image Section - Works with both photo systems */}
+                    {(recipe.imageUrl || recipe.uploadedImage?.data || recipe.extractedImage?.data) && (
+                        <div className="mb-8">
+                            <RecipeHeroImage
+                                recipe={recipe}
+                                className="w-full h-64 md:h-80 lg:h-96 rounded-xl shadow-lg"
+                            />
+                        </div>
+                    )}
+
                     {/* Title and Description */}
                     <div className="mb-6">
                         <h1 className="text-3xl font-bold text-gray-900 mb-2">{recipe.title}</h1>
@@ -433,9 +542,8 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
-                    {/* UPDATED: Action Buttons - Separate row with better wrapping */}
+                    {/* Action Buttons */}
                     <div className="flex flex-wrap gap-2 mb-6">
-                        {/* Show edit button if user owns the recipe */}
                         {session?.user?.id === recipe.createdBy?._id && (
                             <TouchEnhancedButton
                                 onClick={() => router.push(`/recipes/${recipeId}/edit`)}
@@ -451,7 +559,6 @@ export default function RecipeDetailPage() {
                             recipeName={recipe.title}
                         />
 
-                        {/* UPDATED: Meal Planning Button with Feature Gate */}
                         <TouchEnhancedButton
                             onClick={handleMealPlanClick}
                             className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
@@ -474,7 +581,6 @@ export default function RecipeDetailPage() {
                             )}
                         </TouchEnhancedButton>
 
-                        {/* Shopping List Button */}
                         <TouchEnhancedButton
                             onClick={() => setShowQuickShoppingList(true)}
                             className="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
@@ -557,7 +663,7 @@ export default function RecipeDetailPage() {
                         {/* Recipe Photos Section */}
                         <div className="bg-white rounded-lg border p-6">
                             <div className="flex items-center justify-between mb-4">
-                                <h2 className="text-xl font-semibold text-gray-900">Photos</h2>
+                                <h2 className="text-xl font-semibold text-gray-900">Additional Photos</h2>
                                 {session?.user?.id === recipe.createdBy?._id && (
                                     <TouchEnhancedButton
                                         onClick={() => setShowPhotoUpload(!showPhotoUpload)}
@@ -567,6 +673,36 @@ export default function RecipeDetailPage() {
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
                                         </svg>
                                         <span>Add Photo</span>
+                                    </TouchEnhancedButton>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* User image indicator */}
+                        {(recipe.hasUserImage || recipe.uploadedImage?.data) && (
+                            <div className="absolute top-4 right-4 bg-green-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                                📷 User Photo
+                            </div>
+                        )}
+
+                        {/* AI extracted indicator */}
+                        {recipe.extractedImage?.data && !recipe.uploadedImage?.data && (
+                            <div className="absolute top-4 right-4 bg-purple-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                                🤖 AI Extracted
+                            </div>
+                        )}                        {/* Recipe Photos Section - Updated to work with your existing components */}
+                        <div className="bg-white rounded-lg border p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-semibold text-gray-900">Recipe Photos</h2>
+                                {session?.user?.id === recipe.createdBy?._id && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowPhotoUpload(!showPhotoUpload)}
+                                        className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm font-medium flex items-center space-x-2"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                        </svg>
+                                        <span>Add Photos</span>
                                     </TouchEnhancedButton>
                                 )}
                             </div>
@@ -586,10 +722,9 @@ export default function RecipeDetailPage() {
                             <RecipePhotoGallery
                                 recipeId={recipe._id}
                                 canEdit={session?.user?.id === recipe.createdBy?._id}
-                                key={refreshPhotos} // Force refresh when photos change
+                                key={refreshPhotos}
                             />
                         </div>
-                        <br/>
 
                         {/* RECIPE TRANSFORMATION PANEL */}
                         <RecipeTransformationPanel
@@ -600,7 +735,7 @@ export default function RecipeDetailPage() {
                             defaultExpanded={false}
                         />
 
-                        {/* FIXED: Ingredients section with debug logging */}
+                        {/* Ingredients section */}
                         <div className="bg-white rounded-lg border p-6">
                             <div className="flex items-center justify-between mb-4">
                                 <h2 className="text-xl font-semibold text-gray-900">Ingredients</h2>
@@ -608,13 +743,12 @@ export default function RecipeDetailPage() {
                                     <div className="flex items-center space-x-2">
                                         <span className="text-sm font-medium text-gray-700">Servings:</span>
                                         <span className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-sm font-medium text-gray-900 min-w-[3rem] text-center">
-        {servings}
-    </span>
+                                            {servings}
+                                        </span>
                                     </div>
                                 )}
                             </div>
 
-                            {/* DEBUG: Show ingredient count */}
                             <div className="mb-2 text-xs text-gray-500">
                                 {recipe.ingredients?.length || 0} ingredients •
                                 {recipe.transformationApplied ? ` Transformed (${recipe.transformationApplied.type})` : ' Original'}
@@ -623,7 +757,6 @@ export default function RecipeDetailPage() {
                             <ul className="space-y-2">
                                 {recipe.ingredients?.length > 0 ? (
                                     recipe.ingredients.map((ingredient, index) => {
-                                        // FIXED: Extract ingredient data from complex Mongoose objects
                                         const ingredientData = ingredient._doc || ingredient;
                                         const name = ingredientData.name || ingredient.name || 'Unknown ingredient';
                                         const amount = ingredient.amount || ingredientData.amount;
@@ -655,13 +788,11 @@ export default function RecipeDetailPage() {
                                                     {optional && (
                                                         <span className="text-gray-500 text-sm"> (optional)</span>
                                                     )}
-                                                    {/* FIXED: Show conversion notes if present */}
                                                     {ingredient.conversionMethod && ingredient.conversionMethod !== 'no_conversion_needed' && (
                                                         <span className="text-blue-600 text-xs ml-2">
                                                             ({ingredient.conversionMethod.replace(/_/g, ' ')})
                                                         </span>
                                                     )}
-                                                    {/* FIXED: Show scaling notes if present */}
                                                     {ingredient.scalingNotes && (
                                                         <span className="text-green-600 text-xs ml-2">
                                                             ({ingredient.scalingNotes})
@@ -682,22 +813,20 @@ export default function RecipeDetailPage() {
                             <h2 className="text-xl font-semibold text-gray-900 mb-4">Instructions</h2>
                             <ol className="space-y-4">
                                 {recipe.instructions?.map((instruction, index) => {
-                                    // Handle both string instructions and video instruction objects
                                     const instructionText = typeof instruction === 'string' ? instruction : instruction.text;
                                     const hasVideoTimestamp = typeof instruction === 'object' && instruction.videoTimestamp;
 
                                     return (
                                         <li key={index} className="flex items-start space-x-4">
-                    <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                        hasVideoTimestamp
-                            ? 'bg-purple-600 text-white'
-                            : 'bg-indigo-600 text-white'
-                    }`}>
-                        {typeof instruction === 'object' ? instruction.step || (index + 1) : (index + 1)}
-                    </span>
+                                            <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                                                hasVideoTimestamp
+                                                    ? 'bg-purple-600 text-white'
+                                                    : 'bg-indigo-600 text-white'
+                                            }`}>
+                                                {typeof instruction === 'object' ? instruction.step || (index + 1) : (index + 1)}
+                                            </span>
                                             <div className="flex-1">
                                                 <p className="text-gray-700 leading-relaxed">{instructionText}</p>
-                                                {/* Show video timestamp link if available */}
                                                 {hasVideoTimestamp && instruction.videoLink && (
                                                     <div className="mt-2">
                                                         <a
@@ -720,15 +849,14 @@ export default function RecipeDetailPage() {
                                 })}
                             </ol>
 
-                            {/* Show video source info if this recipe has video timestamps */}
                             {recipe.videoMetadata?.videoSource && (
                                 <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                                     <div className="flex items-center justify-between">
                                         <div className="flex items-center">
                                             <span className="text-purple-600 mr-2">🎥</span>
                                             <span className="text-sm text-purple-800 font-medium">
-                        Extracted from {recipe.videoMetadata.videoPlatform} video
-                    </span>
+                                                Extracted from {recipe.videoMetadata.videoPlatform} video
+                                            </span>
                                         </div>
                                         <a
                                             href={recipe.videoMetadata.videoSource}
@@ -757,11 +885,47 @@ export default function RecipeDetailPage() {
 
                     {/* RIGHT COLUMN - Sidebar */}
                     <div className="space-y-6">
-                        {/* Recipe Info Card - Updated with user tracking */}
+                        {/* Recipe Info Card */}
                         <div className="bg-white rounded-lg border p-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Info</h3>
                             <div className="space-y-3 text-sm">
-                                {/* Source */}
+                                {/* Image Source Info - Enhanced */}
+                                {(recipe.imageUrl || recipe.uploadedImage?.data || recipe.extractedImage?.data) && (
+                                    <div>
+                                        <span className="text-gray-500">Image:</span>
+                                        <div className="ml-2 text-gray-900">
+                                            {recipe.hasUserImage || recipe.uploadedImage?.data ? (
+                                                <span className="text-green-600 font-medium">📷 User uploaded</span>
+                                            ) : recipe.extractedImage?.data ? (
+                                                <div>
+                                                    <span className="text-purple-600 font-medium">🤖 AI extracted</span>
+                                                    {recipe.extractedImage.extractionMethod && (
+                                                        <div className="text-xs text-gray-500 mt-1">
+                                                            Method: {recipe.extractedImage.extractionMethod.replace(/_/g, ' ')}
+                                                        </div>
+                                                    )}
+                                                    {recipe.extractedImage.confidence && (
+                                                        <div className="text-xs text-gray-500">
+                                                            Confidence: {(recipe.extractedImage.confidence * 100).toFixed(0)}%
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <span>
+                                                    {recipe.imageSource === 'unsplash' && '📸 Unsplash'}
+                                                    {recipe.imageSource === 'pexels_enhanced' && '📸 Pexels'}
+                                                    {!['unsplash', 'pexels_enhanced'].includes(recipe.imageSource) && '📸 Stock photo'}
+                                                </span>
+                                            )}
+                                            {recipe.imageAttribution && recipe.imageAttribution !== 'Unknown from Unknown' && (
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    {recipe.imageAttribution}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {recipe.source && (
                                     <div>
                                         <span className="text-gray-500">Source:</span>
@@ -769,7 +933,6 @@ export default function RecipeDetailPage() {
                                     </div>
                                 )}
 
-                                {/* Imported From (for cookbook recipes) */}
                                 {recipe.importedFrom && (
                                     <div>
                                         <span className="text-gray-500">Imported from:</span>
@@ -777,7 +940,6 @@ export default function RecipeDetailPage() {
                                     </div>
                                 )}
 
-                                {/* Created By */}
                                 <div>
                                     <span className="text-gray-500">Added by:</span>
                                     <span className="ml-2 text-gray-900">
@@ -794,7 +956,6 @@ export default function RecipeDetailPage() {
                                     </span>
                                 </div>
 
-                                {/* Created Date */}
                                 <div>
                                     <span className="text-gray-500">Created:</span>
                                     <span className="ml-2 text-gray-900">
@@ -802,7 +963,6 @@ export default function RecipeDetailPage() {
                                     </span>
                                 </div>
 
-                                {/* Last Edited (only show if different from created) */}
                                 {recipe.updatedAt !== recipe.createdAt && (
                                     <>
                                         <div>
@@ -827,7 +987,6 @@ export default function RecipeDetailPage() {
                                         </div>
                                     </>
                                 )}
-
                                 {/* Category */}
                                 {recipe.category && (
                                     <div>
@@ -876,7 +1035,7 @@ export default function RecipeDetailPage() {
                             </div>
                         </div>
 
-                        {/* Compact Nutrition Display - Professional Style */}
+                        {/* Compact Nutrition Display */}
                         {!showNutrition && hasNutritionData && (
                             <div className="bg-white rounded-lg border p-6">
                                 <div className="flex justify-between items-center mb-4">
@@ -909,7 +1068,7 @@ export default function RecipeDetailPage() {
                 />
             )}
 
-            {/* Improved Add to Meal Plan Modal */}
+            {/* Add to Meal Plan Modal */}
             {showMealPlanModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
@@ -994,7 +1153,6 @@ export default function RecipeDetailPage() {
                             )}
                         </div>
 
-                        {/* Modal Footer */}
                         <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
                             <div className="flex items-center justify-between">
                                 <p className="text-sm text-gray-600">

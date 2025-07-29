@@ -1,7 +1,6 @@
 'use client';
 
-// file: /src/app/recipes/page.js v8 - Enhanced with advanced search and discovery
-
+// file: /src/app/recipes/page.js v9 - Enhanced with recipe images
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState, Suspense } from 'react';
@@ -10,6 +9,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { StarRating } from '@/components/reviews/RecipeRating';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
+import Image from 'next/image';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
@@ -25,6 +25,79 @@ import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+
+// Recipe Image Component with fallback handling
+const RecipeImage = ({ recipe, className = "", priority = false }) => {
+    const [imageError, setImageError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+
+    // Determine image source and fallback
+    const getImageSrc = () => {
+        if (imageError || !recipe.imageUrl) {
+            return '/images/recipe-placeholder.jpg'; // You'll need to add this fallback image
+        }
+        return recipe.imageUrl;
+    };
+
+    const getImageAlt = () => {
+        return recipe.title || 'Recipe image';
+    };
+
+    const getImageAttribution = () => {
+        if (recipe.imageAttribution && recipe.imageAttribution !== 'Unknown from Unknown') {
+            return recipe.imageAttribution;
+        }
+        if (recipe.imageSource === 'unsplash') {
+            return 'Photo from Unsplash';
+        }
+        if (recipe.imageSource === 'pexels_enhanced') {
+            return 'Photo from Pexels';
+        }
+        return null;
+    };
+
+    return (
+        <div className={`relative overflow-hidden ${className}`}>
+            <Image
+                src={getImageSrc()}
+                alt={getImageAlt()}
+                fill
+                className={`object-cover transition-all duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                } group-hover:scale-105`}
+                onLoad={() => setImageLoaded(true)}
+                onError={() => setImageError(true)}
+                priority={priority}
+                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            />
+
+            {/* Loading placeholder */}
+            {!imageLoaded && !imageError && (
+                <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+                    <div className="text-gray-400">
+                        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                    </div>
+                </div>
+            )}
+
+            {/* Image attribution overlay */}
+            {getImageAttribution() && imageLoaded && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {getImageAttribution()}
+                </div>
+            )}
+
+            {/* User image indicator */}
+            {recipe.hasUserImage && (
+                <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                    📷 User Photo
+                </div>
+            )}
+        </div>
+    );
+};
 
 function RecipesContent() {
     const { data: session, status } = useSafeSession();
@@ -53,16 +126,16 @@ function RecipesContent() {
     });
 
     // UI state
-    const [activeTab, setActiveTab] = useState('discovery'); // 'discovery', 'my-recipes', 'public-recipes', 'collections'
+    const [activeTab, setActiveTab] = useState('discovery');
     const [showAdvancedSearch, setShowAdvancedSearch] = useState(false);
-    const [viewMode, setViewMode] = useState('grid'); // 'grid', 'list'
+    const [viewMode, setViewMode] = useState('grid');
 
     // Enhanced pagination state
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
-    const [paginationMode, setPaginationMode] = useState('traditional'); // 'traditional', 'loadMore', 'infinite'
+    const [paginationMode, setPaginationMode] = useState('traditional');
 
-    // Collections and counts state (keeping your existing logic)
+    // Collections and counts state
     const [collectionsCount, setCollectionsCount] = useState(0);
     const [loadingCounts, setLoadingCounts] = useState(true);
     const [countsError, setCountsError] = useState('');
@@ -70,7 +143,8 @@ function RecipesContent() {
 
     const [allTags, setAllTags] = useState([]);
     const [allCategories, setAllCategories] = useState([]);
-    // NEW: Voice Search State
+
+    // Voice Search State
     const [showVoiceSearch, setShowVoiceSearch] = useState(false);
     const [voiceSearchResults, setVoiceSearchResults] = useState('');
     const [processingVoiceSearch, setProcessingVoiceSearch] = useState(false);
@@ -94,6 +168,8 @@ function RecipesContent() {
         { value: 'beverages', label: 'Beverages' },
         { value: 'breakfast', label: 'Breakfast' }
     ];
+
+    // ... (keeping all your existing useEffect hooks and functions unchanged)
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -180,8 +256,9 @@ function RecipesContent() {
         }
     };
 
+    // ... (keeping all your existing functions unchanged - fetchCounts, getFilteredAndSortedRecipes, etc.)
+
     const fetchCounts = async (showLoading = true, retryCount = 0) => {
-        // Keeping your existing fetchCounts logic
         const maxRetries = 1;
 
         try {
@@ -326,23 +403,20 @@ function RecipesContent() {
         setCurrentPage(prev => prev + 1);
     };
 
-    // NEW: Voice Search Functions
+    // Voice Search Functions (keeping all existing voice search functionality)
     const handleVoiceSearchResult = async (transcript, confidence) => {
         console.log('🎤 Voice search received:', transcript, 'Confidence:', confidence);
         setVoiceSearchResults(transcript);
         setProcessingVoiceSearch(true);
 
         try {
-            // Parse voice input for search criteria
             const parsedCriteria = parseVoiceSearchCriteria(transcript);
 
-            // Apply the search criteria
             setSearchFilters(prev => ({
                 ...prev,
                 ...parsedCriteria
             }));
 
-            // Switch to appropriate tab if needed
             if (parsedCriteria.searchTarget) {
                 setActiveTab(parsedCriteria.searchTarget);
             }
@@ -350,7 +424,6 @@ function RecipesContent() {
             setShowVoiceSearch(false);
             setVoiceSearchResults('');
 
-            // Show success feedback
             const searchType = parsedCriteria.query ? 'search' : 'filter';
             alert(`✅ Applied voice ${searchType}: "${transcript}"`);
 
@@ -366,7 +439,6 @@ function RecipesContent() {
         console.error('🎤 Voice search error:', error);
         setProcessingVoiceSearch(false);
 
-        // Show user-friendly error message
         let userMessage = 'Voice search failed. ';
         if (error.includes('not-allowed') || error.includes('denied')) {
             userMessage += 'Please allow microphone access in your browser settings.';
@@ -385,22 +457,18 @@ function RecipesContent() {
         const cleanTranscript = transcript.toLowerCase().trim();
         let criteria = {};
 
-        // Extract search queries
         const searchMatch = cleanTranscript.match(/(?:search for|find|look for|show me)\s+(.+?)(?:\s+(?:recipes?|that|with|under|in|for)|\s*$)/);
         if (searchMatch) {
             criteria.query = searchMatch[1].trim();
         } else if (!cleanTranscript.includes('show me') && !cleanTranscript.includes('filter')) {
-            // Treat the whole transcript as a search query if no specific commands
             criteria.query = cleanTranscript;
         }
 
-        // Extract time constraints
         const timeMatch = cleanTranscript.match(/(?:under|less than|within)\s+(\d+)\s*(?:minutes?|mins?)/);
         if (timeMatch) {
             criteria.maxCookTime = parseInt(timeMatch[1]);
         }
 
-        // Extract difficulty
         if (cleanTranscript.includes('easy') || cleanTranscript.includes('simple') || cleanTranscript.includes('beginner')) {
             criteria.difficulty = 'easy';
         } else if (cleanTranscript.includes('medium') || cleanTranscript.includes('intermediate')) {
@@ -409,7 +477,6 @@ function RecipesContent() {
             criteria.difficulty = 'hard';
         }
 
-        // Extract dietary restrictions
         const dietaryTags = [];
         if (cleanTranscript.includes('vegetarian')) dietaryTags.push('vegetarian');
         if (cleanTranscript.includes('vegan')) dietaryTags.push('vegan');
@@ -421,7 +488,6 @@ function RecipesContent() {
             criteria.tags = dietaryTags;
         }
 
-        // Extract categories
         const categoryKeywords = {
             'breakfast': 'breakfast',
             'lunch': 'entrees',
@@ -444,7 +510,6 @@ function RecipesContent() {
             }
         }
 
-        // Extract sorting preferences
         if (cleanTranscript.includes('popular') || cleanTranscript.includes('trending')) {
             criteria.sortBy = 'popular';
         } else if (cleanTranscript.includes('highest rated') || cleanTranscript.includes('best rated')) {
@@ -455,13 +520,11 @@ function RecipesContent() {
             criteria.sortBy = 'quickest';
         }
 
-        // Determine target tab
         if (cleanTranscript.includes('my recipes') || cleanTranscript.includes('my recipe')) {
             criteria.searchTarget = 'my-recipes';
         } else if (cleanTranscript.includes('public') || cleanTranscript.includes('community')) {
             criteria.searchTarget = 'public-recipes';
         } else if (criteria.query || Object.keys(criteria).length > 0) {
-            // Default to public recipes for general searches
             criteria.searchTarget = 'public-recipes';
         }
 
@@ -469,7 +532,8 @@ function RecipesContent() {
         return criteria;
     };
 
-    // Tab counts logic (keeping your existing logic)
+    // ... (keeping all your existing helper functions - getTabCounts, getUsageInfo, etc.)
+
     const getTabCounts = () => {
         const recipesArray = Array.isArray(recipes) ? recipes : [];
 
@@ -659,7 +723,7 @@ function RecipesContent() {
                     </div>
                 </div>
 
-                {/* Enhanced Mobile-Responsive Tab Navigation - FIXED VERSION */}
+                {/* Enhanced Mobile-Responsive Tab Navigation */}
                 <div className="mb-6">
                     <div className="bg-gray-100 p-1 rounded-lg overflow-hidden">
                         {/* Mobile: 2x2 Grid - Compact */}
@@ -689,8 +753,8 @@ function RecipesContent() {
                                 <div className="flex flex-col items-center justify-center min-h-[60px]">
                                     <span className="text-xs mb-1">📝 My Recipes</span>
                                     <span className={`text-xs px-1.5 py-0.5 rounded-full ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
-                        {formatCountWithLimit('my-recipes')}
-                    </span>
+                                        {formatCountWithLimit('my-recipes')}
+                                    </span>
                                 </div>
                             </TouchEnhancedButton>
 
@@ -709,8 +773,8 @@ function RecipesContent() {
                                             ? 'bg-indigo-100 text-indigo-600'
                                             : 'bg-gray-200 text-gray-600'
                                     }`}>
-                        {getTabCounts().publicRecipes}
-                    </span>
+                                        {getTabCounts().publicRecipes}
+                                    </span>
                                 </div>
                             </TouchEnhancedButton>
 
@@ -725,8 +789,8 @@ function RecipesContent() {
                                 <div className="flex flex-col items-center justify-center min-h-[60px]">
                                     <span className="text-xs mb-1">📁 Collections</span>
                                     <span className={`text-xs px-1.5 py-0.5 rounded-full ${getCountColor('collections', activeTab === 'collections')}`}>
-                        {formatCountWithLimit('collections')}
-                    </span>
+                                        {formatCountWithLimit('collections')}
+                                    </span>
                                 </div>
                             </TouchEnhancedButton>
                         </div>
@@ -758,8 +822,8 @@ function RecipesContent() {
                                 <div className="flex flex-col items-center justify-center">
                                     <span>📝 My Recipes</span>
                                     <span className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('my-recipes', activeTab === 'my-recipes')}`}>
-                        {formatCountWithLimit('my-recipes')}
-                    </span>
+                                        {formatCountWithLimit('my-recipes')}
+                                    </span>
                                 </div>
                             </TouchEnhancedButton>
 
@@ -778,8 +842,8 @@ function RecipesContent() {
                                             ? 'bg-indigo-100 text-indigo-600'
                                             : 'bg-gray-200 text-gray-600'
                                     }`}>
-                        {getTabCounts().publicRecipes}
-                    </span>
+                                        {getTabCounts().publicRecipes}
+                                    </span>
                                 </div>
                             </TouchEnhancedButton>
 
@@ -794,14 +858,13 @@ function RecipesContent() {
                                 <div className="flex flex-col items-center justify-center">
                                     <span>📁 Collections</span>
                                     <span className={`text-xs px-2 py-1 rounded-full mt-1 ${getCountColor('collections', activeTab === 'collections')}`}>
-                        {formatCountWithLimit('collections')}
-                    </span>
+                                        {formatCountWithLimit('collections')}
+                                    </span>
                                 </div>
                             </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>
-
 
                 {/* Advanced Search Filters */}
                 {showAdvancedSearch && activeTab !== 'collections' && (
@@ -820,7 +883,6 @@ function RecipesContent() {
                     <>
                         {/* Mobile-Optimized Recipe Discovery Dashboard */}
                         <div className="space-y-6">
-                            {/* Recipe Discovery Dashboard - with mobile props */}
                             <RecipeDiscoveryDashboard
                                 recipes={recipes.filter(recipe => recipe.isPublic === true)}
                                 showCollections={true}
@@ -844,7 +906,7 @@ function RecipesContent() {
                                                 onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}
                                                 placeholder="Search 650+ recipes..."
                                                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
-                                                style={{ fontSize: '16px' }} // Prevents zoom on iOS
+                                                style={{ fontSize: '16px' }}
                                             />
                                         </div>
                                         <div className="mt-2 text-center">
@@ -978,7 +1040,6 @@ function RecipesContent() {
                                     </select>
                                 </div>
 
-                                {/* Pagination mode selector */}
                                 <div className="flex items-center space-x-2">
                                     <label className="text-sm text-gray-600">Mode:</label>
                                     <select
@@ -996,30 +1057,27 @@ function RecipesContent() {
                             </div>
                         </div>
 
-                        {/* Recipe Grid */}
+                        {/* UPDATED: Recipe Grid with Images */}
                         {displayedRecipes.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    {displayedRecipes.map((recipe) => {
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                    {displayedRecipes.map((recipe, index) => {
                                         if (!recipe) return null;
 
                                         return (
-                                            <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow">
-                                                <div className="p-6">
-                                                    {/* Header - Title */}
-                                                    <div className="mb-3">
-                                                        <Link
-                                                            href={`/recipes/${recipe._id}`}
-                                                            className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2 block"
-                                                        >
-                                                            {recipe.title || 'Untitled Recipe'}
-                                                        </Link>
-                                                    </div>
+                                            <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
+                                                {/* Recipe Image */}
+                                                <div className="relative h-48 bg-gray-100">
+                                                    <RecipeImage
+                                                        recipe={recipe}
+                                                        className="rounded-t-lg"
+                                                        priority={index < 6} // Prioritize first 6 images
+                                                    />
 
-                                                    {/* Action Buttons */}
-                                                    <div className="flex justify-end gap-2 mb-3">
+                                                    {/* Overlay Actions */}
+                                                    <div className="absolute top-2 right-2 flex space-x-1">
                                                         {activeTab === 'public-recipes' && (
-                                                            <div className="flex flex-col items-center justify-center p-2 text-green-600 hover:text-green-700 hover:bg-green-50 rounded-md transition-colors">
+                                                            <div className="bg-white bg-opacity-90 rounded-full p-1.5 shadow-sm">
                                                                 <SaveRecipeButton
                                                                     recipeId={recipe._id}
                                                                     recipeName={recipe.title || 'Recipe'}
@@ -1028,33 +1086,72 @@ function RecipesContent() {
                                                                     iconOnly={true}
                                                                     onSaveStateChange={handleRecipeSaveStateChange}
                                                                 />
-                                                                <span className="text-xs">Save</span>
                                                             </div>
                                                         )}
+
                                                         {canEditRecipe(recipe) && (
-                                                            <div className="flex space-x-2">
+                                                            <div className="flex space-x-1">
                                                                 <TouchEnhancedButton
                                                                     onClick={async () => window.location.href = await getRecipeUrl(`${recipe._id}/edit`)}
-                                                                    className="flex flex-col items-center justify-center p-2 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50 rounded-md transition-colors"
+                                                                    className="bg-white bg-opacity-90 rounded-full p-1.5 shadow-sm text-indigo-600 hover:bg-indigo-50"
                                                                     title="Edit recipe"
                                                                 >
-                                                                    <svg className="w-4 h-4 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/>
                                                                     </svg>
-                                                                    <span className="text-xs">Edit</span>
                                                                 </TouchEnhancedButton>
                                                                 <TouchEnhancedButton
                                                                     onClick={() => handleDelete(recipe._id)}
-                                                                    className="flex flex-col items-center justify-center p-2 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-md transition-colors"
+                                                                    className="bg-white bg-opacity-90 rounded-full p-1.5 shadow-sm text-red-600 hover:bg-red-50"
                                                                     title="Delete recipe"
                                                                 >
-                                                                    <svg className="w-4 h-4 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
                                                                     </svg>
-                                                                    <span className="text-xs">Delete</span>
                                                                 </TouchEnhancedButton>
                                                             </div>
                                                         )}
+                                                    </div>
+
+                                                    {/* Quick Info Overlay */}
+                                                    <div className="absolute bottom-2 left-2 right-2">
+                                                        <div className="bg-black bg-opacity-50 rounded-md px-2 py-1 text-white text-xs flex items-center justify-between opacity-0 group-hover:opacity-100 transition-opacity">
+                                                            <div className="flex items-center space-x-2">
+                                                                {recipe.servings && (
+                                                                    <span className="flex items-center space-x-1">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                                        </svg>
+                                                                        <span>{recipe.servings}</span>
+                                                                    </span>
+                                                                )}
+                                                                {formatCookTime((recipe.cookTime || 0) + (recipe.prepTime || 0)) && (
+                                                                    <span className="flex items-center space-x-1">
+                                                                        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                                        </svg>
+                                                                        <span>{formatCookTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}</span>
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                            {recipe.difficulty && (
+                                                                <span className="bg-white bg-opacity-20 px-1 py-0.5 rounded text-xs">
+                                                                    {recipe.difficulty}
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="p-4">
+                                                    {/* Header - Title */}
+                                                    <div className="mb-3">
+                                                        <Link
+                                                            href={`/recipes/${recipe._id}`}
+                                                            className="text-lg font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2 block group-hover:text-indigo-600 transition-colors"
+                                                        >
+                                                            {recipe.title || 'Untitled Recipe'}
+                                                        </Link>
                                                     </div>
 
                                                     {/* Recipe Author Info (for public recipes) */}
@@ -1100,39 +1197,12 @@ function RecipesContent() {
                                                         </p>
                                                     )}
 
-                                                    {/* Recipe Info */}
-                                                    <div className="flex items-center justify-between text-sm text-gray-500 mb-4">
-                                                        <div className="flex items-center space-x-4">
-                                                            {recipe.servings && (
-                                                                <span className="flex items-center space-x-1">
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                                                    </svg>
-                                                                    <span>{recipe.servings}</span>
-                                                                </span>
-                                                            )}
-                                                            {formatCookTime((recipe.cookTime || 0) + (recipe.prepTime || 0)) && (
-                                                                <span className="flex items-center space-x-1">
-                                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                                    </svg>
-                                                                    <span>{formatCookTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}</span>
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        {recipe.difficulty && (
-                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
-                                                                {recipe.difficulty}
-                                                            </span>
-                                                        )}
-                                                    </div>
-
                                                     {/* Tags */}
                                                     {Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
                                                         <div className="flex flex-wrap gap-1 mb-2">
-                                                            {recipe.tags.slice(0, 3).map((tag, index) => (
+                                                            {recipe.tags.slice(0, 3).map((tag, tagIndex) => (
                                                                 <span
-                                                                    key={index}
+                                                                    key={tagIndex}
                                                                     className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
                                                                 >
                                                                     {tag}
@@ -1258,7 +1328,7 @@ function RecipesContent() {
                     </>
                 )}
 
-                {/* NEW: Voice Search Modal */}
+                {/* Voice Search Modal */}
                 {showVoiceSearch && (
                     <div style={{
                         position: 'fixed',
@@ -1437,7 +1507,6 @@ function RecipesContent() {
                                 <TouchEnhancedButton
                                     onClick={() => {
                                         setVoiceSearchResults('');
-                                        // Reset voice search state for next use
                                     }}
                                     disabled={processingVoiceSearch || !voiceSearchResults}
                                     style={{

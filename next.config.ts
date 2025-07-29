@@ -13,6 +13,32 @@ const nextConfig: NextConfig = {
     },
     assetPrefix: process.env.NODE_ENV === 'production' ? 'https://www.docbearscomfort.kitchen' : undefined,
 
+    // ADD THIS IMAGES CONFIGURATION ↓
+    images: {
+        remotePatterns: [
+            {
+                protocol: 'https',
+                hostname: 'images.unsplash.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'images.pexels.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'cdn.pexels.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'pixabay.com',
+            },
+            {
+                protocol: 'https',
+                hostname: 'cdn.pixabay.com',
+            }
+        ]
+    },
+
     // Minimal webpack config to fix NextAuth issues
     webpack: (config, { isServer }) => {
         // Only add essentials for server-side

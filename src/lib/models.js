@@ -3295,6 +3295,21 @@ const RecipeSchema = new mongoose.Schema({
     // AI-extracted image from video (existing)
     extractedImage: ExtractedImageSchema,
 
+    // extract image from URL with attribution
+    imageUrl: {
+        type: String,
+        default: null
+    },
+    imageAttribution: {
+        type: String,
+        default: null
+    },
+    imageSource: {
+        type: String,
+        enum: ['unsplash', 'pexels', 'pixabay', 'user_upload', 'video_extracted'],
+        default: null
+    },
+
     // Simple flags for quick queries
     hasUserImage: { type: Boolean, default: false },
     hasExtractedImage: { type: Boolean, default: false },
