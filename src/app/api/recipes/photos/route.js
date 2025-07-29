@@ -1,10 +1,11 @@
-// file: /src/app/api/recipes/photos/route.js - Upload photos to recipes
+// file: /src/app/api/recipes/photos/route.js - Fixed version for listing and uploading
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
-import { Recipe, RecipePhoto, User } from '@/lib/models';
+import { Recipe, RecipePhoto } from '@/lib/models';
 
+// POST - Upload photos to recipes
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -44,9 +45,10 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Not authorized to add photos to this recipe' }, { status: 403 });
         }
 
-        // Convert file to buffer
+        // Convert file to buffer and then to base64 for consistent storage
         const buffer = await file.arrayBuffer();
         const photoBuffer = Buffer.from(buffer);
+        const base64Data = photoBuffer.toString('base64');
 
         // If this is set as primary, unset other primary photos
         if (isPrimary) {
@@ -56,14 +58,14 @@ export async function POST(request) {
             );
         }
 
-        // Create photo record
+        // Create photo record with base64 storage
         const photo = new RecipePhoto({
             recipeId,
             filename: `recipe_${recipeId}_${Date.now()}_${file.name}`,
             originalName: file.name,
             mimeType: file.type,
             size: file.size,
-            data: photoBuffer,
+            data: base64Data, // Store as base64 string
             isPrimary,
             source,
             uploadedBy: session.user.id
@@ -78,6 +80,8 @@ export async function POST(request) {
             hasPhotos: true,
             ...(isPrimary && { primaryPhoto: photo._id })
         });
+
+        console.log(`📸 Photo uploaded successfully: ${photo.filename} (${file.size} bytes)`);
 
         // Return photo info without binary data
         const { data, ...photoInfo } = photo.toObject();
@@ -97,30 +101,36 @@ export async function POST(request) {
     }
 }
 
-// GET - List photos for recipes (admin/user management)
+// GET - List photos for recipes
 export async function GET(request) {
     try {
         const session = await getEnhancedSession(request);
-
-        if (!session?.user?.id) {
-            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
-        }
-
         const { searchParams } = new URL(request.url);
         const recipeId = searchParams.get('recipeId');
         const source = searchParams.get('source');
 
         await connectDB();
 
-        let query = { uploadedBy: session.user.id };
+        let query = {};
 
         if (recipeId) {
-            // Verify user has access to this recipe
+            // Check if recipe exists and is accessible
             const recipe = await Recipe.findById(recipeId);
-            if (!recipe || recipe.createdBy.toString() !== session.user.id) {
+            if (!recipe) {
+                return NextResponse.json({ error: 'Recipe not found' }, { status: 404 });
+            }
+
+            // Check access permissions
+            if (!recipe.isPublic && (!session?.user?.id || recipe.createdBy.toString() !== session.user.id)) {
                 return NextResponse.json({ error: 'Not authorized' }, { status: 403 });
             }
+
             query.recipeId = recipeId;
+        } else if (session?.user?.id) {
+            // If no specific recipe, show user's photos
+            query.uploadedBy = session.user.id;
+        } else {
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
         }
 
         if (source) {
@@ -139,7 +149,8 @@ export async function GET(request) {
 
         return NextResponse.json({
             success: true,
-            photos: photosWithUrls
+            photos: photosWithUrls,
+            count: photosWithUrls.length
         });
 
     } catch (error) {

@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/photos/[id]/route.js - Enhanced version supporting both storage methods
+// file: /src/app/api/recipes/photos/[photoId]/route.js - Fixed version of your existing file
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
@@ -34,11 +34,31 @@ export async function GET(request, { params }) {
                 }
             }
 
+            // FIXED: Handle different data storage formats
+            let imageBuffer;
+
+            if (typeof photo.data === 'string') {
+                // Base64 string
+                imageBuffer = Buffer.from(photo.data, 'base64');
+            } else if (Buffer.isBuffer(photo.data)) {
+                // Already a buffer
+                imageBuffer = photo.data;
+            } else if (photo.data && photo.data.buffer) {
+                // MongoDB Binary type
+                imageBuffer = Buffer.from(photo.data.buffer);
+            } else if (photo.data && typeof photo.data === 'object' && photo.data.constructor.name === 'Binary') {
+                // MongoDB Binary type (another format)
+                imageBuffer = Buffer.from(photo.data.value());
+            } else {
+                console.error('Unknown data format for photo:', typeof photo.data, photo.data);
+                return NextResponse.json({ error: 'Invalid photo data format' }, { status: 500 });
+            }
+
             // Return binary image with proper headers
-            return new NextResponse(photo.data, {
+            return new NextResponse(imageBuffer, {
                 headers: {
                     'Content-Type': photo.mimeType,
-                    'Content-Length': photo.size.toString(),
+                    'Content-Length': imageBuffer.length.toString(),
                     'Cache-Control': 'public, max-age=31536000, immutable',
                     'ETag': `"${photoId}"`,
                     'Content-Disposition': `inline; filename="${photo.originalName || 'recipe-photo'}"`,
@@ -332,7 +352,7 @@ export async function PATCH(request, { params }) {
             originalName: legacyPhoto.originalName || path.basename(legacyPhoto.url),
             mimeType: legacyPhoto.mimeType || 'image/jpeg',
             size: stats.size,
-            data: fileBuffer,
+            data: fileBuffer.toString('base64'), // Store as base64 for consistency
             isPrimary: legacyPhoto.isPrimary || false,
             source: 'user_upload', // Assume legacy photos were user uploads
             uploadedBy: session.user.id,
