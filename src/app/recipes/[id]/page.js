@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/[id]/page.js v12 - Enhanced with recipe images
+// file: /src/app/recipes/[id]/page.js v13 - Updated RecipeHeroImage component with primary photo support
 
 import { useEffect, useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -21,57 +21,125 @@ import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
 
-// Hero Recipe Image Component
-const RecipeHeroImage = ({ recipe, className = "" }) => {
+// Hero Recipe Image Component - UPDATED to support primary photo selection and photo collection
+const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => {
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
     const [showFullImage, setShowFullImage] = useState(false);
+    const [showImageSelector, setShowImageSelector] = useState(false);
+    const [availableImages, setAvailableImages] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    // Fetch available images when selector is opened
+    const fetchAvailableImages = async () => {
+        if (availableImages.length > 0) return; // Already fetched
+
+        setLoading(true);
+        try {
+            const response = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+            if (response.ok) {
+                const data = await response.json();
+                const images = [];
+
+                // Add uploaded photos from collection
+                if (data.success && data.photos) {
+                    images.push(...data.photos.map(photo => ({
+                        id: photo._id,
+                        type: 'collection',
+                        url: `/api/recipes/photos/${photo._id}`,
+                        source: 'user_upload',
+                        name: photo.originalName || 'Uploaded Photo',
+                        isPrimary: photo.isPrimary
+                    })));
+                }
+
+                // Add recipe's embedded images
+                if (recipe.uploadedImage?.data) {
+                    images.push({
+                        id: 'recipe-uploaded',
+                        type: 'embedded',
+                        url: `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`,
+                        source: 'user_upload',
+                        name: recipe.uploadedImage.originalName || 'Recipe Photo',
+                        isPrimary: false
+                    });
+                }
+
+                if (recipe.extractedImage?.data) {
+                    images.push({
+                        id: 'recipe-extracted',
+                        type: 'embedded',
+                        url: `data:image/jpeg;base64,${recipe.extractedImage.data}`,
+                        source: 'ai_extracted',
+                        name: 'AI Extracted Photo',
+                        isPrimary: false
+                    });
+                }
+
+                if (recipe.imageUrl) {
+                    images.push({
+                        id: 'recipe-external',
+                        type: 'external',
+                        url: recipe.imageUrl,
+                        source: 'external',
+                        name: 'External Image',
+                        isPrimary: false
+                    });
+                }
+
+                setAvailableImages(images);
+            }
+        } catch (error) {
+            console.error('Error fetching available images:', error);
+        }
+        setLoading(false);
+    };
 
     const getImageSrc = () => {
         console.log('🖼️ RecipeHeroImage - Checking image sources:');
         console.log('🖼️ Recipe data structure:', {
+            hasPrimaryPhoto: !!recipe.primaryPhoto,
+            hasPhotosArray: !!(recipe.photos && recipe.photos.length > 0),
             hasUploadedImage: !!recipe.uploadedImage?.data,
             hasExtractedImage: !!recipe.extractedImage?.data,
             hasImageUrl: !!recipe.imageUrl,
-            photosArrayExists: !!(recipe.photos && recipe.photos.length > 0),
             photosCount: recipe.photos?.length || 0,
-            hasPrimaryPhoto: !!recipe.primaryPhoto,
-            primaryPhoto: recipe.primaryPhoto,
             photoCount: recipe.photoCount,
             hasPhotosFlag: recipe.hasPhotos
         });
 
-        // Priority: User uploaded image > extracted image > external imageUrl > placeholder
-        if (recipe.uploadedImage?.data && !imageError) {
-            const src = `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
-            console.log('🖼️ Using uploadedImage (embedded base64)');
-            return src;
-        }
+        // Priority: Primary photo from collection > photos array > embedded images > external > placeholder
 
-        if (recipe.extractedImage?.data && !imageError) {
-            const src = `data:image/jpeg;base64,${recipe.extractedImage.data}`;
-            console.log('🖼️ Using extractedImage (embedded base64)');
-            return src;
-        }
-
-        if (recipe.imageUrl && !imageError) {
-            console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
-            return recipe.imageUrl;
-        }
-
-        // ADD THIS CHECK for your new photo system:
+        // 1. Check for primary photo from collection (NEW!)
         if (recipe.primaryPhoto && !imageError) {
-            const photoUrl = `/api/recipes/photos/${recipe.primaryPhoto}`;
-            console.log('🖼️ Using primaryPhoto API:', photoUrl);
-            return photoUrl;
+            console.log('🖼️ Using primaryPhoto from collection:', recipe.primaryPhoto);
+            return `/api/recipes/photos/${recipe.primaryPhoto}`;
         }
 
+        // 2. Check photos array for primary photo
         if (recipe.photos && recipe.photos.length > 0 && !imageError) {
             const primaryPhoto = recipe.photos.find(p => p.isPrimary) || recipe.photos[0];
             const photoId = primaryPhoto._id || primaryPhoto;
-            const photoUrl = `/api/recipes/photos/${photoId}`;
-            console.log('🖼️ Using photos array API:', photoUrl);
-            return photoUrl;
+            console.log('🖼️ Using photos array:', photoId);
+            return `/api/recipes/photos/${photoId}`;
+        }
+
+        // 3. Check for uploaded image (embedded base64)
+        if (recipe.uploadedImage?.data && !imageError) {
+            console.log('🖼️ Using uploadedImage (embedded base64)');
+            return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+        }
+
+        // 4. Check for extracted image (embedded base64)
+        if (recipe.extractedImage?.data && !imageError) {
+            console.log('🖼️ Using extractedImage (embedded base64)');
+            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+        }
+
+        // 5. Check for external image URL
+        if (recipe.imageUrl && !imageError) {
+            console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
+            return recipe.imageUrl;
         }
 
         console.log('🖼️ No image sources found, using placeholder');
@@ -84,7 +152,7 @@ const RecipeHeroImage = ({ recipe, className = "" }) => {
 
     const getImageAttribution = () => {
         // Show user upload status first
-        if (recipe.hasUserImage || recipe.uploadedImage?.data) {
+        if (recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0) || recipe.hasUserImage || recipe.uploadedImage?.data) {
             return 'Photo uploaded by user';
         }
         if (recipe.extractedImage?.data) {
@@ -102,21 +170,70 @@ const RecipeHeroImage = ({ recipe, className = "" }) => {
         return null;
     };
 
+    const setPrimaryImage = async (imageId, imageType) => {
+        try {
+            if (imageType === 'collection') {
+                // Set primary photo in collection
+                const response = await apiPut(`/api/recipes/photos/${imageId}`, {
+                    isPrimary: true
+                });
+
+                if (response.ok) {
+                    // Update recipe to use this as primary photo
+                    const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, {
+                        primaryPhoto: imageId
+                    });
+
+                    if (updateResponse.ok) {
+                        onImageUpdate && onImageUpdate();
+                        setShowImageSelector(false);
+                    }
+                }
+            } else {
+                // For embedded/external images, we might need different logic
+                // This would depend on your backend implementation
+                console.log('Setting primary for non-collection image:', imageId, imageType);
+                setShowImageSelector(false);
+            }
+        } catch (error) {
+            console.error('Error setting primary image:', error);
+        }
+    };
+
+    const hasMultipleImages = () => {
+        let imageCount = 0;
+        if (recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0)) imageCount++;
+        if (recipe.uploadedImage?.data) imageCount++;
+        if (recipe.extractedImage?.data) imageCount++;
+        if (recipe.imageUrl) imageCount++;
+        return imageCount > 1;
+    };
+
+    const currentImageSrc = getImageSrc();
+    const isUsingApiRoute = currentImageSrc.startsWith('/api/');
+
     return (
         <>
             <div className={`relative overflow-hidden ${className}`}>
                 <Image
-                    src={getImageSrc()}
+                    src={currentImageSrc}
                     alt={getImageAlt()}
                     fill
                     className={`object-cover transition-all duration-500 cursor-pointer ${
                         imageLoaded ? 'opacity-100' : 'opacity-0'
                     } hover:scale-105`}
-                    onLoad={() => setImageLoaded(true)}
-                    onError={() => setImageError(true)}
+                    onLoad={() => {
+                        console.log('✅ Hero image loaded successfully');
+                        setImageLoaded(true);
+                    }}
+                    onError={() => {
+                        console.error('❌ Hero image failed to load:', currentImageSrc);
+                        setImageError(true);
+                    }}
                     onClick={() => setShowFullImage(true)}
                     priority={true}
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
+                    unoptimized={isUsingApiRoute}
                 />
 
                 {/* Loading placeholder */}
@@ -139,18 +256,131 @@ const RecipeHeroImage = ({ recipe, className = "" }) => {
                     </div>
                 )}
 
-                {                /* User image indicator */}
-                {(recipe.hasUserImage || recipe.uploadedImage?.data) && (
+                {/* User image indicator */}
+                {(recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0) || recipe.hasUserImage || recipe.uploadedImage?.data) && (
                     <div className="absolute top-4 right-4 bg-green-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
                         📷 User Photo
                     </div>
                 )}
 
+                {/* AI extracted indicator */}
+                {recipe.extractedImage?.data && !recipe.primaryPhoto && !(recipe.photos && recipe.photos.length > 0) && !recipe.uploadedImage?.data && (
+                    <div className="absolute top-4 right-4 bg-purple-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                        🤖 AI Extracted
+                    </div>
+                )}
+
+                {/* Change primary image button - only show if user owns recipe and has multiple images */}
+                {hasMultipleImages() && session?.user?.id === recipe.createdBy?._id && (
+                    <div className="absolute top-4 left-4">
+                        <TouchEnhancedButton
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                fetchAvailableImages();
+                                setShowImageSelector(true);
+                            }}
+                            className="bg-blue-500 bg-opacity-90 text-white text-sm px-3 py-1 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+                        >
+                            🖼️ Change Hero
+                        </TouchEnhancedButton>
+                    </div>
+                )}
+
                 {/* Click to expand indicator */}
-                <div className="absolute top-4 left-4 bg-black bg-opacity-50 text-white text-sm px-3 py-1 rounded-full opacity-0 hover:opacity-100 transition-opacity">
+                <div className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white text-sm px-3 py-1 rounded-full opacity-0 hover:opacity-100 transition-opacity">
                     🔍 Click to enlarge
                 </div>
             </div>
+
+            {/* Image Selector Modal */}
+            {showImageSelector && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                        <div className="p-6 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    Choose Hero Image
+                                </h3>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowImageSelector(false)}
+                                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                                >
+                                    ×
+                                </TouchEnhancedButton>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                                Select which image should be displayed as the main hero image for this recipe.
+                            </p>
+                        </div>
+
+                        <div className="p-6 max-h-[60vh] overflow-y-auto">
+                            {loading ? (
+                                <div className="text-center py-12">
+                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                                    <p className="mt-4 text-gray-600">Loading images...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {availableImages.map((image) => (
+                                        <div
+                                            key={image.id}
+                                            className={`relative cursor-pointer rounded-lg overflow-hidden border-4 transition-all ${
+                                                image.isPrimary || (image.type === 'collection' && recipe.primaryPhoto === image.id)
+                                                    ? 'border-blue-500 shadow-lg'
+                                                    : 'border-gray-200 hover:border-blue-300'
+                                            }`}
+                                            onClick={() => setPrimaryImage(image.id, image.type)}
+                                        >
+                                            <div className="aspect-video relative bg-gray-100">
+                                                <Image
+                                                    src={image.url}
+                                                    alt={image.name}
+                                                    fill
+                                                    className="object-cover"
+                                                    unoptimized={image.url.startsWith('/api/')}
+                                                />
+                                            </div>
+
+                                            {/* Current hero indicator */}
+                                            {(image.isPrimary || (image.type === 'collection' && recipe.primaryPhoto === image.id)) && (
+                                                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                                    Current Hero
+                                                </div>
+                                            )}
+
+                                            {/* Image type indicator */}
+                                            <div className="absolute top-2 right-2">
+                                                {image.source === 'user_upload' && (
+                                                    <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                                                        📷 Uploaded
+                                                    </div>
+                                                )}
+                                                {image.source === 'ai_extracted' && (
+                                                    <div className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                                                        🤖 AI
+                                                    </div>
+                                                )}
+                                                {image.source === 'external' && (
+                                                    <div className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full">
+                                                        🌐 External
+                                                    </div>
+                                                )}
+                                            </div>
+
+                                            {/* Image name */}
+                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
+                                                <div className="text-white text-sm font-medium truncate">
+                                                    {image.name}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Full Image Modal */}
             {showFullImage && (
@@ -160,12 +390,13 @@ const RecipeHeroImage = ({ recipe, className = "" }) => {
                 >
                     <div className="relative max-w-4xl max-h-full">
                         <Image
-                            src={getImageSrc()}
+                            src={currentImageSrc}
                             alt={getImageAlt()}
                             width={800}
                             height={600}
                             className="object-contain max-w-full max-h-full"
                             onClick={(e) => e.stopPropagation()}
+                            unoptimized={isUsingApiRoute}
                         />
                         <TouchEnhancedButton
                             onClick={() => setShowFullImage(false)}
@@ -213,6 +444,7 @@ export default function RecipeDetailPage() {
     const [showPhotoUpload, setShowPhotoUpload] = useState(false);
     const [refreshPhotos, setRefreshPhotos] = useState(0);
     const [originalRecipe, setOriginalRecipe] = useState(null);
+    const [refreshHeroImage, setRefreshHeroImage] = useState(0);
 
     useEffect(() => {
         if (recipeId) {
@@ -493,6 +725,13 @@ export default function RecipeDetailPage() {
         };
     }, [originalRecipe]);
 
+    const handleImageUpdate = () => {
+        console.log('🖼️ Hero image updated, refreshing...');
+        setRefreshHeroImage(prev => prev + 1);
+        // Optionally refresh the entire recipe to get updated data
+        fetchRecipe();
+    };
+
     if (loading) {
         return (
             <MobileOptimizedLayout>
@@ -551,12 +790,19 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
-                    {/* Hero Image Section - Works with both photo systems */}
-                    {(recipe.imageUrl || recipe.uploadedImage?.data || recipe.extractedImage?.data) && (
+                    {/* Hero Image Section - UPDATED with primary photo support and user selection */}
+                    {(recipe.primaryPhoto ||
+                        (recipe.photos && recipe.photos.length > 0) ||
+                        recipe.uploadedImage?.data ||
+                        recipe.extractedImage?.data ||
+                        recipe.imageUrl) && (
                         <div className="mb-8">
                             <RecipeHeroImage
                                 recipe={recipe}
+                                session={session}
                                 className="w-full h-64 md:h-80 lg:h-96 rounded-xl shadow-lg"
+                                onImageUpdate={handleImageUpdate}
+                                key={refreshHeroImage}
                             />
                         </div>
                     )}
