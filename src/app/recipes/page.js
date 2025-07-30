@@ -30,13 +30,100 @@ import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
+    const [primaryPhoto, setPrimaryPhoto] = useState(null);
 
-    // Determine image source and fallback
+    // Fetch primary photo from collection if recipe has photos
+    useEffect(() => {
+        const fetchPrimaryPhoto = async () => {
+            // Only fetch if recipe has photo indicators
+            if (recipe.primaryPhoto || recipe.hasPhotos || recipe.photoCount > 0) {
+                try {
+                    // First try direct primaryPhoto reference
+                    if (recipe.primaryPhoto) {
+                        const response = await fetch(`/api/recipes/photos/${recipe.primaryPhoto}`);
+                        if (response.ok) {
+                            const data = await response.json();
+                            if (data.success) {
+                                setPrimaryPhoto(data.photo);
+                                return;
+                            }
+                        }
+                    }
+
+                    // Fallback: check photos collection for isPrimary
+                    const response = await fetch(`/api/recipes/photos?recipeId=${recipe._id}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success && data.photos) {
+                            const primary = data.photos.find(p => p.isPrimary);
+                            setPrimaryPhoto(primary || null);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching primary photo for recipe card:', error);
+                    setPrimaryPhoto(null);
+                }
+            }
+        };
+
+        fetchPrimaryPhoto();
+    }, [recipe._id, recipe.primaryPhoto, recipe.hasPhotos]);
+
+
+    // Enhanced image source logic using imagePriority
     const getImageSrc = () => {
-        if (imageError || !recipe.imageUrl) {
-            return '/images/recipe-placeholder.jpg'; // You'll need to add this fallback image
+        if (imageError) {
+            return '/images/recipe-placeholder.jpg';
         }
-        return recipe.imageUrl;
+
+        // Use imagePriority if available (new schema)
+        if (recipe.imagePriority) {
+            switch (recipe.imagePriority) {
+                case 'primary_photo':
+                    if (primaryPhoto) {
+                        return `/api/recipes/photos/${primaryPhoto._id}`;
+                    }
+                    break;
+
+                case 'uploaded_image':
+                    if (recipe.uploadedImage?.data) {
+                        return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+                    }
+                    break;
+
+                case 'extracted_image':
+                    if (recipe.extractedImage?.data) {
+                        return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+                    }
+                    break;
+
+                case 'external_url':
+                    if (recipe.imageUrl) {
+                        return recipe.imageUrl;
+                    }
+                    break;
+            }
+        }
+
+        // Fallback logic for recipes without imagePriority (legacy support)
+        // Priority: Primary photo > embedded images > external > placeholder
+        if (primaryPhoto) {
+            return `/api/recipes/photos/${primaryPhoto._id}`;
+        }
+
+        if (recipe.uploadedImage?.data) {
+            return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+        }
+
+        if (recipe.extractedImage?.data) {
+            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+        }
+
+        if (recipe.imageUrl) {
+            return recipe.imageUrl;
+        }
+
+        return '/images/recipe-placeholder.jpg';
     };
 
     const getImageAlt = () => {
@@ -44,6 +131,13 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
     };
 
     const getImageAttribution = () => {
+        // Show user upload status first
+        if (primaryPhoto || recipe.imagePriority === 'primary_photo' || recipe.hasUserImage || recipe.uploadedImage?.data) {
+            return 'Photo uploaded by user';
+        }
+        if (recipe.extractedImage?.data) {
+            return `AI extracted from ${recipe.extractedImage.source || 'video'}`;
+        }
         if (recipe.imageAttribution && recipe.imageAttribution !== 'Unknown from Unknown') {
             return recipe.imageAttribution;
         }
@@ -56,19 +150,56 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
         return null;
     };
 
+    const getImageTypeIndicator = () => {
+        if (recipe.imagePriority) {
+            switch (recipe.imagePriority) {
+                case 'primary_photo':
+                    return 'user_upload';
+                case 'uploaded_image':
+                    return 'user_upload';
+                case 'extracted_image':
+                    return 'ai_extracted';
+                case 'external_url':
+                    return 'external';
+                default:
+                    return 'unknown';
+            }
+        }
+
+        // Fallback detection
+        if (primaryPhoto || recipe.hasUserImage || recipe.uploadedImage?.data) {
+            return 'user_upload';
+        }
+        if (recipe.extractedImage?.data) {
+            return 'ai_extracted';
+        }
+        if (recipe.imageUrl) {
+            return 'external';
+        }
+        return 'placeholder';
+    };
+
+    const currentImageSrc = getImageSrc();
+    const isUsingApiRoute = currentImageSrc.startsWith('/api/');
+    const imageType = getImageTypeIndicator();
+
     return (
         <div className={`relative overflow-hidden ${className}`}>
             <Image
-                src={getImageSrc()}
+                src={currentImageSrc}
                 alt={getImageAlt()}
                 fill
                 className={`object-cover transition-all duration-300 ${
                     imageLoaded ? 'opacity-100' : 'opacity-0'
                 } group-hover:scale-105`}
-                onLoad={() => setImageLoaded(true)}
+                onLoad={() => {
+                    setImageLoaded(true);
+                    setImageError(false);
+                }}
                 onError={() => setImageError(true)}
                 priority={priority}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                unoptimized={isUsingApiRoute}
             />
 
             {/* Loading placeholder */}
@@ -83,17 +214,50 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             )}
 
             {/* Image attribution overlay */}
-            {getImageAttribution() && imageLoaded && (
+            {getImageAttribution() && imageLoaded && !imageError && (
                 <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     {getImageAttribution()}
                 </div>
             )}
 
-            {/* User image indicator */}
-            {recipe.hasUserImage && (
-                <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                    📷 User Photo
-                </div>
+            {/* Enhanced image type indicators */}
+            {imageLoaded && !imageError && (
+                <>
+                    {/* User upload indicator */}
+                    {imageType === 'user_upload' && (
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            📷
+                        </div>
+                    )}
+
+                    {/* AI extracted indicator */}
+                    {imageType === 'ai_extracted' && (
+                        <div className="absolute top-2 right-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            🤖
+                        </div>
+                    )}
+
+                    {/* External image indicator */}
+                    {imageType === 'external' && (
+                        <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            🌐
+                        </div>
+                    )}
+
+                    {/* Multiple photos indicator */}
+                    {recipe.photoCount > 1 && (
+                        <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            +{recipe.photoCount - 1}
+                        </div>
+                    )}
+
+                    {/* Image priority indicator (for debugging - can be removed) */}
+                    {recipe.imagePriority && recipe.imagePriority !== 'external_url' && (
+                        <div className="absolute bottom-2 right-2 bg-black bg-opacity-70 text-white text-xs px-1 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity">
+                            {recipe.imagePriority.replace('_', ' ')}
+                        </div>
+                    )}
+                </>
             )}
         </div>
     );
@@ -1067,7 +1231,7 @@ function RecipesContent() {
                                         return (
                                             <div key={recipe._id} className="bg-white rounded-lg border shadow-sm hover:shadow-md transition-shadow overflow-hidden group">
                                                 {/* Recipe Image */}
-                                                <div className="relative h-48 bg-gray-100">
+                                                <div className="relative h-32 bg-gray-100">
                                                     <RecipeImage
                                                         recipe={recipe}
                                                         className="rounded-t-lg"
