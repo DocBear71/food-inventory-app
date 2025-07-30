@@ -21,7 +21,7 @@ import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
 
-// Hero Recipe Image Component - UPDATED to support primary photo selection and photo collection
+// Hero Recipe Image Component - ENHANCED with full schema support
 const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => {
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
@@ -29,6 +29,63 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
     const [showImageSelector, setShowImageSelector] = useState(false);
     const [availableImages, setAvailableImages] = useState([]);
     const [loading, setLoading] = useState(false);
+    const [currentPrimaryPhoto, setCurrentPrimaryPhoto] = useState(null);
+
+    // Fetch current primary photo from collection
+    useEffect(() => {
+        fetchCurrentPrimaryPhoto();
+    }, [recipe._id, recipe.primaryPhoto]);
+
+    const fetchCurrentPrimaryPhoto = async () => {
+        try {
+            // First check if recipe has a primaryPhoto reference
+            if (recipe.primaryPhoto) {
+                const response = await apiGet(`/api/recipes/photos/${recipe.primaryPhoto}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success) {
+                        setCurrentPrimaryPhoto(data.photo);
+                        console.log('🔍 Found primaryPhoto from recipe reference:', data.photo._id);
+                        return;
+                    }
+                }
+            }
+
+            // Fallback: check photos collection for isPrimary flag
+            const response = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.photos) {
+                    const primaryPhoto = data.photos.find(p => p.isPrimary);
+                    setCurrentPrimaryPhoto(primaryPhoto);
+                    console.log('🔍 Found primary photo in collection:', primaryPhoto?._id);
+
+                    // Sync recipe document if we found a primary but recipe doesn't reference it
+                    if (primaryPhoto && !recipe.primaryPhoto) {
+                        await syncPrimaryPhotoToRecipe(primaryPhoto._id);
+                    }
+                }
+            }
+        } catch (error) {
+            console.error('Error fetching primary photo:', error);
+        }
+    };
+
+    const syncPrimaryPhotoToRecipe = async (photoId) => {
+        try {
+            await apiPut(`/api/recipes/${recipe._id}`, {
+                primaryPhoto: photoId,
+                hasPhotos: true,
+                imagePriority: 'primary_photo',
+                'imageMetadata.primarySource': 'photo_collection',
+                'imageMetadata.lastUpdated': new Date(),
+                'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
+            });
+            console.log('🔄 Synced primary photo to recipe document');
+        } catch (error) {
+            console.error('Error syncing primary photo to recipe:', error);
+        }
+    };
 
     // Fetch available images when selector is opened
     const fetchAvailableImages = async () => {
@@ -37,11 +94,11 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
         setLoading(true);
         try {
             const response = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+            const images = [];
+
+            // Add uploaded photos from collection
             if (response.ok) {
                 const data = await response.json();
-                const images = [];
-
-                // Add uploaded photos from collection
                 if (data.success && data.photos) {
                     images.push(...data.photos.map(photo => ({
                         id: photo._id,
@@ -49,46 +106,48 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
                         url: `/api/recipes/photos/${photo._id}`,
                         source: 'user_upload',
                         name: photo.originalName || 'Uploaded Photo',
-                        isPrimary: photo.isPrimary
+                        isPrimary: photo.isPrimary || (recipe.primaryPhoto === photo._id)
                     })));
                 }
-
-                // Add recipe's embedded images
-                if (recipe.uploadedImage?.data) {
-                    images.push({
-                        id: 'recipe-uploaded',
-                        type: 'embedded',
-                        url: `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`,
-                        source: 'user_upload',
-                        name: recipe.uploadedImage.originalName || 'Recipe Photo',
-                        isPrimary: false
-                    });
-                }
-
-                if (recipe.extractedImage?.data) {
-                    images.push({
-                        id: 'recipe-extracted',
-                        type: 'embedded',
-                        url: `data:image/jpeg;base64,${recipe.extractedImage.data}`,
-                        source: 'ai_extracted',
-                        name: 'AI Extracted Photo',
-                        isPrimary: false
-                    });
-                }
-
-                if (recipe.imageUrl) {
-                    images.push({
-                        id: 'recipe-external',
-                        type: 'external',
-                        url: recipe.imageUrl,
-                        source: 'external',
-                        name: 'External Image',
-                        isPrimary: false
-                    });
-                }
-
-                setAvailableImages(images);
             }
+
+            // Add recipe's embedded images
+            if (recipe.uploadedImage?.data) {
+                images.push({
+                    id: 'recipe-uploaded',
+                    type: 'embedded',
+                    url: `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`,
+                    source: 'user_upload',
+                    name: recipe.uploadedImage.originalName || 'Recipe Photo',
+                    isPrimary: recipe.imagePriority === 'uploaded_image'
+                });
+            }
+
+            if (recipe.extractedImage?.data) {
+                images.push({
+                    id: 'recipe-extracted',
+                    type: 'embedded',
+                    url: `data:image/jpeg;base64,${recipe.extractedImage.data}`,
+                    source: 'ai_extracted',
+                    name: 'AI Extracted Photo',
+                    isPrimary: recipe.imagePriority === 'extracted_image'
+                });
+            }
+
+            // Add external image
+            if (recipe.imageUrl) {
+                images.push({
+                    id: 'recipe-external',
+                    type: 'external',
+                    url: recipe.imageUrl,
+                    source: 'external',
+                    name: 'External Image',
+                    isPrimary: recipe.imagePriority === 'external_url'
+                });
+            }
+
+            setAvailableImages(images);
+            console.log('🖼️ Available images for selection:', images.length);
         } catch (error) {
             console.error('Error fetching available images:', error);
         }
@@ -96,49 +155,59 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
     };
 
     const getImageSrc = () => {
-        console.log('🖼️ RecipeHeroImage - Checking image sources:');
-        console.log('🖼️ Recipe data structure:', {
-            hasPrimaryPhoto: !!recipe.primaryPhoto,
-            hasPhotosArray: !!(recipe.photos && recipe.photos.length > 0),
-            hasUploadedImage: !!recipe.uploadedImage?.data,
-            hasExtractedImage: !!recipe.extractedImage?.data,
-            hasImageUrl: !!recipe.imageUrl,
-            photosCount: recipe.photos?.length || 0,
-            photoCount: recipe.photoCount,
-            hasPhotosFlag: recipe.hasPhotos
-        });
+        console.log('🖼️ RecipeHeroImage - Getting image source using priority:', recipe.imagePriority);
 
-        // Priority: Primary photo from collection > photos array > embedded images > external > placeholder
+        // Use imagePriority to determine which image to show
+        switch (recipe.imagePriority) {
+            case 'primary_photo':
+                if (currentPrimaryPhoto && !imageError) {
+                    const photoUrl = `/api/recipes/photos/${currentPrimaryPhoto._id}`;
+                    console.log('🖼️ Using primary photo from collection:', photoUrl);
+                    return photoUrl;
+                }
+                break;
 
-        // 1. Check for primary photo from collection (NEW!)
-        if (recipe.primaryPhoto && !imageError) {
-            console.log('🖼️ Using primaryPhoto from collection:', recipe.primaryPhoto);
-            return `/api/recipes/photos/${recipe.primaryPhoto}`;
+            case 'uploaded_image':
+                if (recipe.uploadedImage?.data && !imageError) {
+                    console.log('🖼️ Using uploadedImage (embedded base64)');
+                    return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+                }
+                break;
+
+            case 'extracted_image':
+                if (recipe.extractedImage?.data && !imageError) {
+                    console.log('🖼️ Using extractedImage (embedded base64)');
+                    return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+                }
+                break;
+
+            case 'external_url':
+                if (recipe.imageUrl && !imageError) {
+                    console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
+                    return recipe.imageUrl;
+                }
+                break;
         }
 
-        // 2. Check photos array for primary photo
-        if (recipe.photos && recipe.photos.length > 0 && !imageError) {
-            const primaryPhoto = recipe.photos.find(p => p.isPrimary) || recipe.photos[0];
-            const photoId = primaryPhoto._id || primaryPhoto;
-            console.log('🖼️ Using photos array:', photoId);
-            return `/api/recipes/photos/${photoId}`;
+        // Fallback logic if priority doesn't match or fails
+        if (currentPrimaryPhoto && !imageError) {
+            const photoUrl = `/api/recipes/photos/${currentPrimaryPhoto._id}`;
+            console.log('🖼️ Fallback: Using primary photo from collection:', photoUrl);
+            return photoUrl;
         }
 
-        // 3. Check for uploaded image (embedded base64)
         if (recipe.uploadedImage?.data && !imageError) {
-            console.log('🖼️ Using uploadedImage (embedded base64)');
+            console.log('🖼️ Fallback: Using uploadedImage');
             return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
         }
 
-        // 4. Check for extracted image (embedded base64)
         if (recipe.extractedImage?.data && !imageError) {
-            console.log('🖼️ Using extractedImage (embedded base64)');
+            console.log('🖼️ Fallback: Using extractedImage');
             return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
         }
 
-        // 5. Check for external image URL
         if (recipe.imageUrl && !imageError) {
-            console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
+            console.log('🖼️ Fallback: Using external imageUrl');
             return recipe.imageUrl;
         }
 
@@ -152,7 +221,7 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
 
     const getImageAttribution = () => {
         // Show user upload status first
-        if (recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0) || recipe.hasUserImage || recipe.uploadedImage?.data) {
+        if (currentPrimaryPhoto || recipe.imagePriority === 'primary_photo' || recipe.hasUserImage || recipe.uploadedImage?.data) {
             return 'Photo uploaded by user';
         }
         if (recipe.extractedImage?.data) {
@@ -172,6 +241,13 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
 
     const setPrimaryImage = async (imageId, imageType) => {
         try {
+            console.log('🔄 Setting primary image:', imageId, imageType);
+
+            let updateData = {
+                'imageMetadata.lastUpdated': new Date(),
+                'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
+            };
+
             if (imageType === 'collection') {
                 // Set primary photo in collection
                 const response = await apiPut(`/api/recipes/photos/${imageId}`, {
@@ -179,21 +255,100 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
                 });
 
                 if (response.ok) {
-                    // Update recipe to use this as primary photo
-                    const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, {
-                        primaryPhoto: imageId
-                    });
+                    // Update recipe document with new primary photo
+                    updateData = {
+                        ...updateData,
+                        primaryPhoto: imageId,
+                        hasPhotos: true,
+                        hasUserImage: true,
+                        imagePriority: 'primary_photo',
+                        'imageMetadata.primarySource': 'photo_collection'
+                    };
+
+                    const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, updateData);
 
                     if (updateResponse.ok) {
-                        onImageUpdate && onImageUpdate();
+                        console.log('✅ Successfully set primary image and updated recipe');
+                        await fetchCurrentPrimaryPhoto();
+                        onImageUpdate?.();
+                        setShowImageSelector(false);
+                    } else {
+                        console.error('❌ Failed to update recipe document');
+                    }
+                } else {
+                    console.error('❌ Failed to set primary photo in collection');
+                }
+            } else if (imageType === 'external') {
+                // Clear any primary photos in collection and set external as primary
+                try {
+                    const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+                    if (photosResponse.ok) {
+                        const photosData = await photosResponse.json();
+                        if (photosData.success && photosData.photos) {
+                            for (const photo of photosData.photos) {
+                                if (photo.isPrimary) {
+                                    await apiPut(`/api/recipes/photos/${photo._id}`, {
+                                        isPrimary: false
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Update recipe to use external image
+                    updateData = {
+                        ...updateData,
+                        primaryPhoto: null,
+                        imagePriority: 'external_url',
+                        'imageMetadata.primarySource': 'external_url'
+                    };
+
+                    const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+
+                    if (updateResponse.ok) {
+                        console.log('✅ Set external image as primary');
+                        setCurrentPrimaryPhoto(null);
+                        onImageUpdate?.();
                         setShowImageSelector(false);
                     }
+                } catch (error) {
+                    console.error('❌ Failed to set external image as primary:', error);
                 }
-            } else {
-                // For embedded/external images, we might need different logic
-                // This would depend on your backend implementation
-                console.log('Setting primary for non-collection image:', imageId, imageType);
-                setShowImageSelector(false);
+            } else if (imageType === 'embedded') {
+                // Handle embedded images (uploadedImage or extractedImage)
+                const priority = imageId === 'recipe-uploaded' ? 'uploaded_image' : 'extracted_image';
+                const source = imageId === 'recipe-uploaded' ? 'embedded_upload' : 'ai_extracted';
+
+                // Clear primary photos in collection
+                const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+                if (photosResponse.ok) {
+                    const photosData = await photosResponse.json();
+                    if (photosData.success && photosData.photos) {
+                        for (const photo of photosData.photos) {
+                            if (photo.isPrimary) {
+                                await apiPut(`/api/recipes/photos/${photo._id}`, {
+                                    isPrimary: false
+                                });
+                            }
+                        }
+                    }
+                }
+
+                updateData = {
+                    ...updateData,
+                    primaryPhoto: null,
+                    imagePriority: priority,
+                    'imageMetadata.primarySource': source
+                };
+
+                const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+
+                if (updateResponse.ok) {
+                    console.log('✅ Set embedded image as primary');
+                    setCurrentPrimaryPhoto(null);
+                    onImageUpdate?.();
+                    setShowImageSelector(false);
+                }
             }
         } catch (error) {
             console.error('Error setting primary image:', error);
@@ -202,15 +357,31 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
 
     const hasMultipleImages = () => {
         let imageCount = 0;
-        if (recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0)) imageCount++;
+        if (currentPrimaryPhoto || recipe.hasPhotos) imageCount++;
         if (recipe.uploadedImage?.data) imageCount++;
         if (recipe.extractedImage?.data) imageCount++;
         if (recipe.imageUrl) imageCount++;
         return imageCount > 1;
     };
 
+    const getCurrentImageType = () => {
+        switch (recipe.imagePriority) {
+            case 'primary_photo': return 'user_upload';
+            case 'uploaded_image': return 'user_upload';
+            case 'extracted_image': return 'ai_extracted';
+            case 'external_url': return 'external';
+            default: return 'unknown';
+        }
+    };
+
     const currentImageSrc = getImageSrc();
     const isUsingApiRoute = currentImageSrc.startsWith('/api/');
+    const hasAnyImage = currentPrimaryPhoto || recipe.hasPhotos || recipe.uploadedImage?.data || recipe.extractedImage?.data || recipe.imageUrl;
+
+    // Don't render if no image available
+    if (!hasAnyImage) {
+        return null;
+    }
 
     return (
         <>
@@ -225,6 +396,7 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
                     onLoad={() => {
                         console.log('✅ Hero image loaded successfully');
                         setImageLoaded(true);
+                        setImageError(false);
                     }}
                     onError={() => {
                         console.error('❌ Hero image failed to load:', currentImageSrc);
@@ -256,21 +428,33 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
                     </div>
                 )}
 
-                {/* User image indicator */}
-                {(recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0) || recipe.hasUserImage || recipe.uploadedImage?.data) && (
+                {/* Enhanced image type indicators */}
+                {getCurrentImageType() === 'user_upload' && (
                     <div className="absolute top-4 right-4 bg-green-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
                         📷 User Photo
                     </div>
                 )}
 
-                {/* AI extracted indicator */}
-                {recipe.extractedImage?.data && !recipe.primaryPhoto && !(recipe.photos && recipe.photos.length > 0) && !recipe.uploadedImage?.data && (
+                {getCurrentImageType() === 'ai_extracted' && (
                     <div className="absolute top-4 right-4 bg-purple-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
                         🤖 AI Extracted
                     </div>
                 )}
 
-                {/* Change primary image button - only show if user owns recipe and has multiple images */}
+                {getCurrentImageType() === 'external' && (
+                    <div className="absolute top-4 right-4 bg-blue-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                        🌐 External
+                    </div>
+                )}
+
+                {/* Image priority indicator (for debugging) */}
+                {recipe.imagePriority && recipe.imagePriority !== 'external_url' && (
+                    <div className="absolute top-16 right-4 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                        Priority: {recipe.imagePriority.replace('_', ' ')}
+                    </div>
+                )}
+
+                {/* Change primary image button */}
                 {hasMultipleImages() && session?.user?.id === recipe.createdBy?._id && (
                     <div className="absolute top-4 left-4">
                         <TouchEnhancedButton
@@ -292,7 +476,7 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
                 </div>
             </div>
 
-            {/* Image Selector Modal */}
+            {/* Enhanced Image Selector Modal */}
             {showImageSelector && (
                 <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -311,6 +495,9 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
                             <p className="text-sm text-gray-600 mt-2">
                                 Select which image should be displayed as the main hero image for this recipe.
                             </p>
+                            <div className="text-xs text-gray-500 mt-1">
+                                Current priority: <span className="font-medium">{recipe.imagePriority?.replace('_', ' ') || 'none'}</span>
+                            </div>
                         </div>
 
                         <div className="p-6 max-h-[60vh] overflow-y-auto">
@@ -321,60 +508,70 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                                    {availableImages.map((image) => (
-                                        <div
-                                            key={image.id}
-                                            className={`relative cursor-pointer rounded-lg overflow-hidden border-4 transition-all ${
-                                                image.isPrimary || (image.type === 'collection' && recipe.primaryPhoto === image.id)
-                                                    ? 'border-blue-500 shadow-lg'
-                                                    : 'border-gray-200 hover:border-blue-300'
-                                            }`}
-                                            onClick={() => setPrimaryImage(image.id, image.type)}
-                                        >
-                                            <div className="aspect-video relative bg-gray-100">
-                                                <Image
-                                                    src={image.url}
-                                                    alt={image.name}
-                                                    fill
-                                                    className="object-cover"
-                                                    unoptimized={image.url.startsWith('/api/')}
-                                                />
-                                            </div>
+                                    {availableImages.map((image) => {
+                                        const isCurrentHero = (
+                                            (image.type === 'collection' && recipe.imagePriority === 'primary_photo' && recipe.primaryPhoto === image.id) ||
+                                            (image.type === 'external' && recipe.imagePriority === 'external_url') ||
+                                            (image.type === 'embedded' &&
+                                                ((image.id === 'recipe-uploaded' && recipe.imagePriority === 'uploaded_image') ||
+                                                    (image.id === 'recipe-extracted' && recipe.imagePriority === 'extracted_image')))
+                                        );
 
-                                            {/* Current hero indicator */}
-                                            {(image.isPrimary || (image.type === 'collection' && recipe.primaryPhoto === image.id)) && (
-                                                <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
-                                                    Current Hero
+                                        return (
+                                            <div
+                                                key={image.id}
+                                                className={`relative cursor-pointer rounded-lg overflow-hidden border-4 transition-all ${
+                                                    isCurrentHero
+                                                        ? 'border-blue-500 shadow-lg'
+                                                        : 'border-gray-200 hover:border-blue-300'
+                                                }`}
+                                                onClick={() => setPrimaryImage(image.id, image.type)}
+                                            >
+                                                <div className="aspect-video relative bg-gray-100">
+                                                    <Image
+                                                        src={image.url}
+                                                        alt={image.name}
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized={image.url.startsWith('/api/')}
+                                                    />
                                                 </div>
-                                            )}
 
-                                            {/* Image type indicator */}
-                                            <div className="absolute top-2 right-2">
-                                                {image.source === 'user_upload' && (
-                                                    <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
-                                                        📷 Uploaded
+                                                {/* Current hero indicator */}
+                                                {isCurrentHero && (
+                                                    <div className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                                        Current Hero
                                                     </div>
                                                 )}
-                                                {image.source === 'ai_extracted' && (
-                                                    <div className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
-                                                        🤖 AI
-                                                    </div>
-                                                )}
-                                                {image.source === 'external' && (
-                                                    <div className="bg-gray-500 text-white text-xs px-2 py-1 rounded-full">
-                                                        🌐 External
-                                                    </div>
-                                                )}
-                                            </div>
 
-                                            {/* Image name */}
-                                            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
-                                                <div className="text-white text-sm font-medium truncate">
-                                                    {image.name}
+                                                {/* Image type indicator */}
+                                                <div className="absolute top-2 right-2">
+                                                    {image.source === 'user_upload' && (
+                                                        <div className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                                                            📷 Uploaded
+                                                        </div>
+                                                    )}
+                                                    {image.source === 'ai_extracted' && (
+                                                        <div className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                                                            🤖 AI
+                                                        </div>
+                                                    )}
+                                                    {image.source === 'external' && (
+                                                        <div className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                                            🌐 External
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Image name */}
+                                                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
+                                                    <div className="text-white text-sm font-medium truncate">
+                                                        {image.name}
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -459,12 +656,94 @@ export default function RecipeDetailPage() {
     }, [recipe]);
 
     // Handle photo uploads - updated to work with your existing RecipePhotoUpload component
-    const handlePhotoUploaded = () => {
-        console.log('📸 Photos updated, refreshing gallery');
-        setRefreshPhotos(prev => prev + 1);
-        setShowPhotoUpload(false);
-        // Optionally refresh the entire recipe to get updated data
-        fetchRecipe();
+    const handlePhotoUploaded = async () => {
+        console.log('📸 Photos updated, refreshing gallery and hero image');
+
+        try {
+            // Refresh the photos gallery
+            setRefreshPhotos(prev => prev + 1);
+            setShowPhotoUpload(false);
+
+            // Get updated photos count and check for primary
+            const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+            if (photosResponse.ok) {
+                const photosData = await photosResponse.json();
+                if (photosData.success && photosData.photos) {
+                    console.log('📸 Found photos after upload:', photosData.photos.length);
+
+                    const hasOtherImages = recipe.imageUrl || recipe.uploadedImage?.data || recipe.extractedImage?.data;
+                    const primaryPhoto = photosData.photos.find(p => p.isPrimary);
+                    const photoCount = photosData.photos.length;
+
+                    // Prepare recipe update data
+                    let updateData = {
+                        photoCount: photoCount,
+                        hasPhotos: photoCount > 0,
+                        photos: photosData.photos.map(p => p._id),
+                        'imageMetadata.lastUpdated': new Date(),
+                        'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
+                    };
+
+                    // If this is the first photo and no other images exist, make it primary
+                    if (photoCount === 1 && !hasOtherImages && !primaryPhoto) {
+                        console.log('📸 Setting first uploaded photo as primary hero image');
+                        const photoId = photosData.photos[0]._id;
+
+                        // Set as primary in collection
+                        await apiPut(`/api/recipes/photos/${photoId}`, { isPrimary: true });
+
+                        // Update recipe with primary photo settings
+                        updateData = {
+                            ...updateData,
+                            primaryPhoto: photoId,
+                            hasUserImage: true,
+                            imagePriority: 'primary_photo',
+                            'imageMetadata.primarySource': 'photo_collection'
+                        };
+                    }
+                    // If no images existed before and now we have photos, set newest as primary
+                    else if (!hasOtherImages && !primaryPhoto && photoCount > 0) {
+                        console.log('📸 Making newest upload primary since no other images exist');
+                        const newestPhoto = photosData.photos[photosData.photos.length - 1];
+
+                        await apiPut(`/api/recipes/photos/${newestPhoto._id}`, { isPrimary: true });
+
+                        updateData = {
+                            ...updateData,
+                            primaryPhoto: newestPhoto._id,
+                            hasUserImage: true,
+                            imagePriority: 'primary_photo',
+                            'imageMetadata.primarySource': 'photo_collection'
+                        };
+                    }
+                    // If we have a primary photo, make sure recipe references it
+                    else if (primaryPhoto && recipe.primaryPhoto !== primaryPhoto._id) {
+                        console.log('📸 Syncing existing primary photo to recipe document');
+                        updateData = {
+                            ...updateData,
+                            primaryPhoto: primaryPhoto._id,
+                            hasUserImage: true,
+                            imagePriority: 'primary_photo',
+                            'imageMetadata.primarySource': 'photo_collection'
+                        };
+                    }
+
+                    // Update recipe document with photo metadata
+                    await apiPut(`/api/recipes/${recipe._id}`, updateData);
+                    console.log('✅ Updated recipe with photo metadata');
+                }
+            }
+
+            // Trigger hero image refresh
+            handleImageUpdate();
+
+        } catch (error) {
+            console.error('Error handling photo upload:', error);
+            // Still refresh the gallery even if sync fails
+            setRefreshPhotos(prev => prev + 1);
+            setShowPhotoUpload(false);
+            handleImageUpdate();
+        }
     };
 
     const fetchRecipe = async () => {
@@ -796,11 +1075,89 @@ export default function RecipeDetailPage() {
 
 
     const handleImageUpdate = () => {
-        console.log('🖼️ Hero image updated, refreshing...');
+        console.log('🔄 Image updated, refreshing hero image and fetching latest recipe data');
         setRefreshHeroImage(prev => prev + 1);
-        // Optionally refresh the entire recipe to get updated data
+        // Refresh the entire recipe to get updated schema fields
         fetchRecipe();
     };
+
+    const syncRecipeImageMetadata = async () => {
+        if (!recipe._id) return;
+
+        try {
+            console.log('🔄 Syncing recipe image metadata...');
+
+            // Get current photos
+            const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+            let updateData = {
+                'imageMetadata.lastUpdated': new Date(),
+                'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
+            };
+
+            if (photosResponse.ok) {
+                const photosData = await photosResponse.json();
+                if (photosData.success && photosData.photos) {
+                    const photoCount = photosData.photos.length;
+                    const primaryPhoto = photosData.photos.find(p => p.isPrimary);
+
+                    updateData = {
+                        ...updateData,
+                        photoCount: photoCount,
+                        hasPhotos: photoCount > 0,
+                        photos: photosData.photos.map(p => p._id)
+                    };
+
+                    if (primaryPhoto) {
+                        updateData = {
+                            ...updateData,
+                            primaryPhoto: primaryPhoto._id,
+                            hasUserImage: true,
+                            imagePriority: 'primary_photo',
+                            'imageMetadata.primarySource': 'photo_collection'
+                        };
+                    }
+                }
+            }
+
+            // Determine image priority if not set
+            if (!recipe.imagePriority) {
+                if (updateData.primaryPhoto) {
+                    updateData.imagePriority = 'primary_photo';
+                    updateData['imageMetadata.primarySource'] = 'photo_collection';
+                } else if (recipe.uploadedImage?.data) {
+                    updateData.imagePriority = 'uploaded_image';
+                    updateData['imageMetadata.primarySource'] = 'embedded_upload';
+                } else if (recipe.extractedImage?.data) {
+                    updateData.imagePriority = 'extracted_image';
+                    updateData['imageMetadata.primarySource'] = 'ai_extracted';
+                } else if (recipe.imageUrl) {
+                    updateData.imagePriority = 'external_url';
+                    updateData['imageMetadata.primarySource'] = 'external_url';
+                } else {
+                    updateData.imagePriority = 'external_url'; // Default
+                    updateData['imageMetadata.primarySource'] = 'none';
+                }
+            }
+
+            // Update recipe with synced metadata
+            const response = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+            if (response.ok) {
+                console.log('✅ Successfully synced recipe image metadata');
+                fetchRecipe(); // Refresh to get updated data
+            }
+
+        } catch (error) {
+            console.error('Error syncing recipe image metadata:', error);
+        }
+    };
+
+// Add this useEffect to run sync when component loads (run once per recipe)
+    useEffect(() => {
+        if (recipe && !recipe.imageMetadata?.lastUpdated) {
+            // Only sync if metadata hasn't been initialized
+            syncRecipeImageMetadata();
+        }
+    }, [recipe?._id]);
 
     if (loading) {
         return (
@@ -860,9 +1217,9 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
-                    {/* Hero Image Section - UPDATED with primary photo support and user selection */}
-                    {(recipe.primaryPhoto ||
-                        (recipe.photos && recipe.photos.length > 0) ||
+                    {/* Hero Image Section - Enhanced with full schema support */}
+                    {(recipe.hasPhotos ||
+                        recipe.primaryPhoto ||
                         recipe.uploadedImage?.data ||
                         recipe.extractedImage?.data ||
                         recipe.imageUrl) && (
@@ -1280,6 +1637,33 @@ export default function RecipeDetailPage() {
                                             {recipe.imageAttribution && recipe.imageAttribution !== 'Unknown from Unknown' && (
                                                 <div className="text-xs text-gray-500 mt-1">
                                                     {recipe.imageAttribution}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* ADD THIS: Enhanced Image System Metadata */}
+                                {recipe.imageMetadata?.primarySource && recipe.imageMetadata.primarySource !== 'none' && (
+                                    <div>
+                                        <span className="text-gray-500">Image System:</span>
+                                        <div className="ml-2 text-sm">
+                        <span className="text-gray-900 capitalize">
+                            {recipe.imageMetadata.primarySource.replace('_', ' ')}
+                        </span>
+                                            {recipe.imagePriority && (
+                                                <div className="text-xs text-gray-500">
+                                                    Priority: {recipe.imagePriority.replace('_', ' ')}
+                                                </div>
+                                            )}
+                                            {recipe.photoCount > 0 && (
+                                                <div className="text-xs text-gray-500">
+                                                    {recipe.photoCount} photo{recipe.photoCount !== 1 ? 's' : ''} in collection
+                                                </div>
+                                            )}
+                                            {recipe.imageMetadata.updateCount > 0 && (
+                                                <div className="text-xs text-gray-500">
+                                                    Updated {recipe.imageMetadata.updateCount} time{recipe.imageMetadata.updateCount !== 1 ? 's' : ''}
                                                 </div>
                                             )}
                                         </div>

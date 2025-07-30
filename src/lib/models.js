@@ -3314,6 +3314,53 @@ const RecipeSchema = new mongoose.Schema({
     hasUserImage: { type: Boolean, default: false },
     hasExtractedImage: { type: Boolean, default: false },
 
+// NEW: Photo collection integration
+    primaryPhoto: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'RecipePhoto', // Reference to your photos collection
+        default: null
+    },
+
+// Enhanced photo tracking
+    photos: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'RecipePhoto'
+    }],
+
+    photoCount: {
+        type: Number,
+        default: 0
+    },
+
+    hasPhotos: {
+        type: Boolean,
+        default: false
+    },
+
+// Image priority system
+    imagePriority: {
+        type: String,
+        enum: ['primary_photo', 'uploaded_image', 'extracted_image', 'external_url'],
+        default: 'external_url'
+    },
+
+// UPDATED: Image metadata with photo collection support
+    imageMetadata: {
+        primarySource: {
+            type: String,
+            enum: ['photo_collection', 'embedded_upload', 'ai_extracted', 'external_url', 'none'],
+            default: 'none'
+        },
+        lastUpdated: {
+            type: Date,
+            default: Date.now
+        },
+        updateCount: {
+            type: Number,
+            default: 0
+        }
+    },
+
     // Video-specific metadata
     videoMetadata: VideoMetadataSchema,
 
