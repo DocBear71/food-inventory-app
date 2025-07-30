@@ -6,11 +6,13 @@ import TermsOfUse from './TermsOfUse';
 import AboutUs from './AboutUs';
 import CookieConsent from './CookieConsent'; // You'll need to create this
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import { useRouter } from 'next/navigation';
 
 const Footer = () => {
     const [activeModal, setActiveModal] = useState(null);
     const [showCookieConsent, setShowCookieConsent] = useState(false);
     const [isEUUser, setIsEUUser] = useState(false);
+    const router = useRouter();
 
     // Check if user is in EU/EEA and needs cookie consent
     useEffect(() => {
@@ -292,7 +294,6 @@ const Footer = () => {
                             flexDirection: 'column',
                             gap: '1rem'
                         }}>
-                            {/* Enhanced Legal Links */}
                             <div className="footer-legal-links">
                                 <div style={{
                                     display: 'flex',
@@ -357,6 +358,28 @@ const Footer = () => {
                                             }}
                                     >
                                         About Us
+                                    </TouchEnhancedButton>
+
+                                    <span style={{ color: '#7f8c8d' }}>•</span>
+
+                                    {/* NEW: Legal Information Page Link */}
+                                    <TouchEnhancedButton
+                                            onClick={() => router.push('/legal')}
+                                            style={{
+                                                background: 'none',
+                                                border: 'none',
+                                                color: '#e74c3c', // Highlighted in red to match your theme
+                                                fontSize: '14px',
+                                                cursor: 'pointer',
+                                                textDecoration: 'underline',
+                                                padding: '8px 4px',
+                                                minHeight: '44px',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                fontWeight: 'bold'
+                                            }}
+                                    >
+                                        📋 Legal Information
                                     </TouchEnhancedButton>
 
                                     {/* Cookie Preferences for EU users */}

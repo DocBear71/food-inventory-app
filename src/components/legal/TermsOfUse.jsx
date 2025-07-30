@@ -389,8 +389,61 @@ const TermsOfUse = () => {
                     </ul>
                 </div>
 
+                {/* Content Rating and Regional Compliance */}
+                <section style={{ marginBottom: '3rem' }}>
+                    <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>9. Content Rating and Regional Compliance</h2>
+
+                    <div style={{ backgroundColor: '#e8f5e8', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #28a745' }}>
+                        <h3 style={{ fontSize: '18px', color: '#155724', marginBottom: '1rem' }}>Age Rating and Content Classification</h3>
+                        <ul style={{ color: '#155724', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Primary Age Rating:</strong> 13+ (suitable for users 13 years and older)</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Content Categories:</strong> Educational cooking content, food inventory management, nutrition information</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Mature Content:</strong> None - All content is family-friendly and educational</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Gambling Elements:</strong> None present in the application</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Simulated Gambling:</strong> Not applicable - no gambling functionality</li>
+                        </ul>
+                    </div>
+
+                    <div style={{ backgroundColor: '#fff3cd', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #ffc107' }}>
+                        <h3 style={{ fontSize: '18px', color: '#856404', marginBottom: '1rem' }}>Regional Age Verification Compliance</h3>
+
+                        <h4 style={{ fontSize: '16px', color: '#856404', marginBottom: '0.5rem' }}>Korea (MOGEF Requirements):</h4>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem', marginBottom: '1rem' }}>
+                            <li>Our app contains no content designated as "harmful to juveniles"</li>
+                            <li>All content is educational and appropriate for users 13+</li>
+                            <li>No additional age verification beyond standard registration is required</li>
+                        </ul>
+
+                        <h4 style={{ fontSize: '16px', color: '#856404', marginBottom: '0.5rem' }}>Japan (Specified Commercial Transactions Act):</h4>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem', marginBottom: '1rem' }}>
+                            <li>Business operator: Doc Bear Enterprises, LLC.</li>
+                            <li>Contact phone: (319) 826-3463</li>
+                            <li>Physical address: 5249 N Park Pl NE, PMB 4011, Cedar Rapids, IA 52402</li>
+                            <li>All required merchant information is maintained in our Play Console account</li>
+                        </ul>
+
+                        <h4 style={{ fontSize: '16px', color: '#856404', marginBottom: '0.5rem' }}>Brazil (Merchant Requirements):</h4>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li>All required merchant verification information is provided through our Google Payments profile</li>
+                            <li>Business documentation available upon regulatory request</li>
+                            <li>Compliance with Brazilian commercial transaction requirements</li>
+                        </ul>
+                    </div>
+
+                    <div style={{ backgroundColor: '#d1ecf1', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #17a2b8' }}>
+                        <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Content Safety Assurance</h3>
+                        <ul style={{ color: '#0c5460', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li style={{ marginBottom: '0.5rem' }}>All recipes and nutritional content are appropriate for family use</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Voice input features include additional safeguards for users under 18</li>
+                            <li style={{ marginBottom: '0.5rem' }}>International barcode scanning is limited to food products only</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Price tracking features do not contain financial advice or investment guidance</li>
+                            <li>Educational focus promotes healthy cooking and nutrition habits</li>
+                        </ul>
+                    </div>
+                </section>
+
                 <div id="ugc" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>9. USER GENERATED CONTRIBUTIONS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>10. USER GENERATED CONTRIBUTIONS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         The Services may invite you to chat, contribute to, or participate in online forums, recipe
                         sharing, meal plan discussions, and other functionality during which you may create, submit,
@@ -408,7 +461,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="license" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>10. CONTRIBUTION LICENSE</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>11. CONTRIBUTION LICENSE</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         You and Services agree that we may access, store, process, and use any information and
                         personal data that you provide and your choices (including settings).
@@ -428,7 +481,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="management" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>11. SERVICES MANAGEMENT</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>12. SERVICES MANAGEMENT</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         We reserve the right, but not the obligation, to: (1) monitor the Services for violations of
                         these Legal Terms; (2) take appropriate legal action against anyone who, in our sole
@@ -444,7 +497,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="terms" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>12. TERM AND TERMINATION</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>13. TERM AND TERMINATION</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         These Legal Terms shall remain in full force and effect while you use the Services. WITHOUT
                         LIMITING ANY OTHER PROVISION OF THESE LEGAL TERMS, WE RESERVE THE RIGHT TO, IN OUR SOLE
@@ -465,7 +518,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="modifications" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>13. MODIFICATIONS AND INTERRUPTIONS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>14. MODIFICATIONS AND INTERRUPTIONS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         We reserve the right to change, modify, or remove the contents of the Services at any time
                         or for any reason at our sole discretion without notice. However, we have no obligation to
@@ -484,7 +537,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="law" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>14. GOVERNING LAW</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>15. GOVERNING LAW</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         These Legal Terms shall be governed by and defined following the laws of Iowa. Doc Bear
                         Enterprises, LLC. and yourself irrevocably consent that the courts of Iowa shall have
@@ -492,8 +545,56 @@ const TermsOfUse = () => {
                     </p>
                 </div>
 
+                <div id="eu-geoblocking" style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>16. EU GEO-BLOCKING COMPLIANCE</h2>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>European Union Access Rights</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        In compliance with the <strong>Geo-blocking Regulation (EU) 2018/302</strong>, we do not engage in unjustified geo-blocking that discriminates against users based on:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Nationality</li>
+                        <li>Place of residence</li>
+                        <li>Place of establishment within the EU</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Service Availability</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>EU-Wide Access:</strong> Our Services are accessible throughout the European Union, subject to:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Applicable local laws and regulations</li>
+                        <li>Technical availability of regional databases</li>
+                        <li>Currency and language localization capabilities</li>
+                    </ul>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>No Discrimination:</strong> We do not:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Block EU users from accessing our Services based on their location within the EU</li>
+                        <li>Apply different terms, conditions, or pricing based on EU member state residence</li>
+                        <li>Restrict access to features based on nationality within the EU</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Regional Optimizations vs. Restrictions</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>Permitted Regional Adaptations:</strong>
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Currency display preferences (EUR, GBP, etc.)</li>
+                        <li>Regional food database prioritization (UK vs. EU vs. Global Open Food Facts)</li>
+                        <li>Language localization where available</li>
+                        <li>Local measurement system preferences (metric vs. imperial)</li>
+                    </ul>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>These adaptations are optimizations, not restrictions</strong>, and users can manually override regional settings.
+                    </p>
+                </div>
+
                 <div id="disputes" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>15. DISPUTE RESOLUTION</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>17. DISPUTE RESOLUTION</h2>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Informal Negotiations</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
@@ -543,7 +644,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="corrections" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>16. CORRECTIONS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>18. CORRECTIONS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         There may be information on the Services that contains typographical errors, inaccuracies,
                         or omissions, including descriptions, pricing, availability, and various other information.
@@ -553,7 +654,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="disclaimer" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>17. DISCLAIMER</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>19. DISCLAIMER</h2>
 
                     <h3 style={{fontSize: '17px', color: '#000000'}}>Family-Friendly Content Assurance</h3>
                     <p style={{color: '#595959', fontSize: '15px'}}>
@@ -618,7 +719,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="liability" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>18. LIMITATIONS OF LIABILITY</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>20. LIMITATIONS OF LIABILITY</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         IN NO EVENT WILL WE BE LIABLE FOR ANY DAMAGES ARISING FROM: (1) FOODBORNE ILLNESS OR ALLERGIC
                         REACTIONS RELATED TO RECIPES OR FOOD INVENTORY MANAGEMENT; (2) RELIANCE ON NUTRITIONAL
@@ -648,7 +749,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="indemnification" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>19. INDEMNIFICATION</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>21. INDEMNIFICATION</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         You agree to defend, indemnify, and hold us harmless, including our subsidiaries,
                         affiliates, and all of our respective officers, agents, partners, and employees, from and against any
@@ -664,7 +765,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="userdata" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>20. USER DATA</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>22. USER DATA</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         We will maintain certain data that you transmit to the Services for the purpose of managing
                         the performance of the Services, as well as data relating to your use of the Services. Although
@@ -676,7 +777,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="electronic" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>21. ELECTRONIC COMMUNICATIONS, TRANSACTIONS,
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>23. ELECTRONIC COMMUNICATIONS, TRANSACTIONS,
                         AND SIGNATURES</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         Visiting the Services, sending us emails, and completing online forms constitute electronic
@@ -690,7 +791,7 @@ const TermsOfUse = () => {
                 </div>
 
                 <div id="misc" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>22. MISCELLANEOUS</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>24. MISCELLANEOUS</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         These Legal Terms and any policies or operating rules posted by us on the Services or in
                         respect to the Services constitute the entire agreement and understanding between you and us. Our
@@ -707,17 +808,18 @@ const TermsOfUse = () => {
 
                 {/* Include remaining sections with contact information */}
                 <div id="contact" style={{marginBottom: '2rem'}}>
-                    <h2 style={{fontSize: '19px', color: '#000000'}}>23. CONTACT US</h2>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>25. CONTACT US</h2>
                     <p style={{color: '#595959', fontSize: '15px'}}>
                         In order to resolve a complaint regarding the Services or to receive further information
                         regarding use of the Services, please contact us at:
                     </p>
                     <div style={{color: '#595959', fontSize: '15px', marginTop: '1rem'}}>
                         <div><strong>Doc Bear Enterprises, LLC.</strong></div>
-                        <div></div>
-                        <div>Cedar Rapids, IA </div>
+                        <div>5249 N Park Pl NE, PMB 4011</div>
+                        <div>Cedar Rapids, IA 52402</div>
                         <div>United States</div>
-                        <div>privacy@docbearscomfort.kitchen</div>
+                        <div>Phone: (319) 826-3463</div>
+                        <div>Email: privacy@docbearscomfort.kitchen</div>
                     </div>
                 </div>
 

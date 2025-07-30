@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/[id]/edit/page.js v6 - FIXED: Move AutoExpandingTextarea outside component
+// file: /src/app/recipes/[id]/edit/page.js v7 - Added multi-part recipe editing support
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useState, useEffect, useRef, useCallback } from 'react';
@@ -25,12 +25,10 @@ const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...pro
 
     useEffect(() => {
         adjustHeight();
-    }, [value, adjustHeight]); // Add value as dependency
+    }, [value, adjustHeight]);
 
-    // FIXED: Use stable onChange handler
     const handleChange = useCallback((e) => {
         onChange(e);
-        // Use setTimeout to ensure DOM update happens first
         setTimeout(adjustHeight, 0);
     }, [onChange, adjustHeight]);
 
@@ -55,7 +53,6 @@ export default function EditRecipePage() {
         const sessionResult = useSafeSession();
         session = sessionResult?.data || null;
     } catch (error) {
-        // Mobile build fallback
         session = null;
     }
     const router = useRouter();
@@ -67,6 +64,10 @@ export default function EditRecipePage() {
     const [error, setError] = useState(null);
     const [recipe, setRecipe] = useState(null);
     const [showNutritionModal, setShowNutritionModal] = useState(false);
+
+    // NEW: Multi-part editing state
+    const [isMultiPart, setIsMultiPart] = useState(false);
+    const [activePart, setActivePart] = useState(0);
 
     const CATEGORY_OPTIONS = [
         { value: 'seasonings', label: 'Seasonings' },
@@ -90,6 +91,8 @@ export default function EditRecipePage() {
     const [formData, setFormData] = useState({
         title: '',
         description: '',
+        isMultiPart: false,
+        parts: [],
         ingredients: [{ name: '', amount: '', unit: '', optional: false }],
         instructions: [''],
         prepTime: '',
@@ -118,40 +121,87 @@ export default function EditRecipePage() {
                 const recipeData = data.recipe;
                 setRecipe(recipeData);
 
-                // FIXED: Simplified instruction processing - keep it as strings for editing
-                const processedInstructions = recipeData.instructions && recipeData.instructions.length > 0
-                    ? recipeData.instructions.map(instruction => {
-                        // Always convert to string for editing, regardless of original format
-                        if (typeof instruction === 'string') {
-                            return instruction;
-                        }
-                        // If it's an object, extract the text content
-                        return instruction.text || instruction.instruction || String(instruction);
-                    })
-                    : [''];
+                // NEW: Handle multi-part recipe initialization
+                if (recipeData.isMultiPart && recipeData.parts && recipeData.parts.length > 0) {
+                    setIsMultiPart(true);
+                    setFormData({
+                        title: recipeData.title || '',
+                        description: recipeData.description || '',
+                        isMultiPart: true,
+                        parts: recipeData.parts.map(part => ({
+                            name: part.name || '',
+                            description: part.description || '',
+                            ingredients: part.ingredients && part.ingredients.length > 0
+                                ? part.ingredients.map(ing => ({
+                                    name: ing.name || '',
+                                    amount: ing.amount || '',
+                                    unit: ing.unit || '',
+                                    optional: ing.optional || false
+                                }))
+                                : [{ name: '', amount: '', unit: '', optional: false }],
+                            instructions: part.instructions && part.instructions.length > 0
+                                ? part.instructions.map(inst => {
+                                    if (typeof inst === 'string') {
+                                        return inst;
+                                    }
+                                    return inst.text || inst.instruction || String(inst);
+                                })
+                                : [''],
+                            prepTime: part.prepTime ? part.prepTime.toString() : '',
+                            cookTime: part.cookTime ? part.cookTime.toString() : '',
+                            notes: part.notes || ''
+                        })),
+                        // Keep legacy fields empty for multi-part
+                        ingredients: [],
+                        instructions: [],
+                        prepTime: recipeData.prepTime ? recipeData.prepTime.toString() : '',
+                        cookTime: recipeData.cookTime ? recipeData.cookTime.toString() : '',
+                        servings: recipeData.servings ? recipeData.servings.toString() : '',
+                        difficulty: recipeData.difficulty || 'medium',
+                        tags: recipeData.tags ? recipeData.tags.join(', ') : '',
+                        source: recipeData.source || '',
+                        isPublic: recipeData.isPublic || false,
+                        category: recipeData.category || 'entrees',
+                        nutrition: recipeData.nutrition || {}
+                    });
+                } else {
+                    // Handle single-part recipe
+                    setIsMultiPart(false);
 
-                setFormData({
-                    title: recipeData.title || '',
-                    description: recipeData.description || '',
-                    ingredients: recipeData.ingredients && recipeData.ingredients.length > 0
-                        ? recipeData.ingredients.map(ing => ({
-                            name: ing.name || '',
-                            amount: ing.amount || '',
-                            unit: ing.unit || '',
-                            optional: ing.optional || false
-                        }))
-                        : [{ name: '', amount: '', unit: '', optional: false }],
-                    instructions: processedInstructions, // Use simplified strings
-                    prepTime: recipeData.prepTime ? recipeData.prepTime.toString() : '',
-                    cookTime: recipeData.cookTime ? recipeData.cookTime.toString() : '',
-                    servings: recipeData.servings ? recipeData.servings.toString() : '',
-                    difficulty: recipeData.difficulty || 'medium',
-                    tags: recipeData.tags ? recipeData.tags.join(', ') : '',
-                    source: recipeData.source || '',
-                    isPublic: recipeData.isPublic || false,
-                    category: recipeData.category || 'entrees',
-                    nutrition: recipeData.nutrition || {}
-                });
+                    const processedInstructions = recipeData.instructions && recipeData.instructions.length > 0
+                        ? recipeData.instructions.map(instruction => {
+                            if (typeof instruction === 'string') {
+                                return instruction;
+                            }
+                            return instruction.text || instruction.instruction || String(instruction);
+                        })
+                        : [''];
+
+                    setFormData({
+                        title: recipeData.title || '',
+                        description: recipeData.description || '',
+                        isMultiPart: false,
+                        parts: [],
+                        ingredients: recipeData.ingredients && recipeData.ingredients.length > 0
+                            ? recipeData.ingredients.map(ing => ({
+                                name: ing.name || '',
+                                amount: ing.amount || '',
+                                unit: ing.unit || '',
+                                optional: ing.optional || false
+                            }))
+                            : [{ name: '', amount: '', unit: '', optional: false }],
+                        instructions: processedInstructions,
+                        prepTime: recipeData.prepTime ? recipeData.prepTime.toString() : '',
+                        cookTime: recipeData.cookTime ? recipeData.cookTime.toString() : '',
+                        servings: recipeData.servings ? recipeData.servings.toString() : '',
+                        difficulty: recipeData.difficulty || 'medium',
+                        tags: recipeData.tags ? recipeData.tags.join(', ') : '',
+                        source: recipeData.source || '',
+                        isPublic: recipeData.isPublic || false,
+                        category: recipeData.category || 'entrees',
+                        nutrition: recipeData.nutrition || {}
+                    });
+                }
             } else {
                 setError(data.error || 'Failed to load recipe');
             }
@@ -163,65 +213,257 @@ export default function EditRecipePage() {
         }
     };
 
+    // NEW: Multi-part recipe functions
+    const toggleMultiPart = () => {
+        const newIsMultiPart = !isMultiPart;
+        setIsMultiPart(newIsMultiPart);
+
+        if (newIsMultiPart) {
+            // Convert single-part to multi-part
+            setFormData(prev => ({
+                ...prev,
+                isMultiPart: true,
+                parts: [
+                    {
+                        name: 'Main Recipe',
+                        description: '',
+                        ingredients: prev.ingredients.length > 0 ? prev.ingredients : [{ name: '', amount: '', unit: '', optional: false }],
+                        instructions: prev.instructions.length > 0 ? prev.instructions : [''],
+                        prepTime: '',
+                        cookTime: '',
+                        notes: ''
+                    }
+                ]
+            }));
+        } else {
+            // Convert multi-part back to single-part (use first part)
+            const firstPart = formData.parts?.[0] || {
+                ingredients: [{ name: '', amount: '', unit: '', optional: false }],
+                instructions: ['']
+            };
+
+            setFormData(prev => ({
+                ...prev,
+                isMultiPart: false,
+                ingredients: firstPart.ingredients,
+                instructions: firstPart.instructions,
+                parts: []
+            }));
+        }
+        setActivePart(0);
+    };
+
+    const addRecipePart = () => {
+        setFormData(prev => ({
+            ...prev,
+            parts: [
+                ...prev.parts,
+                {
+                    name: `Part ${prev.parts.length + 1}`,
+                    description: '',
+                    ingredients: [{ name: '', amount: '', unit: '', optional: false }],
+                    instructions: [''],
+                    prepTime: '',
+                    cookTime: '',
+                    notes: ''
+                }
+            ]
+        }));
+        setActivePart(formData.parts.length);
+    };
+
+    const removeRecipePart = (partIndex) => {
+        if (formData.parts.length <= 1) return;
+
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.filter((_, index) => index !== partIndex)
+        }));
+
+        if (activePart >= partIndex && activePart > 0) {
+            setActivePart(activePart - 1);
+        }
+    };
+
+    const updatePartField = (partIndex, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.map((part, index) =>
+                index === partIndex ? { ...part, [field]: value } : part
+            )
+        }));
+    };
+
+    // NEW: Multi-part ingredient functions
+    const addIngredientToPart = (partIndex) => {
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.map((part, index) =>
+                index === partIndex
+                    ? { ...part, ingredients: [...part.ingredients, { name: '', amount: '', unit: '', optional: false }] }
+                    : part
+            )
+        }));
+    };
+
+    const updateIngredientInPart = (partIndex, ingredientIndex, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.map((part, pIndex) =>
+                pIndex === partIndex
+                    ? {
+                        ...part,
+                        ingredients: part.ingredients.map((ing, iIndex) =>
+                            iIndex === ingredientIndex ? { ...ing, [field]: value } : ing
+                        )
+                    }
+                    : part
+            )
+        }));
+    };
+
+    const removeIngredientFromPart = (partIndex, ingredientIndex) => {
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.map((part, pIndex) =>
+                pIndex === partIndex
+                    ? { ...part, ingredients: part.ingredients.filter((_, iIndex) => iIndex !== ingredientIndex) }
+                    : part
+            )
+        }));
+    };
+
+    // NEW: Multi-part instruction functions
+    const addInstructionToPart = (partIndex) => {
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.map((part, pIndex) =>
+                pIndex === partIndex
+                    ? { ...part, instructions: [...part.instructions, ''] }
+                    : part
+            )
+        }));
+    };
+
+    const updateInstructionInPart = useCallback((partIndex, instructionIndex, value) => {
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.map((part, pIndex) =>
+                pIndex === partIndex
+                    ? {
+                        ...part,
+                        instructions: part.instructions.map((inst, iIndex) =>
+                            iIndex === instructionIndex ? value : inst
+                        )
+                    }
+                    : part
+            )
+        }));
+    }, []);
+
+    const removeInstructionFromPart = (partIndex, instructionIndex) => {
+        setFormData(prev => ({
+            ...prev,
+            parts: prev.parts.map((part, pIndex) =>
+                pIndex === partIndex
+                    ? { ...part, instructions: part.instructions.filter((_, iIndex) => iIndex !== instructionIndex) }
+                    : part
+            )
+        }));
+    };
+
+    // Helper function to get current part's data
+    const getCurrentPartData = () => {
+        if (isMultiPart && formData.parts && formData.parts[activePart]) {
+            return formData.parts[activePart];
+        }
+        return {
+            ingredients: formData.ingredients || [],
+            instructions: formData.instructions || []
+        };
+    };
 
     const handleInputChange = (field, value) => {
         setFormData(prev => ({ ...prev, [field]: value }));
     };
 
+    // Legacy functions for single-part recipes
     const addIngredient = () => {
-        setFormData(prev => ({
-            ...prev,
-            ingredients: [...prev.ingredients, { name: '', amount: '', unit: '', optional: false }]
-        }));
+        if (isMultiPart) {
+            addIngredientToPart(activePart);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                ingredients: [...prev.ingredients, { name: '', amount: '', unit: '', optional: false }]
+            }));
+        }
     };
 
     const removeIngredient = (index) => {
-        setFormData(prev => ({
-            ...prev,
-            ingredients: prev.ingredients.filter((_, i) => i !== index)
-        }));
+        if (isMultiPart) {
+            removeIngredientFromPart(activePart, index);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                ingredients: prev.ingredients.filter((_, i) => i !== index)
+            }));
+        }
     };
 
     const updateIngredient = (index, field, value) => {
-        setFormData(prev => ({
-            ...prev,
-            ingredients: prev.ingredients.map((ingredient, i) =>
-                i === index ? { ...ingredient, [field]: value } : ingredient
-            )
-        }));
+        if (isMultiPart) {
+            updateIngredientInPart(activePart, index, field, value);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                ingredients: prev.ingredients.map((ingredient, i) =>
+                    i === index ? { ...ingredient, [field]: value } : ingredient
+                )
+            }));
+        }
     };
 
     const addInstruction = () => {
-        setFormData(prev => ({
-            ...prev,
-            instructions: [...prev.instructions, '']
-        }));
+        if (isMultiPart) {
+            addInstructionToPart(activePart);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                instructions: [...prev.instructions, '']
+            }));
+        }
     };
 
     const removeInstruction = (index) => {
-        setFormData(prev => ({
-            ...prev,
-            instructions: prev.instructions.filter((_, i) => i !== index)
-        }));
+        if (isMultiPart) {
+            removeInstructionFromPart(activePart, index);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                instructions: prev.instructions.filter((_, i) => i !== index)
+            }));
+        }
     };
 
     const updateInstruction = useCallback((index, value) => {
-        setFormData(prev => ({
-            ...prev,
-            instructions: prev.instructions.map((instruction, i) =>
-                i === index ? value : instruction  // Direct string assignment
-            )
-        }));
-    }, []); // Empty dependencies - this function is stable
+        if (isMultiPart) {
+            updateInstructionInPart(activePart, index, value);
+        } else {
+            setFormData(prev => ({
+                ...prev,
+                instructions: prev.instructions.map((instruction, i) =>
+                    i === index ? value : instruction
+                )
+            }));
+        }
+    }, [isMultiPart, activePart]);
 
-    // Handle nutrition update from AI analysis
     const handleNutritionUpdate = (nutrition, analysisResult) => {
         setFormData(prev => ({
             ...prev,
             nutrition: nutrition || {}
         }));
 
-        // Update the recipe object for the nutrition button
         setRecipe(prev => ({
             ...prev,
             nutrition: nutrition,
@@ -229,7 +471,6 @@ export default function EditRecipePage() {
             nutritionCoverage: analysisResult.coverage
         }));
 
-        // Show success message
         alert(`Nutrition updated successfully! Coverage: ${Math.round((analysisResult.coverage || 0) * 100)}%`);
     };
 
@@ -238,26 +479,37 @@ export default function EditRecipePage() {
         setLoading(true);
 
         try {
-            // Process tags into array
             const tags = formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag);
 
-            // Filter out empty ingredients and instructions
-            const ingredients = formData.ingredients.filter(ing => ing.name.trim());
-
-            // FIXED: Keep instructions as strings for compatibility
-            const instructions = formData.instructions
-                .filter(inst => inst.trim())
-                .map((inst, index) => inst.trim()); // Keep as strings, not objects
-
+            // Prepare recipe data based on type
             const recipeData = {
                 ...formData,
                 tags,
-                ingredients,
-                instructions, // Send as string array
+                isMultiPart,
                 prepTime: formData.prepTime ? parseInt(formData.prepTime) : null,
                 cookTime: formData.cookTime ? parseInt(formData.cookTime) : null,
                 servings: formData.servings ? parseInt(formData.servings) : null
             };
+
+            if (isMultiPart) {
+                // Clean up multi-part data
+                recipeData.parts = formData.parts.map(part => ({
+                    ...part,
+                    ingredients: part.ingredients.filter(ing => ing.name.trim()),
+                    instructions: part.instructions.filter(inst => inst.trim()),
+                    prepTime: part.prepTime ? parseInt(part.prepTime) : null,
+                    cookTime: part.cookTime ? parseInt(part.cookTime) : null
+                }));
+                // Clear legacy fields for multi-part recipes
+                delete recipeData.ingredients;
+                delete recipeData.instructions;
+            } else {
+                // Clean up single-part data
+                recipeData.ingredients = formData.ingredients.filter(ing => ing.name.trim());
+                recipeData.instructions = formData.instructions.filter(inst => inst.trim());
+                // Clear multi-part fields for single-part recipes
+                delete recipeData.parts;
+            }
 
             const response = await apiPut(`/api/recipes/${recipeId}`, recipeData);
             const data = await response.json();
@@ -314,7 +566,12 @@ export default function EditRecipePage() {
         <MobileOptimizedLayout>
             <div className="max-w-4xl mx-auto px-4 py-8">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-8 gap-4">
-                    <h1 className="text-3xl font-bold text-gray-900">Edit Recipe</h1>
+                    <div>
+                        <h1 className="text-3xl font-bold text-gray-900">Edit Recipe</h1>
+                        {formData.isMultiPart && (
+                            <p className="text-gray-600 mt-1">🧩 Multi-part recipe with {formData.parts?.length || 0} parts</p>
+                        )}
+                    </div>
                     <TouchEnhancedButton
                         onClick={() => router.back()}
                         className="text-gray-600 hover:text-gray-800 px-4 py-3 min-h-[48px] self-start sm:self-center"
@@ -358,6 +615,35 @@ export default function EditRecipePage() {
                                 />
                             </div>
 
+                            {/* NEW: Multi-Part Toggle */}
+                            <div className="md:col-span-2">
+                                <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                                            Recipe Type
+                                        </label>
+                                        <div className="flex items-center">
+                                            <input
+                                                type="checkbox"
+                                                id="isMultiPart"
+                                                checked={isMultiPart}
+                                                onChange={toggleMultiPart}
+                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                            />
+                                            <label htmlFor="isMultiPart" className="ml-2 text-sm text-gray-700">
+                                                Multi-part recipe (e.g., pot pie with filling + topping)
+                                            </label>
+                                        </div>
+                                    </div>
+                                    {isMultiPart && (
+                                        <div className="text-sm text-blue-600">
+                                            🧩 {formData.parts?.length || 0} parts
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Rest of basic info fields */}
                             <div>
                                 <label htmlFor="prepTime" className="block text-sm font-medium text-gray-700 mb-2">
                                     Prep Time (minutes)
@@ -484,153 +770,411 @@ export default function EditRecipePage() {
                         </div>
                     </div>
 
-                    {/* Ingredients - MOBILE RESPONSIVE */}
-                    <div className="bg-white rounded-lg border p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Ingredients</h2>
+                    {/* NEW: Multi-Part Recipe Sections */}
+                    {isMultiPart ? (
+                        <div className="bg-white rounded-lg border p-6">
+                            <div className="flex items-center justify-between mb-6">
+                                <h2 className="text-xl font-semibold text-gray-900">
+                                    Recipe Parts ({formData.parts?.length || 0})
+                                </h2>
+                                <TouchEnhancedButton
+                                    type="button"
+                                    onClick={addRecipePart}
+                                    className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 text-sm font-medium flex items-center gap-2"
+                                >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                    </svg>
+                                    Add Part
+                                </TouchEnhancedButton>
+                            </div>
 
-                        <div className="space-y-4">
-                            {formData.ingredients.map((ingredient, index) => (
-                                <div key={index} className="border border-gray-200 rounded-lg p-4">
-                                    {/* Top row: Optional checkbox and Delete button */}
-                                    <div className="flex items-center justify-between mb-3">
-                                        <label className="flex items-center text-sm text-gray-600">
-                                            <input
-                                                type="checkbox"
-                                                checked={ingredient.optional || false}
-                                                onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
-                                                className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 ingredient-checkbox h-4 w-4"
-                                            />
-                                            <span className="ml-3">Optional</span>
-                                        </label>
-                                        {formData.ingredients.length > 1 && (
-                                            <TouchEnhancedButton
-                                                type="button"
-                                                onClick={() => removeIngredient(index)}
-                                                className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                title="Remove ingredient"
-                                            >
-                                                ✕
-                                            </TouchEnhancedButton>
-                                        )}
+                            {/* Part Tabs */}
+                            {formData.parts && formData.parts.length > 0 && (
+                                <div className="mb-6">
+                                    <div className="flex flex-wrap gap-2 mb-4">
+                                        {formData.parts.map((part, index) => (
+                                            <div key={index} className="flex items-center">
+                                                <TouchEnhancedButton
+                                                    type="button"
+                                                    onClick={() => setActivePart(index)}
+                                                    className={`px-4 py-2 rounded-l-md text-sm font-medium transition-colors ${
+                                                        activePart === index
+                                                            ? 'bg-indigo-600 text-white'
+                                                            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                                    }`}
+                                                >
+                                                    {part.name || `Part ${index + 1}`}
+                                                </TouchEnhancedButton>
+                                                {formData.parts.length > 1 && (
+                                                    <TouchEnhancedButton
+                                                        type="button"
+                                                        onClick={() => removeRecipePart(index)}
+                                                        className="bg-red-500 text-white px-2 py-2 rounded-r-md hover:bg-red-600 transition-colors"
+                                                        title="Remove this part"
+                                                    >
+                                                        ×
+                                                    </TouchEnhancedButton>
+                                                )}
+                                            </div>
+                                        ))}
                                     </div>
 
-                                    {/* Input fields */}
-                                    <div className="flex flex-col sm:flex-row gap-3">
-                                        {/* Amount and Unit row on mobile, side by side */}
-                                        <div className="flex gap-3 sm:w-auto">
-                                            <div className="flex-1 sm:w-24">
-                                                <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
-                                                    Amount
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Amount"
-                                                    value={ingredient.amount || ''}
-                                                    onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
-                                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ minHeight: '48px' }}
-                                                />
-                                            </div>
-                                            <div className="flex-1 sm:w-24">
-                                                <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
-                                                    Unit
-                                                </label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="Unit"
-                                                    value={ingredient.unit || ''}
-                                                    onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
-                                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
-                                                    style={{ minHeight: '48px' }}
-                                                />
-                                            </div>
-                                        </div>
-
-                                        {/* Ingredient name - full width on mobile */}
-                                        <div className="flex-1">
-                                            <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
-                                                Ingredient
+                                    {/* Active Part Editor */}
+                                    <div className="space-y-6">
+                                        {/* Part Name */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Part Name
                                             </label>
                                             <input
                                                 type="text"
-                                                placeholder="Ingredient name *"
-                                                value={ingredient.name || ''}
-                                                onChange={(e) => updateIngredient(index, 'name', e.target.value)}
+                                                value={formData.parts[activePart]?.name || ''}
+                                                onChange={(e) => updatePartField(activePart, 'name', e.target.value)}
                                                 className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{ minHeight: '48px' }}
-                                                required
+                                                style={{minHeight: '48px'}}
+                                                placeholder={`Part ${activePart + 1} (e.g., "Filling", "Topping", "Marinade")`}
+                                            />
+                                        </div>
+
+                                        {/* Part Description */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Part Description (Optional)
+                                            </label>
+                                            <AutoExpandingTextarea
+                                                value={formData.parts[activePart]?.description || ''}
+                                                onChange={(e) => updatePartField(activePart, 'description', e.target.value)}
+                                                className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                placeholder="Brief description of this part..."
+                                            />
+                                        </div>
+
+                                        {/* Part Timing */}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Part Prep Time (minutes)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={formData.parts[activePart]?.prepTime || ''}
+                                                    onChange={(e) => updatePartField(activePart, 'prepTime', e.target.value)}
+                                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{minHeight: '48px'}}
+                                                    placeholder="15"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                    Part Cook Time (minutes)
+                                                </label>
+                                                <input
+                                                    type="number"
+                                                    value={formData.parts[activePart]?.cookTime || ''}
+                                                    onChange={(e) => updatePartField(activePart, 'cookTime', e.target.value)}
+                                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                    style={{minHeight: '48px'}}
+                                                    placeholder="30"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        {/* Current Part Ingredients */}
+                                        <div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                                Ingredients for {formData.parts[activePart]?.name || `Part ${activePart + 1}`}
+                                                ({getCurrentPartData().ingredients?.length || 0})
+                                            </h3>
+
+                                            <div className="space-y-4">
+                                                {getCurrentPartData().ingredients?.map((ingredient, index) => (
+                                                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                                        <div className="flex items-center justify-between mb-3">
+                                                            <label className="flex items-center text-sm text-gray-600">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={ingredient.optional || false}
+                                                                    onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
+                                                                    className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                                                />
+                                                                <span className="ml-3">Optional</span>
+                                                            </label>
+                                                            {getCurrentPartData().ingredients?.length > 1 && (
+                                                                <TouchEnhancedButton
+                                                                    type="button"
+                                                                    onClick={() => removeIngredient(index)}
+                                                                    className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                    title="Remove ingredient"
+                                                                >
+                                                                    ✕
+                                                                </TouchEnhancedButton>
+                                                            )}
+                                                        </div>
+
+                                                        <div className="flex flex-col sm:flex-row gap-3">
+                                                            <div className="flex gap-3 sm:w-auto">
+                                                                <div className="flex-1 sm:w-24">
+                                                                    <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                                        Amount
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Amount"
+                                                                        value={ingredient.amount || ''}
+                                                                        onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
+                                                                        className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                                        style={{ minHeight: '48px' }}
+                                                                    />
+                                                                </div>
+                                                                <div className="flex-1 sm:w-24">
+                                                                    <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                                        Unit
+                                                                    </label>
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Unit"
+                                                                        value={ingredient.unit || ''}
+                                                                        onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
+                                                                        className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                                        style={{ minHeight: '48px' }}
+                                                                    />
+                                                                </div>
+                                                            </div>
+
+                                                            <div className="flex-1">
+                                                                <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                                    Ingredient
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    placeholder="Ingredient name *"
+                                                                    value={ingredient.name || ''}
+                                                                    onChange={(e) => updateIngredient(index, 'name', e.target.value)}
+                                                                    className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                                    style={{ minHeight: '48px' }}
+                                                                    required
+                                                                />
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={addIngredient}
+                                                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
+                                            >
+                                                + Add Ingredient
+                                            </TouchEnhancedButton>
+                                        </div>
+
+                                        {/* Current Part Instructions */}
+                                        <div>
+                                            <h3 className="text-lg font-medium text-gray-900 mb-4">
+                                                Instructions for {formData.parts[activePart]?.name || `Part ${activePart + 1}`}
+                                                ({getCurrentPartData().instructions?.length || 0})
+                                            </h3>
+
+                                            <div className="space-y-4">
+                                                {getCurrentPartData().instructions?.map((instruction, index) => (
+                                                    <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                                        <div className="flex justify-between items-center mb-3">
+                                                            <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                                                {index + 1}
+                                                            </span>
+                                                            {getCurrentPartData().instructions?.length > 1 && (
+                                                                <TouchEnhancedButton
+                                                                    type="button"
+                                                                    onClick={() => removeInstruction(index)}
+                                                                    className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                                    title="Remove step"
+                                                                >
+                                                                    ✕
+                                                                </TouchEnhancedButton>
+                                                            )}
+                                                        </div>
+
+                                                        <AutoExpandingTextarea
+                                                            value={instruction}
+                                                            onChange={(e) => updateInstruction(index, e.target.value)}
+                                                            placeholder={`Step ${index + 1} instructions...`}
+                                                            className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                            required
+                                                        />
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={addInstruction}
+                                                className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
+                                            >
+                                                + Add Step
+                                            </TouchEnhancedButton>
+                                        </div>
+
+                                        {/* Part Notes */}
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                                                Part Notes (Optional)
+                                            </label>
+                                            <AutoExpandingTextarea
+                                                value={formData.parts[activePart]?.notes || ''}
+                                                onChange={(e) => updatePartField(activePart, 'notes', e.target.value)}
+                                                className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                placeholder="Any special notes for this part..."
                                             />
                                         </div>
                                     </div>
                                 </div>
-                            ))}
+                            )}
                         </div>
+                    ) : (
+                        /* Single-Part Recipe Sections (Legacy) */
+                        <>
+                            {/* Ingredients - MOBILE RESPONSIVE */}
+                            <div className="bg-white rounded-lg border p-6">
+                                <h2 className="text-xl font-semibold text-gray-900 mb-6">Ingredients</h2>
 
-                        {/* Add Ingredient Button - Moved to bottom */}
-                        <div className="mt-6">
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={addIngredient}
-                                className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
-                            >
-                                Add Ingredient
-                            </TouchEnhancedButton>
-                        </div>
-                    </div>
+                                <div className="space-y-4">
+                                    {formData.ingredients.map((ingredient, index) => (
+                                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <label className="flex items-center text-sm text-gray-600">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={ingredient.optional || false}
+                                                        onChange={(e) => updateIngredient(index, 'optional', e.target.checked)}
+                                                        className="rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 h-4 w-4"
+                                                    />
+                                                    <span className="ml-3">Optional</span>
+                                                </label>
+                                                {formData.ingredients.length > 1 && (
+                                                    <TouchEnhancedButton
+                                                        type="button"
+                                                        onClick={() => removeIngredient(index)}
+                                                        className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                        title="Remove ingredient"
+                                                    >
+                                                        ✕
+                                                    </TouchEnhancedButton>
+                                                )}
+                                            </div>
 
-                    {/* Instructions - FIXED */}
-                    <div className="bg-white rounded-lg border p-6">
-                        <h2 className="text-xl font-semibold text-gray-900 mb-6">Instructions</h2>
+                                            <div className="flex flex-col sm:flex-row gap-3">
+                                                <div className="flex gap-3 sm:w-auto">
+                                                    <div className="flex-1 sm:w-24">
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                            Amount
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Amount"
+                                                            value={ingredient.amount || ''}
+                                                            onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                            style={{ minHeight: '48px' }}
+                                                        />
+                                                    </div>
+                                                    <div className="flex-1 sm:w-24">
+                                                        <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                            Unit
+                                                        </label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="Unit"
+                                                            value={ingredient.unit || ''}
+                                                            onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
+                                                            className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                            style={{ minHeight: '48px' }}
+                                                        />
+                                                    </div>
+                                                </div>
 
-                        <div className="space-y-4">
-                            {formData.instructions.map((instruction, index) => (
-                                <div key={`instruction-${index}`} className="border border-gray-200 rounded-lg p-4">
-                                    {/* Top row: Step number and Delete button */}
-                                    <div className="flex justify-between items-center mb-3">
-                                        <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
-                                            {index + 1}
-                                        </span>
-                                        {formData.instructions.length > 1 && (
-                                            <TouchEnhancedButton
-                                                type="button"
-                                                onClick={() => removeInstruction(index)}
-                                                className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
-                                                title="Remove step"
-                                            >
-                                                ✕
-                                            </TouchEnhancedButton>
-                                        )}
-                                    </div>
-
-                                    {/* FIXED: Use stable AutoExpandingTextarea without dynamic key */}
-                                    <AutoExpandingTextarea
-                                        value={instruction}
-                                        onChange={(e) => updateInstruction(index, e.target.value)}
-                                        placeholder={`Step ${index + 1} instructions...`}
-                                        className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
-                                        required
-                                    />
+                                                <div className="flex-1">
+                                                    <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
+                                                        Ingredient
+                                                    </label>
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Ingredient name *"
+                                                        value={ingredient.name || ''}
+                                                        onChange={(e) => updateIngredient(index, 'name', e.target.value)}
+                                                        className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                        style={{ minHeight: '48px' }}
+                                                        required
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
                                 </div>
-                            ))}
-                        </div>
 
-                        {/* Add Step Button */}
-                        <div className="mt-6">
-                            <TouchEnhancedButton
-                                type="button"
-                                onClick={addInstruction}
-                                className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
-                            >
-                                Add Step
-                            </TouchEnhancedButton>
-                        </div>
-                    </div>
+                                <div className="mt-6">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={addIngredient}
+                                        className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
+                                    >
+                                        Add Ingredient
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
 
-                    {/* AI Nutrition Analysis */}
+                            {/* Instructions - FIXED */}
+                            <div className="bg-white rounded-lg border p-6">
+                                <h2 className="text-xl font-semibold text-gray-900 mb-6">Instructions</h2>
+
+                                <div className="space-y-4">
+                                    {formData.instructions.map((instruction, index) => (
+                                        <div key={index} className="border border-gray-200 rounded-lg p-4">
+                                            <div className="flex justify-between items-center mb-3">
+                                                <span className="flex-shrink-0 w-10 h-10 bg-indigo-600 text-white rounded-full flex items-center justify-center text-sm font-semibold">
+                                                    {index + 1}
+                                                </span>
+                                                {formData.instructions.length > 1 && (
+                                                    <TouchEnhancedButton
+                                                        type="button"
+                                                        onClick={() => removeInstruction(index)}
+                                                        className="font-semibold text-red-600 hover:text-red-800 hover:bg-red-50 p-2 rounded-md min-h-[44px] min-w-[44px] flex items-center justify-center"
+                                                        title="Remove step"
+                                                    >
+                                                        ✕
+                                                    </TouchEnhancedButton>
+                                                )}
+                                            </div>
+
+                                            <AutoExpandingTextarea
+                                                value={instruction}
+                                                onChange={(e) => updateInstruction(index, e.target.value)}
+                                                placeholder={`Step ${index + 1} instructions...`}
+                                                className="w-full border border-gray-300 rounded-md px-3 py-3 text-base focus:ring-indigo-500 focus:border-indigo-500"
+                                                required
+                                            />
+                                        </div>
+                                    ))}
+                                </div>
+
+                                <div className="mt-6">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={addInstruction}
+                                        className="w-full sm:w-auto bg-indigo-600 text-white px-4 py-3 rounded-md text-sm hover:bg-indigo-700 min-h-[48px]"
+                                    >
+                                        Add Step
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        </>
+                    )}
+
+                    {/* AI Nutrition Analysis - same as before */}
                     <div className="bg-white rounded-lg border p-6">
                         <div className="flex justify-between items-center mb-6">
                             <h2 className="text-xl font-semibold text-gray-900">Nutrition Information</h2>
-                            {/* View Details Button */}
                             {formData.nutrition && Object.keys(formData.nutrition).length > 0 && (
                                 <TouchEnhancedButton
                                     onClick={() => setShowNutritionModal(true)}
@@ -641,34 +1185,32 @@ export default function EditRecipePage() {
                             )}
                         </div>
 
-                        {/* Current nutrition display if available */}
                         {formData.nutrition && Object.keys(formData.nutrition).length > 0 && (
                             <div className="mb-6 p-4 bg-gray-50 rounded-lg">
                                 <h3 className="text-sm font-medium text-gray-700 mb-3">Current Nutrition (per serving):</h3>
                                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-sm">
                                     {formData.nutrition.calories && (
                                         <div>
-                                            <span className="font-medium">Calories:</span> {Math.round(formData.nutrition.calories.value)}
+                                            <span className="font-medium">Calories:</span> {Math.round(formData.nutrition.calories.value || formData.nutrition.calories)}
                                         </div>
                                     )}
                                     {formData.nutrition.protein && (
                                         <div>
-                                            <span className="font-medium">Protein:</span> {Math.round(formData.nutrition.protein.value)}g
+                                            <span className="font-medium">Protein:</span> {Math.round(formData.nutrition.protein.value || formData.nutrition.protein)}g
                                         </div>
                                     )}
                                     {formData.nutrition.carbs && (
                                         <div>
-                                            <span className="font-medium">Carbs:</span> {Math.round(formData.nutrition.carbs.value)}g
+                                            <span className="font-medium">Carbs:</span> {Math.round(formData.nutrition.carbs.value || formData.nutrition.carbs)}g
                                         </div>
                                     )}
                                     {formData.nutrition.fat && (
                                         <div>
-                                            <span className="font-medium">Fat:</span> {Math.round(formData.nutrition.fat.value)}g
+                                            <span className="font-medium">Fat:</span> {Math.round(formData.nutrition.fat.value || formData.nutrition.fat)}g
                                         </div>
                                     )}
                                 </div>
 
-                                {/* AI Analysis Info */}
                                 {formData.nutrition.calculationMethod === 'ai_calculated' && (
                                     <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
                                         <div className="flex items-center text-blue-800 text-sm">
@@ -676,8 +1218,8 @@ export default function EditRecipePage() {
                                             <span>Nutrition calculated by AI analysis</span>
                                             {formData.nutrition.confidence && (
                                                 <span className="ml-2 text-blue-600">
-                                Confidence: {Math.round(formData.nutrition.confidence * 100)}%
-                            </span>
+                                                    Confidence: {Math.round(formData.nutrition.confidence * 100)}%
+                                                </span>
                                             )}
                                         </div>
                                     </div>
@@ -685,15 +1227,20 @@ export default function EditRecipePage() {
                             </div>
                         )}
 
-                        {/* KEEP THIS: Update Nutrition Button - This is what you need for your 650 recipes! */}
                         <UpdateNutritionButton
                             recipe={{
                                 ...recipe,
-                                ingredients: formData.ingredients, // Use current form ingredients
+                                ingredients: isMultiPart ?
+                                    formData.parts?.reduce((all, part) => [...all, ...(part.ingredients || [])], []) :
+                                    formData.ingredients,
                                 servings: parseInt(formData.servings) || recipe?.servings || 4
                             }}
                             onNutritionUpdate={handleNutritionUpdate}
-                            disabled={!formData.ingredients.some(ing => ing.name && ing.name.trim())}
+                            disabled={
+                                isMultiPart ?
+                                    !formData.parts?.some(part => part.ingredients?.some(ing => ing.name && ing.name.trim())) :
+                                    !formData.ingredients.some(ing => ing.name && ing.name.trim())
+                            }
                         />
                     </div>
 
@@ -711,7 +1258,17 @@ export default function EditRecipePage() {
                             disabled={loading}
                             className="px-6 py-3 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 disabled:opacity-50 font-medium min-h-[48px] order-1 sm:order-2"
                         >
-                            {loading ? 'Updating...' : 'Update Recipe'}
+                            {loading ? (
+                                <>
+                                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                                    Updating...
+                                </>
+                            ) : (
+                                <>
+                                    Update Recipe
+                                    {isMultiPart && <span className="text-xs ml-2">(Multi-part)</span>}
+                                </>
+                            )}
                         </TouchEnhancedButton>
                     </div>
                 </form>
@@ -721,7 +1278,7 @@ export default function EditRecipePage() {
                     isOpen={showNutritionModal}
                     onClose={() => setShowNutritionModal(false)}
                     servings={parseInt(formData.servings) || 4}
-                    recipeTitle={formData.title || "Recipe"} // ADD THIS
+                    recipeTitle={formData.title || "Recipe"}
                 />
 
                 <Footer />

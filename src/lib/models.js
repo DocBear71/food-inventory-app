@@ -4,191 +4,191 @@ import mongoose from 'mongoose';
 import { checkFeatureAccess, checkUsageLimit } from './subscription-config';
 import crypto from 'crypto';
 
+// Enhanced Nutrition Schema with comprehensive nutrient tracking
 const NutritionSchema = new mongoose.Schema({
     // === MACRONUTRIENTS ===
     calories: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'kcal'},
-        name: {type: String, default: 'Energy'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'kcal' },
+        name: { type: String, default: 'Energy' }
     },
     protein: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Protein'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Protein' }
     },
 
     // === FATS ===
     fat: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Total Fat'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Total Fat' }
     },
     saturatedFat: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Saturated Fat'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Saturated Fat' }
     },
     monounsaturatedFat: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Monounsaturated Fat'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Monounsaturated Fat' }
     },
     polyunsaturatedFat: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Polyunsaturated Fat'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Polyunsaturated Fat' }
     },
     transFat: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Trans Fat'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Trans Fat' }
     },
     cholesterol: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Cholesterol'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Cholesterol' }
     },
 
     // === CARBOHYDRATES ===
     carbs: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Total Carbohydrate'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Total Carbohydrate' }
     },
     fiber: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Dietary Fiber'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Dietary Fiber' }
     },
     sugars: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Total Sugars'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Total Sugars' }
     },
     addedSugars: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'g'},
-        name: {type: String, default: 'Added Sugars'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'g' },
+        name: { type: String, default: 'Added Sugars' }
     },
 
     // === MINERALS ===
     sodium: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Sodium'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Sodium' }
     },
     potassium: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Potassium'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Potassium' }
     },
     calcium: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Calcium'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Calcium' }
     },
     iron: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Iron'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Iron' }
     },
     magnesium: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Magnesium'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Magnesium' }
     },
     phosphorus: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Phosphorus'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Phosphorus' }
     },
     zinc: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Zinc'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Zinc' }
     },
 
     // === VITAMINS ===
     // Fat-soluble vitamins
     vitaminA: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'µg'}, // Changed from IU to µg (RAE)
-        name: {type: String, default: 'Vitamin A (RAE)'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'µg' },
+        name: { type: String, default: 'Vitamin A (RAE)' }
     },
     vitaminD: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'µg'},
-        name: {type: String, default: 'Vitamin D'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'µg' },
+        name: { type: String, default: 'Vitamin D' }
     },
     vitaminE: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Vitamin E'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Vitamin E' }
     },
     vitaminK: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'µg'},
-        name: {type: String, default: 'Vitamin K'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'µg' },
+        name: { type: String, default: 'Vitamin K' }
     },
 
     // Water-soluble vitamins
     vitaminC: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Vitamin C'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Vitamin C' }
     },
 
     // B-Complex Vitamins
-    thiamin: { // B1
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Thiamin (B1)'}
+    thiamin: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Thiamin (B1)' }
     },
-    riboflavin: { // B2
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Riboflavin (B2)'}
+    riboflavin: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Riboflavin (B2)' }
     },
-    niacin: { // B3
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Niacin (B3)'}
+    niacin: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Niacin (B3)' }
     },
     vitaminB6: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Vitamin B6'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Vitamin B6' }
     },
-    folate: { // B9
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'µg'},
-        name: {type: String, default: 'Folate (B9)'}
+    folate: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'µg' },
+        name: { type: String, default: 'Folate (B9)' }
     },
     vitaminB12: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'µg'},
-        name: {type: String, default: 'Vitamin B12'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'µg' },
+        name: { type: String, default: 'Vitamin B12' }
     },
-    biotin: { // B7
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'µg'},
-        name: {type: String, default: 'Biotin (B7)'}
+    biotin: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'µg' },
+        name: { type: String, default: 'Biotin (B7)' }
     },
-    pantothenicAcid: { // B5
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Pantothenic Acid (B5)'}
+    pantothenicAcid: {
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Pantothenic Acid (B5)' }
     },
 
     // === ADDITIONAL NUTRIENTS ===
     choline: {
-        value: {type: Number, default: 0},
-        unit: {type: String, default: 'mg'},
-        name: {type: String, default: 'Choline'}
+        value: { type: Number, default: 0 },
+        unit: { type: String, default: 'mg' },
+        name: { type: String, default: 'Choline' }
     },
 
     // === METADATA ===
-    // Calculation metadata
     calculationMethod: {
         type: String,
         enum: ['ai_calculated', 'usda_lookup', 'manual_entry', 'openfoodfacts', 'estimated'],
@@ -196,7 +196,7 @@ const NutritionSchema = new mongoose.Schema({
     },
     dataSource: {
         type: String,
-        default: 'mixed' // 'usda', 'openfoodfacts', 'ai_analysis', 'manual', 'mixed'
+        default: 'mixed'
     },
     calculatedAt: {
         type: Date,
@@ -206,34 +206,35 @@ const NutritionSchema = new mongoose.Schema({
         type: Number,
         min: 0,
         max: 1,
-        default: 0.5 // 0 = very uncertain, 1 = very confident
+        default: 0.5
     },
     coverage: {
         type: Number,
         min: 0,
         max: 1,
-        default: 0 // Percentage of ingredients with nutrition data
+        default: 0
     },
 
     // AI-specific metadata
     aiAnalysis: {
-        modelUsed: String, // 'gpt-4', 'gpt-3.5-turbo', etc.
+        modelUsed: String,
         promptVersion: String,
-        processingTime: Number, // milliseconds
+        processingTime: Number,
         tokensUsed: Number,
-        cost: Number, // USD cost of the analysis
-        warnings: [String] // Any warnings from the AI analysis
+        cost: Number,
+        warnings: [String]
     }
-}, {_id: false});
+}, { _id: false });
 
-// NEW: Extracted image schema for video imports
+
+// Enhanced Extracted Image Schema
 const ExtractedImageSchema = new mongoose.Schema({
-    data: { type: String, required: true }, // Base64 image data
-    extractionMethod: { type: String, required: true }, // 'video_frame_analysis', 'ai_selection', etc.
-    frameCount: { type: Number, default: 0 }, // Number of frames analyzed
-    source: { type: String, required: true }, // Platform: 'tiktok', 'instagram', 'facebook'
+    data: { type: String, required: true },
+    extractionMethod: { type: String, default: 'unknown' },
+    frameCount: { type: Number, default: 0 },
+    source: { type: String, default: 'unknown' },
     extractedAt: { type: Date, default: Date.now },
-    confidence: { type: Number, min: 0, max: 1 }, // AI confidence in image selection
+    confidence: { type: Number, min: 0, max: 1 },
     metadata: {
         originalFrameIndex: Number,
         videoTimestamp: Number,
@@ -242,35 +243,96 @@ const ExtractedImageSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-// Recipe Ingredient Schema - Enhanced with nutrition and video metadata
+// Enhanced Recipe Ingredient Schema with multi-part and video metadata support
 const RecipeIngredientSchema = new mongoose.Schema({
-    name: {type: String, required: true},
-    amount: {type: mongoose.Schema.Types.Mixed}, // Updated to Mixed for flexible types
-    unit: String,
-    category: String,
-    alternatives: [String],
-    optional: {type: Boolean, default: false},
-    // NEW: Video timestamp support
+    name: { type: String, required: true },
+    amount: { type: mongoose.Schema.Types.Mixed }, // Support flexible types (string/number)
+    unit: { type: String, default: '' },
+    category: { type: String }, // NEW: ingredient category
+    alternatives: [String], // NEW: alternative ingredients
+    optional: { type: Boolean, default: false },
+
+    // Video import metadata (existing)
     videoTimestamp: { type: Number },
     videoLink: { type: String },
-    // Nutrition data for this ingredient
+
+    // Scaling metadata (existing)
+    originalAmount: { type: String },
+    scalingNotes: { type: String },
+    conversionMethod: { type: String },
+
+    // NEW: Nutrition data for individual ingredients
     fdcId: String, // USDA Food Data Central ID
-    nutrition: NutritionSchema
+    nutrition: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'NutritionData'
+    }
+}, { _id: false });
+
+// NEW: Recipe Part Schema for multi-part recipes (like filling + topping)
+const RecipePartSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true
+    },
+    description: {
+        type: String,
+        default: '',
+        trim: true
+    },
+    ingredients: [RecipeIngredientSchema],
+    instructions: {
+        type: [mongoose.Schema.Types.Mixed],
+        validate: {
+            validator: function(instructions) {
+                if (!Array.isArray(instructions) || instructions.length === 0) {
+                    return false;
+                }
+                return instructions.every(inst => {
+                    if (typeof inst === 'string') {
+                        return inst.trim().length > 0;
+                    } else if (typeof inst === 'object' && inst !== null) {
+                        return (inst.text && typeof inst.text === 'string' && inst.text.trim().length > 0) ||
+                            (inst.instruction && typeof inst.instruction === 'string' && inst.instruction.trim().length > 0);
+                    }
+                    return false;
+                });
+            },
+            message: 'Instructions must be an array of non-empty strings or objects with text/instruction property'
+        }
+    },
+
+    // Timing specific to this part
+    prepTime: { type: Number },
+    cookTime: { type: Number },
+
+    // Part-specific notes and metadata
+    notes: { type: String, default: '' },
+    order: { type: Number, default: 0 }, // Display order
+
+    // NEW: Part-specific video metadata
+    videoMetadata: {
+        startTimestamp: Number,
+        endTimestamp: Number,
+        videoSegmentId: String
+    }
 }, { _id: false });
 
 // Enhanced Video Metadata Schema
 const VideoMetadataSchema = new mongoose.Schema({
-    videoSource: String,
-    videoPlatform: String,
-    videoId: String,
-    videoTitle: String,
-    videoDuration: Number,
-    extractionMethod: String,
-    importedFrom: String,
+    videoSource: { type: String },
+    videoPlatform: { type: String },
+    videoId: { type: String },
+    videoTitle: { type: String },
+    videoDuration: { type: Number },
+    extractionMethod: { type: String },
+    importedFrom: { type: String },
     socialMediaOptimized: { type: Boolean, default: false },
-    transcriptLength: Number,
-    processingTime: String,
-    hasExtractedImageFlag: { type: Boolean, default: false }, // NEW: Flag for image presence
+    transcriptLength: { type: Number },
+    processingTime: { type: String },
+    hasExtractedImage: { type: Boolean, default: false },
+
     // NEW: Image extraction metadata
     imageExtractionMetadata: {
         framesAnalyzed: Number,
@@ -279,6 +341,7 @@ const VideoMetadataSchema = new mongoose.Schema({
         processingCost: Number
     }
 }, { _id: false });
+
 
 
 const RecipePhotoSchema = new mongoose.Schema({
@@ -2984,45 +3047,34 @@ MealPrepSuggestionSchema.pre('save', function (next) {
     next();
 });
 
-// Recipe Review Schema
+// Enhanced Recipe Review Schema
 const RecipeReviewSchema = new mongoose.Schema({
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
-    },
-    userName: {type: String, required: true},
-    rating: {
-        type: Number,
-        required: true,
-        min: 1,
-        max: 5
-    },
-    comment: {
-        type: String,
-        maxlength: 1000,
-        trim: true
-    },
+    userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    userName: { type: String, required: true },
+    rating: { type: Number, required: true, min: 1, max: 5 },
+    comment: { type: String, default: '', maxlength: 1000, trim: true },
+
+    // NEW: Enhanced review aspects
     aspects: {
-        taste: {type: Number, min: 1, max: 5},
-        difficulty: {type: Number, min: 1, max: 5},
-        instructions: {type: Number, min: 1, max: 5}
+        taste: { type: Number, min: 1, max: 5 },
+        difficulty: { type: Number, min: 1, max: 5 },
+        instructions: { type: Number, min: 1, max: 5 }
     },
-    modifications: {
-        type: String,
-        maxlength: 500,
-        trim: true
-    },
-    wouldMakeAgain: {type: Boolean},
-    helpfulVotes: {type: Number, default: 0},
-    unhelpfulVotes: {type: Number, default: 0},
-    votedBy: [{
-        userId: {type: mongoose.Schema.Types.ObjectId, ref: 'User'},
-        vote: {type: String, enum: ['helpful', 'unhelpful']}
+    modifications: { type: String, maxlength: 500, trim: true },
+    wouldMakeAgain: { type: Boolean },
+
+    // Voting system (existing)
+    helpful: { type: Number, default: 0 },
+    notHelpful: { type: Number, default: 0 },
+    votes: [{
+        userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+        vote: { type: String, enum: ['helpful', 'not_helpful'] },
+        createdAt: { type: Date, default: Date.now }
     }],
-    createdAt: {type: Date, default: Date.now},
-    updatedAt: {type: Date, default: Date.now}
-}, { _id: false });
+
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
+}, { _id: true });
 
 // Inventory Item Schema with Kitchen Cabinets location
 const InventoryItemSchema = new mongoose.Schema({
@@ -3217,19 +3269,31 @@ const UserInventorySchema = new mongoose.Schema({
 
 
 
-// ENHANCED Recipe Schema with image support
+// MAIN ENHANCED RECIPE SCHEMA with Multi-Part Support
 const RecipeSchema = new mongoose.Schema({
-    title: {type: String, required: true},
-    description: {type: String, default: ''},
+    title: { type: String, required: true },
+    description: { type: String, default: '' },
+
+    // === NEW: MULTI-PART RECIPE SUPPORT ===
+    isMultiPart: {
+        type: Boolean,
+        default: false,
+        index: true // Index for efficient querying
+    },
+    parts: [RecipePartSchema], // Array of recipe parts (filling, topping, etc.)
+
+    // === LEGACY FIELDS (for backward compatibility with single-part recipes) ===
     ingredients: [RecipeIngredientSchema],
     instructions: {
-        type: [mongoose.Schema.Types.Mixed], // Keep your existing Mixed type
+        type: [mongoose.Schema.Types.Mixed],
         validate: {
             validator: function(instructions) {
+                // Skip validation if this is a multi-part recipe
+                if (this.isMultiPart) return true;
+
                 if (!Array.isArray(instructions) || instructions.length === 0) {
                     return false;
                 }
-
                 return instructions.every(inst => {
                     if (typeof inst === 'string') {
                         return inst.trim().length > 0;
@@ -3244,6 +3308,7 @@ const RecipeSchema = new mongoose.Schema({
         }
     },
 
+    // === BASIC RECIPE INFO ===
     cookTime: Number,
     prepTime: Number,
     servings: Number,
@@ -3264,13 +3329,12 @@ const RecipeSchema = new mongoose.Schema({
     },
 
     tags: [String],
-    source: {type: String, default: ''},
+    source: { type: String, default: '' },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
         required: true
     },
-
     lastEditedBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
@@ -3279,23 +3343,20 @@ const RecipeSchema = new mongoose.Schema({
         type: String,
         default: null
     },
+    isPublic: { type: Boolean, default: false },
 
-    isPublic: {type: Boolean, default: false},
-
-    // UPDATED: Binary image storage (like user avatars)
+    // === IMAGE STORAGE (Enhanced) ===
     uploadedImage: {
-        data: { type: String }, // Base64 encoded image
+        data: { type: String },
         mimeType: { type: String, enum: ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'] },
-        size: { type: Number, max: 5242880 }, // 5MB limit
+        size: { type: Number, max: 5242880 },
         originalName: { type: String },
         uploadedAt: { type: Date, default: Date.now },
         source: { type: String, default: 'user_upload' }
     },
 
-    // AI-extracted image from video (existing)
     extractedImage: ExtractedImageSchema,
 
-    // extract image from URL with attribution
     imageUrl: {
         type: String,
         default: null
@@ -3314,14 +3375,13 @@ const RecipeSchema = new mongoose.Schema({
     hasUserImage: { type: Boolean, default: false },
     hasExtractedImage: { type: Boolean, default: false },
 
-// NEW: Photo collection integration
+    // === PHOTO COLLECTION INTEGRATION ===
     primaryPhoto: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'RecipePhoto', // Reference to your photos collection
+        ref: 'RecipePhoto',
         default: null
     },
 
-// Enhanced photo tracking
     photos: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'RecipePhoto'
@@ -3337,14 +3397,14 @@ const RecipeSchema = new mongoose.Schema({
         default: false
     },
 
-// Image priority system
+    // Image priority system
     imagePriority: {
         type: String,
         enum: ['primary_photo', 'uploaded_image', 'extracted_image', 'external_url'],
         default: 'external_url'
     },
 
-// UPDATED: Image metadata with photo collection support
+    // Enhanced image metadata with photo collection support
     imageMetadata: {
         primarySource: {
             type: String,
@@ -3361,35 +3421,38 @@ const RecipeSchema = new mongoose.Schema({
         }
     },
 
-    // Video-specific metadata
+    // === VIDEO METADATA ===
     videoMetadata: VideoMetadataSchema,
 
-    // ... rest of your existing schema fields ...
+    // === NUTRITION INFORMATION ===
     nutrition: NutritionSchema,
     nutritionCalculatedAt: Date,
     nutritionCoverage: Number,
-    nutritionManuallySet: {type: Boolean, default: false},
+    nutritionManuallySet: { type: Boolean, default: false },
 
+    // === REVIEWS AND RATINGS ===
     reviews: [RecipeReviewSchema],
     ratingStats: {
-        averageRating: {type: Number, default: 0, min: 0, max: 5},
-        totalRatings: {type: Number, default: 0},
+        averageRating: { type: Number, default: 0, min: 0, max: 5 },
+        totalRatings: { type: Number, default: 0 },
         ratingDistribution: {
-            star5: {type: Number, default: 0},
-            star4: {type: Number, default: 0},
-            star3: {type: Number, default: 0},
-            star2: {type: Number, default: 0},
-            star1: {type: Number, default: 0}
+            star5: { type: Number, default: 0 },
+            star4: { type: Number, default: 0 },
+            star3: { type: Number, default: 0 },
+            star2: { type: Number, default: 0 },
+            star1: { type: Number, default: 0 }
         }
     },
 
+    // === METRICS ===
     metrics: {
-        viewCount: {type: Number, default: 0},
-        saveCount: {type: Number, default: 0},
-        shareCount: {type: Number, default: 0},
+        viewCount: { type: Number, default: 0 },
+        saveCount: { type: Number, default: 0 },
+        shareCount: { type: Number, default: 0 },
         lastViewed: Date
     },
 
+    // === AI ANALYSIS ===
     aiAnalysis: {
         nutritionGenerated: { type: Boolean, default: false },
         nutritionMetadata: {
@@ -3401,6 +3464,7 @@ const RecipeSchema = new mongoose.Schema({
         }
     },
 
+    // === SCALING AND CONVERSION TRACKING ===
     originalServings: { type: Number, default: null },
     currentServings: { type: Number, default: null },
     scalingHistory: [{
@@ -3418,7 +3482,6 @@ const RecipeSchema = new mongoose.Schema({
         }
     }],
 
-    // NEW: Unit conversion tracking
     originalMeasurementSystem: {
         type: String,
         enum: ['us', 'metric', 'mixed', 'unknown'],
@@ -3436,11 +3499,10 @@ const RecipeSchema = new mongoose.Schema({
         convertedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
         aiGenerated: Boolean,
         conversionNotes: String,
-        conversionMethod: String, // 'ai_contextual', 'basic_math', 'manual'
+        conversionMethod: String,
         culturalAdaptations: [String]
     }],
 
-    // NEW: AI transformation enhancements
     aiTransformations: {
         scalingOptimized: { type: Boolean, default: false },
         unitsOptimized: { type: Boolean, default: false },
@@ -3454,11 +3516,12 @@ const RecipeSchema = new mongoose.Schema({
         }
     },
 
-    createdAt: {type: Date, default: Date.now},
-    updatedAt: {type: Date, default: Date.now}
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 }, {
     timestamps: true
 });
+
 
 // UPDATED: Pre-save middleware to update image flags
 RecipeSchema.pre('save', function(next) {
@@ -3468,24 +3531,200 @@ RecipeSchema.pre('save', function(next) {
 
     // Update image flags
     this.hasUserImage = !!(this.uploadedImage?.data);
-    this.hasExtractedImageFlag = !!(this.extractedImage?.data);
+    this.hasExtractedImage = !!(this.extractedImage?.data);
 
     // Update video metadata flag
     if (this.videoMetadata && this.extractedImage) {
         this.videoMetadata.hasExtractedImage = true;
     }
 
+    // NEW: Multi-part recipe data consistency
+    if (this.isMultiPart && (!this.parts || this.parts.length === 0)) {
+        // If switching to multi-part, ensure parts array exists
+        this.parts = [{
+            name: 'Main Recipe',
+            ingredients: this.ingredients || [],
+            instructions: this.instructions || []
+        }];
+    }
+
+    if (!this.isMultiPart && this.parts && this.parts.length > 0) {
+        // If switching from multi-part to single-part, populate legacy fields
+        const firstPart = this.parts[0];
+        this.ingredients = firstPart.ingredients || [];
+        this.instructions = firstPart.instructions || [];
+    }
+
     next();
 });
 
-// NEW: Add these indexes for better performance on scaling/conversion queries
+
+// === INDEXES FOR EFFICIENT QUERYING ===
+RecipeSchema.index({ createdBy: 1, createdAt: -1 });
+RecipeSchema.index({ isPublic: 1, createdAt: -1 });
+RecipeSchema.index({ category: 1, isPublic: 1 });
+RecipeSchema.index({ tags: 1, isPublic: 1 });
+RecipeSchema.index({ isMultiPart: 1 }); // NEW: Index for multi-part queries
+RecipeSchema.index({ 'ratingStats.averageRating': -1, isPublic: 1 });
+RecipeSchema.index({ title: 'text', description: 'text' });
+RecipeSchema.index({ 'nutrition.calories.value': 1 });
+RecipeSchema.index({ nutritionCalculatedAt: 1 });
+RecipeSchema.index({ 'videoMetadata.videoPlatform': 1 });
+RecipeSchema.index({ 'extractedImage.source': 1 });
+RecipeSchema.index({ 'videoMetadata.hasExtractedImage': 1 });
+RecipeSchema.index({ hasUserImage: 1 });
+RecipeSchema.index({ hasExtractedImage: 1 });
+RecipeSchema.index({ 'uploadedImage.uploadedAt': -1 });
 RecipeSchema.index({ 'scalingHistory.scaledAt': -1 });
 RecipeSchema.index({ 'conversionHistory.convertedAt': -1 });
 RecipeSchema.index({ originalServings: 1, currentServings: 1 });
 RecipeSchema.index({ originalMeasurementSystem: 1, currentMeasurementSystem: 1 });
 RecipeSchema.index({ 'aiTransformations.lastAiTransformation': -1 });
 
-// NEW: Instance methods for recipe transformations
+// Virtual for total ingredient count (across all parts)
+RecipeSchema.virtual('totalIngredientCount').get(function() {
+    if (this.isMultiPart && this.parts) {
+        return this.parts.reduce((total, part) => total + (part.ingredients?.length || 0), 0);
+    }
+    return this.ingredients?.length || 0;
+});
+
+// Virtual for total instruction count (across all parts)
+RecipeSchema.virtual('totalInstructionCount').get(function() {
+    if (this.isMultiPart && this.parts) {
+        return this.parts.reduce((total, part) => total + (part.instructions?.length || 0), 0);
+    }
+    return this.instructions?.length || 0;
+});
+
+// Virtual for transformation summary
+RecipeSchema.virtual('transformationSummary').get(function() {
+    return {
+        hasScaling: this.hasBeenScaled(),
+        hasConversion: this.hasBeenConverted(),
+        isModified: this.isScaledFromOriginal() || this.isConvertedFromOriginal(),
+        aiOptimized: this.aiTransformations?.scalingOptimized || this.aiTransformations?.unitsOptimized,
+        lastTransformation: this.aiTransformations?.lastAiTransformation
+    };
+});
+
+// Enhanced virtual for combined prep/cook time
+RecipeSchema.virtual('totalTime').get(function() {
+    let totalPrepTime = 0;
+    let totalCookTime = 0;
+
+    if (this.isMultiPart && this.parts) {
+        // For multi-part recipes, sum up all part times
+        this.parts.forEach(part => {
+            totalPrepTime += part.prepTime || 0;
+            totalCookTime += part.cookTime || 0;
+        });
+        // Also add recipe-level times if they exist
+        totalPrepTime += this.prepTime || 0;
+        totalCookTime += this.cookTime || 0;
+    } else {
+        totalPrepTime = this.prepTime || 0;
+        totalCookTime = this.cookTime || 0;
+    }
+
+    return totalPrepTime + totalCookTime;
+});
+
+// Virtual for checking if any image exists
+RecipeSchema.virtual('hasImage').get(function() {
+    return this.hasUserImage || this.hasExtractedImage;
+});
+
+// Ensure virtual fields are serialized
+RecipeSchema.set('toJSON', { virtuals: true });
+
+// NEW: Static methods for transformation queries
+RecipeSchema.statics.findScaledRecipes = function(userId = null) {
+    const query = { 'scalingHistory.0': { $exists: true } };
+    if (userId) {
+        query['scalingHistory.scaledBy'] = userId;
+    }
+    return this.find(query);
+};
+
+RecipeSchema.statics.findConvertedRecipes = function(userId = null) {
+    const query = { 'conversionHistory.0': { $exists: true } };
+    if (userId) {
+        query['conversionHistory.convertedBy'] = userId;
+    }
+    return this.find(query);
+};
+
+RecipeSchema.statics.findAiTransformedRecipes = function() {
+    return this.find({
+        $or: [
+            { 'aiTransformations.scalingOptimized': true },
+            { 'aiTransformations.unitsOptimized': true }
+        ]
+    });
+};
+
+
+// Ensure virtual fields are included in JSON output
+RecipeSchema.set('toJSON', { virtuals: true });
+
+// Get all ingredients (from all parts or legacy)
+RecipeSchema.methods.getAllIngredients = function() {
+    if (this.isMultiPart && this.parts) {
+        const allIngredients = [];
+        this.parts.forEach((part, partIndex) => {
+            part.ingredients?.forEach(ingredient => {
+                allIngredients.push({
+                    ...ingredient,
+                    partName: part.name,
+                    partIndex: partIndex
+                });
+            });
+        });
+        return allIngredients;
+    }
+    return this.ingredients || [];
+};
+
+// Get all instructions (from all parts or legacy)
+RecipeSchema.methods.getAllInstructions = function() {
+    if (this.isMultiPart && this.parts) {
+        const allInstructions = [];
+        let globalStep = 1;
+
+        this.parts.forEach((part, partIndex) => {
+            // Add part header
+            allInstructions.push({
+                isPartHeader: true,
+                partName: part.name,
+                partIndex: partIndex,
+                step: null
+            });
+
+            part.instructions?.forEach(instruction => {
+                const instructionText = typeof instruction === 'string' ? instruction :
+                    (instruction.text || instruction.instruction || '');
+
+                allInstructions.push({
+                    instruction: instructionText,
+                    step: globalStep++,
+                    partName: part.name,
+                    partIndex: partIndex,
+                    isPartHeader: false,
+                    // Preserve video metadata if present
+                    ...(instruction.videoTimestamp && {
+                        videoTimestamp: instruction.videoTimestamp,
+                        videoLink: instruction.videoLink
+                    })
+                });
+            });
+        });
+        return allInstructions;
+    }
+    return this.instructions || [];
+};
+
+// Recipe transformations
 RecipeSchema.methods.recordScaling = function(fromServings, toServings, userId, aiData = null) {
     this.scalingHistory.push({
         fromServings,
@@ -3563,46 +3802,6 @@ RecipeSchema.methods.isConvertedFromOriginal = function() {
         this.originalMeasurementSystem !== this.currentMeasurementSystem;
 };
 
-// NEW: Static methods for transformation queries
-RecipeSchema.statics.findScaledRecipes = function(userId = null) {
-    const query = { 'scalingHistory.0': { $exists: true } };
-    if (userId) {
-        query['scalingHistory.scaledBy'] = userId;
-    }
-    return this.find(query);
-};
-
-RecipeSchema.statics.findConvertedRecipes = function(userId = null) {
-    const query = { 'conversionHistory.0': { $exists: true } };
-    if (userId) {
-        query['conversionHistory.convertedBy'] = userId;
-    }
-    return this.find(query);
-};
-
-RecipeSchema.statics.findAiTransformedRecipes = function() {
-    return this.find({
-        $or: [
-            { 'aiTransformations.scalingOptimized': true },
-            { 'aiTransformations.unitsOptimized': true }
-        ]
-    });
-};
-
-// NEW: Virtual fields for transformation status
-RecipeSchema.virtual('transformationSummary').get(function() {
-    return {
-        hasScaling: this.hasBeenScaled(),
-        hasConversion: this.hasBeenConverted(),
-        isModified: this.isScaledFromOriginal() || this.isConvertedFromOriginal(),
-        aiOptimized: this.aiTransformations?.scalingOptimized || this.aiTransformations?.unitsOptimized,
-        lastTransformation: this.aiTransformations?.lastAiTransformation
-    };
-});
-
-// Ensure virtual fields are included in JSON output
-RecipeSchema.set('toJSON', { virtuals: true });
-
 
 // NEW: Instance methods for image handling
 RecipeSchema.methods.hasVideoSource = function() {
@@ -3617,7 +3816,7 @@ RecipeSchema.methods.hasAnyImage = function() {
     return this.hasUserImage || this.hasExtractedImageData();
 };
 
-// NEW: Get image for display (extracted or uploaded)
+// Get image for display (extracted or uploaded)
 RecipeSchema.methods.getDisplayImage = function() {
     // Priority: 1) User uploaded image, 2) AI-extracted from video
     if (this.uploadedImage?.data) {
@@ -3635,7 +3834,7 @@ RecipeSchema.methods.getDisplayImage = function() {
         return {
             type: 'extracted',
             data: `data:image/jpeg;base64,${this.extractedImage.data}`,
-            source: this.extractedImage.source, // tiktok, instagram, facebook
+            source: this.extractedImage.source,
             method: 'ai_video_extraction',
             extractedAt: this.extractedImage.extractedAt,
             confidence: this.extractedImage.confidence
@@ -3652,25 +3851,53 @@ RecipeSchema.methods.getImageUrl = function() {
     return null;
 };
 
-// NEW: Remove uploaded image
+// Remove uploaded image
 RecipeSchema.methods.removeUploadedImage = function() {
     this.uploadedImage = undefined;
     this.hasUserImage = false;
     return this.save();
 };
 
+// === VIDEO METADATA METHODS ===
 
 RecipeSchema.methods.getTimestampedIngredients = function() {
+    if (this.isMultiPart && this.parts) {
+        const timestampedIngredients = [];
+        this.parts.forEach(part => {
+            part.ingredients?.forEach(ingredient => {
+                if (ingredient.videoTimestamp) {
+                    timestampedIngredients.push({
+                        ...ingredient,
+                        partName: part.name
+                    });
+                }
+            });
+        });
+        return timestampedIngredients;
+    }
     return this.ingredients.filter(ingredient => ingredient.videoTimestamp);
 };
 
 RecipeSchema.methods.getTimestampedInstructions = function() {
+    if (this.isMultiPart && this.parts) {
+        const timestampedInstructions = [];
+        this.parts.forEach(part => {
+            part.instructions?.forEach(instruction => {
+                if (typeof instruction === 'object' && instruction !== null && instruction.videoTimestamp) {
+                    timestampedInstructions.push({
+                        ...instruction,
+                        partName: part.name
+                    });
+                }
+            });
+        });
+        return timestampedInstructions;
+    }
     return this.instructions.filter(instruction => {
-        // Handle both string and object instructions
         if (typeof instruction === 'object' && instruction !== null) {
             return instruction.videoTimestamp;
         }
-        return false; // Strings don't have timestamps
+        return false;
     });
 };
 
@@ -3691,7 +3918,7 @@ RecipeSchema.methods.hasInstructionVideoData = function(instruction) {
     return false;
 };
 
-// NEW: Get video platform display info
+// Get video platform display info
 RecipeSchema.methods.getVideoPlatformInfo = function() {
     if (!this.videoMetadata?.videoPlatform) return null;
 
@@ -3761,39 +3988,6 @@ RecipeSchema.statics.findByImageType = function(imageType = 'any') {
 RecipeSchema.statics.findByPlatform = function(platform) {
     return this.find({ 'videoMetadata.videoPlatform': platform });
 };
-
-// Virtual for total time
-RecipeSchema.virtual('totalTime').get(function() {
-    const prep = this.prepTime || 0;
-    const cook = this.cookTime || 0;
-    return prep + cook;
-});
-
-// Virtual for checking if any image exists
-RecipeSchema.virtual('hasImage').get(function() {
-    return this.hasUserImage || this.hasExtractedImage;
-});
-
-// Ensure virtual fields are serialized
-RecipeSchema.set('toJSON', { virtuals: true });
-
-// Create indexes for better performance
-RecipeSchema.index({title: 'text', description: 'text'});
-RecipeSchema.index({tags: 1});
-RecipeSchema.index({isPublic: 1});
-RecipeSchema.index({createdBy: 1});
-RecipeSchema.index({'nutrition.calories.value': 1});
-RecipeSchema.index({nutritionCalculatedAt: 1});
-RecipeSchema.index({'ratingStats.averageRating': -1});
-RecipeSchema.index({'ratingStats.totalRatings': -1});
-RecipeSchema.index({'reviews.userId': 1});
-RecipeSchema.index({'metrics.viewCount': -1});
-RecipeSchema.index({ 'videoMetadata.videoPlatform': 1 }); // NEW: Index for video platform queries
-RecipeSchema.index({ 'extractedImage.source': 1 }); // NEW: Index for image source queries
-RecipeSchema.index({ 'videoMetadata.hasExtractedImage': 1 }); // NEW: Index for image queries
-RecipeSchema.index({ hasUserImage: 1 });
-RecipeSchema.index({ hasExtractedImage: 1 });
-RecipeSchema.index({ 'uploadedImage.uploadedAt': -1 });
 
 
 // UPDATED: Daily Nutrition Log Schema with new meal types

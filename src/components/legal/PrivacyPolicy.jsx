@@ -318,8 +318,56 @@ const PrivacyPolicy = () => {
                     </p>
                 </div>
 
+                <div id="location-services" style={{ marginBottom: '2rem' }}>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>8. LOCATION SERVICES AND REGIONAL COMPLIANCE</h2>
+                    <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
+                        <strong><em>In Short:</em></strong> <em>We collect limited location information for regional optimization and comply with Korea's Location Information Protection Act and other international requirements.</em>
+                    </p>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Location Information Collection</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        Our Services may collect limited location information for the following purposes:
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li><strong>Regional Database Optimization:</strong> To prioritize relevant food databases and barcode recognition services for your geographic area</li>
+                        <li><strong>Currency Detection:</strong> To automatically suggest appropriate currency settings based on your location</li>
+                        <li><strong>Store Category Localization:</strong> To provide region-appropriate store layout templates and shopping categories</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>Korea-Specific Location Compliance (KCC Requirements)</h3>
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>For users in the Republic of Korea:</strong> In accordance with the Location Information Protection and Usage Act of Korea:
+                    </p>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>Location Data We Collect:</strong>
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>General geographic region for database optimization (country/region level only)</li>
+                        <li>Currency region detection for price tracking features</li>
+                        <li>No precise GPS coordinates or detailed location tracking</li>
+                    </ul>
+
+                    <p style={{ color: '#595959', fontSize: '15px' }}>
+                        <strong>Consent and Rights:</strong>
+                    </p>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li>Location region detection is essential for proper app functionality</li>
+                        <li>You can modify your regional preferences manually in your profile settings</li>
+                        <li>We do not provide location-based services that require KCC licensing</li>
+                        <li>No third-party location data sharing occurs</li>
+                    </ul>
+
+                    <h3 style={{ fontSize: '17px', color: '#000000' }}>International Compliance</h3>
+                    <ul style={{ color: '#595959', fontSize: '15px', marginLeft: '20px' }}>
+                        <li><strong>EU Users:</strong> Location processing complies with GDPR Article 6 legitimate interest provisions</li>
+                        <li><strong>General Users:</strong> Minimal location data collection with full user control and transparency</li>
+                        <li><strong>Business Address:</strong> Our business is located at 5249 N Park Pl NE, PMB 4011, Cedar Rapids, IA 52402</li>
+                    </ul>
+                </div>
+
                 <div id="cookies" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>8. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>9. DO WE USE COOKIES AND OTHER TRACKING TECHNOLOGIES?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We may use cookies and other tracking technologies to collect and store your information.</em>
                     </p>
@@ -338,7 +386,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="inforetain" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>9. HOW LONG DO WE KEEP YOUR INFORMATION?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>10. HOW LONG DO WE KEEP YOUR INFORMATION?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We keep your information for as long as necessary to fulfill the purposes outlined in this Privacy Notice unless otherwise required by law.</em>
                     </p>
@@ -353,7 +401,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="infosafe" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>10. HOW DO WE KEEP YOUR INFORMATION SAFE?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>11. HOW DO WE KEEP YOUR INFORMATION SAFE?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We aim to protect your personal information through a system of organizational and technical security measures.</em>
                     </p>
@@ -364,7 +412,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="infominors" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>11. DO WE COLLECT INFORMATION FROM MINORS?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>12. DO WE COLLECT INFORMATION FROM MINORS?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>We welcome users 13 years of age and older. Users under 18 must have verifiable parental consent. We comply with COPPA and GDPR requirements for all users under 18, including special protections for voice input features.</em>
                     </p>
@@ -432,7 +480,7 @@ const PrivacyPolicy = () => {
                 </div>
 
                 <div id="privacyrights" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>12. WHAT ARE YOUR PRIVACY RIGHTS?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>13. WHAT ARE YOUR PRIVACY RIGHTS?</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>You may review, change, or terminate your account at any time, depending on your country, province, or state of residence.</em>
                     </p>
@@ -471,7 +519,7 @@ const PrivacyPolicy = () => {
                 // Add this section to your Privacy Policy after Section 12 (Privacy Rights)
 
                 <div id="gdpr-rights" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>13. ADDITIONAL RIGHTS FOR EU/EEA USERS</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>14. ADDITIONAL RIGHTS FOR EU/EEA USERS</h2>
                     <p style={{ color: '#595959', fontSize: '15px', fontStyle: 'italic' }}>
                         <strong><em>In Short:</em></strong> <em>If you are located in the European Union or European Economic Area, you have additional rights regarding your personal data under the General Data Protection Regulation (GDPR).</em>
                     </p>
@@ -522,17 +570,71 @@ const PrivacyPolicy = () => {
                     </p>
                 </div>
 
+                {/* Content Rating and Regional Compliance */}
+                <section style={{ marginBottom: '3rem' }}>
+                    <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>15. Content Rating and Regional Compliance</h2>
+
+                    <div style={{ backgroundColor: '#e8f5e8', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #28a745' }}>
+                        <h3 style={{ fontSize: '18px', color: '#155724', marginBottom: '1rem' }}>Age Rating and Content Classification</h3>
+                        <ul style={{ color: '#155724', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Primary Age Rating:</strong> 13+ (suitable for users 13 years and older)</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Content Categories:</strong> Educational cooking content, food inventory management, nutrition information</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Mature Content:</strong> None - All content is family-friendly and educational</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Gambling Elements:</strong> None present in the application</li>
+                            <li style={{ marginBottom: '0.5rem' }}><strong>Simulated Gambling:</strong> Not applicable - no gambling functionality</li>
+                        </ul>
+                    </div>
+
+                    <div style={{ backgroundColor: '#fff3cd', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #ffc107' }}>
+                        <h3 style={{ fontSize: '18px', color: '#856404', marginBottom: '1rem' }}>Regional Age Verification Compliance</h3>
+
+                        <h4 style={{ fontSize: '16px', color: '#856404', marginBottom: '0.5rem' }}>Korea (MOGEF Requirements):</h4>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem', marginBottom: '1rem' }}>
+                            <li>Our app contains no content designated as "harmful to juveniles"</li>
+                            <li>All content is educational and appropriate for users 13+</li>
+                            <li>No additional age verification beyond standard registration is required</li>
+                        </ul>
+
+                        <h4 style={{ fontSize: '16px', color: '#856404', marginBottom: '0.5rem' }}>Japan (Specified Commercial Transactions Act):</h4>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem', marginBottom: '1rem' }}>
+                            <li>Business operator: Doc Bear Enterprises, LLC.</li>
+                            <li>Contact phone: (319) 826-3463</li>
+                            <li>Physical address: 5249 N Park Pl NE, PMB 4011, Cedar Rapids, IA 52402</li>
+                            <li>All required merchant information is maintained in our Play Console account</li>
+                        </ul>
+
+                        <h4 style={{ fontSize: '16px', color: '#856404', marginBottom: '0.5rem' }}>Brazil (Merchant Requirements):</h4>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li>All required merchant verification information is provided through our Google Payments profile</li>
+                            <li>Business documentation available upon regulatory request</li>
+                            <li>Compliance with Brazilian commercial transaction requirements</li>
+                        </ul>
+                    </div>
+
+                    <div style={{ backgroundColor: '#d1ecf1', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #17a2b8' }}>
+                        <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Content Safety Assurance</h3>
+                        <ul style={{ color: '#0c5460', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li style={{ marginBottom: '0.5rem' }}>All recipes and nutritional content are appropriate for family use</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Voice input features include additional safeguards for users under 18</li>
+                            <li style={{ marginBottom: '0.5rem' }}>International barcode scanning is limited to food products only</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Price tracking features do not contain financial advice or investment guidance</li>
+                            <li>Educational focus promotes healthy cooking and nutrition habits</li>
+                        </ul>
+                    </div>
+                </section>
+
                 <div id="contact" style={{ marginBottom: '2rem' }}>
-                    <h2 style={{ fontSize: '19px', color: '#000000' }}>14. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
+                    <h2 style={{ fontSize: '19px', color: '#000000' }}>16. HOW CAN YOU CONTACT US ABOUT THIS NOTICE?</h2>
                     <p style={{ color: '#595959', fontSize: '15px' }}>
                         If you have questions or comments about this notice, you may email us at <strong>privacy@docbearscomfort.kitchen</strong> or contact us by post at:
                     </p>
-                    <div style={{ color: '#595959', fontSize: '15px', marginTop: '1rem' }}>
+                    <div style={{color: '#595959', fontSize: '15px', marginTop: '1rem'}}>
                         <div><strong>Doc Bear Enterprises, LLC.</strong></div>
-                        <div></div>
-                        <div>Cedar Rapids, IA </div>
+                        <div>5249 N Park Pl NE, PMB 4011</div>
+                        <div>Cedar Rapids, IA 52402</div>
                         <div>United States</div>
-                        <div>privacy@docbearscomfort.kitchen</div>
+                        <div>Phone: (319) 826-3463</div>
+                        <div>Email: privacy@docbearscomfort.kitchen</div>
                     </div>
                 </div>
 
