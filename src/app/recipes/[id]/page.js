@@ -36,40 +36,181 @@ const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => 
         fetchCurrentPrimaryPhoto();
     }, [recipe._id, recipe.primaryPhoto]);
 
+    // Add this useEffect to run the priority fix
+    useEffect(() => {
+        if (recipe && recipe._id) {
+            // Run priority fix when recipe loads
+            fixImagePriorityMismatch();
+        }
+    }, [recipe?._id, recipe?.imagePriority, recipe?.primaryPhoto]);
+
+
+    // Add this enhanced sync function to fix priority mismatches
+    const fixImagePriorityMismatch = async () => {
+        if (!recipe._id) return;
+
+        try {
+            console.log('🔧 Checking for image priority mismatch...');
+            console.log('Current priority:', recipe.imagePriority);
+            console.log('Has primaryPhoto:', !!recipe.primaryPhoto);
+            console.log('Has imageUrl:', !!recipe.imageUrl);
+
+            let needsUpdate = false;
+            let updateData = {};
+
+            // Case 1: Has primaryPhoto but wrong priority
+            if (recipe.primaryPhoto && recipe.imagePriority !== 'primary_photo') {
+                console.log('🔧 Fixing: Has primaryPhoto but wrong priority');
+                updateData = {
+                    imagePriority: 'primary_photo',
+                    'imageMetadata.primarySource': 'photo_collection',
+                    hasUserImage: true
+                };
+                needsUpdate = true;
+            }
+
+            // Case 2: Has external URL but no primaryPhoto and wrong priority
+            else if (recipe.imageUrl && !recipe.primaryPhoto && recipe.imagePriority !== 'external_url') {
+                console.log('🔧 Fixing: Has imageUrl but wrong priority');
+                updateData = {
+                    imagePriority: 'external_url',
+                    'imageMetadata.primarySource': 'external_url'
+                };
+                needsUpdate = true;
+            }
+
+            // Case 3: Has embedded images but wrong priority
+            else if (recipe.uploadedImage?.data && recipe.imagePriority !== 'uploaded_image') {
+                console.log('🔧 Fixing: Has uploadedImage but wrong priority');
+                updateData = {
+                    imagePriority: 'uploaded_image',
+                    'imageMetadata.primarySource': 'embedded_upload',
+                    hasUserImage: true
+                };
+                needsUpdate = true;
+            }
+
+            else if (recipe.extractedImage?.data && recipe.imagePriority !== 'extracted_image') {
+                console.log('🔧 Fixing: Has extractedImage but wrong priority');
+                updateData = {
+                    imagePriority: 'extracted_image',
+                    'imageMetadata.primarySource': 'ai_extracted'
+                };
+                needsUpdate = true;
+            }
+
+            // Case 4: Priority says external_url but no imageUrl exists - find best alternative
+            else if (recipe.imagePriority === 'external_url' && !recipe.imageUrl) {
+                console.log('🔧 Fixing: Priority is external_url but no imageUrl exists');
+
+                if (recipe.primaryPhoto) {
+                    updateData = {
+                        imagePriority: 'primary_photo',
+                        'imageMetadata.primarySource': 'photo_collection',
+                        hasUserImage: true
+                    };
+                } else if (recipe.uploadedImage?.data) {
+                    updateData = {
+                        imagePriority: 'uploaded_image',
+                        'imageMetadata.primarySource': 'embedded_upload',
+                        hasUserImage: true
+                    };
+                } else if (recipe.extractedImage?.data) {
+                    updateData = {
+                        imagePriority: 'extracted_image',
+                        'imageMetadata.primarySource': 'ai_extracted'
+                    };
+                }
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                updateData['imageMetadata.lastUpdated'] = new Date();
+                updateData['imageMetadata.updateCount'] = (recipe.imageMetadata?.updateCount || 0) + 1;
+
+                console.log('🔧 Applying priority fix:', updateData);
+
+                const response = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+                if (response.ok) {
+                    console.log('✅ Fixed image priority mismatch');
+                    // Refresh the recipe data
+                    await fetchRecipe();
+                } else {
+                    console.error('❌ Failed to fix image priority mismatch');
+                }
+            } else {
+                console.log('✅ Image priority is already correct');
+            }
+
+        } catch (error) {
+            console.error('Error fixing image priority:', error);
+        }
+    };
+
+// Enhanced fetchCurrentPrimaryPhoto with error handling
     const fetchCurrentPrimaryPhoto = async () => {
         try {
             // First check if recipe has a primaryPhoto reference
             if (recipe.primaryPhoto) {
-                const response = await apiGet(`/api/recipes/photos/${recipe.primaryPhoto}`);
-                if (response.ok) {
-                    const data = await response.json();
-                    if (data.success) {
-                        setCurrentPrimaryPhoto(data.photo);
-                        console.log('🔍 Found primaryPhoto from recipe reference:', data.photo._id);
-                        return;
+                console.log('🔍 Fetching primaryPhoto by ID:', recipe.primaryPhoto);
+
+                try {
+                    const response = await apiGet(`/api/recipes/photos/${recipe.primaryPhoto}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            setCurrentPrimaryPhoto(data.photo);
+                            console.log('✅ Found primaryPhoto from recipe reference:', data.photo._id);
+                            return;
+                        } else {
+                            console.warn('⚠️ Primary photo API returned error:', data.error);
+                        }
+                    } else {
+                        console.warn('⚠️ Primary photo API request failed:', response.status);
                     }
+                } catch (photoError) {
+                    console.error('❌ Error fetching primary photo by ID:', photoError);
+                    // Continue to fallback method
                 }
             }
 
             // Fallback: check photos collection for isPrimary flag
-            const response = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success && data.photos) {
-                    const primaryPhoto = data.photos.find(p => p.isPrimary);
-                    setCurrentPrimaryPhoto(primaryPhoto);
-                    console.log('🔍 Found primary photo in collection:', primaryPhoto?._id);
+            console.log('🔍 Falling back to collection scan for primary photo');
 
-                    // Sync recipe document if we found a primary but recipe doesn't reference it
-                    if (primaryPhoto && !recipe.primaryPhoto) {
-                        await syncPrimaryPhotoToRecipe(primaryPhoto._id);
+            try {
+                const response = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.photos) {
+                        const primaryPhoto = data.photos.find(p => p.isPrimary);
+                        setCurrentPrimaryPhoto(primaryPhoto || null);
+                        console.log('🔍 Found primary photo in collection:', primaryPhoto?._id || 'none');
+
+                        // Sync recipe document if we found a primary but recipe doesn't reference it
+                        if (primaryPhoto && recipe.primaryPhoto !== primaryPhoto._id) {
+                            console.log('🔄 Syncing found primary photo to recipe document');
+                            await syncPrimaryPhotoToRecipe(primaryPhoto._id);
+                        }
+                    } else {
+                        console.warn('⚠️ Photos collection API returned error:', data.error);
+                        setCurrentPrimaryPhoto(null);
                     }
+                } else {
+                    console.warn('⚠️ Photos collection API request failed:', response.status);
+                    setCurrentPrimaryPhoto(null);
                 }
+            } catch (collectionError) {
+                console.error('❌ Error fetching photos collection:', collectionError);
+                setCurrentPrimaryPhoto(null);
             }
+
         } catch (error) {
-            console.error('Error fetching primary photo:', error);
+            console.error('❌ Unexpected error in fetchCurrentPrimaryPhoto:', error);
+            setCurrentPrimaryPhoto(null);
         }
     };
+
+
 
     const syncPrimaryPhotoToRecipe = async (photoId) => {
         try {
@@ -773,58 +914,35 @@ export default function RecipeDetailPage() {
         console.log('Recipe ID:', recipe._id);
         console.log('Recipe title:', recipe.title);
 
-        // Check recipe document fields
         console.log('📄 Recipe Document Fields:');
         console.log('- recipe.primaryPhoto:', recipe.primaryPhoto);
+        console.log('- recipe.imagePriority:', recipe.imagePriority);
+        console.log('- recipe.imageMetadata:', recipe.imageMetadata);
         console.log('- recipe.photos (array):', recipe.photos);
         console.log('- recipe.photoCount:', recipe.photoCount);
         console.log('- recipe.hasPhotos:', recipe.hasPhotos);
-        console.log('- recipe.uploadedImage:', !!recipe.uploadedImage?.data);
-        console.log('- recipe.extractedImage:', !!recipe.extractedImage?.data);
         console.log('- recipe.imageUrl:', recipe.imageUrl);
         console.log('- recipe.hasUserImage:', recipe.hasUserImage);
 
-        // Check photos collection API
-        try {
-            const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
-            if (photosResponse.ok) {
-                const photosData = await photosResponse.json();
-                console.log('📸 Photos Collection API Response:');
-                console.log('- Success:', photosData.success);
-                console.log('- Photos count:', photosData.photos?.length || 0);
-                console.log('- Photos data:', photosData.photos);
+        // Check what the priority logic would choose
+        console.log('🦸 Image Priority Logic Test:');
+        console.log('- Current priority setting:', recipe.imagePriority);
 
-                if (photosData.photos) {
-                    photosData.photos.forEach((photo, index) => {
-                        console.log(`- Photo ${index}:`, {
-                            id: photo._id,
-                            isPrimary: photo.isPrimary,
-                            originalName: photo.originalName,
-                            source: photo.source
-                        });
-                    });
-                }
-            } else {
-                console.log('❌ Photos API failed:', photosResponse.status);
-            }
-        } catch (error) {
-            console.error('❌ Photos API error:', error);
-        }
-
-        // Check what the hero image would use
-        console.log('🦸 Hero Image Logic Test:');
-        if (recipe.primaryPhoto) {
+        if (recipe.imagePriority === 'primary_photo' && recipe.primaryPhoto) {
             console.log('- Would use primaryPhoto:', recipe.primaryPhoto);
-        } else if (recipe.photos && recipe.photos.length > 0) {
-            console.log('- Would use photos array:', recipe.photos[0]);
-        } else if (recipe.uploadedImage?.data) {
-            console.log('- Would use uploadedImage');
-        } else if (recipe.extractedImage?.data) {
-            console.log('- Would use extractedImage');
-        } else if (recipe.imageUrl) {
+        } else if (recipe.imagePriority === 'external_url' && recipe.imageUrl) {
             console.log('- Would use imageUrl:', recipe.imageUrl);
+        } else if (recipe.imagePriority === 'uploaded_image' && recipe.uploadedImage?.data) {
+            console.log('- Would use uploadedImage');
+        } else if (recipe.imagePriority === 'extracted_image' && recipe.extractedImage?.data) {
+            console.log('- Would use extractedImage');
         } else {
-            console.log('- Would use placeholder');
+            console.log('- MISMATCH: Priority points to unavailable source!');
+            console.log('- Available sources:');
+            if (recipe.primaryPhoto) console.log('  - primaryPhoto available');
+            if (recipe.imageUrl) console.log('  - imageUrl available');
+            if (recipe.uploadedImage?.data) console.log('  - uploadedImage available');
+            if (recipe.extractedImage?.data) console.log('  - extractedImage available');
         }
     };
 
