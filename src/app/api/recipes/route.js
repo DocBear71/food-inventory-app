@@ -138,7 +138,9 @@ export async function GET(request) {
                 ]
             })
                 .populate('createdBy', 'name email')
-                .populate('lastEditedBy', 'name email');
+                .populate('lastEditedBy', 'name email')
+                .populate('primaryPhoto')
+                .populate('photos');
 
             if (!recipe) {
                 return NextResponse.json(
@@ -161,6 +163,8 @@ export async function GET(request) {
             })
                 .populate('createdBy', 'name email')
                 .populate('lastEditedBy', 'name email')
+                .populate('primaryPhoto')
+                .populate('photos')
                 .sort({ createdAt: -1 });
 
             console.log(`GET /api/recipes - Found ${recipes.length} recipes for user`);
@@ -419,6 +423,8 @@ export async function POST(request) {
         // Populate user info for response
         await recipe.populate('createdBy', 'name email');
         await recipe.populate('lastEditedBy', 'name email');
+        await recipe.populate('primaryPhoto');
+        await recipe.populate('photos');
 
         // NEW: Log image processing results
         let imageInfo = 'no image';
@@ -587,7 +593,9 @@ export async function PUT(request) {
             { new: true }
         )
             .populate('createdBy', 'name email')
-            .populate('lastEditedBy', 'name email');
+            .populate('lastEditedBy', 'name email')
+            .populate('primaryPhoto')
+            .populate('photos');
 
         // NEW: AI nutrition re-analysis if ingredients changed
         let nutritionAnalysis = null;
