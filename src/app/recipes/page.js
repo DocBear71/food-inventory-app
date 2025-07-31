@@ -66,10 +66,12 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             imagePriority: recipe.imagePriority,
             hasPrimaryPhoto: !!recipe.primaryPhoto,
             primaryPhotoType: typeof recipe.primaryPhoto,
+            primaryPhotoObject: recipe.primaryPhoto, // DEBUG: Show actual object structure
             primaryPhotoHasData: !!(recipe.primaryPhoto?.imageData || recipe.primaryPhoto?.data),
             hasPhotos: !!recipe.photos,
             photosLength: recipe.photos?.length,
             firstPhotoType: typeof recipe.photos?.[0],
+            firstPhotoObject: recipe.photos?.[0], // DEBUG: Show actual object structure
             firstPhotoHasData: !!(recipe.photos?.[0]?.imageData || recipe.photos?.[0]?.data),
             hasUploadedImage: !!recipe.uploadedImage?.data,
             hasExtractedImage: !!recipe.extractedImage?.data,
