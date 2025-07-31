@@ -1,4 +1,4 @@
-// file: /src/app/api/recipes/route.js v8 - Enhanced with image support and AI nutrition
+// file: /src/app/api/recipes/route.js v9 - FIXED: Optimized photo population to prevent binary data overload
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
@@ -6,7 +6,6 @@ import connectDB from '@/lib/mongodb';
 import { Recipe, User } from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 import { AIRecipeNutritionService } from '@/lib/services/aiNutritionService';
-// import { uploadToCloudinary } from '@/lib/cloudinary'; // Add when you set up Cloudinary
 
 async function checkPublicRecipePermission(userId, requestedIsPublic) {
     // If user doesn't want to make it public, allow it
@@ -111,7 +110,7 @@ async function analyzeRecipeNutritionAI(recipe, userId) {
     }
 }
 
-// GET - Fetch user's recipes or a single recipe
+// FIXED GET - Fetch user's recipes or a single recipe with optimized photo population
 export async function GET(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -129,7 +128,8 @@ export async function GET(request) {
         await connectDB();
 
         if (recipeId) {
-            // Get single recipe with user information populated
+            // FIXED: Get single recipe - populate photos WITHOUT binary data for list view,
+            // but include full data for single recipe view
             const recipe = await Recipe.findOne({
                 _id: recipeId,
                 $or: [
@@ -139,8 +139,14 @@ export async function GET(request) {
             })
                 .populate('createdBy', 'name email')
                 .populate('lastEditedBy', 'name email')
-                .populate('primaryPhoto')
-                .populate('photos');
+                .populate({
+                    path: 'primaryPhoto',
+                    select: 'originalName mimeType size uploadedAt' // Include metadata but not binary data
+                })
+                .populate({
+                    path: 'photos',
+                    select: 'originalName mimeType size uploadedAt' // Include metadata but not binary data
+                });
 
             if (!recipe) {
                 return NextResponse.json(
@@ -154,7 +160,8 @@ export async function GET(request) {
                 recipe
             });
         } else {
-            // Get user's recipes and public recipes with user info
+            // FIXED: Get user's recipes - DON'T populate photo binary data for list view
+            // This prevents massive API responses with 106KB+ per recipe
             const recipes = await Recipe.find({
                 $or: [
                     { createdBy: session.user.id },
@@ -163,15 +170,41 @@ export async function GET(request) {
             })
                 .populate('createdBy', 'name email')
                 .populate('lastEditedBy', 'name email')
-                .populate('primaryPhoto')
-                .populate('photos')
+                // FIXED: Don't populate photo data for list view - use IDs only
+                // .populate('primaryPhoto') // REMOVED: This was causing 106KB+ per recipe
+                // .populate('photos') // REMOVED: This was causing massive response sizes
                 .sort({ createdAt: -1 });
 
             console.log(`GET /api/recipes - Found ${recipes.length} recipes for user`);
 
+            // FIXED: Add computed properties for the RecipeImage component
+            const enhancedRecipes = recipes.map(recipe => {
+                const recipeObj = recipe.toObject();
+
+                // Add computed properties that RecipeImage component expects
+                return {
+                    ...recipeObj,
+                    hasPhotos: !!(recipeObj.primaryPhoto || (recipeObj.photos && recipeObj.photos.length > 0)),
+                    photoCount: (recipeObj.photos ? recipeObj.photos.length : 0) + (recipeObj.primaryPhoto ? 1 : 0),
+                    hasImage: !!(
+                        recipeObj.primaryPhoto ||
+                        (recipeObj.photos && recipeObj.photos.length > 0) ||
+                        recipeObj.uploadedImage?.data ||
+                        recipeObj.extractedImage?.data ||
+                        (recipeObj.imageUrl && recipeObj.imageUrl !== '/images/recipe-placeholder.jpg')
+                    ),
+                    imageType: recipeObj.extractedImage?.data ? 'extracted' :
+                        (recipeObj.primaryPhoto || (recipeObj.photos && recipeObj.photos.length > 0)) ? 'uploaded' :
+                            recipeObj.imageUrl ? 'external' : null,
+                    imageSource: recipeObj.extractedImage?.source ||
+                        recipeObj.imageSource ||
+                        (recipeObj.primaryPhoto || (recipeObj.photos && recipeObj.photos.length > 0) ? 'upload' : 'unknown')
+                };
+            });
+
             return NextResponse.json({
                 success: true,
-                recipes
+                recipes: enhancedRecipes
             });
         }
 
@@ -272,34 +305,6 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
-        // NEW: Handle image upload if present
-        let imageUrl = null;
-        if (imageFile && imageFile.size > 0) {
-            try {
-                console.log('📸 Processing uploaded recipe image...');
-
-                // Convert to base64 and store in uploadedImage field
-                const bytes = await imageFile.arrayBuffer();
-                const buffer = Buffer.from(bytes);
-                const base64Data = buffer.toString('base64');
-
-                // Store in your existing uploadedImage schema field
-                newRecipeData.uploadedImage = {
-                    data: base64Data,
-                    mimeType: imageFile.type,
-                    size: imageFile.size,
-                    originalName: imageFile.name,
-                    uploadedAt: new Date(),
-                    source: 'user_upload'
-                };
-
-                console.log('✅ Image stored as base64 in uploadedImage field');
-            } catch (uploadError) {
-                console.warn('⚠️ Image processing failed:', uploadError.message);
-                // Continue without image rather than failing the entire recipe
-            }
-        }
-
         // FIXED: Handle both string and object instructions (for video imports)
         const processedInstructions = instructions.filter(inst => {
             // Handle both string and object instructions
@@ -334,8 +339,7 @@ export async function POST(request) {
             updatedAt: new Date(),
             isPublic: await checkPublicRecipePermission(session.user.id, isPublic),
 
-            // NEW: Handle images
-            ...(imageUrl && { imageUrl }), // Uploaded image URL
+            // NEW: Handle images - FIXED: Only set uploadedImage if we have imageFile
             ...(extractedImage && {
                 extractedImage: {
                     data: extractedImage.data,
@@ -364,13 +368,40 @@ export async function POST(request) {
             })
         };
 
+        // NEW: Handle image upload if present - FIXED: Set newRecipeData.uploadedImage properly
+        if (imageFile && imageFile.size > 0) {
+            try {
+                console.log('📸 Processing uploaded recipe image...');
+
+                // Convert to base64 and store in uploadedImage field
+                const bytes = await imageFile.arrayBuffer();
+                const buffer = Buffer.from(bytes);
+                const base64Data = buffer.toString('base64');
+
+                // FIXED: Set uploadedImage in newRecipeData, not undefined variable
+                newRecipeData.uploadedImage = {
+                    data: base64Data,
+                    mimeType: imageFile.type,
+                    size: imageFile.size,
+                    originalName: imageFile.name,
+                    uploadedAt: new Date(),
+                    source: 'user_upload'
+                };
+
+                console.log('✅ Image stored as base64 in uploadedImage field');
+            } catch (uploadError) {
+                console.warn('⚠️ Image processing failed:', uploadError.message);
+                // Continue without image rather than failing the entire recipe
+            }
+        }
+
         console.log('Creating recipe with data:', {
             title: newRecipeData.title,
             instructionCount: newRecipeData.instructions.length,
             ingredientCount: newRecipeData.ingredients.length,
             hasVideoMetadata: !!newRecipeData.videoMetadata,
             hasExtractedImage: !!(newRecipeData.extractedImage),
-            hasUploadedImage: !!(newRecipeData.imageUrl),
+            hasUploadedImage: !!(newRecipeData.uploadedImage),
             instructionTypes: newRecipeData.instructions.map(inst => typeof inst),
             skipAIAnalysis
         });
@@ -420,17 +451,16 @@ export async function POST(request) {
         user.usageTracking.lastUpdated = new Date();
         await user.save();
 
-        // Populate user info for response
+        // FIXED: Populate user info for response (but still no binary photo data)
         await recipe.populate('createdBy', 'name email');
         await recipe.populate('lastEditedBy', 'name email');
-        await recipe.populate('primaryPhoto');
-        await recipe.populate('photos');
+        // Don't populate photos for response - client will fetch as needed
 
         // NEW: Log image processing results
         let imageInfo = 'no image';
         if (recipe.extractedImage) {
             imageInfo = `extracted image from ${recipe.extractedImage.source}`;
-        } else if (recipe.imageUrl) {
+        } else if (recipe.uploadedImage) {
             imageInfo = 'uploaded image';
         }
 
@@ -446,8 +476,8 @@ export async function POST(request) {
             recipe: {
                 ...recipe.toObject(),
                 // NEW: Include image information in response
-                hasImage: !!(recipe.extractedImage || recipe.imageUrl),
-                imageType: recipe.extractedImage ? 'extracted' : (recipe.imageUrl ? 'uploaded' : null),
+                hasImage: !!(recipe.extractedImage || recipe.uploadedImage),
+                imageType: recipe.extractedImage ? 'extracted' : (recipe.uploadedImage ? 'uploaded' : null),
                 imageSource: recipe.extractedImage?.source || 'upload'
             },
             nutritionAnalysis, // Include AI analysis results
@@ -593,9 +623,8 @@ export async function PUT(request) {
             { new: true }
         )
             .populate('createdBy', 'name email')
-            .populate('lastEditedBy', 'name email')
-            .populate('primaryPhoto')
-            .populate('photos');
+            .populate('lastEditedBy', 'name email');
+        // FIXED: Don't populate photos with binary data
 
         // NEW: AI nutrition re-analysis if ingredients changed
         let nutritionAnalysis = null;
