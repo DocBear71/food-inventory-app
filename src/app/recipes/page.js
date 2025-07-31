@@ -47,8 +47,9 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             return `data:${photo.mimeType || 'image/jpeg'};base64,${photo.data}`;
         }
 
-        // If it's a populated photo object with API URL (from recipes API)
-        if (typeof photo === 'object' && photo._id) {
+        // FIXED: If it's a populated photo object with metadata but no binary data, use API URL
+        if (typeof photo === 'object' && photo._id && !photo.imageData && !photo.data) {
+            console.log(`📸 Using API URL for populated photo: ${photo._id}`);
             return `/api/recipes/photos/${photo._id}`;
         }
 
