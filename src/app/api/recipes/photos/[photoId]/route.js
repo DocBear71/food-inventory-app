@@ -1,21 +1,23 @@
-// file: /src/app/api/recipes/photos/[photoId]/route.js - FIXED for direct binary Buffer handling
+// file: /src/app/api/recipes/photos/[photoId]/route.js v2 - FIXED with metadata support
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { RecipePhoto, Recipe } from '@/lib/models';
 
-// GET - Serve photo binary data (FIXED for direct binary handling)
+// GET - Serve photo binary data OR metadata based on query parameter
 export async function GET(request, { params }) {
     try {
         const { photoId } = await params;
+        const { searchParams } = new URL(request.url);
+        const format = searchParams.get('format'); // 'metadata' for JSON, default is binary
 
         if (!photoId) {
             console.error('❌ No photoId provided');
             return NextResponse.json({ error: 'Photo ID is required' }, { status: 400 });
         }
 
-        console.log(`📸 Fetching photo: ${photoId}`);
+        console.log(`📸 Fetching photo: ${photoId}, format: ${format || 'binary'}`);
         await connectDB();
 
         const photo = await RecipePhoto.findById(photoId).populate('recipeId');
@@ -24,11 +26,6 @@ export async function GET(request, { params }) {
             console.log(`❌ Photo not found: ${photoId}`);
             return NextResponse.json({ error: 'Photo not found' }, { status: 404 });
         }
-
-        console.log(`📸 Found photo: ${photo.originalName}`);
-        console.log(`📸 Expected size: ${photo.size} bytes`);
-        console.log(`📸 Data type: ${typeof photo.data}`);
-        console.log(`📸 Is Buffer: ${Buffer.isBuffer(photo.data)}`);
 
         const recipe = photo.recipeId;
 
@@ -39,6 +36,29 @@ export async function GET(request, { params }) {
                 return NextResponse.json({ error: 'Not authorized to view this photo' }, { status: 403 });
             }
         }
+
+        // FIXED: Return metadata if requested
+        if (format === 'metadata') {
+            console.log(`📸 Returning metadata for photo: ${photo.originalName}`);
+
+            const { data, ...photoMetadata } = photo.toObject();
+
+            return NextResponse.json({
+                success: true,
+                photo: {
+                    ...photoMetadata,
+                    url: `/api/recipes/photos/${photo._id}`,
+                    size: photo.size,
+                    hasData: !!photo.data
+                }
+            });
+        }
+
+        // FIXED: Return binary data (existing logic)
+        console.log(`📸 Found photo: ${photo.originalName}`);
+        console.log(`📸 Expected size: ${photo.size} bytes`);
+        console.log(`📸 Data type: ${typeof photo.data}`);
+        console.log(`📸 Is Buffer: ${Buffer.isBuffer(photo.data)}`);
 
         // FIXED: Handle direct binary Buffer (no base64 conversion needed)
         let imageBuffer;
