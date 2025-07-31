@@ -32,17 +32,25 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [attemptedSources, setAttemptedSources] = useState(new Set());
 
-    // FIXED: Enhanced image source detection with proper ID extraction
+    // FIXED: Extract photo ID helper function - moved to top level
+    const extractPhotoId = (photo) => {
+        if (!photo) return null;
+        if (typeof photo === 'string') return photo;
+        if (photo._id) return photo._id;
+        return null;
+    };
+
+    // FIXED: Enhanced image source detection with proper priority handling
     const getRecipeImage = (recipe) => {
         console.log(`🔍 Getting image for "${recipe.title}":`, {
             imagePriority: recipe.imagePriority,
             hasPrimaryPhoto: !!recipe.primaryPhoto,
             primaryPhotoType: typeof recipe.primaryPhoto,
-            primaryPhotoId: typeof recipe.primaryPhoto === 'string' ? recipe.primaryPhoto : recipe.primaryPhoto?._id,
+            primaryPhotoId: extractPhotoId(recipe.primaryPhoto),
             hasPhotos: !!recipe.photos,
             photosLength: recipe.photos?.length,
             firstPhotoType: typeof recipe.photos?.[0],
-            firstPhotoId: typeof recipe.photos?.[0] === 'string' ? recipe.photos?.[0] : recipe.photos?.[0]?._id,
+            firstPhotoId: extractPhotoId(recipe.photos?.[0]),
             hasUploadedImage: !!recipe.uploadedImage?.data,
             hasExtractedImage: !!recipe.extractedImage?.data,
             hasImageUrl: !!recipe.imageUrl,
@@ -51,7 +59,7 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             attemptedSources: Array.from(attemptedSources)
         });
 
-        // FIXED: Try sources in order of preference, skipping ones that failed
+        // FIXED: Try sources in order of preference, respecting imagePriority if set
         const trySource = (sourceKey, sourceUrl, logContext = '') => {
             if (!attemptedSources.has(sourceKey) && sourceUrl && sourceUrl !== '/images/recipe-placeholder.jpg') {
                 console.log(`✅ Attempting ${sourceKey}${logContext}:`, sourceUrl);
@@ -65,14 +73,48 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             return null;
         };
 
-        // FIXED: Extract photo ID properly from either string or object
-        const extractPhotoId = (photo) => {
-            if (!photo) return null;
-            if (typeof photo === 'string') return photo;
-            if (photo._id) return photo._id;
-            return null;
-        };
+        // FIXED: Respect imagePriority field if it exists
+        if (recipe.imagePriority) {
+            switch (recipe.imagePriority) {
+                case 'external_url':
+                    if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
+                        const externalUrl = trySource('external_url', recipe.imageUrl, ` (priority: external, source: ${recipe.imageSource || 'unknown'})`);
+                        if (externalUrl) return externalUrl;
+                    }
+                    break;
+                case 'primary_photo':
+                    if (recipe.primaryPhoto) {
+                        const photoId = extractPhotoId(recipe.primaryPhoto);
+                        if (photoId) {
+                            const photoUrl = trySource('primary_photo', `/api/recipes/photos/${photoId}`, ` (priority: primary, ID: ${photoId})`);
+                            if (photoUrl) return photoUrl;
+                        }
+                    }
+                    break;
+                case 'uploaded_image':
+                    if (recipe.uploadedImage?.data) {
+                        const uploadedUrl = trySource(
+                            'uploaded_image',
+                            `/api/recipes/photos/upload?recipeId=${recipe._id}`,
+                            ` (priority: uploaded)`
+                        );
+                        if (uploadedUrl) return uploadedUrl;
+                    }
+                    break;
+                case 'extracted_image':
+                    if (recipe.extractedImage?.data) {
+                        const extractedUrl = trySource(
+                            'extracted_image',
+                            `/api/recipes/photos/upload?recipeId=${recipe._id}`,
+                            ` (priority: extracted)`
+                        );
+                        if (extractedUrl) return extractedUrl;
+                    }
+                    break;
+            }
+        }
 
+        // FIXED: Fallback order if no priority is set or priority source failed
         // 1. Try primaryPhoto first (most preferred)
         if (recipe.primaryPhoto) {
             const photoId = extractPhotoId(recipe.primaryPhoto);
@@ -91,28 +133,28 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             }
         }
 
-        // 3. Try uploaded image (embedded base64)
+        // 3. Try uploaded image (embedded base64) - serve via upload route
         if (recipe.uploadedImage?.data) {
             const uploadedUrl = trySource(
                 'uploaded_image',
-                `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`,
-                ` (${recipe.uploadedImage.data.length} chars)`
+                `/api/recipes/photos/upload?recipeId=${recipe._id}`,
+                ` (uploaded image)`
             );
             if (uploadedUrl) return uploadedUrl;
         }
 
-        // 4. Try external URL - FIXED: Better validation
+        // 4. Try external URL - FIXED: Better validation and direct use
         if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg' && recipe.imageUrl.trim() !== '') {
             const externalUrl = trySource('external_url', recipe.imageUrl, ` (source: ${recipe.imageSource || 'unknown'})`);
             if (externalUrl) return externalUrl;
         }
 
-        // 5. Try extracted image (AI-generated)
+        // 5. Try extracted image (AI-generated) - serve via upload route
         if (recipe.extractedImage?.data) {
             const extractedUrl = trySource(
                 'extracted_image',
-                `data:image/jpeg;base64,${recipe.extractedImage.data}`,
-                ` (${recipe.extractedImage.data.length} chars)`
+                `/api/recipes/photos/upload?recipeId=${recipe._id}`,
+                ` (extracted from ${recipe.extractedImage.source || 'video'})`
             );
             if (extractedUrl) return extractedUrl;
         }
@@ -125,19 +167,30 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const getImageTypeIndicator = () => {
         const currentSrc = getRecipeImage(recipe);
 
-        if (currentSrc.includes('/api/recipes/photos/') || recipe.uploadedImage?.data) {
+        // Check if using separate photo system
+        if (currentSrc.includes('/api/recipes/photos/') && !currentSrc.includes('upload')) {
             return 'user_upload';
         }
-        if (recipe.extractedImage?.data && currentSrc.includes('data:image/jpeg;base64')) {
-            return 'ai_extracted';
+
+        // Check if using upload route (could be uploaded or extracted)
+        if (currentSrc.includes('/api/recipes/photos/upload')) {
+            if (recipe.uploadedImage?.data) {
+                return 'user_upload';
+            }
+            if (recipe.extractedImage?.data) {
+                return 'ai_extracted';
+            }
         }
-        if (currentSrc !== '/images/recipe-placeholder.jpg' && !currentSrc.includes('data:')) {
+
+        // Check for external URL
+        if (currentSrc !== '/images/recipe-placeholder.jpg' && !currentSrc.includes('/api/')) {
             return 'external';
         }
+
         return 'placeholder';
     };
 
-    // FIXED: Get attribution
+    // FIXED: Get attribution with proper external image handling
     const getImageAttribution = () => {
         const imageType = getImageTypeIndicator();
 
@@ -148,6 +201,7 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             return `AI extracted from ${recipe.extractedImage?.source || 'video'}`;
         }
         if (imageType === 'external') {
+            // FIXED: Use the imageAttribution field from the recipe
             if (recipe.imageAttribution && recipe.imageAttribution !== 'Unknown from Unknown') {
                 return recipe.imageAttribution;
             }
@@ -156,6 +210,9 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             }
             if (recipe.imageSource === 'pexels' || recipe.imageSource === 'pexels_enhanced') {
                 return 'Photo from Pexels';
+            }
+            if (recipe.imageSource === 'google') {
+                return 'Photo from Google Images';
             }
             return 'External photo';
         }
@@ -173,7 +230,7 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
 
         // Determine which source failed and add to attempted list
         let failedSource = '';
-        if (currentSrc.includes('/api/recipes/photos/')) {
+        if (currentSrc.includes('/api/recipes/photos/') && !currentSrc.includes('upload')) {
             const primaryPhotoId = extractPhotoId(recipe.primaryPhoto);
             const firstPhotoId = extractPhotoId(recipe.photos?.[0]);
 
@@ -182,11 +239,13 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             } else if (currentSrc.includes(firstPhotoId)) {
                 failedSource = 'photos_array';
             }
-        } else if (currentSrc.includes('data:') && recipe.uploadedImage?.data) {
-            failedSource = 'uploaded_image';
-        } else if (currentSrc.includes('data:') && recipe.extractedImage?.data) {
-            failedSource = 'extracted_image';
-        } else if (!currentSrc.includes('/images/recipe-placeholder.jpg')) {
+        } else if (currentSrc.includes('/api/recipes/photos/upload')) {
+            if (recipe.uploadedImage?.data) {
+                failedSource = 'uploaded_image';
+            } else if (recipe.extractedImage?.data) {
+                failedSource = 'extracted_image';
+            }
+        } else if (!currentSrc.includes('/images/recipe-placeholder.jpg') && !currentSrc.includes('/api/')) {
             failedSource = 'external_url';
         }
 
@@ -208,14 +267,6 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
         console.log('✅ Image loaded successfully:', currentSrc);
         setImageLoaded(true);
         setImageError(null);
-    };
-
-    // Extract photo ID helper
-    const extractPhotoId = (photo) => {
-        if (!photo) return null;
-        if (typeof photo === 'string') return photo;
-        if (photo._id) return photo._id;
-        return null;
     };
 
     // FIXED: Reset attempted sources when recipe changes
@@ -1291,7 +1342,7 @@ function RecipesContent() {
                         {/* UPDATED: Recipe Grid with Images */}
                         {displayedRecipes.length > 0 ? (
                             <>
-                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                                     {displayedRecipes.map((recipe, index) => {
                                         if (!recipe) return null;
 
@@ -1433,9 +1484,9 @@ function RecipesContent() {
                                                             {recipe.ratingStats?.totalRatings > 0 && (
                                                                 <span>{recipe.ratingStats.totalRatings} review{recipe.ratingStats.totalRatings !== 1 ? 's' : ''}</span>
                                                             )}
-                                                            {recipe.metrics?.viewCount > 0 && (
-                                                                <span>{recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}</span>
-                                                            )}
+                                                            {/*{recipe.metrics?.viewCount > 0 && (*/}
+                                                            {/*    <span>{recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}</span>*/}
+                                                            {/*)}*/}
                                                         </div>
                                                     </div>
 
