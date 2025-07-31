@@ -26,45 +26,40 @@ import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
-// DEBUG: Simplified RecipeImage Component to isolate the display issue
+// FINAL: RecipeImage Component with correct layout and styling
 const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
     const [currentImageSrc, setCurrentImageSrc] = useState('');
 
-    // Simple image source detection
+    // Simple and reliable image source detection
     const getImageSrc = () => {
-        console.log(`🔧 DEBUG: Getting image for "${recipe.title}"`);
-
-        // 1. Check external URL first (since logs show this works)
+        // 1. Check external URL first (Unsplash, Pexels, Google)
         if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
-            console.log(`🔧 DEBUG: Using external URL: ${recipe.imageUrl}`);
             return recipe.imageUrl;
         }
 
-        // 2. Check primary photo
+        // 2. Check primary photo (user uploaded via photo system)
         if (recipe.primaryPhoto && recipe.primaryPhoto._id) {
-            const apiUrl = `/api/recipes/photos/${recipe.primaryPhoto._id}`;
-            console.log(`🔧 DEBUG: Using primary photo API: ${apiUrl}`);
-            return apiUrl;
+            return `/api/recipes/photos/${recipe.primaryPhoto._id}`;
         }
 
         // 3. Check first photo in array
         if (recipe.photos && recipe.photos.length > 0 && recipe.photos[0]._id) {
-            const apiUrl = `/api/recipes/photos/${recipe.photos[0]._id}`;
-            console.log(`🔧 DEBUG: Using first photo API: ${apiUrl}`);
-            return apiUrl;
+            return `/api/recipes/photos/${recipe.photos[0]._id}`;
         }
 
-        // 4. Check uploaded image
+        // 4. Check uploaded image (embedded in recipe)
         if (recipe.uploadedImage?.data) {
-            const dataUrl = `/api/recipes/photos/upload?recipeId=${recipe._id}`;
-            console.log(`🔧 DEBUG: Using uploaded image: ${dataUrl}`);
-            return dataUrl;
+            return `/api/recipes/photos/upload?recipeId=${recipe._id}`;
         }
 
-        // 5. Fallback to placeholder
-        console.log(`🔧 DEBUG: Using placeholder for ${recipe.title}`);
+        // 5. Check extracted image (AI generated)
+        if (recipe.extractedImage?.data) {
+            return `/api/recipes/photos/upload?recipeId=${recipe._id}`;
+        }
+
+        // 6. Fallback to placeholder
         return '/images/recipe-placeholder.jpg';
     };
 
@@ -74,92 +69,103 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
         setCurrentImageSrc(imageSrc);
         setImageLoaded(false);
         setImageError(false);
-        console.log(`🔧 DEBUG: Set currentImageSrc to: ${imageSrc}`);
     }, [recipe._id, recipe.imageUrl, recipe.primaryPhoto?._id]);
 
     const handleImageLoad = () => {
-        console.log(`🔧 DEBUG: Image loaded successfully: ${currentImageSrc}`);
         setImageLoaded(true);
         setImageError(false);
     };
 
-    const handleImageError = (error) => {
-        console.error(`🔧 DEBUG: Image failed to load: ${currentImageSrc}`, error);
+    const handleImageError = () => {
         setImageError(true);
         setImageLoaded(false);
 
         // Fallback to placeholder on error
         if (currentImageSrc !== '/images/recipe-placeholder.jpg') {
-            console.log(`🔧 DEBUG: Falling back to placeholder`);
             setCurrentImageSrc('/images/recipe-placeholder.jpg');
         }
     };
 
     // Don't render anything until we have an image source
     if (!currentImageSrc) {
-        console.log(`🔧 DEBUG: No image source yet for ${recipe.title}`);
         return (
-            <div className={`bg-gray-200 animate-pulse flex items-center justify-center ${className}`} style={{ height: '200px' }}>
-                <div className="text-gray-400 text-sm">Loading...</div>
+            <div className={`absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center ${className}`}>
+                <div className="text-gray-400">
+                    <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                    </svg>
+                </div>
             </div>
         );
     }
 
-    console.log(`🔧 DEBUG: Rendering image for ${recipe.title}:`, {
-        currentImageSrc,
-        imageLoaded,
-        imageError,
-        className
-    });
-
     return (
-        <div className={`relative ${className}`} style={{ height: '200px', backgroundColor: '#f3f4f6' }}>
-            {/* Debug info overlay */}
-            <div className="absolute top-0 left-0 bg-black bg-opacity-50 text-white text-xs p-1 z-10">
-                {recipe.title?.substring(0, 20)}...
-            </div>
-
+        <>
             <Image
                 src={currentImageSrc}
                 alt={recipe.title || 'Recipe image'}
                 fill
-                className={`object-cover transition-opacity duration-300 ${
-                    imageLoaded ? 'opacity-100' : 'opacity-50'
-                }`}
+                className={`object-cover transition-all duration-300 ${
+                    imageLoaded ? 'opacity-100' : 'opacity-0'
+                } group-hover:scale-105 ${className}`}
                 onLoad={handleImageLoad}
                 onError={handleImageError}
                 priority={priority}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                 unoptimized={currentImageSrc.startsWith('/api/')}
-                style={{
-                    objectFit: 'cover'
-                }}
             />
 
-            {/* Loading indicator */}
+            {/* Loading placeholder - only shows while image is loading */}
             {!imageLoaded && !imageError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                    <div className="text-gray-500 text-sm">Loading Image...</div>
-                </div>
-            )}
-
-            {/* Error indicator */}
-            {imageError && (
-                <div className="absolute inset-0 flex items-center justify-center bg-red-50">
-                    <div className="text-red-500 text-sm text-center">
-                        <div>❌ Image Failed</div>
-                        <div className="text-xs mt-1">{currentImageSrc.substring(0, 30)}...</div>
+                <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+                    <div className="text-gray-400">
+                        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
                     </div>
                 </div>
             )}
 
-            {/* Success indicator */}
-            {imageLoaded && (
-                <div className="absolute bottom-0 right-0 bg-green-500 text-white text-xs px-2 py-1">
-                    ✅ Loaded
+            {/* Image attribution overlay - subtle, appears on hover */}
+            {recipe.imageAttribution && imageLoaded && !imageError && (
+                <div className="absolute bottom-0 left-0 right-0 bg-black bg-opacity-50 text-white text-xs p-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    {recipe.imageAttribution}
                 </div>
             )}
-        </div>
+
+            {/* Image type indicators - small badges */}
+            {imageLoaded && !imageError && (
+                <>
+                    {/* External image indicator */}
+                    {recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg' && (
+                        <div className="absolute top-2 right-2 bg-blue-500 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            🌐
+                        </div>
+                    )}
+
+                    {/* User upload indicator */}
+                    {(recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0)) && (
+                        <div className="absolute top-2 right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            📷
+                        </div>
+                    )}
+
+                    {/* AI extracted indicator */}
+                    {recipe.extractedImage?.data && (
+                        <div className="absolute top-2 right-2 bg-purple-500 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            🤖
+                        </div>
+                    )}
+
+                    {/* Multiple photos indicator */}
+                    {(recipe.photoCount > 1 || (recipe.photos && recipe.photos.length > 1)) && (
+                        <div className="absolute top-2 left-2 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded-full shadow-sm">
+                            +{(recipe.photoCount || recipe.photos?.length || 1) - 1}
+                        </div>
+                    )}
+                </>
+            )}
+        </>
     );
 };
 
