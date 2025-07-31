@@ -1286,24 +1286,65 @@ export default function EnhancedRecipeForm({
                 .map(tag => tag.trim())
                 .filter(tag => tag.length > 0);
 
+            // FIXED: Prepare ingredients and instructions for both multi-part and single-part recipes
+            let finalIngredients = [];
+            let finalInstructions = [];
+
+            if (isMultiPart && recipe.parts && recipe.parts.length > 0) {
+                // For multi-part recipes, collect all ingredients from all parts
+                recipe.parts.forEach(part => {
+                    if (part.ingredients) {
+                        finalIngredients.push(...part.ingredients.filter(ing => ing.name && ing.name.trim()));
+                    }
+                });
+
+                // Collect all instructions from all parts (with part context)
+                recipe.parts.forEach((part, partIndex) => {
+                    if (part.instructions) {
+                        const partInstructions = part.instructions
+                            .filter(inst => getInstructionText(inst).trim())
+                            .map(inst => {
+                                const instructionText = getInstructionText(inst);
+                                // Add part context if part has a name
+                                const partPrefix = part.name ? `[${part.name}] ` : `[Part ${partIndex + 1}] `;
+                                return partPrefix + instructionText;
+                            });
+                        finalInstructions.push(...partInstructions);
+                    }
+                });
+            } else if (recipe.parts && recipe.parts[0]) {
+                // For single-part recipes stored in parts format
+                finalIngredients = recipe.parts[0].ingredients.filter(ing => ing.name && ing.name.trim());
+                finalInstructions = recipe.parts[0].instructions
+                    .filter(inst => getInstructionText(inst).trim())
+                    .map(inst => getInstructionText(inst));
+            } else {
+                // Fallback to legacy ingredients/instructions arrays
+                finalIngredients = recipe.ingredients?.filter(ing => ing.name && ing.name.trim()) || [];
+                finalInstructions = recipe.instructions?.filter(inst => getInstructionText(inst).trim()).map(inst => getInstructionText(inst)) || [];
+            }
+
+            // FIXED: Ensure we have ingredients (required by API)
+            if (finalIngredients.length === 0) {
+                alert('Please add at least one ingredient to your recipe.');
+                setIsSubmitting(false);
+                return;
+            }
+
             const finalRecipe = {
                 ...recipe,
                 tags: finalTags,
                 isMultiPart,
 
-                // For backward compatibility, if single-part, also populate legacy fields
-                ...((!isMultiPart && recipe.parts && recipe.parts[0]) && {
-                    ingredients: recipe.parts[0].ingredients.filter(ing => ing.name.trim()),
-                    instructions: recipe.parts[0].instructions.filter(inst =>
-                        getInstructionText(inst).trim()
-                    ).map(inst => getInstructionText(inst))
-                }),
+                // FIXED: Always include ingredients array (required by API)
+                ingredients: finalIngredients,
+                instructions: finalInstructions,
 
-                // For multi-part, clean up parts
+                // For multi-part recipes, also include the parts structure
                 ...(isMultiPart && {
                     parts: recipe.parts.map(part => ({
                         ...part,
-                        ingredients: part.ingredients.filter(ing => ing.name.trim()),
+                        ingredients: part.ingredients.filter(ing => ing.name && ing.name.trim()),
                         instructions: part.instructions.filter(inst =>
                             getInstructionText(inst).trim()
                         ).map(inst => getInstructionText(inst))
@@ -1331,10 +1372,19 @@ export default function EnhancedRecipeForm({
                 _formMetadata: undefined
             };
 
+            // Clean up undefined values
             Object.keys(finalRecipe).forEach(key => {
                 if (finalRecipe[key] === undefined) {
                     delete finalRecipe[key];
                 }
+            });
+
+            console.log('🚀 Submitting recipe:', {
+                title: finalRecipe.title,
+                isMultiPart: finalRecipe.isMultiPart,
+                ingredientCount: finalRecipe.ingredients.length,
+                instructionCount: finalRecipe.instructions.length,
+                partsCount: finalRecipe.parts?.length || 0
             });
 
             await onSubmit(finalRecipe);
