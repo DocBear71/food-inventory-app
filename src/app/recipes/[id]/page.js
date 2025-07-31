@@ -1,38 +1,778 @@
 'use client';
 // file: /src/app/recipes/[id]/page.js v15 - Fixed multi-part recipe display with proper JSX structure
 
-import { useEffect, useState } from 'react';
-import { useSafeSession } from '@/hooks/useSafeSession';
-import { useParams, useRouter } from 'next/navigation';
+import {useEffect, useState} from 'react';
+import {useSafeSession} from '@/hooks/useSafeSession';
+import {useParams, useRouter} from 'next/navigation';
 import Image from 'next/image';
-import { StarRating, RatingStats } from '@/components/reviews/RecipeRating';
+import {StarRating, RatingStats} from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
 import NutritionFacts from '@/components/nutrition/NutritionFacts';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import { apiGet, apiPost, apiPut } from '@/lib/api-config';
+import {apiGet, apiPost, apiPut} from '@/lib/api-config';
 import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
-import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
-import { FEATURE_GATES } from '@/lib/subscription-config';
+import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
+import {FEATURE_GATES} from '@/lib/subscription-config';
 import NutritionModal from '@/components/nutrition/NutritionModal';
 import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
 
-// Hero Recipe Image Component (placeholder - keep your existing implementation)
-const RecipeHeroImage = ({ recipe, session, className = "", onImageUpdate }) => {
-    // Your existing RecipeHeroImage implementation goes here
+// Hero Recipe Image Component - ENHANCED with full schema support
+const RecipeHeroImage = ({recipe, session, className = "", onImageUpdate}) => {
+    const [imageError, setImageError] = useState(false);
+    const [imageLoaded, setImageLoaded] = useState(false);
+    const [showFullImage, setShowFullImage] = useState(false);
+    const [showImageSelector, setShowImageSelector] = useState(false);
+    const [availableImages, setAvailableImages] = useState([]);
+    const [loading, setLoading] = useState(false);
+    const [currentPrimaryPhoto, setCurrentPrimaryPhoto] = useState(null);
+
+    // Fetch current primary photo from collection
+    useEffect(() => {
+        fetchCurrentPrimaryPhoto();
+    }, [recipe._id, recipe.primaryPhoto]);
+
+    // Add this useEffect to run the priority fix
+    useEffect(() => {
+        if (recipe && recipe._id) {
+            // Run priority fix when recipe loads
+            fixImagePriorityMismatch();
+        }
+    }, [recipe?._id, recipe?.imagePriority, recipe?.primaryPhoto]);
+
+
+    // Add this enhanced sync function to fix priority mismatches
+    const fixImagePriorityMismatch = async () => {
+        if (!recipe._id) return;
+
+        try {
+            console.log('🔧 Checking for image priority mismatch...');
+            console.log('Current priority:', recipe.imagePriority);
+            console.log('Has primaryPhoto:', !!recipe.primaryPhoto);
+            console.log('Has imageUrl:', !!recipe.imageUrl);
+
+            let needsUpdate = false;
+            let updateData = {};
+
+            // Case 1: Has primaryPhoto but wrong priority
+            if (recipe.primaryPhoto && recipe.imagePriority !== 'primary_photo') {
+                console.log('🔧 Fixing: Has primaryPhoto but wrong priority');
+                updateData = {
+                    imagePriority: 'primary_photo',
+                    'imageMetadata.primarySource': 'photo_collection',
+                    hasUserImage: true
+                };
+                needsUpdate = true;
+            }
+
+            // Case 2: Has external URL but no primaryPhoto and wrong priority
+            else if (recipe.imageUrl && !recipe.primaryPhoto && recipe.imagePriority !== 'external_url') {
+                console.log('🔧 Fixing: Has imageUrl but wrong priority');
+                updateData = {
+                    imagePriority: 'external_url',
+                    'imageMetadata.primarySource': 'external_url'
+                };
+                needsUpdate = true;
+            }
+
+            // Case 3: Has embedded images but wrong priority
+            else if (recipe.uploadedImage?.data && recipe.imagePriority !== 'uploaded_image') {
+                console.log('🔧 Fixing: Has uploadedImage but wrong priority');
+                updateData = {
+                    imagePriority: 'uploaded_image',
+                    'imageMetadata.primarySource': 'embedded_upload',
+                    hasUserImage: true
+                };
+                needsUpdate = true;
+            } else if (recipe.extractedImage?.data && recipe.imagePriority !== 'extracted_image') {
+                console.log('🔧 Fixing: Has extractedImage but wrong priority');
+                updateData = {
+                    imagePriority: 'extracted_image',
+                    'imageMetadata.primarySource': 'ai_extracted'
+                };
+                needsUpdate = true;
+            }
+
+            // Case 4: Priority says external_url but no imageUrl exists - find best alternative
+            else if (recipe.imagePriority === 'external_url' && !recipe.imageUrl) {
+                console.log('🔧 Fixing: Priority is external_url but no imageUrl exists');
+
+                if (recipe.primaryPhoto) {
+                    updateData = {
+                        imagePriority: 'primary_photo',
+                        'imageMetadata.primarySource': 'photo_collection',
+                        hasUserImage: true
+                    };
+                } else if (recipe.uploadedImage?.data) {
+                    updateData = {
+                        imagePriority: 'uploaded_image',
+                        'imageMetadata.primarySource': 'embedded_upload',
+                        hasUserImage: true
+                    };
+                } else if (recipe.extractedImage?.data) {
+                    updateData = {
+                        imagePriority: 'extracted_image',
+                        'imageMetadata.primarySource': 'ai_extracted'
+                    };
+                }
+                needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+                updateData['imageMetadata.lastUpdated'] = new Date();
+                updateData['imageMetadata.updateCount'] = (recipe.imageMetadata?.updateCount || 0) + 1;
+
+                console.log('🔧 Applying priority fix:', updateData);
+
+                const response = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+                if (response.ok) {
+                    console.log('✅ Fixed image priority mismatch');
+                    // Refresh the recipe data
+                    await fetchRecipe();
+                } else {
+                    console.error('❌ Failed to fix image priority mismatch');
+                }
+            } else {
+                console.log('✅ Image priority is already correct');
+            }
+
+        } catch (error) {
+            console.error('Error fixing image priority:', error);
+        }
+    };
+
+// Enhanced fetchCurrentPrimaryPhoto with error handling
+    const fetchCurrentPrimaryPhoto = async () => {
+        try {
+            // First check if recipe has a primaryPhoto reference
+            if (recipe.primaryPhoto) {
+                console.log('🔍 Fetching primaryPhoto by ID:', recipe.primaryPhoto);
+
+                try {
+                    const response = await apiGet(`/api/recipes/photos/${recipe.primaryPhoto}`);
+                    if (response.ok) {
+                        const data = await response.json();
+                        if (data.success) {
+                            setCurrentPrimaryPhoto(data.photo);
+                            console.log('✅ Found primaryPhoto from recipe reference:', data.photo._id);
+                            return;
+                        } else {
+                            console.warn('⚠️ Primary photo API returned error:', data.error);
+                        }
+                    } else {
+                        console.warn('⚠️ Primary photo API request failed:', response.status);
+                    }
+                } catch (photoError) {
+                    console.error('❌ Error fetching primary photo by ID:', photoError);
+                    // Continue to fallback method
+                }
+            }
+
+            // Fallback: check photos collection for isPrimary flag
+            console.log('🔍 Falling back to collection scan for primary photo');
+
+            try {
+                const response = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.success && data.photos) {
+                        const primaryPhoto = data.photos.find(p => p.isPrimary);
+                        setCurrentPrimaryPhoto(primaryPhoto || null);
+                        console.log('🔍 Found primary photo in collection:', primaryPhoto?._id || 'none');
+
+                        // Sync recipe document if we found a primary but recipe doesn't reference it
+                        if (primaryPhoto && recipe.primaryPhoto !== primaryPhoto._id) {
+                            console.log('🔄 Syncing found primary photo to recipe document');
+                            await syncPrimaryPhotoToRecipe(primaryPhoto._id);
+                        }
+                    } else {
+                        console.warn('⚠️ Photos collection API returned error:', data.error);
+                        setCurrentPrimaryPhoto(null);
+                    }
+                } else {
+                    console.warn('⚠️ Photos collection API request failed:', response.status);
+                    setCurrentPrimaryPhoto(null);
+                }
+            } catch (collectionError) {
+                console.error('❌ Error fetching photos collection:', collectionError);
+                setCurrentPrimaryPhoto(null);
+            }
+
+        } catch (error) {
+            console.error('❌ Unexpected error in fetchCurrentPrimaryPhoto:', error);
+            setCurrentPrimaryPhoto(null);
+        }
+    };
+
+
+    const syncPrimaryPhotoToRecipe = async (photoId) => {
+        try {
+            await apiPut(`/api/recipes/${recipe._id}`, {
+                primaryPhoto: photoId,
+                hasPhotos: true,
+                imagePriority: 'primary_photo',
+                'imageMetadata.primarySource': 'photo_collection',
+                'imageMetadata.lastUpdated': new Date(),
+                'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
+            });
+            console.log('🔄 Synced primary photo to recipe document');
+        } catch (error) {
+            console.error('Error syncing primary photo to recipe:', error);
+        }
+    };
+
+    // Fetch available images when selector is opened
+    const fetchAvailableImages = async () => {
+        if (availableImages.length > 0) return; // Already fetched
+
+        setLoading(true);
+        try {
+            const response = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+            const images = [];
+
+            // Add uploaded photos from collection
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success && data.photos) {
+                    images.push(...data.photos.map(photo => ({
+                        id: photo._id,
+                        type: 'collection',
+                        url: `/api/recipes/photos/${photo._id}`,
+                        source: 'user_upload',
+                        name: photo.originalName || 'Uploaded Photo',
+                        isPrimary: photo.isPrimary || (recipe.primaryPhoto === photo._id)
+                    })));
+                }
+            }
+
+            // Add recipe's embedded images
+            if (recipe.uploadedImage?.data) {
+                images.push({
+                    id: 'recipe-uploaded',
+                    type: 'embedded',
+                    url: `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`,
+                    source: 'user_upload',
+                    name: recipe.uploadedImage.originalName || 'Recipe Photo',
+                    isPrimary: recipe.imagePriority === 'uploaded_image'
+                });
+            }
+
+            if (recipe.extractedImage?.data) {
+                images.push({
+                    id: 'recipe-extracted',
+                    type: 'embedded',
+                    url: `data:image/jpeg;base64,${recipe.extractedImage.data}`,
+                    source: 'ai_extracted',
+                    name: 'AI Extracted Photo',
+                    isPrimary: recipe.imagePriority === 'extracted_image'
+                });
+            }
+
+            // Add external image
+            if (recipe.imageUrl) {
+                images.push({
+                    id: 'recipe-external',
+                    type: 'external',
+                    url: recipe.imageUrl,
+                    source: 'external',
+                    name: 'External Image',
+                    isPrimary: recipe.imagePriority === 'external_url'
+                });
+            }
+
+            setAvailableImages(images);
+            console.log('🖼️ Available images for selection:', images.length);
+        } catch (error) {
+            console.error('Error fetching available images:', error);
+        }
+        setLoading(false);
+    };
+
+    const getImageSrc = () => {
+        console.log('🖼️ RecipeHeroImage - Getting image source using priority:', recipe.imagePriority);
+
+        // Use imagePriority to determine which image to show
+        switch (recipe.imagePriority) {
+            case 'primary_photo':
+                if (currentPrimaryPhoto && !imageError) {
+                    const photoUrl = `/api/recipes/photos/${currentPrimaryPhoto._id}`;
+                    console.log('🖼️ Using primary photo from collection:', photoUrl);
+                    return photoUrl;
+                }
+                break;
+
+            case 'uploaded_image':
+                if (recipe.uploadedImage?.data && !imageError) {
+                    console.log('🖼️ Using uploadedImage (embedded base64)');
+                    return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+                }
+                break;
+
+            case 'extracted_image':
+                if (recipe.extractedImage?.data && !imageError) {
+                    console.log('🖼️ Using extractedImage (embedded base64)');
+                    return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+                }
+                break;
+
+            case 'external_url':
+                if (recipe.imageUrl && !imageError) {
+                    console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
+                    return recipe.imageUrl;
+                }
+                break;
+        }
+
+        // Fallback logic if priority doesn't match or fails
+        if (currentPrimaryPhoto && !imageError) {
+            const photoUrl = `/api/recipes/photos/${currentPrimaryPhoto._id}`;
+            console.log('🖼️ Fallback: Using primary photo from collection:', photoUrl);
+            return photoUrl;
+        }
+
+        if (recipe.uploadedImage?.data && !imageError) {
+            console.log('🖼️ Fallback: Using uploadedImage');
+            return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+        }
+
+        if (recipe.extractedImage?.data && !imageError) {
+            console.log('🖼️ Fallback: Using extractedImage');
+            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+        }
+
+        if (recipe.imageUrl && !imageError) {
+            console.log('🖼️ Fallback: Using external imageUrl');
+            return recipe.imageUrl;
+        }
+
+        console.log('🖼️ No image sources found, using placeholder');
+        return '/images/recipe-placeholder.jpg';
+    };
+
+    const getImageAlt = () => {
+        return recipe.title || 'Recipe image';
+    };
+
+    const getImageAttribution = () => {
+        // Show user upload status first
+        if (currentPrimaryPhoto || recipe.imagePriority === 'primary_photo' || recipe.hasUserImage || recipe.uploadedImage?.data) {
+            return 'Photo uploaded by user';
+        }
+        if (recipe.extractedImage?.data) {
+            return `AI extracted from ${recipe.extractedImage.source || 'video'}`;
+        }
+        if (recipe.imageAttribution && recipe.imageAttribution !== 'Unknown from Unknown') {
+            return recipe.imageAttribution;
+        }
+        if (recipe.imageSource === 'unsplash') {
+            return 'Photo from Unsplash';
+        }
+        if (recipe.imageSource === 'pexels_enhanced') {
+            return 'Photo from Pexels';
+        }
+        return null;
+    };
+
+    const setPrimaryImage = async (imageId, imageType) => {
+        try {
+            console.log('🔄 Setting primary image:', imageId, imageType);
+
+            let updateData = {
+                'imageMetadata.lastUpdated': new Date(),
+                'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
+            };
+
+            if (imageType === 'collection') {
+                // Set primary photo in collection
+                const response = await apiPut(`/api/recipes/photos/${imageId}`, {
+                    isPrimary: true
+                });
+
+                if (response.ok) {
+                    // Update recipe document with new primary photo
+                    updateData = {
+                        ...updateData,
+                        primaryPhoto: imageId,
+                        hasPhotos: true,
+                        hasUserImage: true,
+                        imagePriority: 'primary_photo',
+                        'imageMetadata.primarySource': 'photo_collection'
+                    };
+
+                    const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+
+                    if (updateResponse.ok) {
+                        console.log('✅ Successfully set primary image and updated recipe');
+                        await fetchCurrentPrimaryPhoto();
+                        onImageUpdate?.();
+                        setShowImageSelector(false);
+                    } else {
+                        console.error('❌ Failed to update recipe document');
+                    }
+                } else {
+                    console.error('❌ Failed to set primary photo in collection');
+                }
+            } else if (imageType === 'external') {
+                // Clear any primary photos in collection and set external as primary
+                try {
+                    const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+                    if (photosResponse.ok) {
+                        const photosData = await photosResponse.json();
+                        if (photosData.success && photosData.photos) {
+                            for (const photo of photosData.photos) {
+                                if (photo.isPrimary) {
+                                    await apiPut(`/api/recipes/photos/${photo._id}`, {
+                                        isPrimary: false
+                                    });
+                                }
+                            }
+                        }
+                    }
+
+                    // Update recipe to use external image
+                    updateData = {
+                        ...updateData,
+                        primaryPhoto: null,
+                        imagePriority: 'external_url',
+                        'imageMetadata.primarySource': 'external_url'
+                    };
+
+                    const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+
+                    if (updateResponse.ok) {
+                        console.log('✅ Set external image as primary');
+                        setCurrentPrimaryPhoto(null);
+                        onImageUpdate?.();
+                        setShowImageSelector(false);
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to set external image as primary:', error);
+                }
+            } else if (imageType === 'embedded') {
+                // Handle embedded images (uploadedImage or extractedImage)
+                const priority = imageId === 'recipe-uploaded' ? 'uploaded_image' : 'extracted_image';
+                const source = imageId === 'recipe-uploaded' ? 'embedded_upload' : 'ai_extracted';
+
+                // Clear primary photos in collection
+                const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
+                if (photosResponse.ok) {
+                    const photosData = await photosResponse.json();
+                    if (photosData.success && photosData.photos) {
+                        for (const photo of photosData.photos) {
+                            if (photo.isPrimary) {
+                                await apiPut(`/api/recipes/photos/${photo._id}`, {
+                                    isPrimary: false
+                                });
+                            }
+                        }
+                    }
+                }
+
+                updateData = {
+                    ...updateData,
+                    primaryPhoto: null,
+                    imagePriority: priority,
+                    'imageMetadata.primarySource': source
+                };
+
+                const updateResponse = await apiPut(`/api/recipes/${recipe._id}`, updateData);
+
+                if (updateResponse.ok) {
+                    console.log('✅ Set embedded image as primary');
+                    setCurrentPrimaryPhoto(null);
+                    onImageUpdate?.();
+                    setShowImageSelector(false);
+                }
+            }
+        } catch (error) {
+            console.error('Error setting primary image:', error);
+        }
+    };
+
+    const hasMultipleImages = () => {
+        let imageCount = 0;
+        if (currentPrimaryPhoto || recipe.hasPhotos) imageCount++;
+        if (recipe.uploadedImage?.data) imageCount++;
+        if (recipe.extractedImage?.data) imageCount++;
+        if (recipe.imageUrl) imageCount++;
+        return imageCount > 1;
+    };
+
+    const getCurrentImageType = () => {
+        switch (recipe.imagePriority) {
+            case 'primary_photo':
+                return 'user_upload';
+            case 'uploaded_image':
+                return 'user_upload';
+            case 'extracted_image':
+                return 'ai_extracted';
+            case 'external_url':
+                return 'external';
+            default:
+                return 'unknown';
+        }
+    };
+
+    const currentImageSrc = getImageSrc();
+    const isUsingApiRoute = currentImageSrc.startsWith('/api/');
+    const hasAnyImage = currentPrimaryPhoto || recipe.hasPhotos || recipe.uploadedImage?.data || recipe.extractedImage?.data || recipe.imageUrl;
+
+    // Don't render if no image available
+    if (!hasAnyImage) {
+        return null;
+    }
+
     return (
-        <div className={`bg-gray-200 rounded-lg h-64 flex items-center justify-center ${className}`}>
-            <span className="text-gray-500">Recipe Hero Image</span>
-        </div>
+        <>
+            <div className={`relative overflow-hidden ${className}`}>
+                <Image
+                    src={currentImageSrc}
+                    alt={getImageAlt()}
+                    fill
+                    className={`object-cover transition-all duration-500 cursor-pointer ${
+                        imageLoaded ? 'opacity-100' : 'opacity-0'
+                    } hover:scale-105`}
+                    onLoad={() => {
+                        console.log('✅ Hero image loaded successfully');
+                        setImageLoaded(true);
+                        setImageError(false);
+                    }}
+                    onError={() => {
+                        console.error('❌ Hero image failed to load:', currentImageSrc);
+                        setImageError(true);
+                    }}
+                    onClick={() => setShowFullImage(true)}
+                    priority={true}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 75vw, 50vw"
+                    unoptimized={isUsingApiRoute}
+                />
+
+                {/* Loading placeholder */}
+                {!imageLoaded && !imageError && (
+                    <div className="absolute inset-0 bg-gray-200 animate-pulse flex items-center justify-center">
+                        <div className="text-gray-400">
+                            <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd"
+                                      d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z"
+                                      clipRule="evenodd"/>
+                            </svg>
+                        </div>
+                    </div>
+                )}
+
+                {/* Image attribution overlay */}
+                {getImageAttribution() && imageLoaded && (
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-4">
+                        <div className="text-white text-sm opacity-75">
+                            📷 {getImageAttribution()}
+                        </div>
+                    </div>
+                )}
+
+                {/* Enhanced image type indicators */}
+                {getCurrentImageType() === 'user_upload' && (
+                    <div
+                        className="absolute top-4 right-4 bg-green-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                        📷 User Photo
+                    </div>
+                )}
+
+                {getCurrentImageType() === 'ai_extracted' && (
+                    <div
+                        className="absolute top-4 right-4 bg-purple-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                        🤖 AI Extracted
+                    </div>
+                )}
+
+                {getCurrentImageType() === 'external' && (
+                    <div
+                        className="absolute top-4 right-4 bg-blue-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                        🌐 External
+                    </div>
+                )}
+
+                {/* Image priority indicator (for debugging) */}
+                {recipe.imagePriority && recipe.imagePriority !== 'external_url' && (
+                    <div
+                        className="absolute top-16 right-4 bg-black bg-opacity-70 text-white text-xs px-2 py-1 rounded">
+                        Priority: {recipe.imagePriority.replace('_', ' ')}
+                    </div>
+                )}
+
+                {/* Change primary image button */}
+                {hasMultipleImages() && session?.user?.id === recipe.createdBy?._id && (
+                    <div className="absolute top-4 left-4">
+                        <TouchEnhancedButton
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                fetchAvailableImages();
+                                setShowImageSelector(true);
+                            }}
+                            className="bg-blue-500 bg-opacity-90 text-white text-sm px-3 py-1 rounded-full shadow-lg hover:bg-blue-600 transition-colors"
+                        >
+                            🖼️ Change Hero
+                        </TouchEnhancedButton>
+                    </div>
+                )}
+
+                {/* Click to expand indicator */}
+                <div
+                    className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white text-sm px-3 py-1 rounded-full opacity-0 hover:opacity-100 transition-opacity">
+                    🔍 Click to enlarge
+                </div>
+            </div>
+
+            {/* Enhanced Image Selector Modal */}
+            {showImageSelector && (
+                <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                        <div className="p-6 border-b border-gray-200">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    Choose Hero Image
+                                </h3>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowImageSelector(false)}
+                                    className="text-gray-400 hover:text-gray-600 text-2xl"
+                                >
+                                    ×
+                                </TouchEnhancedButton>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                                Select which image should be displayed as the main hero image for this recipe.
+                            </p>
+                            <div className="text-xs text-gray-500 mt-1">
+                                Current priority: <span
+                                className="font-medium">{recipe.imagePriority?.replace('_', ' ') || 'none'}</span>
+                            </div>
+                        </div>
+
+                        <div className="p-6 max-h-[60vh] overflow-y-auto">
+                            {loading ? (
+                                <div className="text-center py-12">
+                                    <div
+                                        className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                                    <p className="mt-4 text-gray-600">Loading images...</p>
+                                </div>
+                            ) : (
+                                <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {availableImages.map((image) => {
+                                        const isCurrentHero = (
+                                            (image.type === 'collection' && recipe.imagePriority === 'primary_photo' && recipe.primaryPhoto === image.id) ||
+                                            (image.type === 'external' && recipe.imagePriority === 'external_url') ||
+                                            (image.type === 'embedded' &&
+                                                ((image.id === 'recipe-uploaded' && recipe.imagePriority === 'uploaded_image') ||
+                                                    (image.id === 'recipe-extracted' && recipe.imagePriority === 'extracted_image')))
+                                        );
+
+                                        return (
+                                            <div
+                                                key={image.id}
+                                                className={`relative cursor-pointer rounded-lg overflow-hidden border-4 transition-all ${
+                                                    isCurrentHero
+                                                        ? 'border-blue-500 shadow-lg'
+                                                        : 'border-gray-200 hover:border-blue-300'
+                                                }`}
+                                                onClick={() => setPrimaryImage(image.id, image.type)}
+                                            >
+                                                <div className="aspect-video relative bg-gray-100">
+                                                    <Image
+                                                        src={image.url}
+                                                        alt={image.name}
+                                                        fill
+                                                        className="object-cover"
+                                                        unoptimized={image.url.startsWith('/api/')}
+                                                    />
+                                                </div>
+
+                                                {/* Current hero indicator */}
+                                                {isCurrentHero && (
+                                                    <div
+                                                        className="absolute top-2 left-2 bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium">
+                                                        Current Hero
+                                                    </div>
+                                                )}
+
+                                                {/* Image type indicator */}
+                                                <div className="absolute top-2 right-2">
+                                                    {image.source === 'user_upload' && (
+                                                        <div
+                                                            className="bg-green-500 text-white text-xs px-2 py-1 rounded-full">
+                                                            📷 Uploaded
+                                                        </div>
+                                                    )}
+                                                    {image.source === 'ai_extracted' && (
+                                                        <div
+                                                            className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full">
+                                                            🤖 AI
+                                                        </div>
+                                                    )}
+                                                    {image.source === 'external' && (
+                                                        <div
+                                                            className="bg-blue-500 text-white text-xs px-2 py-1 rounded-full">
+                                                            🌐 External
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Image name */}
+                                                <div
+                                                    className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black to-transparent p-2">
+                                                    <div className="text-white text-sm font-medium truncate">
+                                                        {image.name}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Full Image Modal */}
+            {showFullImage && (
+                <div
+                    className="fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4"
+                    onClick={() => setShowFullImage(false)}
+                >
+                    <div className="relative max-w-4xl max-h-full">
+                        <Image
+                            src={currentImageSrc}
+                            alt={getImageAlt()}
+                            width={800}
+                            height={600}
+                            className="object-contain max-w-full max-h-full"
+                            onClick={(e) => e.stopPropagation()}
+                            unoptimized={isUsingApiRoute}
+                        />
+                        <TouchEnhancedButton
+                            onClick={() => setShowFullImage(false)}
+                            className="absolute top-4 right-4 bg-red-500 bg-opacity-20 text-white text-2xl w-10 h-10 rounded-full flex items-center justify-center hover:bg-red-700"
+                        >
+                            ×
+                        </TouchEnhancedButton>
+                        {getImageAttribution() && (
+                            <div
+                                className="absolute bottom-4 left-4 bg-black bg-opacity-50 text-white text-sm px-3 py-1 rounded">
+                                📷 {getImageAttribution()}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+        </>
     );
 };
 
 // FIXED: Multi-Part Recipe Component with proper JSX structure
-const MultiPartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookTime, getDifficultyColor }) => {
+const MultiPartRecipeSection = ({recipe, servings, getScaledAmount, formatCookTime, getDifficultyColor}) => {
     const [activePartTab, setActivePartTab] = useState(0);
     const [showAllParts, setShowAllParts] = useState(false);
 
@@ -58,7 +798,8 @@ const MultiPartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookT
                         </p>
                         <div className="flex flex-wrap gap-2">
                             {recipe.parts.map((part, index) => (
-                                <span key={index} className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
+                                <span key={index}
+                                      className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800">
                                     {part.name || `Part ${index + 1}`}
                                 </span>
                             ))}
@@ -142,11 +883,12 @@ const MultiPartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookT
 
                                         return (
                                             <li key={index} className="flex items-start space-x-4">
-                                                <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                                    hasVideoTimestamp
-                                                        ? 'bg-purple-600 text-white'
-                                                        : 'bg-indigo-600 text-white'
-                                                }`}>
+                                                <span
+                                                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                                                        hasVideoTimestamp
+                                                            ? 'bg-purple-600 text-white'
+                                                            : 'bg-indigo-600 text-white'
+                                                    }`}>
                                                     {index + 1}
                                                 </span>
                                                 <div className="flex-1">
@@ -160,10 +902,12 @@ const MultiPartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookT
                                                                 className="inline-flex items-center text-purple-600 hover:text-purple-800 text-sm bg-purple-50 px-3 py-1 rounded-full border border-purple-200 hover:bg-purple-100 transition-colors"
                                                                 title={`Jump to ${Math.floor(instruction.videoTimestamp / 60)}:${Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')} in video`}
                                                             >
-                                                                <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                                <svg className="w-4 h-4 mr-2" fill="currentColor"
+                                                                     viewBox="0 0 20 20">
                                                                     <path d="M8 5v10l7-5-7-5z"/>
                                                                 </svg>
-                                                                Watch step: {Math.floor(instruction.videoTimestamp / 60)}:{Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')}
+                                                                Watch
+                                                                step: {Math.floor(instruction.videoTimestamp / 60)}:{Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')}
                                                             </a>
                                                         </div>
                                                     )}
@@ -267,11 +1011,12 @@ const MultiPartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookT
 
                                             return (
                                                 <li key={index} className="flex items-start space-x-4">
-                                                    <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                                        hasVideoTimestamp
-                                                            ? 'bg-purple-600 text-white'
-                                                            : 'bg-indigo-600 text-white'
-                                                    }`}>
+                                                    <span
+                                                        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                                                            hasVideoTimestamp
+                                                                ? 'bg-purple-600 text-white'
+                                                                : 'bg-indigo-600 text-white'
+                                                        }`}>
                                                         {index + 1}
                                                     </span>
                                                     <div className="flex-1">
@@ -285,10 +1030,12 @@ const MultiPartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookT
                                                                     className="inline-flex items-center text-purple-600 hover:text-purple-800 text-sm bg-purple-50 px-3 py-1 rounded-full border border-purple-200 hover:bg-purple-100 transition-colors"
                                                                     title={`Jump to ${Math.floor(instruction.videoTimestamp / 60)}:${Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')} in video`}
                                                                 >
-                                                                    <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                                                    <svg className="w-4 h-4 mr-2" fill="currentColor"
+                                                                         viewBox="0 0 20 20">
                                                                         <path d="M8 5v10l7-5-7-5z"/>
                                                                     </svg>
-                                                                    Watch step: {Math.floor(instruction.videoTimestamp / 60)}:{Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')}
+                                                                    Watch
+                                                                    step: {Math.floor(instruction.videoTimestamp / 60)}:{Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')}
                                                                 </a>
                                                             </div>
                                                         )}
@@ -308,7 +1055,7 @@ const MultiPartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookT
 };
 
 // Single-Part Recipe Component (for backward compatibility)
-const SinglePartRecipeSection = ({ recipe, servings, getScaledAmount, formatCookTime }) => {
+const SinglePartRecipeSection = ({recipe, servings, getScaledAmount, formatCookTime}) => {
     if (recipe.isMultiPart) {
         return null;
     }
@@ -322,7 +1069,8 @@ const SinglePartRecipeSection = ({ recipe, servings, getScaledAmount, formatCook
                     {recipe.servings && (
                         <div className="flex items-center space-x-2">
                             <span className="text-sm font-medium text-gray-700">Servings:</span>
-                            <span className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-sm font-medium text-gray-900 min-w-[3rem] text-center">
+                            <span
+                                className="px-2 py-1 bg-gray-50 border border-gray-200 rounded-md text-sm font-medium text-gray-900 min-w-[3rem] text-center">
                                 {servings}
                             </span>
                         </div>
@@ -390,11 +1138,12 @@ const SinglePartRecipeSection = ({ recipe, servings, getScaledAmount, formatCook
 
                         return (
                             <li key={index} className="flex items-start space-x-4">
-                                <span className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
-                                    hasVideoTimestamp
-                                        ? 'bg-purple-600 text-white'
-                                        : 'bg-indigo-600 text-white'
-                                }`}>
+                                <span
+                                    className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold ${
+                                        hasVideoTimestamp
+                                            ? 'bg-purple-600 text-white'
+                                            : 'bg-indigo-600 text-white'
+                                    }`}>
                                     {typeof instruction === 'object' ? instruction.step || (index + 1) : (index + 1)}
                                 </span>
                                 <div className="flex-1">
@@ -411,7 +1160,8 @@ const SinglePartRecipeSection = ({ recipe, servings, getScaledAmount, formatCook
                                                 <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
                                                     <path d="M8 5v10l7-5-7-5z"/>
                                                 </svg>
-                                                Watch step: {Math.floor(instruction.videoTimestamp / 60)}:{Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')}
+                                                Watch
+                                                step: {Math.floor(instruction.videoTimestamp / 60)}:{Math.floor(instruction.videoTimestamp % 60).toString().padStart(2, '0')}
                                             </a>
                                         </div>
                                     )}
@@ -680,7 +1430,8 @@ export default function RecipeDetailPage() {
                             className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                      d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
                             </svg>
                             <span>Back to Recipes</span>
                         </TouchEnhancedButton>
@@ -689,6 +1440,23 @@ export default function RecipeDetailPage() {
                             {recipe.isMultiPart && <span className="ml-2">🧩 Multi-Part</span>}
                         </div>
                     </div>
+
+                    {/* Hero Image Section - Enhanced with full schema support */}
+                    {(recipe.hasPhotos ||
+                        recipe.primaryPhoto ||
+                        recipe.uploadedImage?.data ||
+                        recipe.extractedImage?.data ||
+                        recipe.imageUrl) && (
+                        <div className="mb-8">
+                            <RecipeHeroImage
+                                recipe={recipe}
+                                session={session}
+                                className="w-full h-64 md:h-80 lg:h-96 rounded-xl shadow-lg"
+                                onImageUpdate={handleImageUpdate}
+                                key={refreshHeroImage}
+                            />
+                        </div>
+                    )}
 
                     {/* Title and Description */}
                     <div className="mb-6">
@@ -699,7 +1467,7 @@ export default function RecipeDetailPage() {
 
                         {/* Rating and Stats */}
                         <div className="flex items-center space-x-6 mb-4">
-                            <RatingStats ratingStats={recipe.ratingStats} compact={true} />
+                            <RatingStats ratingStats={recipe.ratingStats} compact={true}/>
                             {recipe.metrics?.viewCount > 0 && (
                                 <span className="text-sm text-gray-500">
                                     {recipe.metrics.viewCount} view{recipe.metrics.viewCount !== 1 ? 's' : ''}
@@ -708,119 +1476,286 @@ export default function RecipeDetailPage() {
                         </div>
                     </div>
 
-                    {/* Recipe Meta */}
-                    <div className="flex flex-wrap items-center space-x-4 text-sm text-gray-600">
-                        {recipe.prepTime && (
-                            <span className="flex items-center space-x-1">
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap gap-2 mb-6">
+                        {session?.user?.id === recipe.createdBy?._id && (
+                            <TouchEnhancedButton
+                                onClick={() => router.push(`/recipes/${recipeId}/edit`)}
+                                className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+                            >
+                                <span className="hidden sm:inline">Edit Recipe</span>
+                                <span className="sm:hidden">Edit</span>
+                            </TouchEnhancedButton>
+                        )}
+
+                        <AddToCollectionButton
+                            recipeId={recipe._id}
+                            recipeName={recipe.title}
+                        />
+
+                        <TouchEnhancedButton
+                            onClick={handleMealPlanClick}
+                            className={`px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                                mealPlanFeatureGate.canUse
+                                    ? 'bg-indigo-600 text-white hover:bg-indigo-700'
+                                    : 'border border-indigo-300 text-indigo-700 bg-indigo-50 hover:bg-indigo-100'
+                            }`}
+                            title={mealPlanFeatureGate.canUse ? 'Add to meal plan' : 'Upgrade to add to meal plans'}
+                        >
+                            {mealPlanFeatureGate.canUse ? (
+                                <>
+                                    <span className="hidden sm:inline">📅 Add to Meal Plan</span>
+                                    <span className="sm:hidden">📅 Meal Plan</span>
+                                </>
+                            ) : (
+                                <>
+                                    <span className="hidden sm:inline">🔒 Meal Planning (Gold)</span>
+                                    <span className="sm:hidden">🔒 Meal Plan</span>
+                                </>
+                            )}
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={() => setShowQuickShoppingList(true)}
+                            className="bg-green-600 text-white px-3 py-2 rounded-md hover:bg-green-700 transition-colors text-sm font-medium"
+                        >
+                            <span className="hidden sm:inline">🛒 Generate Shopping List</span>
+                            <span className="sm:hidden">🛒 Shopping</span>
+                        </TouchEnhancedButton>
+
+                        {hasNutritionData && (
+                            <TouchEnhancedButton
+                                onClick={() => setShowNutritionModal(true)}
+                                className="bg-emerald-600 text-white px-3 py-2 rounded-md hover:bg-emerald-700 transition-colors text-sm font-medium"
+                            >
+                                <span className="hidden sm:inline">🥗 Nutrition Details</span>
+                                <span className="sm:hidden">🥗 Nutrition</span>
+                            </TouchEnhancedButton>
+                        )}
+
+                        <TouchEnhancedButton
+                            onClick={() => window.print()}
+                            className="bg-gray-600 text-white px-3 py-2 rounded-md hover:bg-gray-700 transition-colors text-sm font-medium"
+                        >
+                            Print
+                        </TouchEnhancedButton>
+
+
+                        {/* Recipe Meta */}
+                        <div className="flex flex-wrap items-center space-x-4 text-sm text-gray-600">
+                            {recipe.prepTime && (
+                                <span className="flex items-center space-x-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
                                 </svg>
                                 <span>Prep: {formatCookTime(recipe.prepTime)}</span>
                             </span>
-                        )}
-                        {recipe.cookTime && (
-                            <span className="flex items-center space-x-1">
+                            )}
+                            {recipe.cookTime && (
+                                <span className="flex items-center space-x-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z"/>
                                 </svg>
                                 <span>Cook: {formatCookTime(recipe.cookTime)}</span>
                             </span>
-                        )}
-                        {recipe.servings && (
-                            <span className="flex items-center space-x-1">
+                            )}
+                            {recipe.servings && (
+                                <span className="flex items-center space-x-1">
                                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                          d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
                                 </svg>
                                 <span>Serves: {recipe.servings}</span>
                             </span>
-                        )}
-                        {recipe.difficulty && (
-                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                            )}
+                            {recipe.difficulty && (
+                                <span
+                                    className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
                                 {recipe.difficulty}
                             </span>
-                        )}
-                    </div>
+                            )}
+                        </div>
 
-                    {/* Tags */}
-                    {recipe.tags && recipe.tags.length > 0 && (
-                        <div className="mt-4">
-                            <div className="flex flex-wrap gap-2">
-                                {recipe.tags.map((tag, index) => (
-                                    <span
-                                        key={index}
-                                        className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
-                                    >
+                        {/* Tags */}
+                        {recipe.tags && recipe.tags.length > 0 && (
+                            <div className="mt-4">
+                                <div className="flex flex-wrap gap-2">
+                                    {recipe.tags.map((tag, index) => (
+                                        <span
+                                            key={index}
+                                            className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-blue-100 text-blue-800"
+                                        >
                                         {tag}
                                     </span>
-                                ))}
+                                    ))}
+                                </div>
                             </div>
-                        </div>
-                    )}
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    {/* LEFT COLUMN - Main Content */}
-                    <div className="lg:col-span-2 space-y-8">
-                        {/* Recipe Hero Image */}
-                        <RecipeHeroImage
-                            recipe={recipe}
-                            session={session}
-                            className="w-full"
-                            onImageUpdate={() => setRefreshHeroImage(prev => prev + 1)}
-                        />
-
-                        {/* Recipe Transformation Panel - Add your existing component here */}
-                        {/* <RecipeTransformationPanel recipe={recipe} onRecipeUpdate={setRecipe} /> */}
-
-                        {/* Multi-Part or Single-Part Recipe Content */}
-                        {recipe.isMultiPart ? (
-                            <MultiPartRecipeSection
-                                recipe={recipe}
-                                servings={servings}
-                                getScaledAmount={getScaledAmount}
-                                formatCookTime={formatCookTime}
-                                getDifficultyColor={getDifficultyColor}
-                            />
-                        ) : (
-                            <SinglePartRecipeSection
-                                recipe={recipe}
-                                servings={servings}
-                                getScaledAmount={getScaledAmount}
-                                formatCookTime={formatCookTime}
-                            />
                         )}
-
-                        {/* Reviews Section */}
-                        <div className="bg-white rounded-lg border p-6">
-                            <RecipeReviewsSection
-                                recipeId={recipeId}
-                                recipeOwnerId={recipe.createdBy}
-                            />
-                        </div>
                     </div>
 
-                    {/* RIGHT COLUMN - Sidebar */}
-                    <div className="space-y-6">
-                        {/* Recipe Info Card */}
-                        <div className="bg-white rounded-lg border p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Info</h3>
-                            <div className="space-y-3 text-sm">
-                                {/* Multi-part indicator */}
-                                {recipe.isMultiPart && (
-                                    <div>
-                                        <span className="text-gray-500">Type:</span>
-                                        <div className="ml-2 text-gray-900">
-                                            <span className="text-blue-600 font-medium">🧩 Multi-part recipe</span>
-                                            <div className="text-xs text-gray-500 mt-1">
-                                                {recipe.parts?.length || 0} parts with {recipe.parts?.reduce((total, part) => total + (part.ingredients?.length || 0), 0) || 0} total ingredients
-                                            </div>
-                                        </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                        {/* LEFT COLUMN - Main Content */}
+                        <div className="lg:col-span-2 space-y-8">
+                            {/* Recipe Photos Section */}
+                            <div className="bg-white rounded-lg border p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-xl font-semibold text-gray-900">Additional Photos</h2>
+                                    {session?.user?.id === recipe.createdBy?._id && (
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowPhotoUpload(!showPhotoUpload)}
+                                            className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm font-medium flex items-center space-x-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                 viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                            </svg>
+                                            <span>Add Photo</span>
+                                        </TouchEnhancedButton>
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* User image indicator */}
+                            {(recipe.hasUserImage || recipe.uploadedImage?.data) && (
+                                <div
+                                    className="absolute top-4 right-4 bg-green-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                                    📷 User Photo
+                                </div>
+                            )}
+
+                            {/* AI extracted indicator */}
+                            {recipe.extractedImage?.data && !recipe.uploadedImage?.data && (
+                                <div
+                                    className="absolute top-4 right-4 bg-purple-500 text-white text-sm px-3 py-1 rounded-full shadow-lg">
+                                    🤖 AI Extracted
+                                </div>
+                            )} {/* Recipe Photos Section - Updated to work with your existing components */}
+                            <div className="bg-white rounded-lg border p-6">
+                                <div className="flex items-center justify-between mb-4">
+                                    <h2 className="text-xl font-semibold text-gray-900">Recipe Photos</h2>
+                                    {session?.user?.id === recipe.createdBy?._id && (
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowPhotoUpload(!showPhotoUpload)}
+                                            className="bg-blue-600 text-white px-3 py-2 rounded-md hover:bg-blue-700 text-sm font-medium flex items-center space-x-2"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor"
+                                                 viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                                            </svg>
+                                            <span>Add Photos</span>
+                                        </TouchEnhancedButton>
+                                    )}
+                                </div>
+
+                                {/* Photo Upload Section */}
+                                {showPhotoUpload && session?.user?.id === recipe.createdBy?._id && (
+                                    <div className="mb-6">
+                                        <RecipePhotoUpload
+                                            recipeId={recipe._id}
+                                            onPhotoUploaded={handlePhotoUploaded}
+                                            className="border border-gray-200 rounded-lg p-4 bg-gray-50"
+                                        />
                                     </div>
                                 )}
 
-                                <div>
-                                    <span className="text-gray-500">Added by:</span>
-                                    <span className="ml-2 text-gray-900">
+                                {/* Photo Gallery */}
+                                <RecipePhotoGallery
+                                    recipeId={recipe._id}
+                                    canEdit={session?.user?.id === recipe.createdBy?._id}
+                                    key={refreshPhotos}
+                                />
+                            </div>
+
+                            {/* RECIPE TRANSFORMATION PANEL */}
+                            <RecipeTransformationPanel
+                                recipe={recipe}
+                                onTransformationChange={handleTransformationChange}
+                                onRevert={handleRevert}
+                                showSaveOptions={true}
+                                defaultExpanded={false}
+                            />
+
+
+                            {/* Multi-Part or Single-Part Recipe Content */}
+                            {recipe.isMultiPart ? (
+                                <MultiPartRecipeSection
+                                    recipe={recipe}
+                                    servings={servings}
+                                    getScaledAmount={getScaledAmount}
+                                    formatCookTime={formatCookTime}
+                                    getDifficultyColor={getDifficultyColor}
+                                />
+                            ) : (
+                                <SinglePartRecipeSection
+                                    recipe={recipe}
+                                    servings={servings}
+                                    getScaledAmount={getScaledAmount}
+                                    formatCookTime={formatCookTime}
+                                />
+                            )}
+
+                            {recipe.videoMetadata?.videoSource && (
+                                <div className="mt-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                                    <div className="flex items-center justify-between">
+                                        <div className="flex items-center">
+                                            <span className="text-purple-600 mr-2">🎥</span>
+                                            <span className="text-sm text-purple-800 font-medium">
+                                                Extracted from {recipe.videoMetadata.videoPlatform} video
+                                            </span>
+                                        </div>
+                                        <a
+                                            href={recipe.videoMetadata.videoSource}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
+                                        >
+                                            <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                                <path d="M8 5v10l7-5-7-5z"/>
+                                            </svg>
+                                            Watch Original
+                                        </a>
+                                    </div>
+                                </div>
+                            )}
+
+
+                            {/* Reviews Section */}
+                            <div className="bg-white rounded-lg border p-6">
+                                <RecipeReviewsSection
+                                    recipeId={recipeId}
+                                    recipeOwnerId={recipe.createdBy}
+                                />
+                            </div>
+                        </div>
+
+                        {/* RIGHT COLUMN - Sidebar */}
+                        <div className="space-y-6">
+                            {/* Recipe Info Card */}
+                            <div className="bg-white rounded-lg border p-6">
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Info</h3>
+                                <div className="space-y-3 text-sm">
+                                    {/* Multi-part indicator */}
+                                    {recipe.isMultiPart && (
+                                        <div>
+                                            <span className="text-gray-500">Type:</span>
+                                            <div className="ml-2 text-gray-900">
+                                                <span className="text-blue-600 font-medium">🧩 Multi-part recipe</span>
+                                                <div className="text-xs text-gray-500 mt-1">
+                                                    {recipe.parts?.length || 0} parts
+                                                    with {recipe.parts?.reduce((total, part) => total + (part.ingredients?.length || 0), 0) || 0} total
+                                                    ingredients
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    <div>
+                                        <span className="text-gray-500">Added by:</span>
+                                        <span className="ml-2 text-gray-900">
                                         {recipe.createdBy ? (
                                             <span className="flex items-center gap-1">
                                                 <span>{recipe.createdBy.name || recipe.createdBy.email}</span>
@@ -832,106 +1767,246 @@ export default function RecipeDetailPage() {
                                             <span className="text-gray-400">Unknown</span>
                                         )}
                                     </span>
-                                </div>
+                                    </div>
 
-                                <div>
-                                    <span className="text-gray-500">Created:</span>
-                                    <span className="ml-2 text-gray-900">
+                                    <div>
+                                        <span className="text-gray-500">Created:</span>
+                                        <span className="ml-2 text-gray-900">
                                         {new Date(recipe.createdAt).toLocaleDateString()}
                                     </span>
-                                </div>
+                                    </div>
 
-                                {/* Category */}
-                                {recipe.category && (
-                                    <div>
-                                        <span className="text-gray-500">Category:</span>
-                                        <span className="ml-2 text-gray-900 capitalize">
+                                    {/* Category */}
+                                    {recipe.category && (
+                                        <div>
+                                            <span className="text-gray-500">Category:</span>
+                                            <span className="ml-2 text-gray-900 capitalize">
                                             {recipe.category.replace(/-/g, ' ')}
                                         </span>
-                                    </div>
-                                )}
+                                        </div>
+                                    )}
 
-                                {/* Privacy Status */}
-                                <div>
-                                    <span className="text-gray-500">Visibility:</span>
-                                    <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
-                                        recipe.isPublic
-                                            ? 'bg-green-100 text-green-800'
-                                            : 'bg-gray-100 text-gray-800'
-                                    }`}>
+                                    {/* Privacy Status */}
+                                    <div>
+                                        <span className="text-gray-500">Visibility:</span>
+                                        <span className={`ml-2 px-2 py-1 rounded-full text-xs font-medium ${
+                                            recipe.isPublic
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-gray-100 text-gray-800'
+                                        }`}>
                                         {recipe.isPublic ? 'Public' : 'Private'}
                                     </span>
+                                    </div>
+
+                                    {/* FIXED: Show transformation status if applied */}
+                                    {recipe.transformationApplied && (
+                                        <div className="pt-2 border-t border-gray-200">
+                                            <span className="text-gray-500">Transformation:</span>
+                                            <div className="ml-2 text-sm">
+                                                {recipe.transformationApplied.type === 'scale' && (
+                                                    <span className="text-blue-600">
+                                                    Scaled to {recipe.servings} servings
+                                                </span>
+                                                )}
+                                                {recipe.transformationApplied.type === 'convert' && (
+                                                    <span className="text-purple-600">
+                                                    Converted to {recipe.transformationApplied.targetSystem === 'metric' ? 'Metric' : 'US Standard'}
+                                                </span>
+                                                )}
+                                                {recipe.transformationApplied.type === 'both' && (
+                                                    <span className="text-green-600">
+                                                    Scaled & Converted
+                                                </span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
-                        </div>
 
-                        {/* Compact Nutrition Display */}
-                        {!showNutrition && hasNutritionData && (
+                            {/* Compact Nutrition Display */}
+                            {!showNutrition && hasNutritionData && (
+                                <div className="bg-white rounded-lg border p-6">
+                                    <div className="flex justify-between items-center mb-4">
+                                        <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowNutritionModal(true)}
+                                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                                        >
+                                            View Details
+                                        </TouchEnhancedButton>
+                                    </div>
+                                    <NutritionFacts
+                                        nutrition={getNormalizedNutrition()}
+                                        servings={recipe.servings || 1}
+                                        showPerServing={true}
+                                        compact={false}
+                                    />
+                                </div>
+                            )}
+
+                            {/* Action Buttons */}
                             <div className="bg-white rounded-lg border p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
+                                <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Actions</h3>
+                                <div className="space-y-3">
                                     <TouchEnhancedButton
-                                        onClick={() => setShowNutritionModal(true)}
-                                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
+                                        onClick={() => setShowQuickShoppingList(true)}
+                                        className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
                                     >
-                                        View Details
+                                        🛒 Shopping List
                                     </TouchEnhancedButton>
+
+                                    <AddToCollectionButton recipeId={recipeId}/>
+
+                                    {session?.user?.id === recipe.createdBy && (
+                                        <TouchEnhancedButton
+                                            onClick={() => router.push(`/recipes/${recipeId}/edit`)}
+                                            className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
+                                        >
+                                            ✏️ Edit Recipe
+                                        </TouchEnhancedButton>
+                                    )}
                                 </div>
-                                <NutritionFacts
-                                    nutrition={getNormalizedNutrition()}
-                                    servings={recipe.servings || 1}
-                                    showPerServing={true}
-                                    compact={false}
-                                />
-                            </div>
-                        )}
-
-                        {/* Action Buttons */}
-                        <div className="bg-white rounded-lg border p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Actions</h3>
-                            <div className="space-y-3">
-                                <TouchEnhancedButton
-                                    onClick={() => setShowQuickShoppingList(true)}
-                                    className="w-full bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors"
-                                >
-                                    🛒 Shopping List
-                                </TouchEnhancedButton>
-
-                                <AddToCollectionButton recipeId={recipeId} />
-
-                                {session?.user?.id === recipe.createdBy && (
-                                    <TouchEnhancedButton
-                                        onClick={() => router.push(`/recipes/${recipeId}/edit`)}
-                                        className="w-full bg-gray-600 text-white px-4 py-2 rounded-md hover:bg-gray-700 transition-colors"
-                                    >
-                                        ✏️ Edit Recipe
-                                    </TouchEnhancedButton>
-                                )}
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Modals - Add your existing modals here */}
+            {/* Quick Shopping List Modal */}
             {showQuickShoppingList && (
                 <RecipeShoppingList
-                    recipe={recipe}
-                    isOpen={showQuickShoppingList}
+                    recipeId={recipeId}
+                    recipeName={recipe.title}
                     onClose={() => setShowQuickShoppingList(false)}
                 />
             )}
 
-            {showNutritionModal && (
-                <NutritionModal
-                    nutrition={getNormalizedNutrition()}
-                    isOpen={showNutritionModal}
-                    onClose={() => setShowNutritionModal(false)}
-                    servings={recipe.servings || 1}
-                />
+            {/* Add to Meal Plan Modal */}
+            {showMealPlanModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden flex flex-col">
+                        <div className="p-6 border-b border-gray-200 flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <h3 className="text-xl font-semibold text-gray-900">
+                                    Add "{recipe.title}" to Meal Plan
+                                </h3>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowMealPlanModal(false)}
+                                    className="text-gray-400 hover:text-gray-600 text-2xl leading-none"
+                                >
+                                    ×
+                                </TouchEnhancedButton>
+                            </div>
+                            <p className="text-sm text-gray-600 mt-2">
+                                Select a meal plan and choose when you'd like to add this recipe.
+                            </p>
+                        </div>
+
+                        <div className="flex-1 overflow-y-auto p-6">
+                            {loadingMealPlans ? (
+                                <div className="text-center py-12">
+                                    <div
+                                        className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <p className="mt-4 text-gray-600">Loading meal plans...</p>
+                                </div>
+                            ) : mealPlans.length === 0 ? (
+                                <div className="text-center py-12">
+                                    <div className="text-6xl mb-4">📅</div>
+                                    <h4 className="text-lg font-medium text-gray-900 mb-2">No meal plans found</h4>
+                                    <p className="text-gray-500 mb-6">Create your first meal plan to get started!</p>
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            setShowMealPlanModal(false);
+                                            router.push('/meal-planning');
+                                        }}
+                                        className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors font-medium"
+                                    >
+                                        Go to Meal Planning
+                                    </TouchEnhancedButton>
+                                </div>
+                            ) : (
+                                <div className="space-y-6">
+                                    {mealPlans.map(mealPlan => (
+                                        <div key={mealPlan._id}
+                                             className="border border-gray-200 rounded-lg overflow-hidden">
+                                            <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
+                                                <h4 className="font-semibold text-gray-900 text-lg">{mealPlan.name}</h4>
+                                                <p className="text-sm text-gray-600 mt-1">
+                                                    Week
+                                                    of {new Date(mealPlan.weekStartDate).toLocaleDateString('en-US', {
+                                                    month: 'long',
+                                                    day: 'numeric',
+                                                    year: 'numeric'
+                                                })}
+                                                </p>
+                                            </div>
+
+                                            <div className="p-6">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
+                                                    {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
+                                                        <div key={day} className="space-y-3">
+                                                            <div
+                                                                className="font-medium text-gray-700 capitalize text-center">
+                                                                {day}
+                                                            </div>
+                                                            <div className="space-y-2">
+                                                                {['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'].map(mealType => (
+                                                                    <TouchEnhancedButton
+                                                                        key={`${day}-${mealType}`}
+                                                                        onClick={() => addToMealPlan(mealPlan._id, day, mealType)}
+                                                                        className="w-full text-left px-3 py-2 text-sm bg-gray-50 hover:bg-indigo-50 hover:text-indigo-700 hover:border-indigo-200 border border-gray-200 rounded-md transition-colors"
+                                                                    >
+                                                                        {mealType}
+                                                                    </TouchEnhancedButton>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="p-6 border-t border-gray-200 bg-gray-50 flex-shrink-0">
+                            <div className="flex items-center justify-between">
+                                <p className="text-sm text-gray-600">
+                                    💡 Tip: You can create and manage meal plans in the
+                                    <TouchEnhancedButton
+                                        onClick={() => {
+                                            setShowMealPlanModal(false);
+                                            router.push('/meal-planning');
+                                        }}
+                                        className="ml-1 text-indigo-600 hover:text-indigo-700 underline"
+                                    >
+                                        Meal Planning
+                                    </TouchEnhancedButton> section
+                                </p>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowMealPlanModal(false)}
+                                    className="bg-gray-200 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-300 transition-colors"
+                                >
+                                    Cancel
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             )}
 
-            <Footer />
+            {/* Nutrition Details Modal */}
+            <NutritionModal
+                nutrition={getNormalizedNutrition()}
+                isOpen={showNutritionModal}
+                onClose={() => setShowNutritionModal(false)}
+                servings={recipe?.servings || 1}
+                recipeTitle={recipe?.title || "Recipe"}
+            />
+
+            <Footer/>
         </MobileOptimizedLayout>
     );
 }
