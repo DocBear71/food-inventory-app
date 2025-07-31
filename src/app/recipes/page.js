@@ -30,107 +30,120 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const [imageError, setImageError] = useState(false);
     const [imageLoaded, setImageLoaded] = useState(false);
 
-    // SIMPLIFIED: Use the same logic as recipe-search page
+    // SIMPLIFIED: Get recipe image with better fallback logic
     const getRecipeImage = (recipe) => {
         console.log(`🔍 Getting image for "${recipe.title}":`, {
+            imagePriority: recipe.imagePriority,
             hasPrimaryPhoto: !!recipe.primaryPhoto,
-            primaryPhotoType: typeof recipe.primaryPhoto,
             hasPhotos: recipe.hasPhotos,
-            photosLength: recipe.photos?.length,
-            hasImageUrl: !!recipe.imageUrl,
             hasUploadedImage: !!recipe.uploadedImage?.data,
-            imagePriority: recipe.imagePriority
+            hasExtractedImage: !!recipe.extractedImage?.data,
+            hasImageUrl: !!recipe.imageUrl,
+            imageError: imageError
         });
 
-        // Priority 1: Primary Photo (populated from RecipePhoto collection)
-        if (recipe.primaryPhoto && recipe.hasPhotos) {
-            // Check if primaryPhoto is populated (object) vs just ObjectId (string)
-            if (typeof recipe.primaryPhoto === 'object') {
-                // If primaryPhoto is populated as an object with image data
-                if (recipe.primaryPhoto.imageData) {
-                    console.log('✅ Using primaryPhoto.imageData');
-                    return `data:${recipe.primaryPhoto.mimeType || 'image/jpeg'};base64,${recipe.primaryPhoto.imageData}`;
-                }
-                // If primaryPhoto has a URL
-                if (recipe.primaryPhoto.url) {
-                    console.log('✅ Using primaryPhoto.url');
-                    return recipe.primaryPhoto.url;
-                }
-                // If primaryPhoto has direct data field
-                if (recipe.primaryPhoto.data) {
-                    console.log('✅ Using primaryPhoto.data');
-                    return `data:${recipe.primaryPhoto.mimeType || 'image/jpeg'};base64,${recipe.primaryPhoto.data}`;
-                }
-            } else {
-                console.log('⚠️ primaryPhoto is not populated (just ObjectId):', recipe.primaryPhoto);
+        // If there was an error loading the current priority image, try fallbacks
+        if (imageError) {
+            console.log('🔄 Image error detected, trying fallbacks...');
+
+            // Try other available sources in order of preference
+            if (!imageError.includes('primary_photo') && recipe.primaryPhoto) {
+                return `/api/recipes/photos/${recipe.primaryPhoto}`;
             }
+            if (!imageError.includes('uploaded') && recipe.uploadedImage?.data) {
+                return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
+            }
+            if (!imageError.includes('extracted') && recipe.extractedImage?.data) {
+                return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+            }
+            if (!imageError.includes('external') && recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
+                return recipe.imageUrl;
+            }
+
+            console.log('❌ All image sources failed, using placeholder');
+            return '/images/recipe-placeholder.jpg';
         }
 
-        // Priority 2: Photos array (if populated)
-        if (recipe.photos && recipe.photos.length > 0) {
-            const firstPhoto = recipe.photos[0];
-            if (typeof firstPhoto === 'object') {
-                if (firstPhoto.imageData) {
-                    console.log('✅ Using photos[0].imageData');
-                    return `data:${firstPhoto.mimeType || 'image/jpeg'};base64,${firstPhoto.imageData}`;
+        // Use imagePriority if available and valid
+        switch (recipe.imagePriority) {
+            case 'primary_photo':
+                if (recipe.primaryPhoto) {
+                    console.log('✅ Using primary_photo priority');
+                    return `/api/recipes/photos/${recipe.primaryPhoto}`;
                 }
-                if (firstPhoto.url) {
-                    console.log('✅ Using photos[0].url');
-                    return firstPhoto.url;
+                break;
+
+            case 'uploaded_image':
+                if (recipe.uploadedImage?.data) {
+                    console.log('✅ Using uploaded_image priority');
+                    return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
                 }
-                if (firstPhoto.data) {
-                    console.log('✅ Using photos[0].data');
-                    return `data:${firstPhoto.mimeType || 'image/jpeg'};base64,${firstPhoto.data}`;
+                break;
+
+            case 'extracted_image':
+                if (recipe.extractedImage?.data) {
+                    console.log('✅ Using extracted_image priority');
+                    return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
                 }
-            } else {
-                console.log('⚠️ photos[0] is not populated (just ObjectId):', firstPhoto);
-            }
+                break;
+
+            case 'external_url':
+                if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
+                    console.log('✅ Using external_url priority');
+                    return recipe.imageUrl;
+                }
+                break;
         }
 
-        // Priority 3: Uploaded Image (embedded in recipe document)
+        // Fallback logic - try in order of preference regardless of priority
+        console.log('🔄 Priority-based selection failed, using fallback logic...');
+
+        // 1. Try primary photo first (highest quality user content)
+        if (recipe.primaryPhoto) {
+            console.log('✅ Fallback: Using primary photo');
+            return `/api/recipes/photos/${recipe.primaryPhoto}`;
+        }
+
+        // 2. Try uploaded image (embedded user content)
         if (recipe.uploadedImage?.data) {
-            console.log('✅ Using uploadedImage.data');
+            console.log('✅ Fallback: Using uploaded image');
             return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
         }
 
-        // Priority 4: External Image URL
+        // 3. Try external URL (stock photos)
         if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
-            console.log('✅ Using imageUrl');
+            console.log('✅ Fallback: Using external URL');
             return recipe.imageUrl;
         }
 
-        // Priority 5: Extracted Image from video
+        // 4. Try extracted image (AI-generated from video)
         if (recipe.extractedImage?.data) {
-            console.log('✅ Using extractedImage.data');
-            return `data:${recipe.extractedImage.mimeType || 'image/jpeg'};base64,${recipe.extractedImage.data}`;
+            console.log('✅ Fallback: Using extracted image');
+            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
         }
 
-        // Fallback: Placeholder
-        console.log('❌ Using placeholder - no images found');
+        // 5. Use placeholder
+        console.log('❌ No valid images found, using placeholder');
         return '/images/recipe-placeholder.jpg';
     };
 
-    // SIMPLIFIED: Determine image type for indicators
+    // Get image type for indicators
     const getImageTypeIndicator = () => {
-        if (recipe.primaryPhoto && typeof recipe.primaryPhoto === 'object') {
+        const currentSrc = getRecipeImage(recipe);
+
+        if (currentSrc.includes('/api/recipes/photos/') || recipe.uploadedImage?.data) {
             return 'user_upload';
         }
-        if (recipe.photos && recipe.photos.length > 0 && typeof recipe.photos[0] === 'object') {
-            return 'user_upload';
-        }
-        if (recipe.uploadedImage?.data) {
-            return 'user_upload';
-        }
-        if (recipe.extractedImage?.data) {
+        if (recipe.extractedImage?.data && currentSrc.includes('data:image/jpeg;base64')) {
             return 'ai_extracted';
         }
-        if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
+        if (currentSrc !== '/images/recipe-placeholder.jpg' && !currentSrc.includes('data:')) {
             return 'external';
         }
         return 'placeholder';
     };
 
-    // SIMPLIFIED: Get attribution
+    // Get attribution
     const getImageAttribution = () => {
         const imageType = getImageTypeIndicator();
 
@@ -150,9 +163,6 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
             if (recipe.imageSource === 'pexels' || recipe.imageSource === 'pexels_enhanced') {
                 return 'Photo from Pexels';
             }
-            if (recipe.imageSource === 'google_images') {
-                return 'Photo from Google Images';
-            }
             return 'External photo';
         }
         return null;
@@ -160,6 +170,60 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
 
     const currentImageSrc = getRecipeImage(recipe);
     const imageType = getImageTypeIndicator();
+    const isUsingApiRoute = currentImageSrc.startsWith('/api/');
+
+    // Handle image load errors with specific error tracking
+    const handleImageError = () => {
+        console.error('❌ Image failed to load:', currentImageSrc);
+
+        // Track which type of image failed to prevent infinite loops
+        let errorType = '';
+        if (currentImageSrc.includes('/api/recipes/photos/')) {
+            errorType = 'primary_photo';
+        } else if (currentImageSrc.includes('data:') && recipe.uploadedImage?.data) {
+            errorType = 'uploaded';
+        } else if (currentImageSrc.includes('data:') && recipe.extractedImage?.data) {
+            errorType = 'extracted';
+        } else {
+            errorType = 'external';
+        }
+
+        setImageError(errorType);
+    };
+
+    const handleImageLoad = () => {
+        console.log('✅ Image loaded successfully:', currentImageSrc);
+        setImageLoaded(true);
+        setImageError(false);
+    };
+
+    // Don't render if no image sources available
+    const hasAnyImageSource = recipe.primaryPhoto || recipe.uploadedImage?.data || recipe.extractedImage?.data ||
+        (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg');
+
+    if (!hasAnyImageSource) {
+        // Show placeholder for recipes with no images
+        return (
+            <div className={`relative overflow-hidden ${className}`}>
+                <Image
+                    src="/images/recipe-placeholder.jpg"
+                    alt={recipe.title || 'Recipe placeholder'}
+                    fill
+                    className="object-cover opacity-50"
+                    priority={priority}
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="text-gray-400 text-center">
+                        <svg className="w-12 h-12 mx-auto mb-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4 3a2 2 0 00-2 2v10a2 2 0 002 2h12a2 2 0 002-2V5a2 2 0 00-2-2H4zm12 12H4l4-8 3 6 2-4 3 6z" clipRule="evenodd" />
+                        </svg>
+                        <div className="text-sm">No image</div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className={`relative overflow-hidden ${className}`}>
@@ -170,13 +234,11 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
                 className={`object-cover transition-all duration-300 ${
                     imageLoaded ? 'opacity-100' : 'opacity-0'
                 } group-hover:scale-105`}
-                onLoad={() => {
-                    setImageLoaded(true);
-                    setImageError(false);
-                }}
-                onError={() => setImageError(true)}
+                onLoad={handleImageLoad}
+                onError={handleImageError}
                 priority={priority}
                 sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                unoptimized={isUsingApiRoute}
             />
 
             {/* Loading placeholder */}
@@ -197,7 +259,7 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
                 </div>
             )}
 
-            {/* Enhanced image type indicators */}
+            {/* Image type indicators */}
             {imageLoaded && !imageError && (
                 <>
                     {/* User upload indicator */}

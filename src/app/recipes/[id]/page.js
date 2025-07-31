@@ -1275,10 +1275,13 @@ export default function RecipeDetailPage() {
     const [showPhotoUpload, setShowPhotoUpload] = useState(false);
     const [refreshPhotos, setRefreshPhotos] = useState(0);
     const [originalRecipe, setOriginalRecipe] = useState(null);
-    const [refreshHeroImage, setRefreshHeroImage] = useState(0);
+    // FIXED: Add state to prevent multiple simultaneous fetches
+    const [isFetching, setIsFetching] = useState(false);
+    const [viewIncremented, setViewIncremented] = useState(false);
 
+    // FIXED: Only fetch recipe once on mount
     useEffect(() => {
-        if (recipeId) {
+        if (recipeId && !isFetching) {
             fetchRecipe();
         }
     }, [recipeId]);
@@ -1289,9 +1292,49 @@ export default function RecipeDetailPage() {
         }
     }, [recipe]);
 
-    // Handle photo uploads - updated to work with your existing RecipePhotoUpload component
+    // FIXED: Enhanced fetchRecipe with view increment protection
+    const fetchRecipe = async (incrementView = true) => {
+        if (isFetching) {
+            console.log('🚫 Already fetching recipe, skipping...');
+            return;
+        }
+
+        try {
+            setIsFetching(true);
+            console.log('📖 Fetching recipe:', recipeId);
+
+            const response = await apiGet(`/api/recipes/${recipeId}`);
+            const data = await response.json();
+
+            if (data.success) {
+                setRecipe(data.recipe);
+
+                // Only set original recipe if it hasn't been set yet
+                if (!originalRecipe) {
+                    setOriginalRecipe(data.recipe);
+                }
+
+                // FIXED: Only increment view once per page load
+                if (incrementView && !viewIncremented) {
+                    await apiPost(`/api/recipes/${recipeId}/view`, {});
+                    setViewIncremented(true);
+                    console.log('👁️ View incremented for recipe');
+                }
+            } else {
+                setError(data.error || 'Recipe not found');
+            }
+        } catch (error) {
+            console.error('Error fetching recipe:', error);
+            setError('Failed to load recipe');
+        } finally {
+            setLoading(false);
+            setIsFetching(false);
+        }
+    };
+
+    // FIXED: Updated handlePhotoUploaded - don't refetch entire recipe
     const handlePhotoUploaded = async () => {
-        console.log('📸 Photos updated, refreshing gallery and hero image');
+        console.log('📸 Photos updated, refreshing gallery');
 
         try {
             // Refresh the photos gallery
@@ -1309,7 +1352,24 @@ export default function RecipeDetailPage() {
                     const primaryPhoto = photosData.photos.find(p => p.isPrimary);
                     const photoCount = photosData.photos.length;
 
-                    // Prepare recipe update data
+                    // Update recipe state directly instead of refetching
+                    setRecipe(prevRecipe => ({
+                        ...prevRecipe,
+                        photoCount: photoCount,
+                        hasPhotos: photoCount > 0,
+                        photos: photosData.photos.map(p => p._id),
+                        primaryPhoto: primaryPhoto?._id || prevRecipe.primaryPhoto,
+                        hasUserImage: !!primaryPhoto || prevRecipe.hasUserImage,
+                        imagePriority: primaryPhoto ? 'primary_photo' : prevRecipe.imagePriority,
+                        imageMetadata: {
+                            ...prevRecipe.imageMetadata,
+                            primarySource: primaryPhoto ? 'photo_collection' : prevRecipe.imageMetadata?.primarySource,
+                            lastUpdated: new Date(),
+                            updateCount: (prevRecipe.imageMetadata?.updateCount || 0) + 1
+                        }
+                    }));
+
+                    // Update recipe document in background
                     let updateData = {
                         photoCount: photoCount,
                         hasPhotos: photoCount > 0,
@@ -1318,15 +1378,13 @@ export default function RecipeDetailPage() {
                         'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
                     };
 
-                    // If this is the first photo and no other images exist, make it primary
+                    // Handle primary photo logic
                     if (photoCount === 1 && !hasOtherImages && !primaryPhoto) {
                         console.log('📸 Setting first uploaded photo as primary hero image');
                         const photoId = photosData.photos[0]._id;
 
-                        // Set as primary in collection
                         await apiPut(`/api/recipes/photos/${photoId}`, { isPrimary: true });
 
-                        // Update recipe with primary photo settings
                         updateData = {
                             ...updateData,
                             primaryPhoto: photoId,
@@ -1334,9 +1392,7 @@ export default function RecipeDetailPage() {
                             imagePriority: 'primary_photo',
                             'imageMetadata.primarySource': 'photo_collection'
                         };
-                    }
-                    // If no images existed before and now we have photos, set newest as primary
-                    else if (!hasOtherImages && !primaryPhoto && photoCount > 0) {
+                    } else if (!hasOtherImages && !primaryPhoto && photoCount > 0) {
                         console.log('📸 Making newest upload primary since no other images exist');
                         const newestPhoto = photosData.photos[photosData.photos.length - 1];
 
@@ -1349,9 +1405,7 @@ export default function RecipeDetailPage() {
                             imagePriority: 'primary_photo',
                             'imageMetadata.primarySource': 'photo_collection'
                         };
-                    }
-                    // If we have a primary photo, make sure recipe references it
-                    else if (primaryPhoto && recipe.primaryPhoto !== primaryPhoto._id) {
+                    } else if (primaryPhoto && recipe.primaryPhoto !== primaryPhoto._id) {
                         console.log('📸 Syncing existing primary photo to recipe document');
                         updateData = {
                             ...updateData,
@@ -1362,43 +1416,38 @@ export default function RecipeDetailPage() {
                         };
                     }
 
-                    // Update recipe document with photo metadata
+                    // Update recipe document
                     await apiPut(`/api/recipes/${recipe._id}`, updateData);
                     console.log('✅ Updated recipe with photo metadata');
                 }
             }
-
-            // Trigger hero image refresh
-            handleImageUpdate();
 
         } catch (error) {
             console.error('Error handling photo upload:', error);
             // Still refresh the gallery even if sync fails
             setRefreshPhotos(prev => prev + 1);
             setShowPhotoUpload(false);
-            handleImageUpdate();
         }
     };
 
-    const fetchRecipe = async () => {
-        try {
-            const response = await apiGet(`/api/recipes/${recipeId}`);
-            const data = await response.json();
-
-            if (data.success) {
-                setRecipe(data.recipe);
-                setOriginalRecipe(data.recipe);
-                await apiPost(`/api/recipes/${recipeId}/view`, {});
-            } else {
-                setError(data.error || 'Recipe not found');
-            }
-        } catch (error) {
-            console.error('Error fetching recipe:', error);
-            setError('Failed to load recipe');
-        } finally {
-            setLoading(false);
-        }
+    // FIXED: Simplified handleImageUpdate - don't refetch recipe
+    const handleImageUpdate = () => {
+        console.log('🔄 Image updated signal received');
+        // Just trigger a re-render of the hero image component
+        // The component will handle its own updates
+        setRefreshPhotos(prev => prev + 1);
     };
+
+    // FIXED: Remove syncRecipeImageMetadata useEffect - handled by hero image component
+
+    // FIXED: Remove the useEffect that was causing infinite loops
+    // useEffect(() => {
+    //     if (recipe && !recipe.imageMetadata?.lastUpdated) {
+    //         syncRecipeImageMetadata();
+    //     }
+    // }, [recipe?._id]);
+
+    // ... keep all other existing functions unchanged (fetchMealPlans, addToMealPlan, helper functions, etc.)
 
     const fetchMealPlans = async () => {
         setLoadingMealPlans(true);
@@ -1418,7 +1467,6 @@ export default function RecipeDetailPage() {
     const addToMealPlan = async (mealPlanId, day, mealType) => {
         try {
             const response = await apiGet(`/api/meal-plans/${mealPlanId}`);
-
             const data = await response.json();
             if (!data.success) {
                 throw new Error('Failed to fetch meal plan');
@@ -1459,7 +1507,7 @@ export default function RecipeDetailPage() {
         }
     };
 
-    // Helper functions
+    // Helper functions (keep all existing ones unchanged)
     const formatCookTime = (minutes) => {
         if (!minutes) return 'Not specified';
         if (minutes < 60) return `${minutes} min`;
@@ -1611,8 +1659,7 @@ export default function RecipeDetailPage() {
     };
 
     const handleRevert = () => {
-        console.log('🔄 Reverting to original recipe - Current recipe:', recipe);
-        console.log('🔄 Original recipe stored:', originalRecipe);
+        console.log('🔄 Reverting to original recipe');
 
         if (originalRecipe) {
             const revertedRecipe = JSON.parse(JSON.stringify(originalRecipe));
@@ -1626,7 +1673,8 @@ export default function RecipeDetailPage() {
             setServings(originalRecipe.servings || 4);
         } else {
             console.error('❌ No original recipe stored for revert');
-            fetchRecipe();
+            // Don't refetch - just show error
+            alert('Unable to revert - original recipe data not available');
         }
     };
 
@@ -1636,91 +1684,6 @@ export default function RecipeDetailPage() {
             delete window.handleRevertFromWidget;
         };
     }, [originalRecipe]);
-
-    const handleImageUpdate = () => {
-        console.log('🔄 Image updated, refreshing hero image and fetching latest recipe data');
-        setRefreshHeroImage(prev => prev + 1);
-        // Refresh the entire recipe to get updated schema fields
-        fetchRecipe();
-    };
-
-    const syncRecipeImageMetadata = async () => {
-        if (!recipe._id) return;
-
-        try {
-            console.log('🔄 Syncing recipe image metadata...');
-
-            // Get current photos
-            const photosResponse = await apiGet(`/api/recipes/photos?recipeId=${recipe._id}`);
-            let updateData = {
-                'imageMetadata.lastUpdated': new Date(),
-                'imageMetadata.updateCount': (recipe.imageMetadata?.updateCount || 0) + 1
-            };
-
-            if (photosResponse.ok) {
-                const photosData = await photosResponse.json();
-                if (photosData.success && photosData.photos) {
-                    const photoCount = photosData.photos.length;
-                    const primaryPhoto = photosData.photos.find(p => p.isPrimary);
-
-                    updateData = {
-                        ...updateData,
-                        photoCount: photoCount,
-                        hasPhotos: photoCount > 0,
-                        photos: photosData.photos.map(p => p._id)
-                    };
-
-                    if (primaryPhoto) {
-                        updateData = {
-                            ...updateData,
-                            primaryPhoto: primaryPhoto._id,
-                            hasUserImage: true,
-                            imagePriority: 'primary_photo',
-                            'imageMetadata.primarySource': 'photo_collection'
-                        };
-                    }
-                }
-            }
-
-            // Determine image priority if not set
-            if (!recipe.imagePriority) {
-                if (updateData.primaryPhoto) {
-                    updateData.imagePriority = 'primary_photo';
-                    updateData['imageMetadata.primarySource'] = 'photo_collection';
-                } else if (recipe.uploadedImage?.data) {
-                    updateData.imagePriority = 'uploaded_image';
-                    updateData['imageMetadata.primarySource'] = 'embedded_upload';
-                } else if (recipe.extractedImage?.data) {
-                    updateData.imagePriority = 'extracted_image';
-                    updateData['imageMetadata.primarySource'] = 'ai_extracted';
-                } else if (recipe.imageUrl) {
-                    updateData.imagePriority = 'external_url';
-                    updateData['imageMetadata.primarySource'] = 'external_url';
-                } else {
-                    updateData.imagePriority = 'external_url'; // Default
-                    updateData['imageMetadata.primarySource'] = 'none';
-                }
-            }
-
-            // Update recipe with synced metadata
-            const response = await apiPut(`/api/recipes/${recipe._id}`, updateData);
-            if (response.ok) {
-                console.log('✅ Successfully synced recipe image metadata');
-                fetchRecipe(); // Refresh to get updated data
-            }
-
-        } catch (error) {
-            console.error('Error syncing recipe image metadata:', error);
-        }
-    };
-
-    // Add this useEffect to run sync when component loads (run once per recipe)
-    useEffect(() => {
-        if (recipe && !recipe.imageMetadata?.lastUpdated) {
-            // Only sync if metadata hasn't been initialized
-            syncRecipeImageMetadata();
-        }
-    }, [recipe?._id]);
 
     if (loading) {
         return (
