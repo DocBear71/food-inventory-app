@@ -61,6 +61,9 @@ function SignUpContent() {
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
     const [passwordFocused, setPasswordFocused] = useState(false);
+    const [acceptedMarketing, setAcceptedMarketing] = useState(false);
+    const [birthDate, setBirthDate] = useState('');
+    const [showCookieConsent, setShowCookieConsent] = useState(false);
 
     // NEW: Country list for GDPR detection
     const euCountries = [
@@ -234,6 +237,26 @@ function SignUpContent() {
             }, 100);
         }
     }, [success]);
+
+    useEffect(() => {
+        // Check if user has already accepted cookies
+        const cookieConsent = localStorage.getItem('cookieConsent');
+        if (!cookieConsent && isEUUser) {
+            setShowCookieConsent(true);
+        }
+    }, [isEUUser]);
+
+    const calculateAge = (birthDate) => {
+        const today = new Date();
+        const birth = new Date(birthDate);
+        const age = today.getFullYear() - birth.getFullYear();
+        const monthDiff = today.getMonth() - birth.getMonth();
+
+        if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birth.getDate())) {
+            return age - 1;
+        }
+        return age;
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -836,6 +859,17 @@ function SignUpContent() {
                                         </label>
                                     </div>
 
+                                    {isEUUser && (
+                                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
+                                            <h4 className="text-sm font-medium text-blue-900">🛡️ Your GDPR Rights</h4>
+                                            <p className="text-xs text-blue-700 mt-1">
+                                                As an EU resident, you have the right to access, correct, delete, or export your data.
+                                                You can also withdraw consent at any time. Contact privacy@docbear.com or use your
+                                                account settings to exercise these rights.
+                                            </p>
+                                        </div>
+                                    )}
+
                                     {/* EU-Specific GDPR Consent */}
                                     {isEUUser && (
                                         <div className="border-t border-blue-200 pt-3 mt-3">
@@ -893,22 +927,77 @@ function SignUpContent() {
                                         </div>
                                     </div>
 
+                                    <div className="flex items-start">
+                                        <input
+                                            id="acceptMarketing"
+                                            type="checkbox"
+                                            checked={acceptedMarketing}
+                                            onChange={(e) => setAcceptedMarketing(e.target.checked)}
+                                            className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
+                                        />
+                                        <label htmlFor="acceptMarketing" className="ml-3 text-xs text-gray-700 leading-4">
+                                            <strong>Marketing Communications (Optional):</strong> I would like to receive
+                                            newsletters, product updates, and promotional offers. You can unsubscribe anytime.
+                                        </label>
+                                    </div>
+
+                                    {showCookieConsent && (
+                                        <div className="fixed bottom-0 left-0 right-0 bg-gray-900 text-white p-4 z-50">
+                                            <div className="max-w-4xl mx-auto flex flex-col sm:flex-row items-center justify-between">
+                                                <p className="text-sm mb-2 sm:mb-0">
+                                                    We use cookies to enhance your experience. By continuing to use our site,
+                                                    you agree to our cookie policy.
+                                                </p>
+                                                <div className="flex space-x-2">
+                                                    <button
+                                                        onClick={() => {
+                                                            localStorage.setItem('cookieConsent', 'accepted');
+                                                            setShowCookieConsent(false);
+                                                        }}
+                                                        className="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded text-sm"
+                                                    >
+                                                        Accept
+                                                    </button>
+                                                    <button
+                                                        onClick={() => {
+                                                            localStorage.setItem('cookieConsent', 'declined');
+                                                            setShowCookieConsent(false);
+                                                        }}
+                                                        className="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded text-sm"
+                                                    >
+                                                        Decline
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+
                                     {/* Minor Consent */}
                                     {isMinor && (
-                                        <div className="border-t border-yellow-200 pt-3 mt-3 bg-yellow-50 p-3 rounded">
-                                            <div className="flex items-start">
-                                                <input
-                                                    id="acceptMinorConsent"
-                                                    type="checkbox"
-                                                    checked={acceptedMinorConsent}
-                                                    onChange={(e) => setAcceptedMinorConsent(e.target.checked)}
-                                                    className="h-4 w-4 text-yellow-600 focus:ring-yellow-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
-                                                    required={isMinor}
-                                                />
-                                                <label htmlFor="acceptMinorConsent" className="ml-3 text-xs text-yellow-800 leading-4">
-                                                    <strong>Parental Consent Confirmation:</strong> I confirm that I have obtained verifiable consent from my parent/guardian to create this account and use Doc Bear's Comfort Kitchen services. My parent/guardian will receive a separate verification email.
-                                                </label>
-                                            </div>
+                                        <div>
+                                            <label htmlFor="birthDate" className="block text-sm font-medium text-gray-700">
+                                                Date of Birth *
+                                            </label>
+                                            <input
+                                                id="birthDate"
+                                                type="date"
+                                                required
+                                                max={new Date().toISOString().split('T')[0]}
+                                                value={birthDate}
+                                                onChange={(e) => {
+                                                    setBirthDate(e.target.value);
+                                                    const age = calculateAge(e.target.value);
+                                                    setIsMinor(age < 18);
+                                                }}
+                                                className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                            />
+                                            {birthDate && (
+                                                <p className="mt-1 text-xs text-gray-600">
+                                                    Age: {calculateAge(birthDate)} years old
+                                                    {isMinor && <span className="text-yellow-600 ml-2">⚠️ Parental consent required</span>}
+                                                </p>
+                                            )}
                                         </div>
                                     )}
                                 </div>

@@ -313,7 +313,7 @@ export async function POST(request) {
                 'unknown',
             userAgent: request.headers.get('user-agent') || 'unknown',
 
-            // NEW: International compliance tracking
+            // International compliance tracking
             country: country,
             isEUUser: userIsEU,
             gdprApplies: userIsEU,
@@ -321,7 +321,7 @@ export async function POST(request) {
             acceptedVoiceProcessing: acceptedVoiceProcessing,
             acceptedInternationalTransfers: acceptedInternationalTransfers,
 
-            // NEW: Minor protection tracking
+            // Minor protection tracking
             isMinor: isMinor,
             parentEmail: isMinor ? parentEmail.toLowerCase() : null,
             acceptedMinorConsent: isMinor ? acceptedMinorConsent : null,
@@ -330,14 +330,31 @@ export async function POST(request) {
             parentVerificationExpires: isMinor ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000) : null,
 
             // Legal document versions
-            termsVersion: '3.0', // Updated version with international compliance
-            privacyVersion: '2.0', // Updated version with GDPR
+            termsVersion: '3.0',
+            privacyVersion: '2.0',
 
             // Consent metadata
             consentMethod: 'explicit-web-form',
             consentContext: 'account-registration',
             consentWithdrawn: false,
-            consentWithdrawnDate: null
+            consentWithdrawnDate: null,
+
+            // ADD THIS: Initial consent history entry (THIS WAS MISSING!)
+            consentHistory: [{
+                action: 'granted',
+                date: new Date(acceptanceDate),
+                method: 'web-form',
+                ipAddress: request.headers.get('x-forwarded-for') ||
+                    request.headers.get('x-real-ip') ||
+                    'unknown',
+                userAgent: request.headers.get('user-agent') || 'unknown',
+                termsVersion: '3.0',
+                privacyVersion: '2.0',
+                details: `Initial account registration - ${selectedTier} tier${startTrial ? ' with trial' : ''}${source ? ` from ${source}` : ''}`,
+                dataProcessing: userIsEU ? acceptedDataProcessing : null,
+                voiceProcessing: acceptedVoiceProcessing,
+                internationalTransfers: acceptedInternationalTransfers
+            }]
         };
 
         // Create user with enhanced international data
