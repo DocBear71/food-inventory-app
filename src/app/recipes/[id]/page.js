@@ -1757,7 +1757,6 @@ export default function RecipeDetailPage() {
                                 session={session}
                                 className="w-full h-64 md:h-80 lg:h-96 rounded-xl shadow-lg"
                                 onImageUpdate={handleImageUpdate}
-                                key={refreshHeroImage}
                             />
                         </div>
                     )}
