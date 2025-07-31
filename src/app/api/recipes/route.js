@@ -110,7 +110,7 @@ async function analyzeRecipeNutritionAI(recipe, userId) {
     }
 }
 
-// FIXED GET - Fetch user's recipes or a single recipe with optimized photo population
+// FIXED GET - Fetch user's recipes with selective photo population (no binary data in list view)
 export async function GET(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -128,8 +128,7 @@ export async function GET(request) {
         await connectDB();
 
         if (recipeId) {
-            // FIXED: Get single recipe - populate photos WITHOUT binary data for list view,
-            // but include full data for single recipe view
+            // Single recipe - include full photo data
             const recipe = await Recipe.findOne({
                 _id: recipeId,
                 $or: [
@@ -139,14 +138,8 @@ export async function GET(request) {
             })
                 .populate('createdBy', 'name email')
                 .populate('lastEditedBy', 'name email')
-                .populate({
-                    path: 'primaryPhoto',
-                    select: 'originalName mimeType size uploadedAt' // Include metadata but not binary data
-                })
-                .populate({
-                    path: 'photos',
-                    select: 'originalName mimeType size uploadedAt' // Include metadata but not binary data
-                });
+                .populate('primaryPhoto') // Full population for single recipe
+                .populate('photos'); // Full population for single recipe
 
             if (!recipe) {
                 return NextResponse.json(
@@ -160,8 +153,7 @@ export async function GET(request) {
                 recipe
             });
         } else {
-            // FIXED: Get user's recipes - DON'T populate photo binary data for list view
-            // This prevents massive API responses with 106KB+ per recipe
+            // FIXED: Get user's recipes WITH photo population but WITHOUT binary data
             const recipes = await Recipe.find({
                 $or: [
                     { createdBy: session.user.id },
@@ -170,20 +162,53 @@ export async function GET(request) {
             })
                 .populate('createdBy', 'name email')
                 .populate('lastEditedBy', 'name email')
-                // FIXED: Don't populate photo data for list view - use IDs only
-                // .populate('primaryPhoto') // REMOVED: This was causing 106KB+ per recipe
-                // .populate('photos') // REMOVED: This was causing massive response sizes
+                // FIXED: Populate photos but exclude binary data for list view
+                .populate({
+                    path: 'primaryPhoto',
+                    select: '_id originalName mimeType size uploadedAt url -data' // Exclude 'data' field
+                })
+                .populate({
+                    path: 'photos',
+                    select: '_id originalName mimeType size uploadedAt url -data', // Exclude 'data' field
+                    options: { limit: 1 } // Only get first photo for performance
+                })
                 .sort({ createdAt: -1 });
 
             console.log(`GET /api/recipes - Found ${recipes.length} recipes for user`);
 
-            // FIXED: Add computed properties for the RecipeImage component
+            // FIXED: Enhanced recipes with proper photo handling
             const enhancedRecipes = recipes.map(recipe => {
                 const recipeObj = recipe.toObject();
 
-                // Add computed properties that RecipeImage component expects
-                return {
+                // FIXED: Transform populated photos to match expected format
+                const transformedRecipe = {
                     ...recipeObj,
+                    // Preserve original image fields
+                    imageUrl: recipeObj.imageUrl || null,
+                    imageSource: recipeObj.imageSource || null,
+                    imageAttribution: recipeObj.imageAttribution || null,
+                    imagePriority: recipeObj.imagePriority || null,
+                    imageMetadata: recipeObj.imageMetadata || null,
+
+                    // FIXED: Transform primaryPhoto to include API URL for serving binary data
+                    primaryPhoto: recipeObj.primaryPhoto ? {
+                        ...recipeObj.primaryPhoto,
+                        // Add API URL for fetching binary data
+                        apiUrl: `/api/recipes/photos/${recipeObj.primaryPhoto._id}`,
+                        // Keep metadata but indicate data is available via API
+                        hasData: true
+                    } : null,
+
+                    // FIXED: Transform photos array
+                    photos: recipeObj.photos ? recipeObj.photos.map(photo => ({
+                        ...photo,
+                        // Add API URL for fetching binary data
+                        apiUrl: `/api/recipes/photos/${photo._id}`,
+                        // Keep metadata but indicate data is available via API
+                        hasData: true
+                    })) : [],
+
+                    // Add computed properties that RecipeImage component expects
                     hasPhotos: !!(recipeObj.primaryPhoto || (recipeObj.photos && recipeObj.photos.length > 0)),
                     photoCount: (recipeObj.photos ? recipeObj.photos.length : 0) + (recipeObj.primaryPhoto ? 1 : 0),
                     hasImage: !!(
@@ -196,10 +221,12 @@ export async function GET(request) {
                     imageType: recipeObj.extractedImage?.data ? 'extracted' :
                         (recipeObj.primaryPhoto || (recipeObj.photos && recipeObj.photos.length > 0)) ? 'uploaded' :
                             recipeObj.imageUrl ? 'external' : null,
-                    imageSource: recipeObj.extractedImage?.source ||
+                    imageSourceType: recipeObj.extractedImage?.source ||
                         recipeObj.imageSource ||
                         (recipeObj.primaryPhoto || (recipeObj.photos && recipeObj.photos.length > 0) ? 'upload' : 'unknown')
                 };
+
+                return transformedRecipe;
             });
 
             return NextResponse.json({
