@@ -1,11 +1,11 @@
-// file: /src/app/api/recipes/photos/[photoId]/route.js - FIXED for base64 string in Buffer
+// file: /src/app/api/recipes/photos/[photoId]/route.js - FIXED for direct binary Buffer handling
 
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { RecipePhoto, Recipe } from '@/lib/models';
 
-// GET - Serve photo binary data (FIXED for base64 string decoding)
+// GET - Serve photo binary data (FIXED for direct binary handling)
 export async function GET(request, { params }) {
     try {
         const { photoId } = await params;
@@ -40,24 +40,14 @@ export async function GET(request, { params }) {
             }
         }
 
-        // FIXED: Handle base64 string stored in Buffer
+        // FIXED: Handle direct binary Buffer (no base64 conversion needed)
         let imageBuffer;
 
         try {
             if (Buffer.isBuffer(photo.data)) {
-                // Convert Buffer to string (this gives us the base64 string)
-                const base64String = photo.data.toString('utf8');
-                console.log(`📸 Converted to base64 string: ${base64String.length} characters`);
-                console.log(`📸 First 20 chars: ${base64String.substring(0, 20)}`);
-
-                // Check if it looks like base64 (starts with /9j/ which is JPEG in base64)
-                if (base64String.startsWith('/9j/') || base64String.startsWith('iVBOR') || base64String.match(/^[A-Za-z0-9+/]*={0,2}$/)) {
-                    console.log('📸 Detected base64 string, converting to binary');
-                    imageBuffer = Buffer.from(base64String, 'base64');
-                } else {
-                    console.log('📸 Not a base64 string, using buffer directly');
-                    imageBuffer = photo.data;
-                }
+                // FIXED: The data is already a binary Buffer, use it directly
+                imageBuffer = photo.data;
+                console.log(`📸 Using direct binary buffer: ${imageBuffer.length} bytes`);
             } else if (typeof photo.data === 'string') {
                 console.log('📸 Data is string, converting from base64');
                 imageBuffer = Buffer.from(photo.data, 'base64');
@@ -71,19 +61,25 @@ export async function GET(request, { params }) {
                 return NextResponse.json({ error: 'Failed to process image data' }, { status: 500 });
             }
 
-            console.log(`✅ Successfully created imageBuffer: ${imageBuffer.length} bytes`);
+            console.log(`✅ Successfully prepared imageBuffer: ${imageBuffer.length} bytes`);
             console.log(`📊 Expected: ${photo.size}, Actual: ${imageBuffer.length}`);
 
-            // Validate JPEG header
+            // Validate image headers
             const isValidJPEG = imageBuffer[0] === 0xFF && imageBuffer[1] === 0xD8;
-            console.log(`📸 Valid JPEG header: ${isValidJPEG}`);
-            console.log(`📸 First 4 bytes: ${imageBuffer.slice(0, 4).toString('hex')}`);
+            const isPNG = imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47;
+            const isWebP = imageBuffer[8] === 0x57 && imageBuffer[9] === 0x45 && imageBuffer[10] === 0x42 && imageBuffer[11] === 0x50;
 
-            if (!isValidJPEG) {
-                console.warn('⚠️ Invalid JPEG header detected');
-                // For debugging, let's also check if it's a PNG
-                const isPNG = imageBuffer[0] === 0x89 && imageBuffer[1] === 0x50 && imageBuffer[2] === 0x4E && imageBuffer[3] === 0x47;
-                console.log(`📸 Is PNG: ${isPNG}`);
+            console.log(`📸 Valid JPEG: ${isValidJPEG}`);
+            console.log(`📸 Valid PNG: ${isPNG}`);
+            console.log(`📸 Valid WebP: ${isWebP}`);
+            console.log(`📸 First 8 bytes: ${imageBuffer.slice(0, 8).toString('hex')}`);
+
+            if (!isValidJPEG && !isPNG && !isWebP) {
+                console.warn('⚠️ Invalid image header detected');
+                // Log more debug info
+                console.log(`📸 Full MIME type: ${photo.mimeType}`);
+                console.log(`📸 First 16 bytes as hex: ${imageBuffer.slice(0, 16).toString('hex')}`);
+                console.log(`📸 First 16 bytes as text: ${imageBuffer.slice(0, 16).toString('ascii')}`);
             }
 
             // Return binary image with proper headers
@@ -94,15 +90,18 @@ export async function GET(request, { params }) {
                     'Cache-Control': 'public, max-age=31536000, immutable',
                     'ETag': `"${photoId}"`,
                     'Content-Disposition': `inline; filename="${photo.originalName || 'recipe-photo'}"`,
+                    // CORS headers for cross-origin requests
+                    'Access-Control-Allow-Origin': '*',
+                    'Access-Control-Allow-Methods': 'GET',
                     // Debug headers
                     'X-Original-Size': photo.size.toString(),
-                    'X-Decoded-Size': imageBuffer.length.toString(),
-                    'X-Valid-JPEG': isValidJPEG.toString(),
+                    'X-Buffer-Size': imageBuffer.length.toString(),
+                    'X-Valid-Image': (isValidJPEG || isPNG || isWebP).toString(),
                 },
             });
 
         } catch (conversionError) {
-            console.error('❌ Error converting image data:', conversionError);
+            console.error('❌ Error processing image data:', conversionError);
             console.error('❌ Stack trace:', conversionError.stack);
             return NextResponse.json({
                 error: 'Failed to process image data',
@@ -120,7 +119,7 @@ export async function GET(request, { params }) {
     }
 }
 
-// DELETE - Delete a photo
+// DELETE - Delete a photo (keep existing)
 export async function DELETE(request, { params }) {
     try {
         const session = await getEnhancedSession(request);
@@ -179,7 +178,7 @@ export async function DELETE(request, { params }) {
     }
 }
 
-// PUT - Update photo metadata
+// PUT - Update photo metadata (keep existing)
 export async function PUT(request, { params }) {
     try {
         const session = await getEnhancedSession(request);

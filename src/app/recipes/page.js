@@ -26,108 +26,90 @@ import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
+// FIXED: Recipe Image Component with Enhanced Error Handling and Source Tracking
 const RecipeImage = ({ recipe, className = "", priority = false }) => {
-    const [imageError, setImageError] = useState(false);
+    const [imageError, setImageError] = useState(null);
     const [imageLoaded, setImageLoaded] = useState(false);
+    const [attemptedSources, setAttemptedSources] = useState(new Set());
 
-    // SIMPLIFIED: Get recipe image with better fallback logic
+    // FIXED: Enhanced image source detection and fallback logic
     const getRecipeImage = (recipe) => {
         console.log(`🔍 Getting image for "${recipe.title}":`, {
             imagePriority: recipe.imagePriority,
             hasPrimaryPhoto: !!recipe.primaryPhoto,
+            primaryPhotoId: recipe.primaryPhoto,
             hasPhotos: recipe.hasPhotos,
+            photosArray: recipe.photos,
             hasUploadedImage: !!recipe.uploadedImage?.data,
             hasExtractedImage: !!recipe.extractedImage?.data,
             hasImageUrl: !!recipe.imageUrl,
-            imageError: imageError
+            imageUrl: recipe.imageUrl,
+            imageSource: recipe.imageSource,
+            hasUserImage: recipe.hasUserImage,
+            photoCount: recipe.photoCount,
+            imageError: imageError,
+            attemptedSources: Array.from(attemptedSources)
         });
 
-        // If there was an error loading the current priority image, try fallbacks
-        if (imageError) {
-            console.log('🔄 Image error detected, trying fallbacks...');
+        // FIXED: Try sources in order of preference, skipping ones that failed
+        const trySource = (sourceKey, sourceUrl, logContext = '') => {
+            if (!attemptedSources.has(sourceKey) && sourceUrl && sourceUrl !== '/images/recipe-placeholder.jpg') {
+                console.log(`✅ Attempting ${sourceKey}${logContext}:`, sourceUrl);
+                return sourceUrl;
+            }
+            if (attemptedSources.has(sourceKey)) {
+                console.log(`🚫 Skipping ${sourceKey} (already failed)`);
+            } else if (!sourceUrl) {
+                console.log(`🚫 Skipping ${sourceKey} (no URL)`);
+            }
+            return null;
+        };
 
-            // Try other available sources in order of preference
-            if (!imageError.includes('primary_photo') && recipe.primaryPhoto) {
-                return `/api/recipes/photos/${recipe.primaryPhoto}`;
-            }
-            if (!imageError.includes('uploaded') && recipe.uploadedImage?.data) {
-                return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
-            }
-            if (!imageError.includes('extracted') && recipe.extractedImage?.data) {
-                return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
-            }
-            if (!imageError.includes('external') && recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
-                return recipe.imageUrl;
-            }
-
-            console.log('❌ All image sources failed, using placeholder');
-            return '/images/recipe-placeholder.jpg';
+        // 1. Try primary photo from collection (if we have an ID)
+        if (recipe.primaryPhoto && typeof recipe.primaryPhoto === 'string') {
+            const photoUrl = trySource('primary_photo', `/api/recipes/photos/${recipe.primaryPhoto}`, ` (ID: ${recipe.primaryPhoto})`);
+            if (photoUrl) return photoUrl;
         }
 
-        // Use imagePriority if available and valid
-        switch (recipe.imagePriority) {
-            case 'primary_photo':
-                if (recipe.primaryPhoto) {
-                    console.log('✅ Using primary_photo priority');
-                    return `/api/recipes/photos/${recipe.primaryPhoto}`;
-                }
-                break;
-
-            case 'uploaded_image':
-                if (recipe.uploadedImage?.data) {
-                    console.log('✅ Using uploaded_image priority');
-                    return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
-                }
-                break;
-
-            case 'extracted_image':
-                if (recipe.extractedImage?.data) {
-                    console.log('✅ Using extracted_image priority');
-                    return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
-                }
-                break;
-
-            case 'external_url':
-                if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
-                    console.log('✅ Using external_url priority');
-                    return recipe.imageUrl;
-                }
-                break;
-        }
-
-        // Fallback logic - try in order of preference regardless of priority
-        console.log('🔄 Priority-based selection failed, using fallback logic...');
-
-        // 1. Try primary photo first (highest quality user content)
-        if (recipe.primaryPhoto) {
-            console.log('✅ Fallback: Using primary photo');
-            return `/api/recipes/photos/${recipe.primaryPhoto}`;
-        }
-
-        // 2. Try uploaded image (embedded user content)
+        // 2. Try uploaded image (embedded base64)
         if (recipe.uploadedImage?.data) {
-            console.log('✅ Fallback: Using uploaded image');
-            return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
+            const uploadedUrl = trySource('uploaded_image', `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`, ` (${recipe.uploadedImage.data.length} chars)`);
+            if (uploadedUrl) return uploadedUrl;
         }
 
-        // 3. Try external URL (stock photos)
-        if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
-            console.log('✅ Fallback: Using external URL');
-            return recipe.imageUrl;
+        // 3. Try external URL - FIXED: Better validation
+        if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg' && recipe.imageUrl.trim() !== '') {
+            const externalUrl = trySource('external_url', recipe.imageUrl, ` (source: ${recipe.imageSource || 'unknown'})`);
+            if (externalUrl) return externalUrl;
         }
 
-        // 4. Try extracted image (AI-generated from video)
+        // 4. Try extracted image (AI-generated)
         if (recipe.extractedImage?.data) {
-            console.log('✅ Fallback: Using extracted image');
-            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+            const extractedUrl = trySource('extracted_image', `data:image/jpeg;base64,${recipe.extractedImage.data}`, ` (${recipe.extractedImage.data.length} chars)`);
+            if (extractedUrl) return extractedUrl;
         }
 
-        // 5. Use placeholder
-        console.log('❌ No valid images found, using placeholder');
+        // 5. If we have photos but no primaryPhoto ID, try generic photos endpoint
+        if (recipe.hasPhotos && recipe.photos && recipe.photos.length > 0) {
+            const firstPhotoId = Array.isArray(recipe.photos) ? recipe.photos[0] : recipe.photos;
+            if (firstPhotoId && typeof firstPhotoId === 'string') {
+                const photosUrl = trySource('photos_array', `/api/recipes/photos/${firstPhotoId}`, ` (from photos array)`);
+                if (photosUrl) return photosUrl;
+            }
+        }
+
+        // 6. DEBUGGING: Try to fetch recipe image data from API
+        if (!attemptedSources.has('api_fetch') && recipe._id) {
+            console.log(`🔍 Attempting to fetch fresh recipe data from API for ${recipe._id}`);
+            setAttemptedSources(prev => new Set([...prev, 'api_fetch']));
+            // This will trigger a re-render but won't cause infinite loop due to attemptedSources tracking
+        }
+
+        console.log('❌ No valid image sources available, using placeholder');
         return '/images/recipe-placeholder.jpg';
     };
 
-    // Get image type for indicators
+    // FIXED: Get image type for indicators
     const getImageTypeIndicator = () => {
         const currentSrc = getRecipeImage(recipe);
 
@@ -143,7 +125,7 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
         return 'placeholder';
     };
 
-    // Get attribution
+    // FIXED: Get attribution
     const getImageAttribution = () => {
         const imageType = getImageTypeIndicator();
 
@@ -172,37 +154,63 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const imageType = getImageTypeIndicator();
     const isUsingApiRoute = currentImageSrc.startsWith('/api/');
 
-    // Handle image load errors with specific error tracking
+    // FIXED: Enhanced error handling with source tracking
     const handleImageError = () => {
-        console.error('❌ Image failed to load:', currentImageSrc);
+        const currentSrc = getRecipeImage(recipe);
+        console.error('❌ Image failed to load:', currentSrc);
 
-        // Track which type of image failed to prevent infinite loops
-        let errorType = '';
-        if (currentImageSrc.includes('/api/recipes/photos/')) {
-            errorType = 'primary_photo';
-        } else if (currentImageSrc.includes('data:') && recipe.uploadedImage?.data) {
-            errorType = 'uploaded';
-        } else if (currentImageSrc.includes('data:') && recipe.extractedImage?.data) {
-            errorType = 'extracted';
-        } else {
-            errorType = 'external';
+        // Determine which source failed and add to attempted list
+        let failedSource = '';
+        if (currentSrc.includes('/api/recipes/photos/')) {
+            failedSource = currentSrc.includes(recipe.primaryPhoto) ? 'primary_photo' : 'photos_array';
+        } else if (currentSrc.includes('data:') && recipe.uploadedImage?.data) {
+            failedSource = 'uploaded_image';
+        } else if (currentSrc.includes('data:') && recipe.extractedImage?.data) {
+            failedSource = 'extracted_image';
+        } else if (!currentSrc.includes('/images/recipe-placeholder.jpg')) {
+            failedSource = 'external_url';
         }
 
-        setImageError(errorType);
+        if (failedSource) {
+            console.log(`🚫 Marking ${failedSource} as failed`);
+            setAttemptedSources(prev => new Set([...prev, failedSource]));
+            setImageError(failedSource);
+            setImageLoaded(false);
+
+            // Force re-render to try next source
+            setTimeout(() => {
+                setImageError(null);
+            }, 10);
+        }
     };
 
     const handleImageLoad = () => {
-        console.log('✅ Image loaded successfully:', currentImageSrc);
+        const currentSrc = getRecipeImage(recipe);
+        console.log('✅ Image loaded successfully:', currentSrc);
         setImageLoaded(true);
-        setImageError(false);
+        setImageError(null);
     };
 
-    // Don't render if no image sources available
-    const hasAnyImageSource = recipe.primaryPhoto || recipe.uploadedImage?.data || recipe.extractedImage?.data ||
-        (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg');
+    // FIXED: Reset attempted sources when recipe changes
+    useEffect(() => {
+        setAttemptedSources(new Set());
+        setImageError(null);
+        setImageLoaded(false);
+    }, [recipe._id]);
 
-    if (!hasAnyImageSource) {
-        // Show placeholder for recipes with no images
+    // FIXED: Better logic for determining if recipe has images
+    const hasAnyImageSource = () => {
+        return !!(
+            recipe.primaryPhoto ||
+            (recipe.hasPhotos && recipe.photos && recipe.photos.length > 0) ||
+            recipe.uploadedImage?.data ||
+            recipe.extractedImage?.data ||
+            (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg')
+        );
+    };
+
+    // FIXED: Show placeholder with better messaging for recipes with no images
+    if (!hasAnyImageSource()) {
         return (
             <div className={`relative overflow-hidden ${className}`}>
                 <Image
