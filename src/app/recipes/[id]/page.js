@@ -1590,13 +1590,6 @@ export default function RecipeDetailPage() {
         };
     }, [originalRecipe]);
 
-    useEffect(() => {
-        if (recipe) {
-            debugImageData();
-        }
-    }, [recipe]);
-
-
     const handleImageUpdate = () => {
         console.log('🔄 Image updated, refreshing hero image and fetching latest recipe data');
         setRefreshHeroImage(prev => prev + 1);
