@@ -593,8 +593,6 @@ function RecipesContent() {
         }
     };
 
-    // ... (keeping all your existing functions unchanged - fetchCounts, getFilteredAndSortedRecipes, etc.)
-
     const fetchCounts = async (showLoading = true, retryCount = 0) => {
         const maxRetries = 1;
 
