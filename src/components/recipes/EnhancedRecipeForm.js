@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/recipes/EnhancedRecipeForm.js v7 - Added multi-part recipe support
+// file: /src/components/recipes/EnhancedRecipeForm.js v8 - Complete with multi-part support and all original functionality restored
 
 import {useState, useEffect, useRef, useCallback} from 'react';
 import RecipeParser from './RecipeParser';
@@ -197,6 +197,126 @@ export default function EnhancedRecipeForm({
         }
     };
 
+    const extractNumber = (value) => {
+        if (!value) return '';
+        const match = String(value).match(/^(\d+)/);
+        return match ? match[1] : '';
+    };
+
+    const extractNutritionValue = (value) => {
+        if (!value) return '';
+        if (typeof value === 'object' && value.value !== undefined) {
+            return String(value.value);
+        }
+        return String(value);
+    };
+
+    // RESTORED: nutritionForDisplay helper
+    const nutritionForDisplay = {
+        calories: {value: recipe.nutrition.calories?.value || recipe.nutrition.calories || 0, unit: 'kcal'},
+        protein: {value: recipe.nutrition.protein?.value || recipe.nutrition.protein || 0, unit: 'g'},
+        carbs: {value: recipe.nutrition.carbs?.value || recipe.nutrition.carbs || 0, unit: 'g'},
+        fat: {value: recipe.nutrition.fat?.value || recipe.nutrition.fat || 0, unit: 'g'},
+        fiber: {value: recipe.nutrition.fiber?.value || recipe.nutrition.fiber || 0, unit: 'g'}
+    };
+
+    // RESTORED: Image handling functions
+    const handleImageUpload = async (file) => {
+        if (!file) return;
+
+        setIsUploadingImage(true);
+        try {
+            // Create preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                setImagePreview(e.target.result);
+                setRecipeImage(file);
+                setImageSource('upload');
+            };
+            reader.readAsDataURL(file);
+        } catch (error) {
+            console.error('Error uploading image:', error);
+        } finally {
+            setIsUploadingImage(false);
+        }
+    };
+
+    const removeImage = () => {
+        setRecipeImage(null);
+        setImagePreview(null);
+        setImageSource(null);
+    };
+
+    // RESTORED: useShareHandler
+    useShareHandler((shareData) => {
+        setSharedContent(shareData);
+
+        // Handle ALL social media platforms
+        if (shareData.type === 'facebook_video' || shareData.type === 'tiktok_video' || shareData.type === 'instagram_video') {
+            console.log(`🎯 ${shareData.platform} video shared:`, shareData.url);
+
+            // ADDED: Set the platform when video is shared
+            const platform = shareData.platform || detectPlatformFromUrl(shareData.url);
+            setVideoImportPlatform(platform);
+
+            // For import mode, continue with current behavior
+            if (isImportMode) {
+                setVideoUrl(shareData.url);
+                setShowVideoImport(true);
+            } else {
+                // For regular add page, redirect to import page with platform info
+                setTimeout(() => {
+                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=${platform}`);
+                }, 0);
+            }
+        }
+    });
+
+    // RESTORED: Image loading from initialData
+    useEffect(() => {
+        if (initialData?.extractedImage) {
+            setImagePreview(`data:image/jpeg;base64,${initialData.extractedImage.data}`);
+            setImageSource('extracted');
+            console.log('📸 Loaded extracted image from video import');
+        }
+    }, [initialData]);
+
+    // RESTORED: Auto-import useEffect
+    useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const videoUrl = urlParams.get('videoUrl');
+        const source = urlParams.get('source');
+        const platform = urlParams.get('platform');
+
+        if (videoUrl && source === 'share' && ['facebook', 'tiktok', 'instagram'].includes(platform)) {
+            console.log(`📱 Auto-importing ${platform} video:`, videoUrl);
+
+            // Decode the URL
+            const decodedVideoUrl = decodeURIComponent(videoUrl);
+
+            // Set the video URL in the input
+            setVideoUrl(decodedVideoUrl);
+            setVideoImportPlatform(platform);
+
+            // Show video import section
+            setShowVideoImport(true);
+
+            // Start the import after UI is ready
+            const timer = setTimeout(() => {
+                handleVideoImport(decodedVideoUrl);
+            }, 1000);
+
+            // Clean up URL parameters after triggering import
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('videoUrl');
+            cleanUrl.searchParams.delete('source');
+            cleanUrl.searchParams.delete('platform');
+            window.history.replaceState({}, '', cleanUrl);
+
+            return () => clearTimeout(timer);
+        }
+    }, []);
+
     // NEW: Multi-part recipe functions
     const toggleMultiPart = () => {
         const newIsMultiPart = !isMultiPart;
@@ -251,14 +371,13 @@ export default function EnhancedRecipeForm({
     };
 
     const removeRecipePart = (partIndex) => {
-        if (recipe.parts.length <= 1) return; // Don't allow removing the last part
+        if (recipe.parts.length <= 1) return;
 
         setRecipe(prev => ({
             ...prev,
             parts: prev.parts.filter((_, index) => index !== partIndex)
         }));
 
-        // Adjust active part if necessary
         if (activePart >= partIndex && activePart > 0) {
             setActivePart(activePart - 1);
         }
@@ -354,6 +473,668 @@ export default function EnhancedRecipeForm({
                     : part
             )
         }));
+    };
+
+    // Helper function to get current part's data
+    const getCurrentPartData = () => {
+        if (isMultiPart && recipe.parts && recipe.parts[activePart]) {
+            return recipe.parts[activePart];
+        }
+        return {
+            ingredients: recipe.ingredients || [],
+            instructions: recipe.instructions || []
+        };
+    };
+
+    // Handle parsed recipe data
+    const handleParsedRecipe = (parsedData) => {
+        if (parsedData.isMultiPart && parsedData.parts && parsedData.parts.length > 0) {
+            setIsMultiPart(true);
+            setRecipe(prevRecipe => ({
+                ...prevRecipe,
+                title: parsedData.title || prevRecipe.title,
+                description: parsedData.description || prevRecipe.description,
+                isMultiPart: true,
+                parts: parsedData.parts,
+                ingredients: [],
+                instructions: [],
+                prepTime: parsedData.prepTime || prevRecipe.prepTime,
+                cookTime: parsedData.cookTime || prevRecipe.cookTime,
+                servings: parsedData.servings || prevRecipe.servings,
+                tags: [...new Set([...prevRecipe.tags, ...parsedData.tags])],
+                source: parsedData.source || prevRecipe.source,
+                nutrition: parsedData.nutrition || prevRecipe.nutrition
+            }));
+            setActivePart(0);
+        } else {
+            setIsMultiPart(false);
+            setRecipe(prevRecipe => ({
+                ...prevRecipe,
+                title: parsedData.title || prevRecipe.title,
+                description: parsedData.description || prevRecipe.description,
+                isMultiPart: false,
+                ingredients: parsedData.ingredients.length > 0 ? parsedData.ingredients : prevRecipe.ingredients,
+                instructions: parsedData.instructions.length > 0 ? parsedData.instructions : prevRecipe.instructions,
+                parts: [{
+                    name: '',
+                    ingredients: parsedData.ingredients.length > 0 ? parsedData.ingredients : prevRecipe.ingredients,
+                    instructions: parsedData.instructions.length > 0 ? parsedData.instructions : prevRecipe.instructions
+                }],
+                prepTime: parsedData.prepTime || prevRecipe.prepTime,
+                cookTime: parsedData.cookTime || prevRecipe.cookTime,
+                servings: parsedData.servings || prevRecipe.servings,
+                tags: [...new Set([...prevRecipe.tags, ...parsedData.tags])],
+                source: parsedData.source || prevRecipe.source,
+                nutrition: parsedData.nutrition || prevRecipe.nutrition
+            }));
+        }
+
+        setTagsString([...new Set([...recipe.tags, ...parsedData.tags])].join(', '));
+        setShowParser(false);
+        setInputMethod('manual');
+    };
+
+    // RESTORED: All helper functions
+    const detectPlatformFromUrl = (url) => {
+        if (!url) return 'video';
+        const urlLower = url.toLowerCase();
+        if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'facebook';
+        if (urlLower.includes('instagram.com')) return 'instagram';
+        if (urlLower.includes('tiktok.com')) return 'tiktok';
+        return 'video';
+    };
+
+    // RESTORED: Enhanced URL import with smart parsing
+    const handleUrlImport = async (url) => {
+        if (!url || !url.trim()) {
+            setImportError('Please enter a valid URL');
+            return;
+        }
+
+        setIsImporting(true);
+        setImportError('');
+
+        try {
+            const response = await apiPost('/api/recipes/scrape', {url: url.trim()});
+            const data = await response.json();
+
+            if (data.success) {
+                const parseImportedIngredients = (ingredients) => {
+                    if (!ingredients || !Array.isArray(ingredients)) return [{
+                        name: '',
+                        amount: '',
+                        unit: '',
+                        optional: false
+                    }];
+
+                    return ingredients.map(ingredient => {
+                        if (typeof ingredient === 'object' && ingredient.name) {
+                            return {
+                                name: ingredient.name || '',
+                                amount: ingredient.amount || '',
+                                unit: ingredient.unit || '',
+                                optional: ingredient.optional || false
+                            };
+                        }
+
+                        const ingredientString = typeof ingredient === 'string' ? ingredient : (ingredient.name || '');
+                        return parseIngredientLine(ingredientString);
+                    }).filter(ing => ing && ing.name);
+                };
+
+                const parseImportedInstructions = (instructions) => {
+                    if (!instructions || !Array.isArray(instructions)) return [{step: 1, instruction: ''}];
+
+                    return instructions.map((instruction, index) => {
+                        const instructionText = typeof instruction === 'string' ? instruction : (instruction.instruction || instruction);
+                        const cleanInstruction = parseInstructionLine(instructionText, index);
+                        return cleanInstruction || {step: index + 1, instruction: instructionText};
+                    }).filter(inst => inst && inst.instruction);
+                };
+
+                const importedRecipe = {
+                    title: data.recipe.title || '',
+                    description: data.recipe.description || '',
+                    ingredients: parseImportedIngredients(data.recipe.ingredients),
+                    instructions: parseImportedInstructions(data.recipe.instructions),
+                    prepTime: data.recipe.prepTime || '',
+                    cookTime: data.recipe.cookTime || '',
+                    servings: data.recipe.servings || '',
+                    difficulty: data.recipe.difficulty || 'medium',
+                    tags: data.recipe.tags || [],
+                    source: data.recipe.source || url,
+                    isPublic: false,
+                    category: 'entrees',
+                    nutrition: {
+                        calories: data.recipe.nutrition?.calories?.value || '',
+                        protein: data.recipe.nutrition?.protein?.value || '',
+                        carbs: data.recipe.nutrition?.carbs?.value || '',
+                        fat: data.recipe.nutrition?.fat?.value || '',
+                        fiber: data.recipe.nutrition?.fiber?.value || ''
+                    }
+                };
+
+                setRecipe(importedRecipe);
+                setTagsString(importedRecipe.tags.join(', '));
+                setShowUrlImport(false);
+                setInputMethod('manual');
+                setUrlInput('');
+            } else {
+                console.error('Import failed:', data.error);
+                setImportError(data.error || 'Failed to import recipe from URL');
+            }
+        } catch (error) {
+            console.error('URL import error:', error);
+            setImportError('Network error. Please check your connection and try again.');
+        } finally {
+            setIsImporting(false);
+        }
+    };
+
+    // RESTORED: Video import handler
+    const handleVideoImport = async (url) => {
+        const startTime = Date.now();
+        const MIN_DISPLAY_TIME = 10000;
+
+        if (!url || !url.trim()) {
+            setVideoImportError('Please enter a valid video URL');
+            return;
+        }
+
+        const detectedPlatform = detectPlatformFromUrl(url);
+        setVideoImportPlatform(detectedPlatform);
+
+        const videoPatterns = [
+            /tiktok\.com\/@[^/]+\/video\//,
+            /tiktok\.com\/t\//,
+            /vm\.tiktok\.com\//,
+            /instagram\.com\/reel\//,
+            /instagram\.com\/p\//,
+            /instagram\.com\/tv\//,
+            /facebook\.com\/watch\?v=/,
+            /facebook\.com\/[^\/]+\/videos\//,
+            /fb\.watch\//,
+            /facebook\.com\/share\/r\//,
+            /facebook\.com\/reel\//
+        ];
+
+        const isVideoUrl = videoPatterns.some(pattern => pattern.test(url));
+        if (!isVideoUrl) {
+            setVideoImportError('Please enter a valid TikTok, Instagram, or Facebook video URL.');
+            return;
+        }
+
+        setIsVideoImporting(true);
+        setVideoImportProgress({
+            stage: 'connecting',
+            platform: detectedPlatform,
+            message: `🔗 Connecting to ${detectedPlatform}...`
+        });
+
+        try {
+            setVideoImportProgress({
+                stage: 'downloading',
+                platform: detectedPlatform,
+                message: `📥 Downloading ${detectedPlatform} video content...`
+            });
+
+            const response = await apiPost('/api/recipes/video-extract', {
+                url: url.trim(),
+                analysisType: 'ai_vision_enhanced',
+                extractImage: true
+            });
+
+            setVideoImportProgress({
+                stage: 'processing',
+                platform: detectedPlatform,
+                message: `🤖 AI analyzing ${detectedPlatform} video content...`
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setVideoImportProgress({
+                    stage: 'complete',
+                    platform: detectedPlatform,
+                    message: '✅ Recipe extraction complete!'
+                });
+
+                const videoRecipe = {
+                    title: data.recipe.title || '',
+                    description: data.recipe.description || '',
+                    ingredients: (data.recipe.ingredients || []).map((ing, index) => {
+                        const ingredient = {
+                            name: ing.name || '',
+                            amount: ing.amount || '',
+                            unit: ing.unit || '',
+                            optional: ing.optional || false
+                        };
+                        if (ing.videoTimestamp) {
+                            ingredient.videoTimestamp = ing.videoTimestamp;
+                            ingredient.videoLink = ing.videoLink;
+                        }
+                        return ingredient;
+                    }),
+                    instructions: (data.recipe.instructions || []).map((inst, index) => {
+                        let instruction;
+                        if (typeof inst === 'object' && inst.text) {
+                            instruction = {
+                                step: inst.step || index + 1,
+                                instruction: inst.text,
+                                text: inst.text
+                            };
+                            if (inst.videoTimestamp) {
+                                instruction.videoTimestamp = inst.videoTimestamp;
+                                instruction.videoLink = inst.videoLink;
+                            }
+                        } else {
+                            instruction = {
+                                step: index + 1,
+                                instruction: typeof inst === 'string' ? inst : inst.instruction || inst
+                            };
+                        }
+                        return instruction;
+                    }),
+                    prepTime: data.recipe.prepTime || '',
+                    cookTime: data.recipe.cookTime || '',
+                    servings: data.recipe.servings || '',
+                    difficulty: data.recipe.difficulty || 'medium',
+                    tags: data.recipe.tags || [],
+                    source: data.recipe.source || url,
+                    isPublic: false,
+                    category: data.recipe.category || 'entrees',
+                    nutrition: data.recipe.nutrition || {
+                        calories: '',
+                        protein: '',
+                        carbs: '',
+                        fat: '',
+                        fiber: ''
+                    },
+                    videoMetadata: data.recipe.videoMetadata || {
+                        videoSource: data.videoInfo?.originalUrl || null,
+                        videoPlatform: data.videoInfo?.platform || null,
+                        videoId: data.videoInfo?.videoId || null,
+                        extractionMethod: data.extractionInfo?.method || null,
+                        socialMediaOptimized: data.extractionInfo?.socialMediaOptimized || false
+                    },
+                    _formMetadata: {
+                        importedFrom: `${data.videoInfo?.platform || 'video'} video`,
+                        extractionInfo: data.extractionInfo,
+                        hasTimestamps: data.extractionInfo?.hasTimestamps || false
+                    }
+                };
+
+                if (data.recipe.extractedImage) {
+                    setImagePreview(`data:image/jpeg;base64,${data.recipe.extractedImage.data}`);
+                    setImageSource('extracted');
+                    console.log('📸 Video image extracted successfully');
+                    videoRecipe.extractedImage = data.recipe.extractedImage;
+                }
+
+                setRecipe(videoRecipe);
+                setTagsString(videoRecipe.tags.join(', '));
+                setVideoInfo({
+                    ...data.videoInfo,
+                    extractionInfo: data.extractionInfo,
+                    metadata: data.extractionInfo?.metadata
+                });
+                setImportSource('video');
+                setShowVideoImport(false);
+                setInputMethod('manual');
+                setVideoUrl('');
+
+                setTimeout(() => {
+                    scrollToBasicInfo();
+                }, 100);
+
+            } else {
+                console.error('❌ Video import failed:', data.error);
+                setVideoImportError(data.error || 'Failed to extract recipe from video');
+            }
+
+        } catch (error) {
+            console.error('💥 Video import error:', error);
+            setVideoImportError('Network error. Please check your connection and try again.');
+        }
+
+        const elapsedTime = Date.now() - startTime;
+        const remainingTime = Math.max(0, MIN_DISPLAY_TIME - elapsedTime);
+
+        if (remainingTime > 0) {
+            setTimeout(() => {
+                setVideoImportProgress({stage: '', platform: '', message: ''});
+            }, remainingTime);
+        } else {
+            setVideoImportProgress({stage: '', platform: '', message: ''});
+        }
+    };
+
+    // RESTORED: Enhanced parsing functions
+    const parseIngredientLine = (line) => {
+        if (!line || line.length < 2) return null;
+
+        let cleanLine = line
+            .replace(/^[\*\-\•]\s*/, '')
+            .replace(/^\d+\.\s*/, '')
+            .replace(/^\d+\)\s*/, '')
+            .replace(/\(\$[\d\.]+\)/g, '')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (!cleanLine) return null;
+
+        cleanLine = convertFractions(cleanLine);
+
+        let match;
+
+        match = cleanLine.match(/^(.+?)\s*,?\s*to\s+taste$/i);
+        if (match) {
+            return {
+                name: match[1].trim(),
+                amount: 'to taste',
+                unit: '',
+                optional: false
+            };
+        }
+
+        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|rib?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?|small|medium|large|bunch|handful)\s+(.+)$/i);
+        if (match) {
+            return {
+                name: match[3].trim(),
+                amount: match[1].trim(),
+                unit: match[2].toLowerCase(),
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        match = cleanLine.match(/^(\d+(?:\/\d+)?(?:\.\d+)?(?:\s+\d+\/\d+)?)\s+(.+)$/);
+        if (match) {
+            const secondPart = match[2].trim();
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|rib?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+            if (unitMatch) {
+                return {
+                    name: unitMatch[2].trim(),
+                    amount: match[1].trim(),
+                    unit: unitMatch[1].toLowerCase(),
+                    optional: cleanLine.toLowerCase().includes('optional')
+                };
+            }
+
+            return {
+                name: secondPart,
+                amount: match[1].trim(),
+                unit: '',
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        match = cleanLine.match(/^(\d+\/\d+)\s+(.+)$/);
+        if (match) {
+            const secondPart = match[2].trim();
+            const unitMatch = secondPart.match(/^(cups?|tbsp|tsp|tablespoons?|teaspoons?|pounds?|lbs?|ounces?|oz|grams?|g|cloves?|ribs?|rib?|stalks?|sprigs?|leaves?|bulbs?|heads?|ears?|slices?|pieces?|cans?|jars?|bottles?)\s+(.+)$/i);
+
+            if (unitMatch) {
+                return {
+                    name: unitMatch[2].trim(),
+                    amount: match[1],
+                    unit: unitMatch[1].toLowerCase(),
+                    optional: cleanLine.toLowerCase().includes('optional')
+                };
+            }
+
+            return {
+                name: secondPart,
+                amount: match[1],
+                unit: '',
+                optional: cleanLine.toLowerCase().includes('optional')
+            };
+        }
+
+        return {
+            name: cleanLine,
+            amount: '',
+            unit: '',
+            optional: cleanLine.toLowerCase().includes('optional')
+        };
+    };
+
+    const parseInstructionLine = (line, stepNumber) => {
+        if (!line || line.length < 5) return null;
+
+        let cleanLine = line
+            .replace(/^[\*\-\•]\s*/, '')
+            .replace(/^\d+[\.\)]\s*/, '')
+            .replace(/^(step\s*\d*[:.]?\s*)/i, '')
+            .trim();
+
+        if (!cleanLine || cleanLine.length < 5) return null;
+
+        return {
+            step: stepNumber + 1,
+            instruction: cleanLine
+        };
+    };
+
+    const convertFractions = (text) => {
+        return text
+            .replace(/½/g, '1/2')
+            .replace(/¼/g, '1/4')
+            .replace(/¾/g, '3/4')
+            .replace(/⅓/g, '1/3')
+            .replace(/⅔/g, '2/3')
+            .replace(/⅛/g, '1/8')
+            .replace(/⅜/g, '3/8')
+            .replace(/⅝/g, '5/8')
+            .replace(/⅞/g, '7/8');
+    };
+
+    // RESTORED: Voice input functions
+    const handleVoiceTitle = async (transcript, confidence) => {
+        console.log('🎤 Voice title received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            updateRecipe('title', transcript.trim());
+            setShowVoiceTitle(false);
+            setVoiceResults('');
+            alert(`✅ Title added: "${transcript.trim()}"`);
+        } catch (error) {
+            console.error('Error processing voice title:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceDescription = async (transcript, confidence) => {
+        console.log('🎤 Voice description received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            updateRecipe('description', transcript.trim());
+            setShowVoiceDescription(false);
+            setVoiceResults('');
+            alert(`✅ Description added: "${transcript.slice(0, 50)}..."`);
+        } catch (error) {
+            console.error('Error processing voice description:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceIngredients = async (transcript, confidence) => {
+        console.log('🎤 Voice ingredients received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            const newIngredients = parseVoiceIngredients(transcript);
+
+            if (newIngredients.length > 0) {
+                if (isMultiPart) {
+                    setRecipe(prev => ({
+                        ...prev,
+                        parts: prev.parts.map((part, index) =>
+                            index === activePart
+                                ? { ...part, ingredients: [...part.ingredients, ...newIngredients] }
+                                : part
+                        )
+                    }));
+                } else {
+                    setRecipe(prev => ({
+                        ...prev,
+                        ingredients: [...prev.ingredients, ...newIngredients]
+                    }));
+                }
+
+                setShowVoiceIngredients(false);
+                setVoiceResults('');
+                alert(`✅ Added ${newIngredients.length} ingredient${newIngredients.length > 1 ? 's' : ''} from voice input!`);
+            } else {
+                alert('❌ Could not understand any ingredients. Try saying items like "2 cups flour, 1 egg, half cup milk"');
+            }
+        } catch (error) {
+            console.error('Error processing voice ingredients:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceInstructions = async (transcript, confidence) => {
+        console.log('🎤 Voice instructions received:', transcript);
+        setVoiceResults(transcript);
+        setProcessingVoice(true);
+
+        try {
+            const newInstructions = parseVoiceInstructions(transcript);
+
+            if (newInstructions.length > 0) {
+                if (isMultiPart) {
+                    setRecipe(prev => ({
+                        ...prev,
+                        parts: prev.parts.map((part, index) => {
+                            if (index === activePart) {
+                                const currentStepCount = part.instructions.length;
+                                const numberedInstructions = newInstructions.map((inst, i) => ({
+                                    step: currentStepCount + i + 1,
+                                    instruction: inst.instruction
+                                }));
+                                return {
+                                    ...part,
+                                    instructions: [...part.instructions, ...numberedInstructions]
+                                };
+                            }
+                            return part;
+                        })
+                    }));
+                } else {
+                    setRecipe(prev => {
+                        const currentStepCount = prev.instructions.length;
+                        const numberedInstructions = newInstructions.map((inst, index) => ({
+                            step: currentStepCount + index + 1,
+                            instruction: inst.instruction
+                        }));
+
+                        return {
+                            ...prev,
+                            instructions: [...prev.instructions, ...numberedInstructions]
+                        };
+                    });
+                }
+
+                setShowVoiceInstructions(false);
+                setVoiceResults('');
+                alert(`✅ Added ${newInstructions.length} instruction step${newInstructions.length > 1 ? 's' : ''} from voice input!`);
+            } else {
+                alert('❌ Could not understand any instructions. Try speaking step-by-step cooking directions.');
+            }
+        } catch (error) {
+            console.error('Error processing voice instructions:', error);
+            alert('❌ Error processing voice input. Please try again.');
+        } finally {
+            setProcessingVoice(false);
+        }
+    };
+
+    const handleVoiceError = (error) => {
+        console.error('🎤 Voice input error:', error);
+        setProcessingVoice(false);
+
+        let userMessage = 'Voice input failed. ';
+        if (error.includes('not-allowed') || error.includes('denied')) {
+            userMessage += 'Please allow microphone access in your browser settings.';
+        } else if (error.includes('network')) {
+            userMessage += 'Voice recognition requires an internet connection.';
+        } else {
+            userMessage += 'Please try again.';
+        }
+
+        alert(`🎤 ${userMessage}`);
+    };
+
+    const parseVoiceIngredients = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return [];
+
+        const cleanTranscript = transcript.toLowerCase()
+            .replace(/[.!?]/g, '')
+            .replace(/\b(add|ingredients|include|need|use|get)\b/g, '')
+            .trim();
+
+        const itemTexts = cleanTranscript
+            .split(/[,;]|\band\b|\bthen\b|\balso\b|\bplus\b/)
+            .map(item => item.trim())
+            .filter(item => item.length > 0);
+
+        const parsedIngredients = [];
+
+        itemTexts.forEach(itemText => {
+            if (itemText.length < 2) return;
+
+            const parsed = parseIngredientLine(itemText);
+            if (parsed && parsed.name) {
+                parsedIngredients.push(parsed);
+            }
+        });
+
+        console.log('🎤 Parsed voice ingredients:', parsedIngredients);
+        return parsedIngredients;
+    };
+
+    const parseVoiceInstructions = (transcript) => {
+        if (!transcript || transcript.trim().length === 0) return [];
+
+        const cleanTranscript = transcript
+            .replace(/[.!?]/g, '.')
+            .replace(/\b(then|next|after that|step|now)\b/gi, '.')
+            .trim();
+
+        const stepTexts = cleanTranscript
+            .split(/[.]|\bthen\b|\bnext\b|\bafter that\b/i)
+            .map(step => step.trim())
+            .filter(step => step.length > 5);
+
+        const parsedInstructions = [];
+
+        stepTexts.forEach((stepText, index) => {
+            const cleanStep = stepText
+                .replace(/^(step\s*\d*[:.]?\s*)/i, '')
+                .replace(/^\d+\.\s*/, '')
+                .trim();
+
+            if (cleanStep.length > 5) {
+                parsedInstructions.push({
+                    step: index + 1,
+                    instruction: cleanStep
+                });
+            }
+        });
+
+        console.log('🎤 Parsed voice instructions:', parsedInstructions);
+        return parsedInstructions;
     };
 
     // Legacy functions for backward compatibility
@@ -458,17 +1239,6 @@ export default function EnhancedRecipeForm({
         return '';
     };
 
-    // Helper function to get current part's data
-    const getCurrentPartData = () => {
-        if (isMultiPart && recipe.parts && recipe.parts[activePart]) {
-            return recipe.parts[activePart];
-        }
-        return {
-            ingredients: recipe.ingredients || [],
-            instructions: recipe.instructions || []
-        };
-    };
-
     const addTag = () => {
         if (tagInput.trim() && !recipe.tags.includes(tagInput.trim())) {
             const newTags = [...recipe.tags, tagInput.trim()];
@@ -490,26 +1260,10 @@ export default function EnhancedRecipeForm({
         setTagsString(newTags.join(', '));
     };
 
-    const extractNumber = (value) => {
-        if (!value) return '';
-        const match = String(value).match(/^(\d+)/);
-        return match ? match[1] : '';
-    };
-
-    const extractNutritionValue = (value) => {
-        if (!value) return '';
-        if (typeof value === 'object' && value.value !== undefined) {
-            return String(value.value);
-        }
-        return String(value);
-    };
-
-    // FIXED: Handle tags string changes without immediately parsing
     const handleTagsStringChange = (value) => {
         setTagsString(value);
     };
 
-    // FIXED: Process tags string on blur
     const handleTagsStringBlur = () => {
         const tags = tagsString
             .split(',')
@@ -532,7 +1286,6 @@ export default function EnhancedRecipeForm({
                 .map(tag => tag.trim())
                 .filter(tag => tag.length > 0);
 
-            // NEW: Prepare final recipe with proper structure
             const finalRecipe = {
                 ...recipe,
                 tags: finalTags,
@@ -555,6 +1308,16 @@ export default function EnhancedRecipeForm({
                             getInstructionText(inst).trim()
                         ).map(inst => getInstructionText(inst))
                     }))
+                }),
+
+                // Handle video metadata properly
+                ...(recipe.videoMetadata && {
+                    videoMetadata: recipe.videoMetadata
+                }),
+
+                // Add import source info
+                ...(importSource === 'video' && {
+                    importedFrom: recipe._formMetadata?.importedFrom || 'video import'
                 }),
 
                 // Include image data if present
@@ -586,58 +1349,7 @@ export default function EnhancedRecipeForm({
     if (showParser) {
         return (
             <RecipeParser
-                onRecipeParsed={(parsedData) => {
-                    // FIXED: Handle both single-part and multi-part parsing
-                    if (parsedData.isMultiPart && parsedData.parts && parsedData.parts.length > 0) {
-                        // Handle multi-part parsed recipe
-                        setIsMultiPart(true);
-                        setRecipe(prevRecipe => ({
-                            ...prevRecipe,
-                            title: parsedData.title || prevRecipe.title,
-                            description: parsedData.description || prevRecipe.description,
-                            isMultiPart: true,
-                            parts: parsedData.parts,
-                            // Clear legacy fields for multi-part
-                            ingredients: [],
-                            instructions: [],
-                            prepTime: parsedData.prepTime || prevRecipe.prepTime,
-                            cookTime: parsedData.cookTime || prevRecipe.cookTime,
-                            servings: parsedData.servings || prevRecipe.servings,
-                            tags: [...new Set([...prevRecipe.tags, ...parsedData.tags])],
-                            source: parsedData.source || prevRecipe.source,
-                            nutrition: parsedData.nutrition || prevRecipe.nutrition
-                        }));
-                        setActivePart(0); // Set to first part
-                    } else {
-                        // Handle single-part parsed recipe
-                        setIsMultiPart(false);
-                        setRecipe(prevRecipe => ({
-                            ...prevRecipe,
-                            title: parsedData.title || prevRecipe.title,
-                            description: parsedData.description || prevRecipe.description,
-                            isMultiPart: false,
-                            ingredients: parsedData.ingredients.length > 0 ? parsedData.ingredients : prevRecipe.ingredients,
-                            instructions: parsedData.instructions.length > 0 ? parsedData.instructions : prevRecipe.instructions,
-                            // Update parts to match single-part structure for consistency
-                            parts: [{
-                                name: '',
-                                ingredients: parsedData.ingredients.length > 0 ? parsedData.ingredients : prevRecipe.ingredients,
-                                instructions: parsedData.instructions.length > 0 ? parsedData.instructions : prevRecipe.instructions
-                            }],
-                            prepTime: parsedData.prepTime || prevRecipe.prepTime,
-                            cookTime: parsedData.cookTime || prevRecipe.cookTime,
-                            servings: parsedData.servings || prevRecipe.servings,
-                            tags: [...new Set([...prevRecipe.tags, ...parsedData.tags])],
-                            source: parsedData.source || prevRecipe.source,
-                            nutrition: parsedData.nutrition || prevRecipe.nutrition
-                        }));
-                    }
-
-                    // Update tags string for UI
-                    setTagsString([...new Set([...recipe.tags, ...parsedData.tags])].join(', '));
-                    setShowParser(false);
-                    setInputMethod('manual');
-                }}
+                onRecipeParsed={handleParsedRecipe}
                 onCancel={() => setShowParser(false)}
             />
         );
@@ -664,7 +1376,7 @@ export default function EnhancedRecipeForm({
                             value={urlInput}
                             onChange={(e) => {
                                 setUrlInput(e.target.value);
-                                setImportError(''); // Clear error when user types
+                                setImportError('');
                             }}
                             placeholder="https://www.allrecipes.com/recipe/..."
                             className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
@@ -720,8 +1432,7 @@ export default function EnhancedRecipeForm({
                             >
                                 {isImporting ? (
                                     <>
-                                        <div
-                                            className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                         Importing...
                                     </>
                                 ) : (
@@ -737,8 +1448,7 @@ export default function EnhancedRecipeForm({
         );
     }
 
-    {/* Show video import component */
-    }
+    // Show video import component
     if (showVideoImport) {
         return (
             <div className="space-y-6">
@@ -748,8 +1458,7 @@ export default function EnhancedRecipeForm({
                     stage={videoImportProgress.stage || 'processing'}
                     message={videoImportProgress.message || 'Processing video...'}
                     videoUrl={videoUrl}
-                    onComplete={() => {
-                    }}
+                    onComplete={() => {}}
                     style={{zIndex: 9999}}
                 />
 
@@ -771,7 +1480,7 @@ export default function EnhancedRecipeForm({
                                 value={videoUrl}
                                 onChange={(e) => {
                                     setVideoUrl(e.target.value);
-                                    setVideoImportError(''); // Clear error when user types
+                                    setVideoImportError('');
                                 }}
                                 placeholder="https://tiktok.com/@user/video/... or Instagram/Facebook URL"
                                 className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
@@ -798,7 +1507,6 @@ export default function EnhancedRecipeForm({
                             </div>
                         )}
 
-                        {/* UPDATED: Info box */}
                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
                             <div className="flex items-start">
                                 <div className="text-blue-600 mr-3 mt-0.5">
@@ -815,8 +1523,7 @@ export default function EnhancedRecipeForm({
                                     <div className="text-xs text-blue-700 space-y-1">
                                         <div>• <strong>🎵 TikTok:</strong> Full audio + video analysis</div>
                                         <div>• <strong>📸 Instagram:</strong> Audio analysis + text extraction</div>
-                                        <div>• <strong>👥 Facebook:</strong> Use the share button inside Facebook mobile
-                                        </div>
+                                        <div>• <strong>👥 Facebook:</strong> Use the share button inside Facebook mobile</div>
                                         <div>• <strong>📺 YouTube:</strong> Use Text Paste with transcripts</div>
                                     </div>
                                 </div>
@@ -839,7 +1546,7 @@ export default function EnhancedRecipeForm({
                                 <TouchEnhancedButton
                                     onClick={() => {
                                         setShowVideoImport(false);
-                                        setShowParser(true); // CHANGED: Point to text parser for YouTube
+                                        setShowParser(true);
                                         setVideoUrl('');
                                         setVideoImportError('');
                                     }}
@@ -855,8 +1562,7 @@ export default function EnhancedRecipeForm({
                                 >
                                     {isVideoImporting ? (
                                         <>
-                                            <div
-                                                className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                             AI Extracting...
                                         </>
                                     ) : (
@@ -872,7 +1578,6 @@ export default function EnhancedRecipeForm({
             </div>
         );
     }
-
 
     return (
         <div className="space-y-6">
@@ -944,6 +1649,33 @@ export default function EnhancedRecipeForm({
                                     📝 Verify ingredients, instructions, and other information, then click "Create/Update Recipe" at the bottom.
                                 </h4>
                             </div>
+                            {!isEditing && (
+                                <div className="flex flex-wrap gap-2">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setShowParser(true)}
+                                        className="text-sm text-indigo-600 hover:text-indigo-700 px-3 py-2 min-h-[44px]"
+                                    >
+                                        📝 Text Parser
+                                    </TouchEnhancedButton>
+                                    <span className="text-gray-300 hidden sm:inline">|</span>
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setShowUrlImport(true)}
+                                        className="text-sm text-indigo-600 hover:text-indigo-700 px-3 py-2 min-h-[44px]"
+                                    >
+                                        🌐 URL Import
+                                    </TouchEnhancedButton>
+                                    <span className="text-gray-300 hidden sm:inline">|</span>
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setShowVideoImport(true)}
+                                        className="text-sm text-purple-600 hover:text-purple-700 px-3 py-2 min-h-[44px]"
+                                    >
+                                        🤖 Social Video Extract
+                                    </TouchEnhancedButton>
+                                </div>
+                            )}
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1093,7 +1825,111 @@ export default function EnhancedRecipeForm({
                         </div>
                     </div>
 
-                    {/* NEW: Multi-Part Recipe Sections */}
+                    {/* RESTORED: Recipe Image Section */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">
+                            📸 Recipe Image
+                        </h3>
+
+                        {imagePreview ? (
+                            <div className="space-y-4">
+                                <div className="relative">
+                                    <img
+                                        src={imagePreview}
+                                        alt="Recipe preview"
+                                        className="w-full h-64 object-cover rounded-lg border border-gray-200"
+                                    />
+                                    <button
+                                        type="button"
+                                        onClick={removeImage}
+                                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
+                                    >
+                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd"
+                                                  d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
+                                                  clipRule="evenodd"/>
+                                        </svg>
+                                    </button>
+                                </div>
+
+                                <div className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <div className="flex items-center text-sm text-gray-600">
+                                        {imageSource === 'extracted' && (
+                                            <>
+                                                <span className="text-purple-600 mr-2">🤖</span>
+                                                <span>AI-extracted from video ({videoImportPlatform})</span>
+                                            </>
+                                        )}
+                                        {imageSource === 'upload' && (
+                                            <>
+                                                <span className="text-blue-600 mr-2">📁</span>
+                                                <span>User uploaded</span>
+                                            </>
+                                        )}
+                                        {imageSource === 'url' && (
+                                            <>
+                                                <span className="text-green-600 mr-2">🌐</span>
+                                                <span>Imported from website</span>
+                                            </>
+                                        )}
+                                    </div>
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={removeImage}
+                                        className="text-red-600 hover:text-red-800 text-sm"
+                                    >
+                                        Remove Image
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-4">
+                                <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 text-center hover:border-gray-400 transition-colors">
+                                    <input
+                                        type="file"
+                                        accept="image/*"
+                                        onChange={(e) => handleImageUpload(e.target.files[0])}
+                                        className="hidden"
+                                        id="recipe-image-upload"
+                                        disabled={isUploadingImage}
+                                    />
+                                    <label
+                                        htmlFor="recipe-image-upload"
+                                        className="cursor-pointer flex flex-col items-center"
+                                    >
+                                        <svg className="w-8 h-8 text-gray-400 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2"
+                                                  d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                        </svg>
+                                        <span className="text-sm font-medium text-gray-700">
+                                            {isUploadingImage ? 'Uploading...' : 'Click to upload recipe image'}
+                                        </span>
+                                        <span className="text-xs text-gray-500 mt-1">
+                                            PNG, JPG, GIF up to 10MB
+                                        </span>
+                                    </label>
+                                </div>
+
+                                {!isEditing && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                        <div className="flex items-start">
+                                            <span className="text-blue-600 mr-2 mt-0.5">💡</span>
+                                            <div className="text-sm text-blue-800">
+                                                <strong>Tip:</strong> Import recipes from social media videos to automatically extract the best food image using AI!
+                                                <div className="mt-2 text-xs text-blue-700">
+                                                    • TikTok, Instagram, and Facebook videos supported
+                                                    • AI selects the most appetizing frame
+                                                    • No manual image upload needed
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </div>
+
+                    {/* NEW: Multi-Part Recipe Sections OR Single-Part Recipe Sections */}
                     {isMultiPart ? (
                         <div className="bg-white shadow rounded-lg p-6">
                             <div className="flex items-center justify-between mb-6">
@@ -1288,7 +2124,7 @@ export default function EnhancedRecipeForm({
                                                                 className="font-semibold text-red-600 hover:text-red-700 p-2 min-h-[44px] min-w-[44px] flex items-center justify-center"
                                                                 disabled={getCurrentPartData().instructions?.length === 1}
                                                             >
-                                                                ✕
+                                                                x
                                                             </TouchEnhancedButton>
                                                         </div>
 
@@ -1473,316 +2309,286 @@ export default function EnhancedRecipeForm({
                         </>
                     )}
 
-                        {/* Tags - MOBILE RESPONSIVE */}
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
+                    {/* RESTORED: Tags Section */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Tags</h3>
 
-                            <div className="flex flex-wrap gap-2 mb-4">
-                                {recipe.tags.map((tag, index) => (
-                                    <span
-                                        key={index}
-                                        className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-indigo-100 text-indigo-700 min-h-[36px]"
-                                    >
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {recipe.tags.map((tag, index) => (
+                                <span
+                                    key={index}
+                                    className="inline-flex items-center px-3 py-2 rounded-full text-sm bg-indigo-100 text-indigo-700 min-h-[36px]"
+                                >
                                     {tag}
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={() => removeTag(tag)}
-                                            className="ml-2 text-indigo-500 hover:text-indigo-700 min-h-[24px] min-w-[24px] flex items-center justify-center"
-                                        >
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => removeTag(tag)}
+                                        className="ml-2 text-indigo-500 hover:text-indigo-700 min-h-[24px] min-w-[24px] flex items-center justify-center"
+                                    >
                                         ✕
                                     </TouchEnhancedButton>
                                 </span>
-                                ))}
+                            ))}
+                        </div>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Tags (comma-separated)
+                                </label>
+                                <KeyboardOptimizedInput
+                                    type="text"
+                                    value={tagsString}
+                                    onChange={(e) => handleTagsStringChange(e.target.value)}
+                                    onBlur={handleTagsStringBlur}
+                                    placeholder="italian, dinner, easy, comfort-food"
+                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{minHeight: '48px'}}
+                                />
+                                <p className="text-xs text-gray-500 mt-1">
+                                    Enter tags separated by commas. Press Tab or click elsewhere to apply.
+                                </p>
                             </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Tags (comma-separated)
-                                    </label>
-                                    <KeyboardOptimizedInput
+                            <div className="border-t pt-4">
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Add individual tag
+                                </label>
+                                <div className="flex flex-col sm:flex-row gap-3">
+                                    <input
                                         type="text"
-                                        value={tagsString}
-                                        onChange={(e) => handleTagsStringChange(e.target.value)}
-                                        onBlur={handleTagsStringBlur}
-                                        placeholder="italian, dinner, easy, comfort-food"
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        value={tagInput}
+                                        onChange={(e) => setTagInput(e.target.value)}
+                                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                                        placeholder="Add a tag..."
+                                        className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         style={{minHeight: '48px'}}
                                     />
-                                    <p className="text-xs text-gray-500 mt-1">
-                                        Enter tags separated by commas. Press Tab or click elsewhere to apply.
-                                    </p>
-                                </div>
-
-                                <div className="border-t pt-4">
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Add individual tag
-                                    </label>
-                                    <div className="flex flex-col sm:flex-row gap-3">
-                                        <input
-                                            type="text"
-                                            value={tagInput}
-                                            onChange={(e) => setTagInput(e.target.value)}
-                                            onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                                            placeholder="Add a tag..."
-                                            className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
-                                        />
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={addTag}
-                                            className="mt-4 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-4 py-3 min-h-[48px]"
-                                        >
-                                            + Add Tag
-                                        </TouchEnhancedButton>
-                                    </div>
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={addTag}
+                                        className="px-4 py-3 text-indigo-600 hover:text-indigo-700 text-sm font-medium min-h-[48px]"
+                                    >
+                                        + Add Tag
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
                         </div>
+                    </div>
 
-                        {/* Enhanced Nutrition Section - CLEANED UP */}
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <div className="flex justify-between items-center mb-6">
-                                <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
-                                <div className="flex gap-2">
-                                    {/* View Details Button */}
-                                    {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={() => setShowNutritionModal(true)}
-                                            className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
-                                        >
-                                            View Details
-                                        </TouchEnhancedButton>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Current nutrition display - NO duplicate text */}
-                            {/* Current nutrition display - USE FULL STYLE like Image 2 */}
-                            {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
-                                <div className="mb-6">
-                                    <NutritionFacts
-                                        nutrition={nutritionForDisplay}
-                                        servings={parseInt(recipe.servings) || 4}
-                                        showPerServing={true}
-                                        compact={false}
-                                    />
-
-                                    {/* AI Analysis Info */}
-                                    {recipe.nutrition.calculationMethod === 'ai_calculated' && (
-                                        <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
-                                            <div className="flex items-center text-blue-800 text-sm">
-                                                <span className="mr-2">🤖</span>
-                                                <span>Nutrition calculated by AI analysis</span>
-                                                {recipe.nutrition.confidence && (
-                                                    <span className="ml-2 text-blue-600">
-                            Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
-                        </span>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            ) : (
-                                <div className="text-center py-8 text-gray-500 mb-6">
-                                    <div className="text-4xl mb-2">📊</div>
-                                    <p className="font-medium">No nutrition information yet</p>
-                                    <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
-                                </div>
-                            )}
-
-                            {/* AI Nutrition Analysis Button - using your UpdateNutritionButton */}
-                            <UpdateNutritionButton
-                                recipe={{
-                                    ...recipe,
-                                    ingredients: recipe.ingredients,
-                                    servings: parseInt(recipe.servings) || 4
-                                }}
-                                onNutritionUpdate={(newNutrition) => {
-                                    setRecipe(prev => ({
-                                        ...prev,
-                                        nutrition: newNutrition
-                                    }));
-                                }}
-                                disabled={!recipe.ingredients.some(ing => ing.name && ing.name.trim())}
-                            />
-
-                            {/* Optional: Manual nutrition inputs for basic values */}
-                            {!isImportMode && (
-                                <div className="mt-6 pt-6 border-t">
-                                    <h4 className="text-sm font-medium text-gray-700 mb-4">Or enter basic nutrition
-                                        manually:</h4>
-                                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                                        <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
-                                            <input
-                                                type="number"
-                                                value={extractNutritionValue(recipe.nutrition.calories)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('calories', e.target.value)}
-                                                placeholder="250"
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{minHeight: '48px'}}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Protein
-                                                (g)</label>
-                                            <input
-                                                type="number"
-                                                value={extractNutritionValue(recipe.nutrition.protein)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('protein', e.target.value)}
-                                                placeholder="15"
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{minHeight: '48px'}}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Carbs
-                                                (g)</label>
-                                            <input
-                                                type="number"
-                                                value={extractNutritionValue(recipe.nutrition.carbs)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('carbs', e.target.value)}
-                                                placeholder="30"
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{minHeight: '48px'}}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Fat
-                                                (g)</label>
-                                            <input
-                                                type="number"
-                                                value={extractNutritionValue(recipe.nutrition.fat)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('fat', e.target.value)}
-                                                placeholder="10"
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{minHeight: '48px'}}
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-gray-700 mb-2">Fiber
-                                                (g)</label>
-                                            <input
-                                                type="number"
-                                                value={extractNutritionValue(recipe.nutrition.fiber)} // CHANGE THIS
-                                                onChange={(e) => updateNutrition('fiber', e.target.value)}
-                                                placeholder="5"
-                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{minHeight: '48px'}}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
-
-
-                        {/* Source - MOBILE RESPONSIVE */}
-                        <div className="bg-white shadow rounded-lg p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Settings</h3>
-
-                            <div className="space-y-4">
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-2">
-                                        Source (Optional)
-                                    </label>
-                                    <KeyboardOptimizedInput
-                                        type="text"
-                                        value={recipe.source}
-                                        onChange={(e) => updateRecipe('source', e.target.value)}
-                                        placeholder="Recipe source or URL..."
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
-                                    />
-                                </div>
-
-                                <div className="flex items-start">
-                                    <div className="flex items-center h-5 mt-3">
-                                        <input
-                                            id="isPublic"
-                                            type="checkbox"
-                                            checked={recipe.isPublic}
-                                            onChange={(e) => updateRecipe('isPublic', e.target.checked)}
-                                            className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
-                                        />
-                                    </div>
-                                    <div className="ml-3 text-sm">
-                                        <label htmlFor="isPublic" className="font-medium text-gray-700 block mb-1">
-                                            Make this recipe public
-                                        </label>
-                                        <p className="text-gray-500">
-                                            Public recipes can be viewed and rated by other users
-                                        </p>
-                                    </div>
-                                </div>
+                    {/* RESTORED: Enhanced Nutrition Section */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <div className="flex justify-between items-center mb-6">
+                            <h3 className="text-lg font-semibold text-gray-900">Nutrition Information</h3>
+                            <div className="flex gap-2">
+                                {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 && (
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => setShowNutritionModal(true)}
+                                        className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium"
+                                    >
+                                        View Details
+                                    </TouchEnhancedButton>
+                                )}
                             </div>
                         </div>
 
-                        {/* Video Import Success Message - ADD THIS SECTION */}
-                        {importSource === 'video' && videoInfo && (
-                            <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
-                                <h3 className="text-lg font-semibold text-purple-900 mb-4">
-                                    🎥 Video Recipe Successfully Imported!
-                                </h3>
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <div className="bg-white rounded-lg p-3 text-center">
-                                        <div className="text-2xl font-bold text-purple-600">
-                                            {recipe.ingredients.filter(i => i.videoTimestamp).length}
-                                        </div>
-                                        <div className="text-sm text-gray-600">Ingredients with video timestamps
-                                        </div>
-                                    </div>
-                                    <div className="bg-white rounded-lg p-3 text-center">
-                                        <div className="text-2xl font-bold text-blue-600">
-                                            {recipe.instructions.filter(i => i.videoTimestamp).length}
-                                        </div>
-                                        <div className="text-sm text-gray-600">Instructions with video links</div>
-                                    </div>
-                                    <div className="bg-white rounded-lg p-3 text-center">
-                                        <div className="text-lg font-bold text-green-600">
-                                            {videoInfo.platform?.toUpperCase()}
-                                        </div>
-                                        <div className="text-sm text-gray-600">Platform</div>
-                                    </div>
-                                </div>
+                        {recipe.nutrition && Object.keys(recipe.nutrition).length > 0 ? (
+                            <div className="mb-6">
+                                <NutritionFacts
+                                    nutrition={nutritionForDisplay}
+                                    servings={parseInt(recipe.servings) || 4}
+                                    showPerServing={true}
+                                    compact={false}
+                                />
 
-                                {/* DEBUG: Show actual timestamp data */}
-                                {process.env.NODE_ENV === 'development' && (
-                                    <div className="mt-4 bg-yellow-50 border border-yellow-200 rounded p-3">
-                                        <strong>Debug Info:</strong><br/>
-                                        <pre className="text-xs">{JSON.stringify({
-                                            totalIngredients: recipe.ingredients.length,
-                                            ingredientsWithTimestamps: recipe.ingredients.filter(i => i.videoTimestamp).length,
-                                            totalInstructions: recipe.instructions.length,
-                                            instructionsWithTimestamps: recipe.instructions.filter(i => i.videoTimestamp).length,
-                                            sampleIngredient: recipe.ingredients[0],
-                                            sampleInstruction: recipe.instructions[0]
-                                        }, null, 2)}</pre>
+                                {recipe.nutrition.calculationMethod === 'ai_calculated' && (
+                                    <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                                        <div className="flex items-center text-blue-800 text-sm">
+                                            <span className="mr-2">🤖</span>
+                                            <span>Nutrition calculated by AI analysis</span>
+                                            {recipe.nutrition.confidence && (
+                                                <span className="ml-2 text-blue-600">
+                                                    Confidence: {Math.round(recipe.nutrition.confidence * 100)}%
+                                                </span>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
+                            </div>
+                        ) : (
+                            <div className="text-center py-8 text-gray-500 mb-6">
+                                <div className="text-4xl mb-2">📊</div>
+                                <p className="font-medium">No nutrition information yet</p>
+                                <p className="text-sm">Use AI analysis to add comprehensive nutrition data</p>
+                            </div>
+                        )}
 
-                                <div className="mt-4 flex items-center justify-between">
-                                    <p className="text-sm text-purple-700">
-                                        Recipe extracted from video transcript. Review and edit as needed before
-                                        saving.
-                                    </p>
-                                    <a
-                                        href={videoInfo.originalUrl}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
-                                    >
-                                        <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M8 5v10l7-5-7-5z"/>
-                                        </svg>
-                                        Watch Original Video
-                                    </a>
+                        <UpdateNutritionButton
+                            recipe={{
+                                ...recipe,
+                                ingredients: recipe.ingredients,
+                                servings: parseInt(recipe.servings) || 4
+                            }}
+                            onNutritionUpdate={(newNutrition) => {
+                                setRecipe(prev => ({
+                                    ...prev,
+                                    nutrition: newNutrition
+                                }));
+                            }}
+                            disabled={!recipe.ingredients?.some(ing => ing.name && ing.name.trim())}
+                        />
+
+                        {!isImportMode && (
+                            <div className="mt-6 pt-6 border-t">
+                                <h4 className="text-sm font-medium text-gray-700 mb-4">Or enter basic nutrition manually:</h4>
+                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
+                                        <input
+                                            type="number"
+                                            value={extractNutritionValue(recipe.nutrition.calories)}
+                                            onChange={(e) => updateNutrition('calories', e.target.value)}
+                                            placeholder="250"
+                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{minHeight: '48px'}}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
+                                        <input
+                                            type="number"
+                                            value={extractNutritionValue(recipe.nutrition.protein)}
+                                            onChange={(e) => updateNutrition('protein', e.target.value)}
+                                            placeholder="15"
+                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{minHeight: '48px'}}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
+                                        <input
+                                            type="number"
+                                            value={extractNutritionValue(recipe.nutrition.carbs)}
+                                            onChange={(e) => updateNutrition('carbs', e.target.value)}
+                                            placeholder="30"
+                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{minHeight: '48px'}}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Fat (g)</label>
+                                        <input
+                                            type="number"
+                                            value={extractNutritionValue(recipe.nutrition.fat)}
+                                            onChange={(e) => updateNutrition('fat', e.target.value)}
+                                            placeholder="10"
+                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{minHeight: '48px'}}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-gray-700 mb-2">Fiber (g)</label>
+                                        <input
+                                            type="number"
+                                            value={extractNutritionValue(recipe.nutrition.fiber)}
+                                            onChange={(e) => updateNutrition('fiber', e.target.value)}
+                                            placeholder="5"
+                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                            style={{minHeight: '48px'}}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         )}
+                    </div>
+
+                    {/* RESTORED: Source Section */}
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Settings</h3>
+
+                        <div className="space-y-4">
+                            <div>
+                                <label className="block text-sm font-medium text-gray-700 mb-2">
+                                    Source (Optional)
+                                </label>
+                                <KeyboardOptimizedInput
+                                    type="text"
+                                    value={recipe.source}
+                                    onChange={(e) => updateRecipe('source', e.target.value)}
+                                    placeholder="Recipe source or URL..."
+                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                    style={{minHeight: '48px'}}
+                                />
+                            </div>
+
+                            <div className="flex items-start">
+                                <div className="flex items-center h-5 mt-3">
+                                    <input
+                                        id="isPublic"
+                                        type="checkbox"
+                                        checked={recipe.isPublic}
+                                        onChange={(e) => updateRecipe('isPublic', e.target.checked)}
+                                        className="focus:ring-indigo-500 h-5 w-5 text-indigo-600 border-gray-300 rounded"
+                                    />
+                                </div>
+                                <div className="ml-3 text-sm">
+                                    <label htmlFor="isPublic" className="font-medium text-gray-700 block mb-1">
+                                        Make this recipe public
+                                    </label>
+                                    <p className="text-gray-500">
+                                        Public recipes can be viewed and rated by other users
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* RESTORED: Video Import Success Message */}
+                    {importSource === 'video' && videoInfo && (
+                        <div className="bg-purple-50 border border-purple-200 rounded-lg p-6">
+                            <h3 className="text-lg font-semibold text-purple-900 mb-4">
+                                🎥 Video Recipe Successfully Imported!
+                            </h3>
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="bg-white rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold text-purple-600">
+                                        {recipe.ingredients?.filter(i => i.videoTimestamp).length || 0}
+                                    </div>
+                                    <div className="text-sm text-gray-600">Ingredients with video timestamps</div>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 text-center">
+                                    <div className="text-2xl font-bold text-blue-600">
+                                        {recipe.instructions?.filter(i => i.videoTimestamp).length || 0}
+                                    </div>
+                                    <div className="text-sm text-gray-600">Instructions with video links</div>
+                                </div>
+                                <div className="bg-white rounded-lg p-3 text-center">
+                                    <div className="text-lg font-bold text-green-600">
+                                        {videoInfo.platform?.toUpperCase()}
+                                    </div>
+                                    <div className="text-sm text-gray-600">Platform</div>
+                                </div>
+                            </div>
+
+                            <div className="mt-4 flex items-center justify-between">
+                                <p className="text-sm text-purple-700">
+                                    Recipe extracted from video transcript. Review and edit as needed before saving.
+                                </p>
+                                <a
+                                    href={videoInfo.originalUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="text-purple-600 hover:text-purple-800 text-sm flex items-center"
+                                >
+                                    <svg className="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                        <path d="M8 5v10l7-5-7-5z"/>
+                                    </svg>
+                                    Watch Original Video
+                                </a>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Submit Buttons */}
                     <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 pb-8">
@@ -1814,8 +2620,7 @@ export default function EnhancedRecipeForm({
                 </form>
             )}
 
-            {/* Add your NutritionModal at the very end of the component, before the closing </div> */
-            }
+            {/* RESTORED: NutritionModal */}
             <NutritionModal
                 nutrition={recipe.nutrition}
                 isOpen={showNutritionModal}
@@ -1824,8 +2629,7 @@ export default function EnhancedRecipeForm({
                 recipeTitle={recipe.title || "Recipe"}
             />
 
-            {/* NEW: Voice Input Modals */}
-            {/* Title Voice Modal */}
+            {/* RESTORED: Voice Input Modals */}
             {showVoiceTitle && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -1856,7 +2660,6 @@ export default function EnhancedRecipeForm({
                 </div>
             )}
 
-            {/* Description Voice Modal */}
             {showVoiceDescription && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -1887,7 +2690,6 @@ export default function EnhancedRecipeForm({
                 </div>
             )}
 
-            {/* Ingredients Voice Modal */}
             {showVoiceIngredients && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-lg w-full p-6">
@@ -1923,7 +2725,6 @@ export default function EnhancedRecipeForm({
                 </div>
             )}
 
-            {/* Instructions Voice Modal */}
             {showVoiceInstructions && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-lg w-full p-6">
@@ -1936,7 +2737,6 @@ export default function EnhancedRecipeForm({
                                 ×
                             </TouchEnhancedButton>
                         </div>
-
                         <div className="mb-4">
                             <VoiceInput
                                 onResult={handleVoiceInstructions}
@@ -1958,8 +2758,6 @@ export default function EnhancedRecipeForm({
                     </div>
                 </div>
             )}
-
         </div>
-    )
-        ;
+    );
 }
