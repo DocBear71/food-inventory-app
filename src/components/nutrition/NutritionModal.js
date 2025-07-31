@@ -1,4 +1,4 @@
-// Enhanced NutritionModal.js with improved close button and voice analysis support
+// file: /src/components/nutrition/NutritionModal.js v2 - FIXED form submission issue with explicit button type
 import React, { useState } from 'react';
 import { X, Info, Mic } from 'lucide-react';
 
@@ -117,7 +117,7 @@ const NutritionModal = ({
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-2">
             <div className="bg-white rounded-lg max-w-md w-full max-h-[95vh] overflow-hidden mx-auto relative">
-                {/* ENHANCED: Header with better close button positioning */}
+                {/* FIXED: Header with proper button type to prevent form submission */}
                 <div className="bg-green-50 p-4 border-b relative">
                     <div className="flex items-start justify-between">
                         <div className="flex items-center gap-2 flex-1 min-w-0">
@@ -141,8 +141,9 @@ const NutritionModal = ({
                             </div>
                         </div>
 
-                        {/* IMPROVED: Close button positioned to the right */}
+                        {/* FIXED: Close button with explicit type="button" to prevent form submission */}
                         <button
+                            type="button"
                             onClick={onClose}
                             className="p-2 hover:bg-gray-200 rounded-full transition-colors bg-white shadow-sm border border-gray-200 flex-shrink-0 ml-2"
                             aria-label="Close nutrition modal"

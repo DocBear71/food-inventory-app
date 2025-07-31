@@ -500,15 +500,15 @@ export default function EditRecipePage() {
                     prepTime: part.prepTime ? parseInt(part.prepTime) : null,
                     cookTime: part.cookTime ? parseInt(part.cookTime) : null
                 }));
-                // Clear legacy fields for multi-part recipes
-                delete recipeData.ingredients;
-                delete recipeData.instructions;
+                // FIXED: Set legacy fields to empty arrays instead of deleting them
+                recipeData.ingredients = [];
+                recipeData.instructions = [];
             } else {
                 // Clean up single-part data
                 recipeData.ingredients = formData.ingredients.filter(ing => ing.name.trim());
                 recipeData.instructions = formData.instructions.filter(inst => inst.trim());
-                // Clear multi-part fields for single-part recipes
-                delete recipeData.parts;
+                // FIXED: Set parts to empty array instead of deleting
+                recipeData.parts = [];
             }
 
             const response = await apiPut(`/api/recipes/${recipeId}`, recipeData);
