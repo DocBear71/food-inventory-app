@@ -231,7 +231,7 @@ export async function GET(request) {
     }
 }
 
-// In your /src/app/api/recipes/route.js file, find the POST function and replace the entire data processing section:
+// Complete POST function with all the missing logic restored:
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -243,7 +243,7 @@ export async function POST(request) {
 
         console.log('POST /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
-        // Handle both form data (with image files) and JSON data
+        // FIXED: Better form data handling for multi-part recipes
         let recipeData;
         let imageFile = null;
 
@@ -252,20 +252,40 @@ export async function POST(request) {
         if (contentType.includes('multipart/form-data')) {
             // Handle form data with potential image upload
             const formData = await request.formData();
-            recipeData = JSON.parse(formData.get('recipeData') || '{}');
+
+            // FIXED: Better parsing with error handling
+            const recipeDataString = formData.get('recipeData');
+            console.log('🔍 Raw recipeData string length:', recipeDataString?.length || 0);
+
+            try {
+                recipeData = JSON.parse(recipeDataString || '{}');
+                console.log('🔍 Parsed recipeData keys:', Object.keys(recipeData));
+                console.log('🔍 Parsed isMultiPart:', recipeData.isMultiPart);
+                console.log('🔍 Parsed parts length:', recipeData.parts?.length);
+            } catch (parseError) {
+                console.error('❌ JSON parsing error:', parseError);
+                console.log('🔍 Raw recipeData string:', recipeDataString);
+                return NextResponse.json(
+                    { error: 'Invalid recipe data format' },
+                    { status: 400 }
+                );
+            }
+
             imageFile = formData.get('recipeImage');
+            console.log('🔍 Image file:', imageFile ? `${imageFile.name} (${imageFile.size} bytes)` : 'none');
         } else {
             // Handle JSON data
             const body = await request.json();
             recipeData = body.recipeData || body;
         }
 
-        // ADD DETAILED LOGGING TO DEBUG THE ISSUE
+        // ENHANCED LOGGING TO DEBUG THE ISSUE
         console.log('🔍 DEBUG: Received recipe data structure:', {
             title: recipeData.title,
             isMultiPart: recipeData.isMultiPart,
             hasPartsArray: !!recipeData.parts,
             partsLength: recipeData.parts?.length || 0,
+            allKeys: Object.keys(recipeData),
             parts: recipeData.parts?.map(part => ({
                 name: part.name,
                 ingredientCount: part.ingredients?.length || 0,
@@ -287,14 +307,14 @@ export async function POST(request) {
             source,
             isPublic,
             category,
-            nutrition,
-            importedFrom,
-            videoMetadata,
-            extractedImage,
-            skipAIAnalysis = false,
-            // THESE TWO LINES ARE CRITICAL:
-            isMultiPart,        // <-- Make sure this is here
-            parts               // <-- Make sure this is here
+            nutrition,          // ✅ USED: Manual nutrition data
+            importedFrom,       // ✅ USED: Track import source
+            videoMetadata,      // ✅ USED: Video import metadata
+            extractedImage,     // ✅ USED: AI-extracted images
+            skipAIAnalysis = false, // ✅ USED: Skip AI nutrition analysis
+            // CRITICAL: Extract multi-part fields
+            isMultiPart,
+            parts
         } = recipeData;
 
         // VALIDATE REQUIRED FIELDS
@@ -307,14 +327,16 @@ export async function POST(request) {
 
         await connectDB();
 
-        // Get user and check subscription limits... (your existing code)
+        // Get user and check subscription limits
         const user = await User.findById(session.user.id);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Your existing subscription checking code...
+        // Get current recipe count for this user
         const currentRecipeCount = await Recipe.countDocuments({ createdBy: session.user.id });
+
+        // Check subscription limits
         const userSubscription = {
             tier: user.getEffectiveTier(),
             status: user.subscription?.status || 'free'
@@ -335,17 +357,19 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
-        // Process instructions (your existing code)
+        // FIXED: Handle both string and object instructions (for video imports)
         const processedInstructions = instructions ? instructions.filter(inst => {
+            // Handle both string and object instructions
             if (typeof inst === 'string') {
                 return inst.trim() !== '';
             } else if (typeof inst === 'object' && inst !== null) {
+                // Video import format: {text: "...", step: 1, videoTimestamp: 123}
                 return inst.text && inst.text.trim() !== '';
             }
             return false;
         }) : [];
 
-        // Process ingredients (your existing code)
+        // FIXED: Handle ingredients with video metadata
         const processedIngredients = ingredients ? ingredients.filter(ing => ing.name && ing.name.trim() !== '') : [];
 
         // CRITICAL FIX: Handle multi-part recipe data properly
@@ -387,12 +411,38 @@ export async function POST(request) {
             category: category || 'entrees',
             createdBy: session.user.id,
             lastEditedBy: session.user.id,
-            importedFrom: importedFrom || null,
+            importedFrom: importedFrom || null, // ✅ RESTORED: Import tracking
             createdAt: new Date(),
             updatedAt: new Date(),
-            isPublic: await checkPublicRecipePermission(session.user.id, isPublic)
+            isPublic: await checkPublicRecipePermission(session.user.id, isPublic),
 
-            // ... rest of your existing image and video handling code
+            // ✅ RESTORED: Handle extracted images from video processing
+            ...(extractedImage && {
+                extractedImage: {
+                    data: extractedImage.data,
+                    extractionMethod: extractedImage.extractionMethod || 'video_frame_analysis',
+                    frameCount: extractedImage.frameCount || 0,
+                    source: extractedImage.source || 'unknown',
+                    extractedAt: new Date(),
+                    confidence: extractedImage.confidence,
+                    metadata: extractedImage.metadata || {}
+                }
+            }),
+
+            // ✅ RESTORED: Add video metadata if present
+            ...(videoMetadata && {
+                videoMetadata: {
+                    ...videoMetadata,
+                    hasExtractedImage: !!(extractedImage) // NEW: Flag for image presence
+                }
+            }),
+
+            // ✅ RESTORED: Handle manual nutrition data
+            ...(nutrition && Object.keys(nutrition).length > 0 && {
+                nutrition: nutrition,
+                nutritionManuallySet: true,
+                nutritionCalculatedAt: new Date()
+            })
         };
 
         // ADD MORE DETAILED LOGGING
@@ -406,13 +456,19 @@ export async function POST(request) {
                 instructionCount: part.instructions?.length || 0
             })),
             flatIngredientCount: newRecipeData.ingredients?.length || 0,
-            flatInstructionCount: newRecipeData.instructions?.length || 0
+            flatInstructionCount: newRecipeData.instructions?.length || 0,
+            hasExtractedImage: !!newRecipeData.extractedImage,
+            hasVideoMetadata: !!newRecipeData.videoMetadata,
+            hasNutrition: !!newRecipeData.nutrition,
+            importedFrom: newRecipeData.importedFrom
         });
 
-        // Handle image upload if present (your existing code)
+        // ✅ RESTORED: Handle image upload if present
         if (imageFile && imageFile.size > 0) {
             try {
                 console.log('📸 Processing uploaded recipe image...');
+
+                // Convert to base64 and store in uploadedImage field
                 const bytes = await imageFile.arrayBuffer();
                 const buffer = Buffer.from(bytes);
                 const base64Data = buffer.toString('base64');
@@ -429,39 +485,107 @@ export async function POST(request) {
                 console.log('✅ Image stored as base64 in uploadedImage field');
             } catch (uploadError) {
                 console.warn('⚠️ Image processing failed:', uploadError.message);
+                // Continue without image rather than failing the entire recipe
             }
         }
 
-        // Create the recipe
-        console.log('🔍 About to create recipe with data:', {
+        console.log('Creating recipe with data:', {
             title: newRecipeData.title,
+            instructionCount: newRecipeData.instructions.length,
+            ingredientCount: newRecipeData.ingredients.length,
+            hasVideoMetadata: !!newRecipeData.videoMetadata,
+            hasExtractedImage: !!(newRecipeData.extractedImage),
+            hasUploadedImage: !!(newRecipeData.uploadedImage),
+            instructionTypes: newRecipeData.instructions.map(inst => typeof inst),
+            skipAIAnalysis,
             isMultiPart: newRecipeData.isMultiPart,
-            partsLength: newRecipeData.parts?.length
+            partsCount: newRecipeData.parts?.length || 0
         });
 
+        // Create the recipe first
         const recipe = new Recipe(newRecipeData);
         await recipe.save();
 
-        console.log('✅ Recipe saved successfully:', {
+        // ✅ RESTORED: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
+        let nutritionAnalysis = null;
+        console.log('🔍 AI Analysis Check:', {
+            skipAIAnalysis,
+            hasNutrition: !!nutrition,
+            ingredientCount: processedIngredients.length,
+            shouldRun: !skipAIAnalysis && !nutrition && processedIngredients.length > 0
+        });
+
+        if (!skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
+            console.log('🤖 About to start AI nutrition analysis...');
+            nutritionAnalysis = await analyzeRecipeNutritionAI(recipe, session.user.id);
+            console.log('🤖 AI analysis result:', nutritionAnalysis);
+        }
+
+        // If AI analysis succeeded, update the recipe with nutrition data
+        if (nutritionAnalysis?.success) {
+            await Recipe.findByIdAndUpdate(recipe._id, {
+                nutrition: nutritionAnalysis.nutrition,
+                nutritionCalculatedAt: new Date(),
+                nutritionCoverage: nutritionAnalysis.metadata.coverage,
+                nutritionManuallySet: false,
+                // Store AI analysis metadata
+                'aiAnalysis.nutritionGenerated': true,
+                'aiAnalysis.nutritionMetadata': nutritionAnalysis.metadata
+            });
+
+            // Update the local recipe object for response
+            recipe.nutrition = nutritionAnalysis.nutrition;
+            recipe.nutritionCalculatedAt = new Date();
+            recipe.nutritionCoverage = nutritionAnalysis.metadata.coverage;
+        }
+
+        // Update user's usage tracking
+        if (!user.usageTracking) {
+            user.usageTracking = {};
+        }
+        user.usageTracking.totalPersonalRecipes = currentRecipeCount + 1;
+        user.usageTracking.lastUpdated = new Date();
+        await user.save();
+
+        // FIXED: Populate user info for response (but still no binary photo data)
+        await recipe.populate('createdBy', 'name email');
+        await recipe.populate('lastEditedBy', 'name email');
+        // Don't populate photos for response - client will fetch as needed
+
+        // ✅ RESTORED: Log image processing results
+        let imageInfo = 'no image';
+        if (recipe.extractedImage) {
+            imageInfo = `extracted image from ${recipe.extractedImage.source}`;
+        } else if (recipe.uploadedImage) {
+            imageInfo = 'uploaded image';
+        }
+
+        console.log('POST /api/recipes - Recipe created successfully:', {
             id: recipe._id,
+            hasVideoMetadata: !!recipe.videoMetadata,
+            hasAINutrition: !!(nutritionAnalysis?.success),
+            imageInfo,
             isMultiPart: recipe.isMultiPart,
             partsCount: recipe.parts?.length || 0
         });
-
-        // Your existing AI nutrition analysis code...
-        // (keep the rest of your POST function as is)
-
-        // Continue with your existing code for nutrition analysis, user tracking, etc.
 
         return NextResponse.json({
             success: true,
             recipe: {
                 ...recipe.toObject(),
+                // NEW: Include image information in response
                 hasImage: !!(recipe.extractedImage || recipe.uploadedImage),
                 imageType: recipe.extractedImage ? 'extracted' : (recipe.uploadedImage ? 'uploaded' : null),
                 imageSource: recipe.extractedImage?.source || 'upload'
             },
-            message: 'Multi-part recipe added successfully'
+            nutritionAnalysis, // Include AI analysis results
+            message: 'Recipe added successfully' +
+                (nutritionAnalysis?.success ? ' with AI nutrition analysis' : '') +
+                (imageInfo !== 'no image' ? ` and ${imageInfo}` : ''),
+            remainingRecipes: userSubscription.tier === 'free' ?
+                Math.max(0, 5 - (currentRecipeCount + 1)) :
+                userSubscription.tier === 'gold' ?
+                    Math.max(0, 100 - (currentRecipeCount + 1)) : 'Unlimited'
         });
 
     } catch (error) {

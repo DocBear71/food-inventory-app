@@ -3277,8 +3277,7 @@ const RecipeSchema = new mongoose.Schema({
     // === NEW: MULTI-PART RECIPE SUPPORT ===
     isMultiPart: {
         type: Boolean,
-        default: false,
-        index: true // Index for efficient querying
+        default: false
     },
     parts: [RecipePartSchema], // Array of recipe parts (filling, topping, etc.)
 
@@ -3564,7 +3563,7 @@ RecipeSchema.index({ createdBy: 1, createdAt: -1 });
 RecipeSchema.index({ isPublic: 1, createdAt: -1 });
 RecipeSchema.index({ category: 1, isPublic: 1 });
 RecipeSchema.index({ tags: 1, isPublic: 1 });
-RecipeSchema.index({ isMultiPart: 1 }); // NEW: Index for multi-part queries
+RecipeSchema.index({ isMultiPart: 1 });
 RecipeSchema.index({ 'ratingStats.averageRating': -1, isPublic: 1 });
 RecipeSchema.index({ title: 'text', description: 'text' });
 RecipeSchema.index({ 'nutrition.calories.value': 1 });
