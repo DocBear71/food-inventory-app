@@ -1060,6 +1060,21 @@ export default function EnhancedRecipeForm({
         }
     };
 
+    const getAllIngredientsFromRecipe = (recipe) => {
+        if (!recipe) return [];
+
+        // Multi-part recipe
+        if (recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts)) {
+            return recipe.parts.reduce((allIngredients, part) => {
+                const partIngredients = (part.ingredients || []).filter(ing => ing.name && ing.name.trim());
+                return [...allIngredients, ...partIngredients];
+            }, []);
+        }
+
+        // Single-part recipe (legacy)
+        return (recipe.ingredients || []).filter(ing => ing.name && ing.name.trim());
+    };
+
     const handleVoiceError = (error) => {
         console.error('🎤 Voice input error:', error);
         setProcessingVoice(false);
@@ -2446,7 +2461,7 @@ export default function EnhancedRecipeForm({
                                     nutrition: newNutrition
                                 }));
                             }}
-                            disabled={!recipe.ingredients?.some(ing => ing.name && ing.name.trim())}
+                            disabled={getAllIngredientsFromRecipe(recipe).length === 0}
                         />
 
                         {!isImportMode && (
