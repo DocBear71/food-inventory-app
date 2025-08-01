@@ -1,5 +1,3 @@
-
-
 import React, { useState } from 'react';
 import { Zap, Loader2, CheckCircle, AlertCircle, DollarSign, Clock, Target } from 'lucide-react';
 import {apiPost} from "@/lib/api-config.js";
@@ -14,8 +12,26 @@ const UpdateNutritionButton = ({
     const [lastResult, setLastResult] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
 
+    // FIXED: Function to get all ingredients from both single-part and multi-part recipes
+    const getAllIngredients = (recipe) => {
+        if (!recipe) return [];
+
+        // Multi-part recipe
+        if (recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts)) {
+            return recipe.parts.reduce((allIngredients, part) => {
+                const partIngredients = (part.ingredients || []).filter(ing => ing.name && ing.name.trim());
+                return [...allIngredients, ...partIngredients];
+            }, []);
+        }
+
+        // Single-part recipe (legacy)
+        return (recipe.ingredients || []).filter(ing => ing.name && ing.name.trim());
+    };
+
     const handleUpdateNutrition = async () => {
-        if (!recipe?.ingredients || recipe.ingredients.length === 0) {
+        const allIngredients = getAllIngredients(recipe);
+
+        if (allIngredients.length === 0) {
             alert('Please add ingredients before analyzing nutrition.');
             return;
         }
@@ -25,8 +41,8 @@ const UpdateNutritionButton = ({
 
         try {
             const response = await apiPost(`/api/recipes/${recipe._id}/analyze-nutrition`, {
-                    forceAnalysis: true,
-                    includeDetails: true
+                forceAnalysis: true,
+                includeDetails: true
             });
 
             const data = await response.json();
@@ -69,19 +85,24 @@ const UpdateNutritionButton = ({
         return ms > 1000 ? `${(ms/1000).toFixed(1)}s` : `${ms}ms`;
     };
 
+    // FIXED: Get ingredient count using the new function
+    const ingredientCount = getAllIngredients(recipe).length;
+    const isDisabled = disabled || ingredientCount === 0 || isAnalyzing;
+
     return (
         <div className={`space-y-3 ${className}`}>
             {/* Main Button */}
             <button
                 onClick={handleUpdateNutrition}
-                disabled={disabled || isAnalyzing}
+                disabled={isDisabled}
                 className={`
                     w-full flex items-center justify-center gap-2 px-4 py-3 rounded-lg font-medium transition-all
                     ${isAnalyzing
                     ? 'bg-blue-50 text-blue-600 cursor-not-allowed'
-                    : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg'
+                    : isDisabled
+                        ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                        : 'bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md hover:shadow-lg'
                 }
-                    ${disabled ? 'opacity-50 cursor-not-allowed' : ''}
                 `}
             >
                 {isAnalyzing ? (
@@ -97,12 +118,27 @@ const UpdateNutritionButton = ({
                 )}
             </button>
 
-            {/* Ingredient Count Info */}
-            {recipe?.ingredients && (
-                <div className="text-sm text-gray-600 text-center">
-                    Will analyze {recipe.ingredients.filter(ing => ing.name && ing.name.trim()).length} ingredients
-                </div>
-            )}
+            {/* FIXED: Ingredient Count Info with multi-part support */}
+            <div className="text-sm text-gray-600 text-center">
+                {recipe && (
+                    <>
+                        Will analyze {ingredientCount} ingredient{ingredientCount !== 1 ? 's' : ''}
+                        {recipe.isMultiPart && recipe.parts && (
+                            <div className="text-xs text-gray-500 mt-1">
+                                From {recipe.parts.length} recipe part{recipe.parts.length !== 1 ? 's' : ''}:
+                                {recipe.parts.map((part, index) => {
+                                    const partIngredientCount = (part.ingredients || []).filter(ing => ing.name && ing.name.trim()).length;
+                                    return (
+                                        <span key={index} className="ml-2">
+                                            {part.name || `Part ${index + 1}`} ({partIngredientCount})
+                                        </span>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </>
+                )}
+            </div>
 
             {/* Results Display */}
             {lastResult && (
