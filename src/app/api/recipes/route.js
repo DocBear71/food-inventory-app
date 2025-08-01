@@ -7,7 +7,7 @@ import connectDB from '@/lib/mongodb';
 // Import RecipePhoto model
 import {Recipe, RecipePhoto, User} from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
-import { AIRecipeNutritionService } from '@/lib/services/aiNutritionService';
+import { ModalNutritionService } from '@/lib/services/modalNutritionService';
 
 async function checkPublicRecipePermission(userId, requestedIsPublic) {
     // If user doesn't want to make it public, allow it
@@ -73,18 +73,19 @@ async function analyzeRecipeNutritionAI(recipe, userId) {
             return null;
         }
 
-        console.log(`🤖 Starting AI nutrition analysis for recipe: ${recipe.title}`);
+        console.log(`🌐 Starting Modal AI nutrition analysis for recipe: ${recipe.title}`);
         const startTime = Date.now();
 
-        const aiService = new AIRecipeNutritionService();
-        const analysisResult = await aiService.analyzeRecipeNutrition(recipe);
+        // CHANGED: Use Modal service instead of local AI service
+        const modalService = new ModalNutritionService();
+        const analysisResult = await modalService.analyzeRecipeNutrition(recipe);
 
         const processingTime = Date.now() - startTime;
 
         if (analysisResult.success) {
-            console.log(`✅ AI nutrition analysis completed in ${processingTime}ms`);
+            console.log(`✅ Modal AI nutrition analysis completed in ${processingTime}ms`);
             console.log(`📊 Coverage: ${Math.round(analysisResult.metadata.coverage * 100)}%`);
-            console.log(`💰 Cost: $${analysisResult.metadata.aiAnalysis.cost.toFixed(4)}`);
+            console.log(`💰 Platform: Modal.com`);
 
             return {
                 success: true,
@@ -92,11 +93,11 @@ async function analyzeRecipeNutritionAI(recipe, userId) {
                 metadata: {
                     ...analysisResult.metadata,
                     processingTime,
-                    calculationMethod: 'ai_calculated'
+                    calculationMethod: 'modal_ai_calculated'
                 }
             };
         } else {
-            console.log(`❌ AI nutrition analysis failed: ${analysisResult.error}`);
+            console.log(`❌ Modal AI nutrition analysis failed: ${analysisResult.error}`);
             return {
                 success: false,
                 error: analysisResult.error
@@ -104,10 +105,10 @@ async function analyzeRecipeNutritionAI(recipe, userId) {
         }
 
     } catch (error) {
-        console.error('❌ AI nutrition analysis error:', error);
+        console.error('❌ Modal AI nutrition analysis error:', error);
         return {
             success: false,
-            error: 'AI analysis failed but recipe was saved'
+            error: 'Modal AI analysis failed but recipe was saved'
         };
     }
 }

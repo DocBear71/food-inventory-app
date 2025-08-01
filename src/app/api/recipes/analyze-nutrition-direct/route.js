@@ -5,7 +5,7 @@ import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
-import { AIRecipeNutritionService } from '@/lib/services/aiNutritionService';
+import { ModalNutritionService } from '@/lib/services/modalNutritionService';
 
 // POST - Analyze nutrition for unsaved recipe data
 export async function POST(request) {
@@ -105,7 +105,7 @@ export async function POST(request) {
                 parts: recipe.parts || []
             };
 
-            const aiService = new AIRecipeNutritionService();
+            const aiService = new ModalNutritionService();
             const analysisResult = await aiService.analyzeRecipeNutrition(recipeForAnalysis);
 
             const processingTime = Date.now() - startTime;
