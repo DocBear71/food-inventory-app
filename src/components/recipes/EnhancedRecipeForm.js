@@ -2450,18 +2450,20 @@ export default function EnhancedRecipeForm({
                         )}
 
                         <UpdateNutritionButton
-                            recipe={{
-                                ...recipe,
-                                ingredients: recipe.ingredients,
-                                servings: parseInt(recipe.servings) || 4
-                            }}
-                            onNutritionUpdate={(newNutrition) => {
+                            recipe={recipe} // Pass the full recipe object
+                            onNutritionUpdate={(newNutrition, analysisResult) => {
+                                console.log('🔄 Nutrition updated:', newNutrition);
+                                console.log('📊 Analysis result:', analysisResult);
+
                                 setRecipe(prev => ({
                                     ...prev,
-                                    nutrition: newNutrition
+                                    nutrition: newNutrition,
+                                    nutritionCalculatedAt: new Date(),
+                                    nutritionCoverage: analysisResult?.coverage,
+                                    nutritionManuallySet: false
                                 }));
                             }}
-                            disabled={getAllIngredientsFromRecipe(recipe).length === 0}
+                            disabled={getAllIngredientsFromRecipe(recipe).length === 0} // Fixed disabled condition
                         />
 
                         {!isImportMode && (

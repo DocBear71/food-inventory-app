@@ -12,7 +12,7 @@ const UpdateNutritionButton = ({
     const [lastResult, setLastResult] = useState(null);
     const [showDetails, setShowDetails] = useState(false);
 
-    // FIXED: Function to get all ingredients from both single-part and multi-part recipes
+    // Helper function to get all ingredients from both single-part and multi-part recipes
     const getAllIngredients = (recipe) => {
         if (!recipe) return [];
 
@@ -40,28 +40,83 @@ const UpdateNutritionButton = ({
         setLastResult(null);
 
         try {
-            const response = await apiPost(`/api/recipes/${recipe._id}/analyze-nutrition`, {
-                forceAnalysis: true,
-                includeDetails: true
-            });
+            // FIXED: Handle both saved and unsaved recipes
+            if (recipe._id) {
+                // Recipe is saved - use existing endpoint
+                console.log('🔄 Analyzing nutrition for saved recipe:', recipe._id);
 
-            const data = await response.json();
-
-            if (data.success) {
-                setLastResult({
-                    success: true,
-                    ...data.analysisResult
+                const response = await apiPost(`/api/recipes/${recipe._id}/analyze-nutrition`, {
+                    forceAnalysis: true,
+                    includeDetails: true
                 });
 
-                // Call parent callback with updated nutrition
-                if (onNutritionUpdate) {
-                    onNutritionUpdate(data.nutrition, data.analysisResult);
+                const data = await response.json();
+
+                if (data.success) {
+                    setLastResult({
+                        success: true,
+                        ...data.analysisResult
+                    });
+
+                    // Call parent callback with updated nutrition
+                    if (onNutritionUpdate) {
+                        onNutritionUpdate(data.nutrition, data.analysisResult);
+                    }
+                } else {
+                    setLastResult({
+                        success: false,
+                        error: data.error || 'Analysis failed'
+                    });
                 }
             } else {
-                setLastResult({
-                    success: false,
-                    error: data.error || 'Analysis failed'
+                // Recipe is unsaved - analyze directly
+                console.log('🔄 Analyzing nutrition for unsaved recipe with', allIngredients.length, 'ingredients');
+
+                // Prepare recipe data for analysis
+                const recipeForAnalysis = {
+                    title: recipe.title || 'Unsaved Recipe',
+                    ingredients: allIngredients, // Use flattened ingredients list
+                    instructions: recipe.isMultiPart && recipe.parts ?
+                        // Flatten instructions from all parts
+                        recipe.parts.reduce((allInstructions, part, partIndex) => {
+                            const partInstructions = (part.instructions || []).map(instruction => {
+                                const instructionText = typeof instruction === 'string' ? instruction :
+                                    (instruction.text || instruction.instruction || '');
+                                return `[${part.name || `Part ${partIndex + 1}`}] ${instructionText}`;
+                            });
+                            return [...allInstructions, ...partInstructions];
+                        }, [])
+                        : recipe.instructions || [],
+                    servings: parseInt(recipe.servings) || 4,
+                    cookTime: recipe.cookTime,
+                    prepTime: recipe.prepTime,
+                    isMultiPart: recipe.isMultiPart || false,
+                    parts: recipe.parts || []
+                };
+
+                const response = await apiPost('/api/recipes/analyze-nutrition-direct', {
+                    recipe: recipeForAnalysis,
+                    includeDetails: true
                 });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    setLastResult({
+                        success: true,
+                        ...data.analysisResult
+                    });
+
+                    // Call parent callback with updated nutrition
+                    if (onNutritionUpdate) {
+                        onNutritionUpdate(data.nutrition, data.analysisResult);
+                    }
+                } else {
+                    setLastResult({
+                        success: false,
+                        error: data.error || 'Analysis failed'
+                    });
+                }
             }
 
         } catch (error) {
@@ -85,7 +140,7 @@ const UpdateNutritionButton = ({
         return ms > 1000 ? `${(ms/1000).toFixed(1)}s` : `${ms}ms`;
     };
 
-    // FIXED: Get ingredient count using the new function
+    // Get ingredient count using the helper function
     const ingredientCount = getAllIngredients(recipe).length;
     const isDisabled = disabled || ingredientCount === 0 || isAnalyzing;
 
@@ -118,7 +173,7 @@ const UpdateNutritionButton = ({
                 )}
             </button>
 
-            {/* FIXED: Ingredient Count Info with multi-part support */}
+            {/* Enhanced Ingredient Count Info with multi-part support */}
             <div className="text-sm text-gray-600 text-center">
                 {recipe && (
                     <>
@@ -134,6 +189,11 @@ const UpdateNutritionButton = ({
                                         </span>
                                     );
                                 })}
+                            </div>
+                        )}
+                        {!recipe._id && (
+                            <div className="text-xs text-blue-600 mt-1">
+                                ✨ Preview mode - recipe not saved yet
                             </div>
                         )}
                     </>
@@ -225,6 +285,12 @@ const UpdateNutritionButton = ({
                                                 <strong>Calculation Method:</strong> {lastResult.metadata.calculationMethod || 'ai_calculated'}
                                             </div>
 
+                                            {recipe.isMultiPart && (
+                                                <div>
+                                                    <strong>Recipe Type:</strong> Multi-part recipe ({recipe.parts?.length || 0} parts)
+                                                </div>
+                                            )}
+
                                             {lastResult.metadata.aiAnalysis?.warnings?.length > 0 && (
                                                 <div>
                                                     <strong>Warnings:</strong>
@@ -256,6 +322,8 @@ const UpdateNutritionButton = ({
                         <li>Uses USDA + OpenFoodFacts databases</li>
                         <li>Applies cooking method adjustments</li>
                         <li>Calculates per-serving nutrition</li>
+                        <li>Supports multi-part recipes</li>
+                        <li>Works before saving recipe</li>
                         <li>Requires Gold+ subscription</li>
                     </ul>
                 </div>
