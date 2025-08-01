@@ -1276,9 +1276,17 @@ export default function EnhancedRecipeForm({
         }));
     };
 
-// FIXED handleSubmit function - Replace around line 1275 in EnhancedRecipeForm.js
+// CRITICAL FIX: Add this to your frontend EnhancedRecipeForm.js handleSubmit function
+// Add a submission lock to prevent double clicks
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // CRITICAL FIX: Prevent double submission
+        if (isSubmitting) {
+            console.log('🚫 Submission already in progress, ignoring duplicate');
+            return;
+        }
+
         setIsSubmitting(true);
 
         try {
@@ -1287,99 +1295,7 @@ export default function EnhancedRecipeForm({
                 .map(tag => tag.trim())
                 .filter(tag => tag.length > 0);
 
-            // FIXED: Prepare ingredients and instructions for both multi-part and single-part recipes
-            let finalIngredients = [];
-            let finalInstructions = [];
-
-            if (isMultiPart && recipe.parts && recipe.parts.length > 0) {
-                // For multi-part recipes, collect all ingredients from all parts
-                recipe.parts.forEach(part => {
-                    if (part.ingredients) {
-                        finalIngredients.push(...part.ingredients.filter(ing => ing.name && ing.name.trim()));
-                    }
-                });
-
-                // Collect all instructions from all parts (with part context)
-                recipe.parts.forEach((part, partIndex) => {
-                    if (part.instructions) {
-                        const partInstructions = part.instructions
-                            .filter(inst => getInstructionText(inst).trim())
-                            .map(inst => {
-                                const instructionText = getInstructionText(inst);
-                                // Add part context if part has a name
-                                const partPrefix = part.name ? `[${part.name}] ` : `[Part ${partIndex + 1}] `;
-                                return partPrefix + instructionText;
-                            });
-                        finalInstructions.push(...partInstructions);
-                    }
-                });
-            } else if (recipe.parts && recipe.parts[0]) {
-                // For single-part recipes stored in parts format
-                finalIngredients = recipe.parts[0].ingredients.filter(ing => ing.name && ing.name.trim());
-                finalInstructions = recipe.parts[0].instructions
-                    .filter(inst => getInstructionText(inst).trim())
-                    .map(inst => getInstructionText(inst));
-            } else {
-                // Fallback to legacy ingredients/instructions arrays
-                finalIngredients = recipe.ingredients?.filter(ing => ing.name && ing.name.trim()) || [];
-                finalInstructions = recipe.instructions?.filter(inst => getInstructionText(inst).trim()).map(inst => getInstructionText(inst)) || [];
-            }
-
-            // FIXED: Ensure we have ingredients (required by API)
-            if (finalIngredients.length === 0) {
-                alert('Please add at least one ingredient to your recipe.');
-                setIsSubmitting(false);
-                return;
-            }
-
-            // FIXED: Prepare parts data properly for both multi-part and single-part
-            let finalParts = [];
-            if (isMultiPart && recipe.parts && recipe.parts.length > 0) {
-                finalParts = recipe.parts.map(part => ({
-                    ...part,
-                    ingredients: part.ingredients.filter(ing => ing.name && ing.name.trim()),
-                    instructions: part.instructions.filter(inst =>
-                        getInstructionText(inst).trim()
-                    ).map(inst => getInstructionText(inst))
-                }));
-            }
-
-            const finalRecipe = {
-                ...recipe,
-                tags: finalTags,
-
-                // CRITICAL FIX: Always include these fields (even if false/empty)
-                isMultiPart: isMultiPart, // Always include this field
-                parts: finalParts, // Always include this field (empty array for single-part)
-
-                // FIXED: Always include ingredients array (required by API)
-                ingredients: finalIngredients,
-                instructions: finalInstructions,
-
-                // Handle video metadata properly
-                ...(recipe.videoMetadata && {
-                    videoMetadata: recipe.videoMetadata
-                }),
-
-                // Add import source info
-                ...(importSource === 'video' && {
-                    importedFrom: recipe._formMetadata?.importedFrom || 'video import'
-                }),
-
-                // Include extracted image data if present
-                ...(recipe.extractedImage && {
-                    extractedImage: recipe.extractedImage
-                }),
-
-                _formMetadata: undefined
-            };
-
-            // Clean up undefined values (but keep false values!)
-            Object.keys(finalRecipe).forEach(key => {
-                if (finalRecipe[key] === undefined) {
-                    delete finalRecipe[key];
-                }
-            });
+            // ... rest of your existing code ...
 
             console.log('🚀 Submitting recipe:', {
                 title: finalRecipe.title,
@@ -1388,10 +1304,11 @@ export default function EnhancedRecipeForm({
                 instructionCount: finalRecipe.instructions.length,
                 partsCount: finalRecipe.parts?.length || 0,
                 hasImage: !!recipeImage,
-                hasExtractedImage: !!finalRecipe.extractedImage
+                hasExtractedImage: !!finalRecipe.extractedImage,
+                submissionId: Date.now() // Add unique ID for tracking
             });
 
-            // CRITICAL FIX: Always use FormData for consistency with unified photo system
+            // CRITICAL FIX: Always use FormData for consistency
             console.log('📸 Submitting with FormData (unified photo system)');
             const formData = new FormData();
             formData.append('recipeData', JSON.stringify(finalRecipe));
@@ -1402,10 +1319,14 @@ export default function EnhancedRecipeForm({
                 console.log('📸 Added image to FormData:', recipeImage.name, recipeImage.size);
             }
 
+            // CRITICAL FIX: Add submission tracking header
             const response = await fetch('/api/recipes', {
                 method: 'POST',
                 body: formData,
-                credentials: 'include'
+                credentials: 'include',
+                headers: {
+                    'X-Submission-ID': Date.now().toString() // Unique submission ID
+                }
             });
 
             if (!response.ok) {
@@ -1414,7 +1335,13 @@ export default function EnhancedRecipeForm({
             }
 
             const result = await response.json();
-            console.log('✅ Recipe submission successful:', result.message);
+
+            // CRITICAL FIX: Check for duplicate response
+            if (result.isDuplicate) {
+                console.log('✅ Duplicate prevented, using existing recipe:', result.recipe._id);
+            } else {
+                console.log('✅ Recipe submission successful:', result.message);
+            }
 
             // Call the onSubmit callback with the result
             await onSubmit(result.recipe);
@@ -1423,6 +1350,7 @@ export default function EnhancedRecipeForm({
             console.error('Error submitting recipe:', error);
             alert(`Failed to save recipe: ${error.message}`);
         } finally {
+            // CRITICAL FIX: Always reset submission state
             setIsSubmitting(false);
         }
     };

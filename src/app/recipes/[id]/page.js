@@ -1279,6 +1279,7 @@ export default function RecipeDetailPage() {
     const [originalRecipe, setOriginalRecipe] = useState(null);
     const [isFetching, setIsFetching] = useState(false);
     const [viewIncremented, setViewIncremented] = useState(false);
+    const [analyzingNutrition, setAnalyzingNutrition] = useState(false);
 
     // Keep all existing useEffects and functions unchanged
     useEffect(() => {
@@ -1341,16 +1342,36 @@ export default function RecipeDetailPage() {
         setRefreshPhotos(prev => prev + 1);
     };
 
-    // FIXED: Remove syncRecipeImageMetadata useEffect - handled by hero image component
+    const handleAnalyzeNutrition = async () => {
+        try {
+            setAnalyzingNutrition(true);
 
-    // FIXED: Remove the useEffect that was causing infinite loops
-    // useEffect(() => {
-    //     if (recipe && !recipe.imageMetadata?.lastUpdated) {
-    //         syncRecipeImageMetadata();
-    //     }
-    // }, [recipe?._id]);
+            const response = await fetch(`/api/recipes/analyze-nutrition`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    recipeId: recipe._id
+                }),
+                credentials: 'include'
+            });
 
-    // ... keep all other existing functions unchanged (fetchMealPlans, addToMealPlan, helper functions, etc.)
+            if (response.ok) {
+                const result = await response.json();
+                // Refresh the recipe data
+                window.location.reload();
+            } else {
+                const error = await response.json();
+                alert(`Nutrition analysis failed: ${error.message}`);
+            }
+        } catch (error) {
+            console.error('Nutrition analysis error:', error);
+            alert('Failed to analyze nutrition');
+        } finally {
+            setAnalyzingNutrition(false);
+        }
+    };
 
     const fetchMealPlans = async () => {
         setLoadingMealPlans(true);
@@ -1745,6 +1766,16 @@ export default function RecipeDetailPage() {
                         >
                             Print
                         </TouchEnhancedButton>
+
+                        {(!recipe.nutrition || Object.keys(recipe.nutrition).length === 0) && (
+                            <TouchEnhancedButton
+                                onClick={handleAnalyzeNutrition}
+                                disabled={analyzingNutrition}
+                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
+                            >
+                                {analyzingNutrition ? '🤖 Analyzing...' : '🤖 Analyze Nutrition'}
+                            </TouchEnhancedButton>
+                        )}
                     </div>
 
                     {/* Recipe Meta */}

@@ -233,7 +233,7 @@ export async function GET(request) {
     }
 }
 
-// Complete POST function - Replace the entire POST function in /src/app/api/recipes/route.js
+// Complete POST function - Replace your entire POST function with this:
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -243,7 +243,9 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        console.log('POST /api/recipes - Session found:', session.user.email, 'source:', session.source);
+        // CRITICAL FIX: Get submission ID from headers
+        const submissionId = request.headers.get('x-submission-id');
+        console.log('POST /api/recipes - Session found:', session.user.email, 'source:', session.source, 'submissionId:', submissionId);
 
         // FIXED: Better form data handling for multi-part recipes
         let recipeData;
@@ -337,6 +339,46 @@ export async function POST(request) {
 
         await connectDB();
 
+        // CRITICAL FIX: Enhanced duplicate prevention
+        const recentTimeThreshold = new Date(Date.now() - 30000); // 30 seconds ago
+
+        // Check for recent duplicate by title AND user
+        const duplicateQuery = {
+            createdBy: session.user.id,
+            title: recipeData.title,
+            createdAt: { $gte: recentTimeThreshold }
+        };
+
+        const existingRecipe = await Recipe.findOne(duplicateQuery);
+
+        if (existingRecipe) {
+            console.log('🚫 DUPLICATE SUBMISSION PREVENTED:', {
+                existingId: existingRecipe._id,
+                title: existingRecipe.title,
+                createdAt: existingRecipe.createdAt,
+                isMultiPart: existingRecipe.isMultiPart,
+                timeDiff: Date.now() - existingRecipe.createdAt.getTime()
+            });
+
+            // Return the existing recipe instead of creating a new one
+            await existingRecipe.populate('createdBy', 'name email');
+            await existingRecipe.populate('lastEditedBy', 'name email');
+
+            return NextResponse.json({
+                success: true,
+                recipe: {
+                    ...existingRecipe.toObject(),
+                    hasImage: !!(existingRecipe.primaryPhoto || existingRecipe.extractedImage || existingRecipe.uploadedImage),
+                    imageType: existingRecipe.extractedImage ? 'extracted' : (existingRecipe.uploadedImage ? 'uploaded' : null),
+                    imageSource: existingRecipe.extractedImage?.source || 'upload',
+                    primaryPhoto: existingRecipe.primaryPhoto
+                },
+                message: 'Recipe already exists (duplicate prevented)',
+                isDuplicate: true,
+                originalId: existingRecipe._id
+            });
+        }
+
         // Get user and check subscription limits
         const user = await User.findById(session.user.id);
         if (!user) {
@@ -421,12 +463,12 @@ export async function POST(request) {
             category: category || 'entrees',
             createdBy: session.user.id,
             lastEditedBy: session.user.id,
-            importedFrom: importedFrom || null, // ✅ RESTORED: Import tracking
+            importedFrom: importedFrom || null,
             createdAt: new Date(),
             updatedAt: new Date(),
             isPublic: await checkPublicRecipePermission(session.user.id, isPublic),
 
-            // ✅ RESTORED: Handle extracted images from video processing
+            // Handle extracted images from video processing
             ...(extractedImage && {
                 extractedImage: {
                     data: extractedImage.data,
@@ -439,15 +481,15 @@ export async function POST(request) {
                 }
             }),
 
-            // ✅ RESTORED: Add video metadata if present
+            // Add video metadata if present
             ...(videoMetadata && {
                 videoMetadata: {
                     ...videoMetadata,
-                    hasExtractedImage: !!(extractedImage) // NEW: Flag for image presence
+                    hasExtractedImage: !!(extractedImage)
                 }
             }),
 
-            // ✅ RESTORED: Handle manual nutrition data
+            // Handle manual nutrition data
             ...(nutrition && Object.keys(nutrition).length > 0 && {
                 nutrition: nutrition,
                 nutritionManuallySet: true,
@@ -455,23 +497,54 @@ export async function POST(request) {
             })
         };
 
-        // ADD MORE DETAILED LOGGING
-        console.log('🔍 DEBUG: Final newRecipeData structure:', {
-            title: newRecipeData.title,
-            isMultiPart: newRecipeData.isMultiPart,
-            partsCount: newRecipeData.parts?.length || 0,
-            parts: newRecipeData.parts?.map(part => ({
-                name: part.name,
-                ingredientCount: part.ingredients?.length || 0,
-                instructionCount: part.instructions?.length || 0
-            })),
-            flatIngredientCount: newRecipeData.ingredients?.length || 0,
-            flatInstructionCount: newRecipeData.instructions?.length || 0,
-            hasExtractedImage: !!newRecipeData.extractedImage,
-            hasVideoMetadata: !!newRecipeData.videoMetadata,
-            hasNutrition: !!newRecipeData.nutrition,
-            importedFrom: newRecipeData.importedFrom
-        });
+        // ENHANCED: Validate multi-part data before creating recipe
+        if (newRecipeData.isMultiPart) {
+            if (!newRecipeData.parts || newRecipeData.parts.length === 0) {
+                console.error('❌ Multi-part recipe validation failed: No parts provided');
+                return NextResponse.json(
+                    { error: 'Multi-part recipe must have at least one part' },
+                    { status: 400 }
+                );
+            }
+
+            // Validate each part
+            for (let i = 0; i < newRecipeData.parts.length; i++) {
+                const part = newRecipeData.parts[i];
+                console.log(`🔍 Validating part ${i + 1}:`, {
+                    name: part.name,
+                    hasIngredients: !!(part.ingredients && part.ingredients.length > 0),
+                    hasInstructions: !!(part.instructions && part.instructions.length > 0),
+                    ingredientCount: part.ingredients?.length || 0,
+                    instructionCount: part.instructions?.length || 0
+                });
+
+                if (!part.name || part.name.trim() === '') {
+                    console.error(`❌ Part ${i + 1} validation failed: Missing name`);
+                    return NextResponse.json(
+                        { error: `Part ${i + 1} must have a name` },
+                        { status: 400 }
+                    );
+                }
+
+                if (!part.ingredients || part.ingredients.length === 0) {
+                    console.error(`❌ Part ${i + 1} validation failed: No ingredients`);
+                    return NextResponse.json(
+                        { error: `Part ${i + 1} (${part.name}) must have at least one ingredient` },
+                        { status: 400 }
+                    );
+                }
+
+                if (!part.instructions || part.instructions.length === 0) {
+                    console.error(`❌ Part ${i + 1} validation failed: No instructions`);
+                    return NextResponse.json(
+                        { error: `Part ${i + 1} (${part.name}) must have at least one instruction` },
+                        { status: 400 }
+                    );
+                }
+            }
+
+            console.log('✅ Multi-part recipe validation passed');
+        }
 
         console.log('Creating recipe with data:', {
             title: newRecipeData.title,
@@ -481,19 +554,69 @@ export async function POST(request) {
             hasExtractedImage: !!(newRecipeData.extractedImage),
             skipAIAnalysis,
             isMultiPart: newRecipeData.isMultiPart,
-            partsCount: newRecipeData.parts?.length || 0
+            partsCount: newRecipeData.parts?.length || 0,
+            partsData: newRecipeData.parts?.map(part => ({
+                name: part.name,
+                ingredientCount: part.ingredients?.length || 0,
+                instructionCount: part.instructions?.length || 0
+            }))
         });
 
-        // Create the recipe first (without image)
-        const recipe = new Recipe(newRecipeData);
-        await recipe.save();
-        console.log('✅ Recipe created:', recipe._id);
+        // Create the recipe with enhanced error handling
+        let recipe;
+        try {
+            recipe = new Recipe(newRecipeData);
 
-        // FIXED: Handle image upload using the unified photo system
+            console.log('🔍 Recipe object before save:', {
+                title: recipe.title,
+                isMultiPart: recipe.isMultiPart,
+                partsLength: recipe.parts?.length || 0,
+                ingredientsLength: recipe.ingredients?.length || 0,
+                instructionsLength: recipe.instructions?.length || 0
+            });
+
+            await recipe.save();
+            console.log('✅ Recipe created successfully:', recipe._id);
+
+            // Verify the saved recipe
+            const savedRecipe = await Recipe.findById(recipe._id);
+            console.log('🔍 Verification - Recipe after save:', {
+                id: savedRecipe._id,
+                isMultiPart: savedRecipe.isMultiPart,
+                partsCount: savedRecipe.parts?.length || 0,
+                parts: savedRecipe.parts?.map(part => ({
+                    name: part.name,
+                    ingredientCount: part.ingredients?.length || 0,
+                    instructionCount: part.instructions?.length || 0
+                }))
+            });
+
+        } catch (saveError) {
+            console.error('❌ Recipe save error:', saveError);
+            console.error('❌ Recipe save error details:', {
+                name: saveError.name,
+                message: saveError.message,
+                errors: saveError.errors
+            });
+
+            return NextResponse.json(
+                {
+                    error: 'Failed to save recipe',
+                    details: saveError.message,
+                    validationErrors: saveError.errors
+                },
+                { status: 400 }
+            );
+        }
+
+        // Handle image upload using the unified photo system
         let primaryPhotoId = null;
         if (imageFile && imageFile.size > 0) {
             try {
                 console.log('📸 Processing uploaded recipe image using unified photo system...');
+
+                // Import RecipePhoto from your models
+                const { RecipePhoto } = await import('@/lib/models');
 
                 // Validate file
                 if (!imageFile.type.startsWith('image/')) {
@@ -517,8 +640,8 @@ export async function POST(request) {
                     originalName: imageFile.name,
                     mimeType: imageFile.type,
                     size: imageFile.size,
-                    data: photoBuffer, // Store as binary Buffer
-                    isPrimary: true, // First photo is always primary
+                    data: photoBuffer,
+                    isPrimary: true,
                     source: 'user_upload',
                     uploadedBy: session.user.id
                 });
@@ -541,11 +664,12 @@ export async function POST(request) {
 
             } catch (uploadError) {
                 console.warn('⚠️ Image processing failed:', uploadError.message);
+                console.error('Full upload error:', uploadError);
                 // Continue without image rather than failing the entire recipe
             }
         }
 
-        // ✅ FIXED: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
+        // Automatic AI nutrition analysis (if not skipped and no manual nutrition)
         let nutritionAnalysis = null;
         console.log('🔍 AI Analysis Check:', {
             skipAIAnalysis,
@@ -554,7 +678,6 @@ export async function POST(request) {
             shouldRun: !skipAIAnalysis && !nutrition && newRecipeData.ingredients.length > 0
         });
 
-        // CRITICAL FIX: Use the processed ingredients, not the original ones
         if (!skipAIAnalysis && !nutrition && newRecipeData.ingredients.length > 0) {
             console.log('🤖 About to start AI nutrition analysis...');
             nutritionAnalysis = await analyzeRecipeNutritionAI(recipe, session.user.id);
@@ -568,7 +691,6 @@ export async function POST(request) {
                 nutritionCalculatedAt: new Date(),
                 nutritionCoverage: nutritionAnalysis.metadata.coverage,
                 nutritionManuallySet: false,
-                // Store AI analysis metadata
                 'aiAnalysis.nutritionGenerated': true,
                 'aiAnalysis.nutritionMetadata': nutritionAnalysis.metadata
             });
@@ -587,12 +709,11 @@ export async function POST(request) {
         user.usageTracking.lastUpdated = new Date();
         await user.save();
 
-        // FIXED: Populate user info for response
+        // Populate user info for response
         await recipe.populate('createdBy', 'name email');
         await recipe.populate('lastEditedBy', 'name email');
-        // Don't populate photos for response to avoid binary data
 
-        // ✅ Log results
+        // Log results
         let imageInfo = 'no image';
         if (primaryPhotoId) {
             imageInfo = 'uploaded image via unified photo system';
@@ -614,13 +735,12 @@ export async function POST(request) {
             success: true,
             recipe: {
                 ...recipe.toObject(),
-                // Include image information in response
                 hasImage: !!(primaryPhotoId || recipe.extractedImage),
                 imageType: primaryPhotoId ? 'uploaded' : (recipe.extractedImage ? 'extracted' : null),
                 imageSource: primaryPhotoId ? 'user_upload' : (recipe.extractedImage?.source || null),
                 primaryPhoto: primaryPhotoId
             },
-            nutritionAnalysis, // Include AI analysis results
+            nutritionAnalysis,
             message: 'Recipe added successfully' +
                 (nutritionAnalysis?.success ? ' with AI nutrition analysis' : '') +
                 (imageInfo !== 'no image' ? ` and ${imageInfo}` : ''),
