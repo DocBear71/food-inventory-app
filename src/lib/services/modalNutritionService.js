@@ -86,8 +86,23 @@ export class ModalNutritionService {
 
             const processingTime = Date.now() - startTime;
 
-            // FIXED: Round nutrition values to 2 decimal places
-            const roundedNutrition = this.roundNutritionValues(modalResult.nutrition);
+            // FIXED: Handle different response formats and round values
+            let nutritionData = modalResult.nutrition;
+
+            // Handle case where nutrition is in nutrition_per_serving format
+            if (!nutritionData && modalResult.nutrition_per_serving) {
+                console.log('🔄 Converting nutrition_per_serving format to standard format');
+                nutritionData = this.convertLegacyNutritionFormat(modalResult.nutrition_per_serving);
+            }
+
+            // If still no structured nutrition data, try to extract from root
+            if (!nutritionData || typeof nutritionData !== 'object') {
+                console.log('🔄 Extracting nutrition from Modal response root');
+                nutritionData = this.extractNutritionFromResponse(modalResult);
+            }
+
+            // Round nutrition values to 2 decimal places
+            const roundedNutrition = this.roundNutritionValues(nutritionData);
 
             console.log(`✅ Modal nutrition analysis completed in ${processingTime}ms`);
             console.log(`📊 Coverage: ${Math.round((modalResult.coverage || 0) * 100)}%`);
@@ -179,8 +194,111 @@ export class ModalNutritionService {
     }
 
     /**
-     * Get empty nutrition profile
+     * Convert legacy nutrition_per_serving format to standard format
      */
+    convertLegacyNutritionFormat(nutritionPerServing) {
+        const mapping = {
+            'calories': 'calories',
+            'total_fat': 'fat',
+            'saturated_fat': 'saturatedFat',
+            'trans_fat': 'transFat',
+            'cholesterol': 'cholesterol',
+            'sodium': 'sodium',
+            'total_carbohydrates': 'carbs',
+            'dietary_fiber': 'fiber',
+            'sugars': 'sugars',
+            'protein': 'protein',
+            'vitamin_a': 'vitaminA',
+            'vitamin_c': 'vitaminC',
+            'calcium': 'calcium',
+            'iron': 'iron'
+        };
+
+        const converted = {};
+
+        Object.keys(nutritionPerServing).forEach(key => {
+            const standardKey = mapping[key];
+            if (standardKey) {
+                const value = nutritionPerServing[key];
+
+                // Parse numeric values from strings like "7g", "200mg", "30%"
+                let numericValue = 0;
+                let unit = 'g';
+
+                if (typeof value === 'string') {
+                    const match = value.match(/(\d+(?:\.\d+)?)/);
+                    numericValue = match ? parseFloat(match[1]) : 0;
+
+                    // Determine unit
+                    if (value.includes('mg')) unit = 'mg';
+                    else if (value.includes('µg')) unit = 'µg';
+                    else if (value.includes('kcal') || key === 'calories') unit = 'kcal';
+                    else if (value.includes('%')) {
+                        // Convert percentage to actual value (this is approximate)
+                        unit = standardKey.includes('vitamin') ? 'mg' : 'mg';
+                    }
+                } else if (typeof value === 'number') {
+                    numericValue = value;
+                    unit = key === 'calories' ? 'kcal' : 'g';
+                }
+
+                converted[standardKey] = {
+                    value: numericValue,
+                    unit: unit,
+                    name: this.getNutrientName(standardKey)
+                };
+            }
+        });
+
+        return converted;
+    }
+
+    /**
+     * Extract nutrition data from response if in unexpected format
+     */
+    extractNutritionFromResponse(response) {
+        // Try to find nutrition-like data in the response
+        const nutritionKeys = ['calories', 'protein', 'fat', 'carbs', 'fiber', 'sodium'];
+        const extracted = {};
+
+        nutritionKeys.forEach(key => {
+            if (response[key] && typeof response[key] === 'object') {
+                extracted[key] = response[key];
+            }
+        });
+
+        // If we found some nutrition data, return it
+        if (Object.keys(extracted).length > 0) {
+            return extracted;
+        }
+
+        // Otherwise return empty nutrition profile
+        return this.getEmptyNutritionProfile();
+    }
+
+    /**
+     * Get human-readable nutrient names
+     */
+    getNutrientName(key) {
+        const names = {
+            calories: 'Energy',
+            protein: 'Protein',
+            fat: 'Total Fat',
+            saturatedFat: 'Saturated Fat',
+            transFat: 'Trans Fat',
+            cholesterol: 'Cholesterol',
+            carbs: 'Total Carbohydrate',
+            fiber: 'Dietary Fiber',
+            sugars: 'Total Sugars',
+            sodium: 'Sodium',
+            vitaminA: 'Vitamin A',
+            vitaminC: 'Vitamin C',
+            calcium: 'Calcium',
+            iron: 'Iron'
+        };
+
+        return names[key] || key;
+    }
     getEmptyNutritionProfile() {
         return {
             // Macronutrients

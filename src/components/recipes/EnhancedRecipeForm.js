@@ -486,6 +486,81 @@ export default function EnhancedRecipeForm({
         };
     };
 
+    const convertNutritionFormat = (nutritionPerServing) => {
+        const mapping = {
+            'calories': 'calories',
+            'total_fat': 'fat',
+            'saturated_fat': 'saturatedFat',
+            'trans_fat': 'transFat',
+            'cholesterol': 'cholesterol',
+            'sodium': 'sodium',
+            'total_carbohydrates': 'carbs',
+            'dietary_fiber': 'fiber',
+            'sugars': 'sugars',
+            'protein': 'protein',
+            'vitamin_a': 'vitaminA',
+            'vitamin_c': 'vitaminC',
+            'calcium': 'calcium',
+            'iron': 'iron'
+        };
+
+        const converted = {};
+
+        Object.keys(nutritionPerServing).forEach(key => {
+            const standardKey = mapping[key];
+            if (standardKey) {
+                const value = nutritionPerServing[key];
+
+                // Parse numeric values from strings like "7g", "200mg", "30%"
+                let numericValue = 0;
+                let unit = 'g';
+
+                if (typeof value === 'string') {
+                    const match = value.match(/(\d+(?:\.\d+)?)/);
+                    numericValue = match ? parseFloat(match[1]) : 0;
+
+                    // Determine unit
+                    if (value.includes('mg')) unit = 'mg';
+                    else if (value.includes('µg')) unit = 'µg';
+                    else if (value.includes('kcal') || key === 'calories') unit = 'kcal';
+                    else if (key === 'calories') unit = 'kcal';
+                } else if (typeof value === 'number') {
+                    numericValue = value;
+                    unit = key === 'calories' ? 'kcal' : 'g';
+                }
+
+                converted[standardKey] = {
+                    value: Math.round(numericValue * 100) / 100, // Round to 2 decimal places
+                    unit: unit,
+                    name: getNutrientName(standardKey)
+                };
+            }
+        });
+
+        return converted;
+    };
+
+    const getNutrientName = (key) => {
+        const names = {
+            calories: 'Energy',
+            protein: 'Protein',
+            fat: 'Total Fat',
+            saturatedFat: 'Saturated Fat',
+            transFat: 'Trans Fat',
+            cholesterol: 'Cholesterol',
+            carbs: 'Total Carbohydrate',
+            fiber: 'Dietary Fiber',
+            sugars: 'Total Sugars',
+            sodium: 'Sodium',
+            vitaminA: 'Vitamin A',
+            vitaminC: 'Vitamin C',
+            calcium: 'Calcium',
+            iron: 'Iron'
+        };
+
+        return names[key] || key;
+    };
+
     // Handle parsed recipe data
     const handleParsedRecipe = (parsedData) => {
         if (parsedData.isMultiPart && parsedData.parts && parsedData.parts.length > 0) {
@@ -1291,8 +1366,6 @@ export default function EnhancedRecipeForm({
         }));
     };
 
-// CRITICAL FIX: Add this to your frontend EnhancedRecipeForm.js handleSubmit function
-// Add a submission lock to prevent double clicks
     const handleSubmit = async (e) => {
         e.preventDefault();
 
@@ -1310,7 +1383,46 @@ export default function EnhancedRecipeForm({
                 .map(tag => tag.trim())
                 .filter(tag => tag.length > 0);
 
-            // ... rest of your existing code ...
+            // FIXED: Properly define finalRecipe variable
+            const finalRecipe = {
+                title: recipe.title,
+                description: recipe.description,
+                isMultiPart: recipe.isMultiPart,
+                parts: recipe.parts || [],
+                // For backward compatibility and search, populate flat arrays
+                ingredients: recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts) && recipe.parts.length > 0 ?
+                    // Flatten ingredients from all parts
+                    recipe.parts.reduce((allIngredients, part) => {
+                        return [...allIngredients, ...(part.ingredients || [])];
+                    }, [])
+                    : recipe.ingredients || [],
+                instructions: recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts) && recipe.parts.length > 0 ?
+                    // Flatten instructions from all parts with part labels
+                    recipe.parts.reduce((allInstructions, part, partIndex) => {
+                        const partInstructions = (part.instructions || []).map(instruction => {
+                            const instructionText = typeof instruction === 'string' ? instruction :
+                                (instruction.text || instruction.instruction || '');
+                            return {
+                                step: allInstructions.length + 1,
+                                instruction: `[${part.name || `Part ${partIndex + 1}`}] ${instructionText}`
+                            };
+                        });
+                        return [...allInstructions, ...partInstructions];
+                    }, [])
+                    : recipe.instructions || [],
+                cookTime: recipe.cookTime,
+                prepTime: recipe.prepTime,
+                servings: recipe.servings,
+                difficulty: recipe.difficulty,
+                tags: finalTags,
+                source: recipe.source,
+                category: recipe.category,
+                isPublic: recipe.isPublic,
+                nutrition: recipe.nutrition || {},
+                // Include any video metadata or extracted images
+                ...(recipe.videoMetadata && { videoMetadata: recipe.videoMetadata }),
+                ...(recipe.extractedImage && { extractedImage: recipe.extractedImage })
+            };
 
             console.log('🚀 Submitting recipe:', {
                 title: finalRecipe.title,
@@ -1323,7 +1435,7 @@ export default function EnhancedRecipeForm({
                 submissionId: Date.now() // Add unique ID for tracking
             });
 
-            // CRITICAL FIX: Always use FormData for consistency
+            // Use FormData for consistency
             console.log('📸 Submitting with FormData (unified photo system)');
             const formData = new FormData();
             formData.append('recipeData', JSON.stringify(finalRecipe));
@@ -1334,7 +1446,6 @@ export default function EnhancedRecipeForm({
                 console.log('📸 Added image to FormData:', recipeImage.name, recipeImage.size);
             }
 
-            // CRITICAL FIX: Add submission tracking header
             const response = await fetch('/api/recipes', {
                 method: 'POST',
                 body: formData,
@@ -1351,7 +1462,7 @@ export default function EnhancedRecipeForm({
 
             const result = await response.json();
 
-            // CRITICAL FIX: Check for duplicate response
+            // Check for duplicate response
             if (result.isDuplicate) {
                 console.log('✅ Duplicate prevented, using existing recipe:', result.recipe._id);
             } else {
@@ -1365,7 +1476,7 @@ export default function EnhancedRecipeForm({
             console.error('Error submitting recipe:', error);
             alert(`Failed to save recipe: ${error.message}`);
         } finally {
-            // CRITICAL FIX: Always reset submission state
+            // Always reset submission state
             setIsSubmitting(false);
         }
     };
@@ -2455,16 +2566,35 @@ export default function EnhancedRecipeForm({
                                 console.log('🔄 Nutrition updated:', newNutrition);
                                 console.log('📊 Analysis result:', analysisResult);
 
+                                // FIXED: Handle the nutrition data properly
+                                let processedNutrition = newNutrition;
+
+                                // If newNutrition is not in the expected format, try to process it
+                                if (newNutrition && !newNutrition.calories && newNutrition.nutrition_per_serving) {
+                                    console.log('🔄 Converting nutrition_per_serving format');
+                                    processedNutrition = convertNutritionFormat(newNutrition.nutrition_per_serving);
+                                } else if (newNutrition && !newNutrition.calories) {
+                                    console.log('🔄 Using raw nutrition data');
+                                    processedNutrition = newNutrition;
+                                }
+
                                 setRecipe(prev => ({
                                     ...prev,
-                                    nutrition: newNutrition,
+                                    nutrition: processedNutrition,
                                     nutritionCalculatedAt: new Date(),
-                                    nutritionCoverage: analysisResult?.coverage,
-                                    nutritionManuallySet: false
+                                    nutritionCoverage: analysisResult?.coverage || 0.9,
+                                    nutritionManuallySet: false,
+                                    // Add analysis metadata
+                                    aiAnalysis: {
+                                        ...analysisResult?.aiAnalysis,
+                                        nutritionGenerated: true,
+                                        nutritionMetadata: analysisResult
+                                    }
                                 }));
                             }}
                             disabled={getAllIngredientsFromRecipe(recipe).length === 0} // Fixed disabled condition
                         />
+
 
                         {!isImportMode && (
                             <div className="mt-6 pt-6 border-t">

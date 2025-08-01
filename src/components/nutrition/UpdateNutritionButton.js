@@ -250,9 +250,14 @@ const UpdateNutritionButton = ({
                                         )}
                                     </div>
 
-                                    {/* Toggle Details */}
+                                    {/* FIXED: Toggle Details button with type="button" to prevent form submission */}
                                     <button
-                                        onClick={() => setShowDetails(!showDetails)}
+                                        type="button"
+                                        onClick={(e) => {
+                                            e.preventDefault();
+                                            e.stopPropagation();
+                                            setShowDetails(!showDetails);
+                                        }}
                                         className="text-sm text-blue-600 hover:text-blue-700 underline"
                                     >
                                         {showDetails ? 'Hide Details' : 'Show Details'}
