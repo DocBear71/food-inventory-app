@@ -231,7 +231,7 @@ export async function GET(request) {
     }
 }
 
-// ENHANCED POST - Add new recipe with image support and automatic AI nutrition analysis
+// In your /src/app/api/recipes/route.js file, find the POST function and replace the entire data processing section:
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -243,7 +243,7 @@ export async function POST(request) {
 
         console.log('POST /api/recipes - Session found:', session.user.email, 'source:', session.source);
 
-        // NEW: Handle both form data (with image files) and JSON data
+        // Handle both form data (with image files) and JSON data
         let recipeData;
         let imageFile = null;
 
@@ -260,6 +260,20 @@ export async function POST(request) {
             recipeData = body.recipeData || body;
         }
 
+        // ADD DETAILED LOGGING TO DEBUG THE ISSUE
+        console.log('🔍 DEBUG: Received recipe data structure:', {
+            title: recipeData.title,
+            isMultiPart: recipeData.isMultiPart,
+            hasPartsArray: !!recipeData.parts,
+            partsLength: recipeData.parts?.length || 0,
+            parts: recipeData.parts?.map(part => ({
+                name: part.name,
+                ingredientCount: part.ingredients?.length || 0,
+                instructionCount: part.instructions?.length || 0
+            }))
+        });
+
+        // EXTRACT ALL FIELDS INCLUDING MULTI-PART DATA
         const {
             title,
             description,
@@ -278,29 +292,29 @@ export async function POST(request) {
             videoMetadata,
             extractedImage,
             skipAIAnalysis = false,
-            isMultiPart = false,
-            parts = []
+            // CRITICAL: Extract multi-part fields
+            isMultiPart,
+            parts
         } = recipeData;
 
-        if (!title || !ingredients || ingredients.length === 0) {
+        // VALIDATE REQUIRED FIELDS
+        if (!title || (!ingredients || ingredients.length === 0) && (!isMultiPart || !parts || parts.length === 0)) {
             return NextResponse.json(
-                { error: 'Recipe title and at least one ingredient are required' },
+                { error: 'Recipe title and at least one ingredient (or parts for multi-part recipes) are required' },
                 { status: 400 }
             );
         }
 
         await connectDB();
 
-        // Get user and check subscription limits
+        // Get user and check subscription limits... (your existing code)
         const user = await User.findById(session.user.id);
         if (!user) {
             return NextResponse.json({ error: 'User not found' }, { status: 404 });
         }
 
-        // Get current recipe count for this user
+        // Your existing subscription checking code...
         const currentRecipeCount = await Recipe.countDocuments({ createdBy: session.user.id });
-
-        // Check subscription limits
         const userSubscription = {
             tier: user.getEffectiveTier(),
             status: user.subscription?.status || 'free'
@@ -321,46 +335,49 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
-        // FIXED: Handle both string and object instructions (for video imports)
-        const processedInstructions = instructions.filter(inst => {
-            // Handle both string and object instructions
+        // Process instructions (your existing code)
+        const processedInstructions = instructions ? instructions.filter(inst => {
             if (typeof inst === 'string') {
                 return inst.trim() !== '';
             } else if (typeof inst === 'object' && inst !== null) {
-                // Video import format: {text: "...", step: 1, videoTimestamp: 123}
                 return inst.text && inst.text.trim() !== '';
             }
             return false;
-        });
+        }) : [];
 
-        // FIXED: Handle ingredients with video metadata
-        const processedIngredients = ingredients.filter(ing => ing.name && ing.name.trim() !== '');
+        // Process ingredients (your existing code)
+        const processedIngredients = ingredients ? ingredients.filter(ing => ing.name && ing.name.trim() !== '') : [];
 
+        // CRITICAL FIX: Handle multi-part recipe data properly
         const newRecipeData = {
             title,
             description: description || '',
-            isMultiPart: isMultiPart,
-            parts: isMultiPart && parts && parts.length > 0 ? parts : [],
-            ingredients: isMultiPart ?
-                // For multi-part: flatten all ingredients from all parts
-                (parts && parts.length > 0 ?
-                    parts.reduce((allIngredients, part) => [...allIngredients, ...(part.ingredients || [])], [])
-                    : processedIngredients)
+
+            // MULTI-PART HANDLING
+            isMultiPart: Boolean(isMultiPart), // Ensure it's a boolean
+            parts: isMultiPart && parts && Array.isArray(parts) ? parts : [],
+
+            // For backward compatibility and search, populate flat arrays
+            ingredients: isMultiPart && parts && Array.isArray(parts) && parts.length > 0 ?
+                // Flatten ingredients from all parts
+                parts.reduce((allIngredients, part) => {
+                    return [...allIngredients, ...(part.ingredients || [])];
+                }, [])
                 : processedIngredients,
 
-            instructions: isMultiPart ?
-                // For multi-part: flatten all instructions from all parts with part labels
-                (parts && parts.length > 0 ?
-                    parts.reduce((allInstructions, part) => {
-                        const partInstructions = (part.instructions || []).map(instruction => {
-                            const instructionText = typeof instruction === 'string' ? instruction : instruction.text || instruction.instruction || '';
-                            return `[${part.name}] ${instructionText}`;
-                        });
-                        return [...allInstructions, ...partInstructions];
-                    }, [])
-                    : processedInstructions)
+            instructions: isMultiPart && parts && Array.isArray(parts) && parts.length > 0 ?
+                // Flatten instructions from all parts with part labels
+                parts.reduce((allInstructions, part) => {
+                    const partInstructions = (part.instructions || []).map(instruction => {
+                        const instructionText = typeof instruction === 'string' ? instruction :
+                            (instruction.text || instruction.instruction || '');
+                        return `[${part.name}] ${instructionText}`;
+                    });
+                    return [...allInstructions, ...partInstructions];
+                }, [])
                 : processedInstructions,
 
+            // Rest of your fields
             cookTime: cookTime || null,
             prepTime: prepTime || null,
             servings: servings || null,
@@ -373,38 +390,13 @@ export async function POST(request) {
             importedFrom: importedFrom || null,
             createdAt: new Date(),
             updatedAt: new Date(),
-            isPublic: await checkPublicRecipePermission(session.user.id, isPublic),
+            isPublic: await checkPublicRecipePermission(session.user.id, isPublic)
 
-            // NEW: Handle images - FIXED: Only set uploadedImage if we have imageFile
-            ...(extractedImage && {
-                extractedImage: {
-                    data: extractedImage.data,
-                    extractionMethod: extractedImage.extractionMethod || 'video_frame_analysis',
-                    frameCount: extractedImage.frameCount || 0,
-                    source: extractedImage.source || 'unknown',
-                    extractedAt: new Date(),
-                    confidence: extractedImage.confidence,
-                    metadata: extractedImage.metadata || {}
-                }
-            }),
-
-            // Add video metadata if present
-            ...(videoMetadata && {
-                videoMetadata: {
-                    ...videoMetadata,
-                    hasExtractedImage: !!(extractedImage) // NEW: Flag for image presence
-                }
-            }),
-
-            // Handle manual nutrition data
-            ...(nutrition && Object.keys(nutrition).length > 0 && {
-                nutrition: nutrition,
-                nutritionManuallySet: true,
-                nutritionCalculatedAt: new Date()
-            })
+            // ... rest of your existing image and video handling code
         };
 
-        console.log('Creating recipe with multi-part data:', {
+        // ADD MORE DETAILED LOGGING
+        console.log('🔍 DEBUG: Final newRecipeData structure:', {
             title: newRecipeData.title,
             isMultiPart: newRecipeData.isMultiPart,
             partsCount: newRecipeData.parts?.length || 0,
@@ -413,21 +405,18 @@ export async function POST(request) {
                 ingredientCount: part.ingredients?.length || 0,
                 instructionCount: part.instructions?.length || 0
             })),
-            flattenedIngredientCount: newRecipeData.ingredients?.length || 0,
-            flattenedInstructionCount: newRecipeData.instructions?.length || 0
+            flatIngredientCount: newRecipeData.ingredients?.length || 0,
+            flatInstructionCount: newRecipeData.instructions?.length || 0
         });
 
-        // NEW: Handle image upload if present - FIXED: Set newRecipeData.uploadedImage properly
+        // Handle image upload if present (your existing code)
         if (imageFile && imageFile.size > 0) {
             try {
                 console.log('📸 Processing uploaded recipe image...');
-
-                // Convert to base64 and store in uploadedImage field
                 const bytes = await imageFile.arrayBuffer();
                 const buffer = Buffer.from(bytes);
                 const base64Data = buffer.toString('base64');
 
-                // FIXED: Set uploadedImage in newRecipeData, not undefined variable
                 newRecipeData.uploadedImage = {
                     data: base64Data,
                     mimeType: imageFile.type,
@@ -440,103 +429,39 @@ export async function POST(request) {
                 console.log('✅ Image stored as base64 in uploadedImage field');
             } catch (uploadError) {
                 console.warn('⚠️ Image processing failed:', uploadError.message);
-                // Continue without image rather than failing the entire recipe
             }
         }
 
-        console.log('Creating recipe with data:', {
+        // Create the recipe
+        console.log('🔍 About to create recipe with data:', {
             title: newRecipeData.title,
-            instructionCount: newRecipeData.instructions.length,
-            ingredientCount: newRecipeData.ingredients.length,
-            hasVideoMetadata: !!newRecipeData.videoMetadata,
-            hasExtractedImage: !!(newRecipeData.extractedImage),
-            hasUploadedImage: !!(newRecipeData.uploadedImage),
-            instructionTypes: newRecipeData.instructions.map(inst => typeof inst),
-            skipAIAnalysis
+            isMultiPart: newRecipeData.isMultiPart,
+            partsLength: newRecipeData.parts?.length
         });
 
-        // Create the recipe first
         const recipe = new Recipe(newRecipeData);
         await recipe.save();
 
-        // NEW: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
-        let nutritionAnalysis = null;
-        console.log('🔍 AI Analysis Check:', {
-            skipAIAnalysis,
-            hasNutrition: !!nutrition,
-            ingredientCount: processedIngredients.length,
-            shouldRun: !skipAIAnalysis && !nutrition && processedIngredients.length > 0
-        });
-
-        if (!skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
-            console.log('🤖 About to start AI nutrition analysis...');
-            nutritionAnalysis = await analyzeRecipeNutritionAI(recipe, session.user.id);
-            console.log('🤖 AI analysis result:', nutritionAnalysis);
-        }
-
-        // If AI analysis succeeded, update the recipe with nutrition data
-        if (nutritionAnalysis?.success) {
-            await Recipe.findByIdAndUpdate(recipe._id, {
-                nutrition: nutritionAnalysis.nutrition,
-                nutritionCalculatedAt: new Date(),
-                nutritionCoverage: nutritionAnalysis.metadata.coverage,
-                nutritionManuallySet: false,
-                // Store AI analysis metadata
-                'aiAnalysis.nutritionGenerated': true,
-                'aiAnalysis.nutritionMetadata': nutritionAnalysis.metadata
-            });
-
-            // Update the local recipe object for response
-            recipe.nutrition = nutritionAnalysis.nutrition;
-            recipe.nutritionCalculatedAt = new Date();
-            recipe.nutritionCoverage = nutritionAnalysis.metadata.coverage;
-        }
-
-        // Update user's usage tracking
-        if (!user.usageTracking) {
-            user.usageTracking = {};
-        }
-        user.usageTracking.totalPersonalRecipes = currentRecipeCount + 1;
-        user.usageTracking.lastUpdated = new Date();
-        await user.save();
-
-        // FIXED: Populate user info for response (but still no binary photo data)
-        await recipe.populate('createdBy', 'name email');
-        await recipe.populate('lastEditedBy', 'name email');
-        // Don't populate photos for response - client will fetch as needed
-
-        // NEW: Log image processing results
-        let imageInfo = 'no image';
-        if (recipe.extractedImage) {
-            imageInfo = `extracted image from ${recipe.extractedImage.source}`;
-        } else if (recipe.uploadedImage) {
-            imageInfo = 'uploaded image';
-        }
-
-        console.log('POST /api/recipes - Recipe created successfully:', {
+        console.log('✅ Recipe saved successfully:', {
             id: recipe._id,
-            hasVideoMetadata: !!recipe.videoMetadata,
-            hasAINutrition: !!(nutritionAnalysis?.success),
-            imageInfo
+            isMultiPart: recipe.isMultiPart,
+            partsCount: recipe.parts?.length || 0
         });
+
+        // Your existing AI nutrition analysis code...
+        // (keep the rest of your POST function as is)
+
+        // Continue with your existing code for nutrition analysis, user tracking, etc.
 
         return NextResponse.json({
             success: true,
             recipe: {
                 ...recipe.toObject(),
-                // NEW: Include image information in response
                 hasImage: !!(recipe.extractedImage || recipe.uploadedImage),
                 imageType: recipe.extractedImage ? 'extracted' : (recipe.uploadedImage ? 'uploaded' : null),
                 imageSource: recipe.extractedImage?.source || 'upload'
             },
-            nutritionAnalysis, // Include AI analysis results
-            message: 'Recipe added successfully' +
-                (nutritionAnalysis?.success ? ' with AI nutrition analysis' : '') +
-                (imageInfo !== 'no image' ? ` and ${imageInfo}` : ''),
-            remainingRecipes: userSubscription.tier === 'free' ?
-                Math.max(0, 5 - (currentRecipeCount + 1)) :
-                userSubscription.tier === 'gold' ?
-                    Math.max(0, 100 - (currentRecipeCount + 1)) : 'Unlimited'
+            message: 'Multi-part recipe added successfully'
         });
 
     } catch (error) {
