@@ -20,6 +20,9 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
         }
     }, [recipeId, refreshTrigger]);
 
+    // FIXED: Updated fetchAllPhotos function in RecipePhotoGallery.js
+// Replace the fetchAllPhotos function around line 15
+
     const fetchAllPhotos = async () => {
         try {
             setLoading(true);
@@ -29,13 +32,13 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
 
             // Fetch both recipe data and separate photos
             const [recipeResponse, photosResponse] = await Promise.all([
-                apiGet(`/api/recipes/${recipeId}`),
+                apiGet(`/api/recipes?recipeId=${recipeId}`), // FIXED: Use correct endpoint
                 apiGet(`/api/recipes/photos?recipeId=${recipeId}`)
             ]);
 
-            // Handle recipe's built-in image
+            // Handle recipe's built-in image (for backward compatibility)
             const recipeData = await recipeResponse.json();
-            console.log('🖼️ Gallery: Recipe data:', recipeData.success, recipeData.recipe?.title);
+            console.log('🖼️ Gallery: Recipe response:', recipeData.success);
 
             if (recipeData.success && recipeData.recipe) {
                 const recipe = recipeData.recipe;
@@ -44,10 +47,10 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                     hasExtractedImage: !!recipe.extractedImage?.data,
                     hasPrimaryPhoto: !!recipe.primaryPhoto,
                     hasPhotos: !!recipe.photos,
-                    photoCount: recipe.photoCount
+                    photoCount: recipe.photoCount || 0
                 });
 
-                // Check for uploadedImage or extractedImage
+                // LEGACY SUPPORT: Check for old uploadedImage or extractedImage in recipe document
                 if (recipe.uploadedImage?.data) {
                     setRecipeImageData({
                         id: `recipe-uploaded-${recipeId}`,
@@ -79,21 +82,30 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                 }
             }
 
-            // Handle separate photos collection
+            // Handle separate photos collection (unified photo system)
             console.log('🖼️ Gallery: Photos response:', photosResponse.ok);
             if (photosResponse.ok) {
                 const photosData = await photosResponse.json();
                 console.log('🖼️ Gallery: Photos data:', photosData.success, photosData.photos?.length);
                 if (photosData.success) {
-                    setPhotos(photosData.photos || []);
+                    // Add URL for each photo
+                    const photosWithUrls = photosData.photos.map(photo => ({
+                        ...photo,
+                        url: `/api/recipes/photos/${photo._id}`,
+                        // For display consistency
+                        id: photo._id
+                    }));
+                    setPhotos(photosWithUrls || []);
                 } else {
                     console.warn('Photos fetch warning:', photosData.error);
                     setPhotos([]);
                 }
             } else {
-                console.warn('Photos endpoint not available, using recipe image only');
+                console.warn('Photos endpoint response not ok:', photosResponse.status);
                 setPhotos([]);
             }
+
+            console.log('🖼️ Gallery: Fetch complete');
 
         } catch (error) {
             console.error('Error fetching photos:', error);

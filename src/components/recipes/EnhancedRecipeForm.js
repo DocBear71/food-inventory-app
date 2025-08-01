@@ -1276,6 +1276,7 @@ export default function EnhancedRecipeForm({
         }));
     };
 
+// FIXED handleSubmit function - Replace around line 1275 in EnhancedRecipeForm.js
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
@@ -1331,25 +1332,29 @@ export default function EnhancedRecipeForm({
                 return;
             }
 
+            // FIXED: Prepare parts data properly for both multi-part and single-part
+            let finalParts = [];
+            if (isMultiPart && recipe.parts && recipe.parts.length > 0) {
+                finalParts = recipe.parts.map(part => ({
+                    ...part,
+                    ingredients: part.ingredients.filter(ing => ing.name && ing.name.trim()),
+                    instructions: part.instructions.filter(inst =>
+                        getInstructionText(inst).trim()
+                    ).map(inst => getInstructionText(inst))
+                }));
+            }
+
             const finalRecipe = {
                 ...recipe,
                 tags: finalTags,
-                isMultiPart,
+
+                // CRITICAL FIX: Always include these fields (even if false/empty)
+                isMultiPart: isMultiPart, // Always include this field
+                parts: finalParts, // Always include this field (empty array for single-part)
 
                 // FIXED: Always include ingredients array (required by API)
                 ingredients: finalIngredients,
                 instructions: finalInstructions,
-
-                // For multi-part recipes, also include the parts structure
-                ...(isMultiPart && {
-                    parts: recipe.parts.map(part => ({
-                        ...part,
-                        ingredients: part.ingredients.filter(ing => ing.name && ing.name.trim()),
-                        instructions: part.instructions.filter(inst =>
-                            getInstructionText(inst).trim()
-                        ).map(inst => getInstructionText(inst))
-                    }))
-                }),
 
                 // Handle video metadata properly
                 ...(recipe.videoMetadata && {
@@ -1361,10 +1366,7 @@ export default function EnhancedRecipeForm({
                     importedFrom: recipe._formMetadata?.importedFrom || 'video import'
                 }),
 
-                // Include image data if present
-                ...(recipeImage && {
-                    recipeImage: recipeImage
-                }),
+                // Include extracted image data if present
                 ...(recipe.extractedImage && {
                     extractedImage: recipe.extractedImage
                 }),
@@ -1372,7 +1374,7 @@ export default function EnhancedRecipeForm({
                 _formMetadata: undefined
             };
 
-            // Clean up undefined values
+            // Clean up undefined values (but keep false values!)
             Object.keys(finalRecipe).forEach(key => {
                 if (finalRecipe[key] === undefined) {
                     delete finalRecipe[key];
@@ -1384,12 +1386,42 @@ export default function EnhancedRecipeForm({
                 isMultiPart: finalRecipe.isMultiPart,
                 ingredientCount: finalRecipe.ingredients.length,
                 instructionCount: finalRecipe.instructions.length,
-                partsCount: finalRecipe.parts?.length || 0
+                partsCount: finalRecipe.parts?.length || 0,
+                hasImage: !!recipeImage,
+                hasExtractedImage: !!finalRecipe.extractedImage
             });
 
-            await onSubmit(finalRecipe);
+            // CRITICAL FIX: Always use FormData for consistency with unified photo system
+            console.log('📸 Submitting with FormData (unified photo system)');
+            const formData = new FormData();
+            formData.append('recipeData', JSON.stringify(finalRecipe));
+
+            // Add image if present
+            if (recipeImage) {
+                formData.append('recipeImage', recipeImage);
+                console.log('📸 Added image to FormData:', recipeImage.name, recipeImage.size);
+            }
+
+            const response = await fetch('/api/recipes', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include'
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to save recipe');
+            }
+
+            const result = await response.json();
+            console.log('✅ Recipe submission successful:', result.message);
+
+            // Call the onSubmit callback with the result
+            await onSubmit(result.recipe);
+
         } catch (error) {
             console.error('Error submitting recipe:', error);
+            alert(`Failed to save recipe: ${error.message}`);
         } finally {
             setIsSubmitting(false);
         }

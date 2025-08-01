@@ -3,7 +3,9 @@
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
-import { Recipe, User } from '@/lib/models';
+
+// Import RecipePhoto model
+import {Recipe, RecipePhoto, User} from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 import { AIRecipeNutritionService } from '@/lib/services/aiNutritionService';
 
@@ -231,7 +233,7 @@ export async function GET(request) {
     }
 }
 
-// Complete POST function with all the missing logic restored:
+// Complete POST function - Replace the entire POST function in /src/app/api/recipes/route.js
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -251,6 +253,7 @@ export async function POST(request) {
 
         if (contentType.includes('multipart/form-data')) {
             // Handle form data with potential image upload
+            console.log('📸 Processing FormData request');
             const formData = await request.formData();
 
             // FIXED: Better parsing with error handling
@@ -275,8 +278,12 @@ export async function POST(request) {
             console.log('🔍 Image file:', imageFile ? `${imageFile.name} (${imageFile.size} bytes)` : 'none');
         } else {
             // Handle JSON data
+            console.log('📝 Processing JSON request');
             const body = await request.json();
             recipeData = body.recipeData || body;
+            console.log('🔍 JSON recipeData keys:', Object.keys(recipeData));
+            console.log('🔍 JSON isMultiPart:', recipeData.isMultiPart);
+            console.log('🔍 JSON parts length:', recipeData.parts?.length);
         }
 
         // ENHANCED LOGGING TO DEBUG THE ISSUE
@@ -286,6 +293,9 @@ export async function POST(request) {
             hasPartsArray: !!recipeData.parts,
             partsLength: recipeData.parts?.length || 0,
             allKeys: Object.keys(recipeData),
+            hasNutrition: !!recipeData.nutrition,
+            hasImage: !!imageFile,
+            hasExtractedImage: !!recipeData.extractedImage,
             parts: recipeData.parts?.map(part => ({
                 name: part.name,
                 ingredientCount: part.ingredients?.length || 0,
@@ -463,59 +473,89 @@ export async function POST(request) {
             importedFrom: newRecipeData.importedFrom
         });
 
-        // ✅ RESTORED: Handle image upload if present
-        if (imageFile && imageFile.size > 0) {
-            try {
-                console.log('📸 Processing uploaded recipe image...');
-
-                // Convert to base64 and store in uploadedImage field
-                const bytes = await imageFile.arrayBuffer();
-                const buffer = Buffer.from(bytes);
-                const base64Data = buffer.toString('base64');
-
-                newRecipeData.uploadedImage = {
-                    data: base64Data,
-                    mimeType: imageFile.type,
-                    size: imageFile.size,
-                    originalName: imageFile.name,
-                    uploadedAt: new Date(),
-                    source: 'user_upload'
-                };
-
-                console.log('✅ Image stored as base64 in uploadedImage field');
-            } catch (uploadError) {
-                console.warn('⚠️ Image processing failed:', uploadError.message);
-                // Continue without image rather than failing the entire recipe
-            }
-        }
-
         console.log('Creating recipe with data:', {
             title: newRecipeData.title,
             instructionCount: newRecipeData.instructions.length,
             ingredientCount: newRecipeData.ingredients.length,
             hasVideoMetadata: !!newRecipeData.videoMetadata,
             hasExtractedImage: !!(newRecipeData.extractedImage),
-            hasUploadedImage: !!(newRecipeData.uploadedImage),
-            instructionTypes: newRecipeData.instructions.map(inst => typeof inst),
             skipAIAnalysis,
             isMultiPart: newRecipeData.isMultiPart,
             partsCount: newRecipeData.parts?.length || 0
         });
 
-        // Create the recipe first
+        // Create the recipe first (without image)
         const recipe = new Recipe(newRecipeData);
         await recipe.save();
+        console.log('✅ Recipe created:', recipe._id);
 
-        // ✅ RESTORED: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
+        // FIXED: Handle image upload using the unified photo system
+        let primaryPhotoId = null;
+        if (imageFile && imageFile.size > 0) {
+            try {
+                console.log('📸 Processing uploaded recipe image using unified photo system...');
+
+                // Validate file
+                if (!imageFile.type.startsWith('image/')) {
+                    throw new Error('File must be an image');
+                }
+
+                if (imageFile.size > 5242880) { // 5MB
+                    throw new Error('File size must be under 5MB');
+                }
+
+                // Store as binary data in RecipePhoto collection
+                const buffer = await imageFile.arrayBuffer();
+                const photoBuffer = Buffer.from(buffer);
+
+                console.log(`📸 Creating RecipePhoto document: ${imageFile.size} bytes`);
+
+                // Create photo record
+                const photo = new RecipePhoto({
+                    recipeId: recipe._id,
+                    filename: `recipe_${recipe._id}_${Date.now()}_${imageFile.name}`,
+                    originalName: imageFile.name,
+                    mimeType: imageFile.type,
+                    size: imageFile.size,
+                    data: photoBuffer, // Store as binary Buffer
+                    isPrimary: true, // First photo is always primary
+                    source: 'user_upload',
+                    uploadedBy: session.user.id
+                });
+
+                await photo.save();
+                primaryPhotoId = photo._id;
+
+                console.log(`✅ Photo saved with ID: ${photo._id}`);
+
+                // Update recipe with photo references
+                await Recipe.findByIdAndUpdate(recipe._id, {
+                    primaryPhoto: photo._id,
+                    $addToSet: { photos: photo._id },
+                    photoCount: 1,
+                    hasPhotos: true,
+                    updatedAt: new Date()
+                });
+
+                console.log('✅ Recipe updated with photo references');
+
+            } catch (uploadError) {
+                console.warn('⚠️ Image processing failed:', uploadError.message);
+                // Continue without image rather than failing the entire recipe
+            }
+        }
+
+        // ✅ FIXED: Automatic AI nutrition analysis (if not skipped and no manual nutrition)
         let nutritionAnalysis = null;
         console.log('🔍 AI Analysis Check:', {
             skipAIAnalysis,
-            hasNutrition: !!nutrition,
-            ingredientCount: processedIngredients.length,
-            shouldRun: !skipAIAnalysis && !nutrition && processedIngredients.length > 0
+            hasManualNutrition: !!nutrition,
+            ingredientCount: newRecipeData.ingredients.length,
+            shouldRun: !skipAIAnalysis && !nutrition && newRecipeData.ingredients.length > 0
         });
 
-        if (!skipAIAnalysis && !nutrition && processedIngredients.length > 0) {
+        // CRITICAL FIX: Use the processed ingredients, not the original ones
+        if (!skipAIAnalysis && !nutrition && newRecipeData.ingredients.length > 0) {
             console.log('🤖 About to start AI nutrition analysis...');
             nutritionAnalysis = await analyzeRecipeNutritionAI(recipe, session.user.id);
             console.log('🤖 AI analysis result:', nutritionAnalysis);
@@ -547,17 +587,17 @@ export async function POST(request) {
         user.usageTracking.lastUpdated = new Date();
         await user.save();
 
-        // FIXED: Populate user info for response (but still no binary photo data)
+        // FIXED: Populate user info for response
         await recipe.populate('createdBy', 'name email');
         await recipe.populate('lastEditedBy', 'name email');
-        // Don't populate photos for response - client will fetch as needed
+        // Don't populate photos for response to avoid binary data
 
-        // ✅ RESTORED: Log image processing results
+        // ✅ Log results
         let imageInfo = 'no image';
-        if (recipe.extractedImage) {
+        if (primaryPhotoId) {
+            imageInfo = 'uploaded image via unified photo system';
+        } else if (recipe.extractedImage) {
             imageInfo = `extracted image from ${recipe.extractedImage.source}`;
-        } else if (recipe.uploadedImage) {
-            imageInfo = 'uploaded image';
         }
 
         console.log('POST /api/recipes - Recipe created successfully:', {
@@ -565,6 +605,7 @@ export async function POST(request) {
             hasVideoMetadata: !!recipe.videoMetadata,
             hasAINutrition: !!(nutritionAnalysis?.success),
             imageInfo,
+            primaryPhotoId,
             isMultiPart: recipe.isMultiPart,
             partsCount: recipe.parts?.length || 0
         });
@@ -573,10 +614,11 @@ export async function POST(request) {
             success: true,
             recipe: {
                 ...recipe.toObject(),
-                // NEW: Include image information in response
-                hasImage: !!(recipe.extractedImage || recipe.uploadedImage),
-                imageType: recipe.extractedImage ? 'extracted' : (recipe.uploadedImage ? 'uploaded' : null),
-                imageSource: recipe.extractedImage?.source || 'upload'
+                // Include image information in response
+                hasImage: !!(primaryPhotoId || recipe.extractedImage),
+                imageType: primaryPhotoId ? 'uploaded' : (recipe.extractedImage ? 'extracted' : null),
+                imageSource: primaryPhotoId ? 'user_upload' : (recipe.extractedImage?.source || null),
+                primaryPhoto: primaryPhotoId
             },
             nutritionAnalysis, // Include AI analysis results
             message: 'Recipe added successfully' +

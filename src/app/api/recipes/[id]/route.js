@@ -1,5 +1,4 @@
-// file: /src/app/api/recipes/[id]/route.js v4 - FIXED session handling and video instruction support
-
+// UPDATED: /src/app/api/recipes/[id]/route.js - Enhanced for gallery compatibility
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
@@ -18,11 +17,22 @@ export async function GET(request, { params }) {
             );
         }
 
+        console.log(`📋 GET /api/recipes/${recipeId} - Session:`, session?.user?.email || 'none');
+
         await connectDB();
 
+        // FIXED: Better query with photo population but no binary data
         const recipe = await Recipe.findById(recipeId)
             .populate('createdBy', 'name email')
             .populate('lastEditedBy', 'name email')
+            .populate({
+                path: 'primaryPhoto',
+                select: 'originalName mimeType size uploadedAt isPrimary source' // Exclude binary data
+            })
+            .populate({
+                path: 'photos',
+                select: 'originalName mimeType size uploadedAt isPrimary source' // Exclude binary data
+            })
             .lean();
 
         if (!recipe) {
@@ -40,9 +50,36 @@ export async function GET(request, { params }) {
             );
         }
 
+        // ADDED: Enhance recipe object with computed photo properties for gallery
+        const enhancedRecipe = {
+            ...recipe,
+            // Add computed properties that RecipePhotoGallery expects
+            hasPhotos: !!(recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0)),
+            photoCount: (recipe.photos ? recipe.photos.length : 0) + (recipe.primaryPhoto ? 1 : 0),
+            hasImage: !!(
+                recipe.primaryPhoto ||
+                (recipe.photos && recipe.photos.length > 0) ||
+                recipe.uploadedImage?.data ||
+                recipe.extractedImage?.data
+            ),
+            imageType: recipe.extractedImage?.data ? 'extracted' :
+                (recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0)) ? 'uploaded' :
+                    recipe.uploadedImage?.data ? 'uploaded' : null,
+            imageSource: recipe.extractedImage?.source ||
+                (recipe.primaryPhoto || (recipe.photos && recipe.photos.length > 0) ? 'user_upload' : 'unknown')
+        };
+
+        console.log(`✅ Recipe found: ${recipe.title}`, {
+            hasPhotos: enhancedRecipe.hasPhotos,
+            photoCount: enhancedRecipe.photoCount,
+            hasUploadedImage: !!recipe.uploadedImage?.data,
+            hasExtractedImage: !!recipe.extractedImage?.data,
+            primaryPhoto: !!recipe.primaryPhoto
+        });
+
         return NextResponse.json({
             success: true,
-            recipe
+            recipe: enhancedRecipe
         });
 
     } catch (error) {
@@ -54,7 +91,7 @@ export async function GET(request, { params }) {
     }
 }
 
-// PUT - Update a recipe (only by owner)
+// PUT - Update a recipe (only by owner) - Keep your existing PUT function
 export async function PUT(request, { params }) {
     try {
         const session = await getEnhancedSession(request);
@@ -215,7 +252,7 @@ export async function PUT(request, { params }) {
     }
 }
 
-// DELETE - Delete a recipe (only by owner)
+// DELETE - Delete a recipe (only by owner) - Keep your existing DELETE function
 export async function DELETE(request, { params }) {
     try {
         const session = await getEnhancedSession(request);
