@@ -292,9 +292,9 @@ export async function POST(request) {
             videoMetadata,
             extractedImage,
             skipAIAnalysis = false,
-            // CRITICAL: Extract multi-part fields
-            isMultiPart,
-            parts
+            // THESE TWO LINES ARE CRITICAL:
+            isMultiPart,        // <-- Make sure this is here
+            parts               // <-- Make sure this is here
         } = recipeData;
 
         // VALIDATE REQUIRED FIELDS
