@@ -276,8 +276,10 @@ export async function POST(request) {
             nutrition,
             importedFrom,
             videoMetadata,
-            extractedImage, // NEW: Extracted image from video
-            skipAIAnalysis = false
+            extractedImage,
+            skipAIAnalysis = false,
+            isMultiPart = false,
+            parts = []
         } = recipeData;
 
         if (!title || !ingredients || ingredients.length === 0) {
@@ -337,8 +339,28 @@ export async function POST(request) {
         const newRecipeData = {
             title,
             description: description || '',
-            ingredients: processedIngredients,
-            instructions: processedInstructions,
+            isMultiPart: isMultiPart,
+            parts: isMultiPart && parts && parts.length > 0 ? parts : [],
+            ingredients: isMultiPart ?
+                // For multi-part: flatten all ingredients from all parts
+                (parts && parts.length > 0 ?
+                    parts.reduce((allIngredients, part) => [...allIngredients, ...(part.ingredients || [])], [])
+                    : processedIngredients)
+                : processedIngredients,
+
+            instructions: isMultiPart ?
+                // For multi-part: flatten all instructions from all parts with part labels
+                (parts && parts.length > 0 ?
+                    parts.reduce((allInstructions, part) => {
+                        const partInstructions = (part.instructions || []).map(instruction => {
+                            const instructionText = typeof instruction === 'string' ? instruction : instruction.text || instruction.instruction || '';
+                            return `[${part.name}] ${instructionText}`;
+                        });
+                        return [...allInstructions, ...partInstructions];
+                    }, [])
+                    : processedInstructions)
+                : processedInstructions,
+
             cookTime: cookTime || null,
             prepTime: prepTime || null,
             servings: servings || null,
@@ -381,6 +403,19 @@ export async function POST(request) {
                 nutritionCalculatedAt: new Date()
             })
         };
+
+        console.log('Creating recipe with multi-part data:', {
+            title: newRecipeData.title,
+            isMultiPart: newRecipeData.isMultiPart,
+            partsCount: newRecipeData.parts?.length || 0,
+            parts: newRecipeData.parts?.map(part => ({
+                name: part.name,
+                ingredientCount: part.ingredients?.length || 0,
+                instructionCount: part.instructions?.length || 0
+            })),
+            flattenedIngredientCount: newRecipeData.ingredients?.length || 0,
+            flattenedInstructionCount: newRecipeData.instructions?.length || 0
+        });
 
         // NEW: Handle image upload if present - FIXED: Set newRecipeData.uploadedImage properly
         if (imageFile && imageFile.size > 0) {
