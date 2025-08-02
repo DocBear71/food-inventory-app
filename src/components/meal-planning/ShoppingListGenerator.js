@@ -18,6 +18,7 @@ export default function EnhancedShoppingListGenerator({
     const [optimization, setOptimization] = useState(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [hasSaved, setHasSaved] = useState(false);
 
     // Shopping List Options
     const [options, setOptions] = useState({
@@ -418,6 +419,12 @@ export default function EnhancedShoppingListGenerator({
 
     // BULLETPROOF: Enhanced save handling for complex categorized shopping lists
     const handleSaveToUnifiedModal = useCallback(async (listData) => {
+        // SAFE FIX: Check if we've already saved to prevent duplicate saves
+        if (hasSaved) {
+            console.log('🔄 Save already completed, skipping duplicate save');
+            return;
+        }
+
         console.log('🔄 SAVE REQUEST - Starting bulletproof save process...');
         console.log('📊 Input data analysis:', {
             hasListData: !!listData,
@@ -430,6 +437,9 @@ export default function EnhancedShoppingListGenerator({
         });
 
         try {
+            // SAFE FIX: Mark as saving to prevent double saves
+            setHasSaved(true);
+
             // STEP 1: Extract and validate all items with comprehensive error handling
             const extractedItems = extractAllItemsRobustly(listData);
 
@@ -498,9 +508,19 @@ export default function EnhancedShoppingListGenerator({
                     isArray: Array.isArray(listData?.items)
                 }
             });
+
+            // SAFE FIX: Reset saved state on error so user can try again
+            setHasSaved(false);
             throw error; // Let the modal handle the error display
         }
-    }, [onClose, mealPlanId, mealPlanName, shoppingList]);
+    }, [onClose, mealPlanId, mealPlanName, shoppingList, hasSaved]);
+
+// SAFE FIX: Reset hasSaved when the modal closes or opens
+    useEffect(() => {
+        if (!isOpen) {
+            setHasSaved(false);
+        }
+    }, [isOpen]);
 
 // STEP 1: Robust item extraction that handles all possible data structures
     const extractAllItemsRobustly = (listData) => {
@@ -1616,7 +1636,8 @@ export default function EnhancedShoppingListGenerator({
                         <div className="text-4xl mb-4">⚠️</div>
                         <h3 className="text-lg font-semibold text-gray-900 mb-2">No Items Found</h3>
                         <p className="text-gray-600 mb-6">
-                            The shopping list was generated but no valid items were found. This might be because all ingredients are already in your inventory.
+                            The shopping list was generated but no valid items were found. This might be because all
+                            ingredients are already in your inventory.
                         </p>
 
                         <div className="flex space-x-3 justify-center">
@@ -1645,9 +1666,8 @@ export default function EnhancedShoppingListGenerator({
                 key="shopping-list-modal"
                 isOpen={true}
                 onClose={onClose}
-                // FIXED: Pass data in the exact format the modal expects
                 currentShoppingList={{
-                    items: shoppingList.items, // Categorized items object
+                    items: shoppingList.items,
                     summary: shoppingList.summary || shoppingList.stats || {
                         totalItems: memoizedConvertedData.convertedItems.length,
                         needToBuy: memoizedConvertedData.convertedItems.filter(item => !item.inInventory).length,
@@ -1658,14 +1678,19 @@ export default function EnhancedShoppingListGenerator({
                     generatedAt: shoppingList.generatedAt || new Date().toISOString(),
                     recipes: shoppingList.recipes || []
                 }}
-                // Enhanced AI props
                 sourceMealPlanId={mealPlanId}
                 sourceRecipeIds={shoppingList.recipes?.map(r => r.id) || []}
-                onSave={handleSaveToUnifiedModal}
-                // Smart Price props
+                // SAFE FIX: Pass a wrapper function that checks for double saves
+                onSave={(savedData) => {
+                    if (!hasSaved) {
+                        handleSaveToUnifiedModal(savedData);
+                    } else {
+                        console.log('🔄 Save already completed, modal save ignored');
+                        onClose();
+                    }
+                }}
                 initialBudget={options.budget}
                 optimization={optimization}
-                // Modal configuration
                 title={options.includePriceOptimization ? '🚀 Ultimate Shopping Assistant' : '🤖 Enhanced AI Shopping'}
                 subtitle={options.includePriceOptimization ?
                     `Smart list for ${mealPlanName} with price optimization` :
@@ -1673,8 +1698,7 @@ export default function EnhancedShoppingListGenerator({
                 }
                 showRefresh={false}
                 initialShoppingMode={memoizedConvertedData.mode}
-                // ADDED: Additional props the modal might expect
-                shoppingList={shoppingList} // Pass the raw shopping list too
+                shoppingList={shoppingList}
                 priceAnalysis={{
                     totalSavings: optimization?.totalSavings || 0,
                     bestDeals: optimization?.bestDeals || [],
