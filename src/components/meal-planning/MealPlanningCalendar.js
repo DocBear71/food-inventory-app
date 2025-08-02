@@ -1715,6 +1715,13 @@ export default function MealPlanningCalendar() {
         }
     }, [session, currentWeek, weekStartDay, userMealTypes]);
 
+    if (showShoppingList && mealPlan) {
+        console.log('🔍 MINIMAL MODAL TEST:', {
+            showShoppingList,
+            mealPlanId: mealPlan._id
+        });
+    }
+
 
     const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']
     const mealsPlanned = hasMealsPlanned();
@@ -2567,22 +2574,13 @@ export default function MealPlanningCalendar() {
                 {/* Shopping List Modal */}
                 {showShoppingList && mealPlan && (
                     <EnhancedAIShoppingListModal
-                        isOpen={showShoppingList}
-                        onClose={() => setShowShoppingList(false)}
-
-                        // Just pass the meal plan ID and let the modal generate the data internally
-                        sourceMealPlanId={mealPlan._id}
-
-                        // Modal configuration
-                        title="🍽️ Meal Plan Shopping List"
-                        subtitle={`Smart shopping for ${mealPlan.name}`}
-                        initialMode={priceIntelligence.enabled ? 'unified' : 'enhanced'}
-
-                        // Handle successful save
-                        onSave={(savedList) => {
-                            console.log('✅ Meal plan shopping list saved:', savedList);
+                        isOpen={true}
+                        onClose={() => {
+                            console.log('🔄 Minimal modal closing');
                             setShowShoppingList(false);
                         }}
+                        title="🍽️ Test Modal"
+                        subtitle="Testing if modal opens"
                     />
                 )}
 
@@ -3538,22 +3536,13 @@ export default function MealPlanningCalendar() {
             {/* Shopping List Modal */}
             {showShoppingList && mealPlan && (
                 <EnhancedAIShoppingListModal
-                    isOpen={showShoppingList}
-                    onClose={() => setShowShoppingList(false)}
-
-                    // Just pass the meal plan ID and let the modal generate the data internally
-                    sourceMealPlanId={mealPlan._id}
-
-                    // Modal configuration
-                    title="🍽️ Meal Plan Shopping List"
-                    subtitle={`Smart shopping for ${mealPlan.name}`}
-                    initialMode={priceIntelligence.enabled ? 'unified' : 'enhanced'}
-
-                    // Handle successful save
-                    onSave={(savedList) => {
-                        console.log('✅ Meal plan shopping list saved:', savedList);
+                    isOpen={true}
+                    onClose={() => {
+                        console.log('🔄 Minimal modal closing');
                         setShowShoppingList(false);
                     }}
+                    title="🍽️ Test Modal"
+                    subtitle="Testing if modal opens"
                 />
             )}
 
