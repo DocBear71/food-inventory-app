@@ -20,6 +20,7 @@ import NutritionModal from '@/components/nutrition/NutritionModal';
 import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
+import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 
 // FIXED: Hero Recipe Image Component with proper metadata fetching
 const RecipeHeroImage = ({recipe, session, className = "", onImageUpdate}) => {
@@ -1279,6 +1280,7 @@ export default function RecipeDetailPage() {
     const [originalRecipe, setOriginalRecipe] = useState(null);
     const [isFetching, setIsFetching] = useState(false);
     const [viewIncremented, setViewIncremented] = useState(false);
+    const [isSubmitting, setIsSubmitting] = useState(false);
     const [analyzingNutrition, setAnalyzingNutrition] = useState(false);
 
     // Keep all existing useEffects and functions unchanged
@@ -1359,18 +1361,117 @@ export default function RecipeDetailPage() {
 
             if (response.ok) {
                 const result = await response.json();
-                // Refresh the recipe data
-                window.location.reload();
+                // Update the recipe state with new nutrition data
+                setRecipe(prev => ({
+                    ...prev,
+                    nutrition: result.nutrition,
+                    nutritionCalculatedAt: new Date(),
+                    nutritionCoverage: result.coverage || 0.9,
+                    nutritionManuallySet: false
+                }));
+                alert('✅ Nutrition analysis completed!');
             } else {
                 const error = await response.json();
-                alert(`Nutrition analysis failed: ${error.message}`);
+                alert(`❌ Nutrition analysis failed: ${error.message}`);
             }
         } catch (error) {
             console.error('Nutrition analysis error:', error);
-            alert('Failed to analyze nutrition');
+            alert('❌ Failed to analyze nutrition');
         } finally {
             setAnalyzingNutrition(false);
         }
+    };
+
+    // Helper function to get all ingredients from recipe (supports multi-part)
+    const getAllIngredientsFromRecipe = (recipe) => {
+        if (!recipe) return [];
+
+        // Multi-part recipe
+        if (recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts)) {
+            return recipe.parts.reduce((allIngredients, part) => {
+                const partIngredients = (part.ingredients || []).filter(ing => ing.name && ing.name.trim());
+                return [...allIngredients, ...partIngredients];
+            }, []);
+        }
+
+        // Single-part recipe (legacy)
+        return (recipe.ingredients || []).filter(ing => ing.name && ing.name.trim());
+    };
+
+    // ADDED: Nutrition conversion helper (from EnhancedRecipeForm)
+    const convertNutritionFormat = (nutritionPerServing) => {
+        const mapping = {
+            'calories': 'calories',
+            'total_fat': 'fat',
+            'saturated_fat': 'saturatedFat',
+            'trans_fat': 'transFat',
+            'cholesterol': 'cholesterol',
+            'sodium': 'sodium',
+            'total_carbohydrates': 'carbs',
+            'dietary_fiber': 'fiber',
+            'sugars': 'sugars',
+            'protein': 'protein',
+            'vitamin_a': 'vitaminA',
+            'vitamin_c': 'vitaminC',
+            'calcium': 'calcium',
+            'iron': 'iron'
+        };
+
+        const converted = {};
+
+        Object.keys(nutritionPerServing).forEach(key => {
+            const standardKey = mapping[key];
+            if (standardKey) {
+                const value = nutritionPerServing[key];
+
+                // Parse numeric values from strings like "7g", "200mg", "30%"
+                let numericValue = 0;
+                let unit = 'g';
+
+                if (typeof value === 'string') {
+                    const match = value.match(/(\d+(?:\.\d+)?)/);
+                    numericValue = match ? parseFloat(match[1]) : 0;
+
+                    // Determine unit
+                    if (value.includes('mg')) unit = 'mg';
+                    else if (value.includes('µg')) unit = 'µg';
+                    else if (value.includes('kcal') || key === 'calories') unit = 'kcal';
+                    else if (key === 'calories') unit = 'kcal';
+                } else if (typeof value === 'number') {
+                    numericValue = value;
+                    unit = key === 'calories' ? 'kcal' : 'g';
+                }
+
+                converted[standardKey] = {
+                    value: Math.round(numericValue * 100) / 100, // Round to 2 decimal places
+                    unit: unit,
+                    name: getNutrientName(standardKey)
+                };
+            }
+        });
+
+        return converted;
+    };
+
+    const getNutrientName = (key) => {
+        const names = {
+            calories: 'Energy',
+            protein: 'Protein',
+            fat: 'Total Fat',
+            saturatedFat: 'Saturated Fat',
+            transFat: 'Trans Fat',
+            cholesterol: 'Cholesterol',
+            carbs: 'Total Carbohydrate',
+            fiber: 'Dietary Fiber',
+            sugars: 'Total Sugars',
+            sodium: 'Sodium',
+            vitaminA: 'Vitamin A',
+            vitaminC: 'Vitamin C',
+            calcium: 'Calcium',
+            iron: 'Iron'
+        };
+
+        return names[key] || key;
     };
 
     const fetchMealPlans = async () => {
@@ -2116,12 +2217,48 @@ export default function RecipeDetailPage() {
                                         View Details
                                     </TouchEnhancedButton>
                                 </div>
-                                <NutritionFacts
-                                    nutrition={getNormalizedNutrition()}
-                                    servings={recipe.servings || 1}
-                                    showPerServing={true}
-                                    compact={false}
+                                <UpdateNutritionButton
+                                    recipe={recipe}
+                                    onNutritionUpdate={(newNutrition, analysisResult) => {
+                                        console.log('🔄 Nutrition updated:', newNutrition);
+
+                                        // Handle the nutrition data properly
+                                        let processedNutrition = newNutrition;
+
+                                        // If newNutrition is not in the expected format, try to process it
+                                        if (newNutrition && !newNutrition.calories && newNutrition.nutrition_per_serving) {
+                                            console.log('🔄 Converting nutrition_per_serving format');
+                                            processedNutrition = convertNutritionFormat(newNutrition.nutrition_per_serving);
+                                        } else if (newNutrition && !newNutrition.calories) {
+                                            console.log('🔄 Using raw nutrition data');
+                                            processedNutrition = newNutrition;
+                                        }
+
+                                        setRecipe(prev => ({
+                                            ...prev,
+                                            nutrition: processedNutrition,
+                                            nutritionCalculatedAt: new Date(),
+                                            nutritionCoverage: analysisResult?.coverage || 0.9,
+                                            nutritionManuallySet: false,
+                                            // Add analysis metadata
+                                            aiAnalysis: {
+                                                ...analysisResult?.aiAnalysis,
+                                                nutritionGenerated: true,
+                                                nutritionMetadata: analysisResult
+                                            }
+                                        }));
+                                    }}
+                                    disabled={getAllIngredientsFromRecipe(recipe).length === 0}
                                 />
+                                {(!recipe.nutrition || Object.keys(recipe.nutrition).length === 0) && (
+                                    <TouchEnhancedButton
+                                        onClick={handleAnalyzeNutrition}
+                                        disabled={analyzingNutrition}
+                                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 text-sm"
+                                    >
+                                        {analyzingNutrition ? '🤖 Analyzing...' : '🤖 Analyze Nutrition'}
+                                    </TouchEnhancedButton>
+                                )}
                             </div>
                         )}
                     </div>
