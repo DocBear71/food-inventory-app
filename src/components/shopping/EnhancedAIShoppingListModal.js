@@ -30,7 +30,8 @@ export default function EnhancedAIShoppingListModal({
                                                         budgetLimit = null,
                                                         onSave,
                                                         optimization = null,
-                                                        initialMode = 'enhanced'
+                                                        initialMode = 'enhanced',
+                                                        preventDoubleSave = false
                                                     }) {
     const {data: session} = useSafeSession();
 
@@ -3794,16 +3795,22 @@ export default function EnhancedAIShoppingListModal({
             />
 
             {/* Save Shopping List Modal */}
-            {/* Save Shopping List Modal - FIXED listType */}
+            {/* Save Shopping List Modal - FIXED to prevent double save */}
             <SaveShoppingListModal
                 isOpen={showSaveModal}
                 onClose={() => setShowSaveModal(false)}
                 onSave={(savedList) => {
                     console.log(`${config.title} saved successfully:`, savedList);
-                    if (onSave) onSave(savedList);
+
+                    // SAFE FIX: Only call parent onSave if preventDoubleSave is false
+                    if (!preventDoubleSave && onSave) {
+                        onSave(savedList);
+                    }
+
+                    // Always close the modal after save
+                    setShowSaveModal(false);
                 }}
                 shoppingList={normalizedList}
-                // FIXED: Use valid enum value instead of mode-based string
                 listType={sourceMealPlanId ? 'meal-plan' : 'recipes'}
                 contextName={`${config.title} - ${selectedStore || 'Store'}`}
                 sourceRecipeIds={sourceRecipeIds}
