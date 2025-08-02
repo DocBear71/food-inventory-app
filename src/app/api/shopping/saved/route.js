@@ -104,13 +104,28 @@ export async function GET(request) {
     }
 }
 
-// POST - Save a new shopping list
+// POST - Save a new shopping list (ENHANCED WITH DEBUGGING)
 export async function POST(request) {
     try {
         const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
+
+        let requestData;
+        try {
+            requestData = await request.json();
+        } catch (parseError) {
+            console.error('❌ Failed to parse request JSON:', parseError);
+            return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+        }
+
+        console.log('📥 Received save request:', {
+            name: requestData.name,
+            listType: requestData.listType,
+            itemsCount: requestData.items?.length,
+            userId: session.user.id
+        });
 
         const {
             name,
@@ -123,18 +138,48 @@ export async function POST(request) {
             tags,
             color,
             isTemplate
-        } = await request.json();
+        } = requestData;
 
-        // Validation
-        if (!name || !listType || !items || !Array.isArray(items)) {
-            return NextResponse.json({
-                error: 'Name, listType, and items are required'
-            }, { status: 400 });
+        // Enhanced Validation
+        if (!name || typeof name !== 'string') {
+            console.error('❌ Invalid name:', name);
+            return NextResponse.json({ error: 'Name is required and must be a string' }, { status: 400 });
+        }
+
+        if (!listType || typeof listType !== 'string') {
+            console.error('❌ Invalid listType:', listType);
+            return NextResponse.json({ error: 'ListType is required and must be a string' }, { status: 400 });
+        }
+
+        if (!items || !Array.isArray(items)) {
+            console.error('❌ Invalid items:', { type: typeof items, isArray: Array.isArray(items) });
+            return NextResponse.json({ error: 'Items must be an array' }, { status: 400 });
+        }
+
+        if (items.length === 0) {
+            console.error('❌ Empty items array');
+            return NextResponse.json({ error: 'Items array cannot be empty' }, { status: 400 });
         }
 
         if (name.length > 100) {
+            return NextResponse.json({ error: 'Name must be 100 characters or less' }, { status: 400 });
+        }
+
+        // Validate each item
+        const invalidItems = [];
+        items.forEach((item, index) => {
+            if (!item || typeof item !== 'object') {
+                invalidItems.push({ index, error: 'Item is not an object', item: typeof item });
+            } else if (!item.ingredient || typeof item.ingredient !== 'string') {
+                invalidItems.push({ index, error: 'Missing or invalid ingredient', item: item.ingredient });
+            }
+        });
+
+        if (invalidItems.length > 0) {
+            console.error('❌ Invalid items found:', invalidItems.slice(0, 5)); // Log first 5
             return NextResponse.json({
-                error: 'Name must be 100 characters or less'
+                error: `${invalidItems.length} invalid items found`,
+                details: invalidItems.slice(0, 5)
             }, { status: 400 });
         }
 
@@ -153,6 +198,35 @@ export async function POST(request) {
             }, { status: 400 });
         }
 
+        // Process items with enhanced validation
+        const processedItems = items.map((item, index) => {
+            try {
+                return {
+                    ingredient: String(item.ingredient).trim(),
+                    amount: item.amount ? String(item.amount).trim() : '',
+                    category: item.category ? String(item.category).trim() : 'other',
+                    inInventory: Boolean(item.inInventory),
+                    purchased: Boolean(item.purchased),
+                    recipes: Array.isArray(item.recipes) ? item.recipes : [],
+                    originalName: item.originalName ? String(item.originalName).trim() : String(item.ingredient).trim(),
+                    needAmount: item.needAmount ? String(item.needAmount).trim() : '',
+                    haveAmount: item.haveAmount ? String(item.haveAmount).trim() : '',
+                    itemKey: item.itemKey ? String(item.itemKey).trim() : `${item.ingredient}-${item.category || 'other'}`,
+                    notes: item.notes ? String(item.notes).trim() : '',
+                    price: (typeof item.price === 'number') ? item.price : undefined,
+                    unitPrice: (typeof item.unitPrice === 'number') ? item.unitPrice : undefined,
+                    estimatedPrice: (typeof item.estimatedPrice === 'number') ? item.estimatedPrice : undefined,
+                    priceSource: item.priceSource || undefined,
+                    priceUpdatedAt: item.priceUpdatedAt || undefined
+                };
+            } catch (itemError) {
+                console.error(`❌ Error processing item ${index}:`, itemError, item);
+                throw new Error(`Failed to process item ${index}: ${itemError.message}`);
+            }
+        });
+
+        console.log('✅ Processed items successfully:', processedItems.length);
+
         // Create new saved shopping list
         const savedList = new SavedShoppingList({
             userId: session.user.id,
@@ -160,27 +234,16 @@ export async function POST(request) {
             description: description?.trim() || '',
             listType,
             contextName: contextName?.trim() || '',
-            sourceRecipeIds: sourceRecipeIds || [],
+            sourceRecipeIds: Array.isArray(sourceRecipeIds) ? sourceRecipeIds : [],
             sourceMealPlanId: sourceMealPlanId || null,
-            items: items.map(item => ({
-                ingredient: item.ingredient || item.name,
-                amount: item.amount || '',
-                category: item.category || 'other',
-                inInventory: item.inInventory || false,
-                purchased: item.purchased || false,
-                recipes: item.recipes || [],
-                originalName: item.originalName || '',
-                needAmount: item.needAmount || '',
-                haveAmount: item.haveAmount || '',
-                itemKey: item.itemKey || `${item.ingredient}-${item.category}`,
-                notes: item.notes || ''
-            })),
-            tags: tags || [],
+            items: processedItems,
+            tags: Array.isArray(tags) ? tags : [],
             color: color || '#3b82f6',
-            isTemplate: isTemplate || false
+            isTemplate: Boolean(isTemplate)
         });
 
         await savedList.save();
+        console.log('✅ Shopping list saved to database:', savedList._id);
 
         // Populate references for response
         await savedList.populate('sourceRecipeIds', 'title');
@@ -206,8 +269,12 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error('Error saving shopping list:', error);
-        return NextResponse.json({ error: 'Failed to save shopping list' }, { status: 500 });
+        console.error('❌ Error saving shopping list:', error);
+        console.error('❌ Error stack:', error.stack);
+        return NextResponse.json({
+            error: 'Failed to save shopping list',
+            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+        }, { status: 500 });
     }
 }
 

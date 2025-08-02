@@ -1,10 +1,11 @@
-// file: /src/app/api/meal-plans/[id]/shopping-list/route.js v2 - Fixed for Next.js 15
+// file: /src/app/api/meal-plans/[id]/shopping-list/route.js v3 - UNIFIED with groceryCategories.js
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 
 import connectDB from '@/lib/mongodb';
 import { MealPlan, Recipe, UserInventory } from '@/lib/models';
+import { CategoryUtils, suggestCategoryForItem, findBestCategoryMatch } from '@/lib/groceryCategories';
 
 // Helper function to parse ingredient amounts
 function parseIngredientAmount(amountStr) {
@@ -134,42 +135,18 @@ function combineIngredients(ingredients) {
     return Object.values(combined);
 }
 
-// Helper function to categorize ingredients
+// UNIFIED: Use the comprehensive categorization from groceryCategories.js
 function categorizeIngredient(ingredientName) {
-    const categories = {
-        'Produce': [
-            'tomato', 'onion', 'garlic', 'pepper', 'carrot', 'celery', 'lettuce', 'spinach',
-            'apple', 'banana', 'lemon', 'lime', 'potato', 'broccoli', 'cucumber', 'mushroom'
-        ],
-        'Meat': [
-            'chicken', 'beef', 'pork', 'turkey', 'fish', 'salmon', 'tuna', 'shrimp',
-            'bacon', 'ham', 'sausage', 'ground beef', 'ground turkey'
-        ],
-        'Dairy': [
-            'milk', 'cheese', 'butter', 'cream', 'yogurt', 'sour cream', 'cottage cheese',
-            'mozzarella', 'cheddar', 'parmesan', 'eggs'
-        ],
-        'Pantry': [
-            'flour', 'sugar', 'salt', 'pepper', 'oil', 'vinegar', 'pasta', 'rice',
-            'beans', 'breadcrumbs', 'spices', 'herbs', 'vanilla', 'baking powder'
-        ],
-        'Frozen': [
-            'frozen peas', 'frozen corn', 'ice cream', 'frozen berries', 'frozen pizza'
-        ],
-        'Bakery': [
-            'bread', 'rolls', 'bagels', 'tortillas', 'pita'
-        ]
-    };
-
-    const name = ingredientName.toLowerCase();
-
-    for (const [category, items] of Object.entries(categories)) {
-        if (items.some(item => name.includes(item))) {
-            return category;
-        }
+    if (!ingredientName || typeof ingredientName !== 'string') {
+        return 'Other';
     }
 
-    return 'Other';
+    // Use the unified category suggestion system
+    const category = findBestCategoryMatch(ingredientName, 'Other');
+
+    console.log(`[CATEGORIZATION] "${ingredientName}" -> "${category}"`);
+
+    return category;
 }
 
 // Helper function to check inventory for ingredient
@@ -367,11 +344,14 @@ export async function POST(request, { params }) {
                             totalAmount = baseAmount;
                         }
 
+                        // UNIFIED: Use the comprehensive categorization system
+                        const category = categorizeIngredient(ingredient.name);
+
                         allIngredients.push({
                             name: ingredient.name.trim(),
                             amount: Math.max(0, totalAmount),
                             unit: ingredient.unit || parsed.unit || '',
-                            category: categorizeIngredient(ingredient.name),
+                            category: category,
                             recipes: recipeUsage && recipeUsage.recipeName ? [recipeUsage.recipeName] : [recipe.title],
                             recipeIds: [recipe._id.toString()],
                             optional: !!ingredient.optional
@@ -426,7 +406,7 @@ export async function POST(request, { params }) {
                 quantity: numericAmount,
                 unit: ingredient.unit || '',
 
-                // Categorization
+                // Categorization - using unified system
                 category: ingredient.category,
 
                 // Recipe references
@@ -457,13 +437,15 @@ export async function POST(request, { params }) {
             };
         });
 
-        // Group by category for better organization
+        // Group by category for better organization using unified categories
         const categorizedItems = {};
         shoppingListItems.forEach(item => {
-            if (!categorizedItems[item.category]) {
-                categorizedItems[item.category] = [];
+            // Validate category exists in our unified system
+            const validCategory = CategoryUtils.isValidCategory(item.category) ? item.category : 'Other';
+            if (!categorizedItems[validCategory]) {
+                categorizedItems[validCategory] = [];
             }
-            categorizedItems[item.category].push(item);
+            categorizedItems[validCategory].push(item);
         });
 
         // Sort items within each category
@@ -472,8 +454,6 @@ export async function POST(request, { params }) {
         });
 
         // FIXED: Store shopping list data in the format expected by the MealPlan schema
-        // Some schemas expect a flat array, others expect categorized object
-        // Let's try flat array first since that's what the error suggests
         const shoppingListForSave = {
             generated: true,
             generatedAt: new Date(),
@@ -492,6 +472,7 @@ export async function POST(request, { params }) {
         }
 
         console.log('Shopping list generated successfully with', shoppingListItems.length, 'items');
+        console.log('Categories used:', Object.keys(categorizedItems));
 
         // Calculate statistics
         const summary = {
@@ -499,13 +480,14 @@ export async function POST(request, { params }) {
             inInventory: shoppingListItems.filter(item => item.inInventory).length,
             needToBuy: shoppingListItems.filter(item => !item.inInventory).length,
             purchased: 0, // Initially no items are purchased
-            alreadyHave: shoppingListItems.filter(item => item.inInventory).length // For compatibility
+            alreadyHave: shoppingListItems.filter(item => item.inInventory).length, // For compatibility
+            categories: Object.keys(categorizedItems).length
         };
 
         return NextResponse.json({
             success: true,
             shoppingList: {
-                items: categorizedItems, // Return categorized items
+                items: categorizedItems, // Return categorized items using unified system
                 generatedAt: mealPlan.shoppingList.generatedAt,
                 mealPlanName: mealPlan.name,
                 weekStart: mealPlan.weekStartDate,
@@ -515,9 +497,14 @@ export async function POST(request, { params }) {
                     id: r._id.toString(),
                     title: r.title,
                     servings: r.servings
-                }))
+                })),
+                metadata: {
+                    categoriesUsed: Object.keys(categorizedItems),
+                    totalCategories: CategoryUtils.getAllCategoryNames().length,
+                    categorizationSystem: 'unified-grocery-categories-v2'
+                }
             },
-            message: 'Shopping list generated successfully'
+            message: 'Shopping list generated successfully using unified categorization'
         });
 
     } catch (error) {
