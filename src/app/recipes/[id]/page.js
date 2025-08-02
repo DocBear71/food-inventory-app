@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/[id]/page.js v16 - Fixed Hero Image URL support and imagePriority fallback
+// file: /src/app/recipes/[id]/page.js v17 - FIXED: Integrated UpdateNutritionButton properly and removed conflicting nutrition functions
 
 import {useEffect, useState} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -7,7 +7,6 @@ import {useParams, useRouter} from 'next/navigation';
 import Image from 'next/image';
 import {StarRating, RatingStats} from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
-import NutritionFacts from '@/components/nutrition/NutritionFacts';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
@@ -1248,6 +1247,8 @@ const SinglePartRecipeSection = ({recipe, servings, getScaledAmount, formatCookT
     );
 };
 
+
+
 export default function RecipeDetailPage() {
     // Keep all existing state and logic unchanged - just the component is working now
     let session = null;
@@ -1281,7 +1282,8 @@ export default function RecipeDetailPage() {
     const [isFetching, setIsFetching] = useState(false);
     const [viewIncremented, setViewIncremented] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [analyzingNutrition, setAnalyzingNutrition] = useState(false);
+
+    // REMOVED: analyzingNutrition state and handleAnalyzeNutrition function - now handled by UpdateNutritionButton
 
     // Keep all existing useEffects and functions unchanged
     useEffect(() => {
@@ -1344,61 +1346,7 @@ export default function RecipeDetailPage() {
         setRefreshPhotos(prev => prev + 1);
     };
 
-    const handleAnalyzeNutrition = async () => {
-        try {
-            setAnalyzingNutrition(true);
-
-            const response = await fetch(`/api/recipes/analyze-nutrition`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    recipeId: recipe._id
-                }),
-                credentials: 'include'
-            });
-
-            if (response.ok) {
-                const result = await response.json();
-                // Update the recipe state with new nutrition data
-                setRecipe(prev => ({
-                    ...prev,
-                    nutrition: result.nutrition,
-                    nutritionCalculatedAt: new Date(),
-                    nutritionCoverage: result.coverage || 0.9,
-                    nutritionManuallySet: false
-                }));
-                alert('✅ Nutrition analysis completed!');
-            } else {
-                const error = await response.json();
-                alert(`❌ Nutrition analysis failed: ${error.message}`);
-            }
-        } catch (error) {
-            console.error('Nutrition analysis error:', error);
-            alert('❌ Failed to analyze nutrition');
-        } finally {
-            setAnalyzingNutrition(false);
-        }
-    };
-
-    // Helper function to get all ingredients from recipe (supports multi-part)
-    const getAllIngredientsFromRecipe = (recipe) => {
-        if (!recipe) return [];
-
-        // Multi-part recipe
-        if (recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts)) {
-            return recipe.parts.reduce((allIngredients, part) => {
-                const partIngredients = (part.ingredients || []).filter(ing => ing.name && ing.name.trim());
-                return [...allIngredients, ...partIngredients];
-            }, []);
-        }
-
-        // Single-part recipe (legacy)
-        return (recipe.ingredients || []).filter(ing => ing.name && ing.name.trim());
-    };
-
-    // ADDED: Nutrition conversion helper (from EnhancedRecipeForm)
+    // FIXED: Nutrition conversion helper (from EnhancedRecipeForm)
     const convertNutritionFormat = (nutritionPerServing) => {
         const mapping = {
             'calories': 'calories',
@@ -1472,6 +1420,22 @@ export default function RecipeDetailPage() {
         };
 
         return names[key] || key;
+    };
+
+    // Helper function to get all ingredients from recipe (supports multi-part)
+    const getAllIngredientsFromRecipe = (recipe) => {
+        if (!recipe) return [];
+
+        // Multi-part recipe
+        if (recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts)) {
+            return recipe.parts.reduce((allIngredients, part) => {
+                const partIngredients = (part.ingredients || []).filter(ing => ing.name && ing.name.trim());
+                return [...allIngredients, ...partIngredients];
+            }, []);
+        }
+
+        // Single-part recipe (legacy)
+        return (recipe.ingredients || []).filter(ing => ing.name && ing.name.trim());
     };
 
     const fetchMealPlans = async () => {
@@ -1867,16 +1831,6 @@ export default function RecipeDetailPage() {
                         >
                             Print
                         </TouchEnhancedButton>
-
-                        {(!recipe.nutrition || Object.keys(recipe.nutrition).length === 0) && (
-                            <TouchEnhancedButton
-                                onClick={handleAnalyzeNutrition}
-                                disabled={analyzingNutrition}
-                                className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50"
-                            >
-                                {analyzingNutrition ? '🤖 Analyzing...' : '🤖 Analyze Nutrition'}
-                            </TouchEnhancedButton>
-                        )}
                     </div>
 
                     {/* Recipe Meta */}
@@ -2040,6 +1994,7 @@ export default function RecipeDetailPage() {
                                                 <span className="text-green-600 font-medium">📷 User uploaded</span>
                                             ) : recipe.extractedImage?.data ? (
                                                 <div>
+                                                    <span className="text-purple-600 font-medium">🤖 AI extracted</span>
                                                     <span className="text-purple-600 font-medium">🤖 AI extracted</span>
                                                     {recipe.extractedImage.extractionMethod && (
                                                         <div className="text-xs text-gray-500 mt-1">
@@ -2205,62 +2160,100 @@ export default function RecipeDetailPage() {
                             </div>
                         </div>
 
-                        {/* Compact Nutrition Display */}
-                        {!showNutrition && hasNutritionData && (
-                            <div className="bg-white rounded-lg border p-6">
-                                <div className="flex justify-between items-center mb-4">
-                                    <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
+                        {/* FIXED: Compact Nutrition Display with proper UpdateNutritionButton integration */}
+                        <div className="bg-white rounded-lg border p-6">
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
+                                {hasNutritionData && (
                                     <TouchEnhancedButton
                                         onClick={() => setShowNutritionModal(true)}
                                         className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                                     >
                                         View Details
                                     </TouchEnhancedButton>
-                                </div>
-                                <UpdateNutritionButton
-                                    recipe={recipe}
-                                    onNutritionUpdate={(newNutrition, analysisResult) => {
-                                        console.log('🔄 Nutrition updated:', newNutrition);
-
-                                        // Handle the nutrition data properly
-                                        let processedNutrition = newNutrition;
-
-                                        // If newNutrition is not in the expected format, try to process it
-                                        if (newNutrition && !newNutrition.calories && newNutrition.nutrition_per_serving) {
-                                            console.log('🔄 Converting nutrition_per_serving format');
-                                            processedNutrition = convertNutritionFormat(newNutrition.nutrition_per_serving);
-                                        } else if (newNutrition && !newNutrition.calories) {
-                                            console.log('🔄 Using raw nutrition data');
-                                            processedNutrition = newNutrition;
-                                        }
-
-                                        setRecipe(prev => ({
-                                            ...prev,
-                                            nutrition: processedNutrition,
-                                            nutritionCalculatedAt: new Date(),
-                                            nutritionCoverage: analysisResult?.coverage || 0.9,
-                                            nutritionManuallySet: false,
-                                            // Add analysis metadata
-                                            aiAnalysis: {
-                                                ...analysisResult?.aiAnalysis,
-                                                nutritionGenerated: true,
-                                                nutritionMetadata: analysisResult
-                                            }
-                                        }));
-                                    }}
-                                    disabled={getAllIngredientsFromRecipe(recipe).length === 0}
-                                />
-                                {(!recipe.nutrition || Object.keys(recipe.nutrition).length === 0) && (
-                                    <TouchEnhancedButton
-                                        onClick={handleAnalyzeNutrition}
-                                        disabled={analyzingNutrition}
-                                        className="bg-green-600 text-white px-4 py-2 rounded-md hover:bg-green-700 disabled:opacity-50 text-sm"
-                                    >
-                                        {analyzingNutrition ? '🤖 Analyzing...' : '🤖 Analyze Nutrition'}
-                                    </TouchEnhancedButton>
                                 )}
                             </div>
-                        )}
+
+                            {/* FIXED: Use UpdateNutritionButton component with proper nutrition update handling */}
+                            <UpdateNutritionButton
+                                recipe={recipe}
+                                onNutritionUpdate={(newNutrition, analysisResult) => {
+                                    console.log('🔄 Nutrition updated from UpdateNutritionButton:', newNutrition);
+                                    console.log('📊 Analysis result:', analysisResult);
+
+                                    // Handle the nutrition data properly
+                                    let processedNutrition = newNutrition;
+
+                                    // If newNutrition is not in the expected format, try to process it
+                                    if (newNutrition && !newNutrition.calories && newNutrition.nutrition_per_serving) {
+                                        console.log('🔄 Converting nutrition_per_serving format');
+                                        processedNutrition = convertNutritionFormat(newNutrition.nutrition_per_serving);
+                                    } else if (newNutrition && !newNutrition.calories) {
+                                        console.log('🔄 Using raw nutrition data');
+                                        processedNutrition = newNutrition;
+                                    }
+
+                                    setRecipe(prev => ({
+                                        ...prev,
+                                        nutrition: processedNutrition,
+                                        nutritionCalculatedAt: new Date(),
+                                        nutritionCoverage: analysisResult?.coverage || 0.9,
+                                        nutritionManuallySet: false,
+                                        // Add analysis metadata
+                                        aiAnalysis: {
+                                            ...prev.aiAnalysis,
+                                            nutritionGenerated: true,
+                                            nutritionMetadata: analysisResult
+                                        }
+                                    }));
+                                }}
+                                disabled={getAllIngredientsFromRecipe(recipe).length === 0}
+                                className="w-full"
+                            />
+
+                            {/* Display current nutrition if available */}
+                            {hasNutritionData && (
+                                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                                    <div className="grid grid-cols-2 gap-4 text-sm">
+                                        <div>
+                                            <span className="text-gray-500">Calories:</span>
+                                            <span className="ml-2 font-medium">
+                                                {getNormalizedNutrition()?.calories?.value || 0}
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Protein:</span>
+                                            <span className="ml-2 font-medium">
+                                                {getNormalizedNutrition()?.protein?.value || 0}g
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Carbs:</span>
+                                            <span className="ml-2 font-medium">
+                                                {getNormalizedNutrition()?.carbs?.value || 0}g
+                                            </span>
+                                        </div>
+                                        <div>
+                                            <span className="text-gray-500">Fat:</span>
+                                            <span className="ml-2 font-medium">
+                                                {getNormalizedNutrition()?.fat?.value || 0}g
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    {recipe.nutritionCalculatedAt && (
+                                        <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-200">
+                                            Last updated: {new Date(recipe.nutritionCalculatedAt).toLocaleDateString()}
+                                            {recipe.aiAnalysis?.nutritionMetadata?.coverage && (
+                                                <span className="ml-2">
+                                                    • {Math.round(recipe.aiAnalysis.nutritionMetadata.coverage * 100)}% coverage
+                                                </span>
+                                            )}
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 </div>
             </div>
