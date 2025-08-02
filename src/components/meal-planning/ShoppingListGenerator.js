@@ -517,10 +517,10 @@ export default function EnhancedShoppingListGenerator({
 
 // SAFE FIX: Reset hasSaved when the modal closes or opens
     useEffect(() => {
-        if (!isOpen) {
+        if (step !== 'results') {
             setHasSaved(false);
         }
-    }, [isOpen]);
+    }, [step]);
 
 // STEP 1: Robust item extraction that handles all possible data structures
     const extractAllItemsRobustly = (listData) => {
