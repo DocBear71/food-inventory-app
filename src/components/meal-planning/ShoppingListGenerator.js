@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/ShoppingListGenerator.js v15 - FIXED data structure issues and save functionality
+// file: /src/components/meal-planning/ShoppingListGenerator.js v16 - FIXED listType validation error
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -873,7 +873,7 @@ export default function EnhancedShoppingListGenerator({
         return undefined;
     };
 
-// STEP 3: Create save payload with validation
+// STEP 3: Create save payload with validation - FIXED: Use correct listType
     const createSavePayload = (listData, formattedItems) => {
         console.log('📦 PAYLOAD - Creating save payload...');
 
@@ -884,7 +884,8 @@ export default function EnhancedShoppingListGenerator({
             description: (listData.description && typeof listData.description === 'string')
                 ? listData.description.trim()
                 : '',
-            listType: 'meal-plan',
+            // FIXED: Use valid enum value from schema
+            listType: mealPlanId ? 'meal-plan' : 'recipes',
             contextName: mealPlanName || '',
             sourceRecipeIds: [],
             sourceMealPlanId: mealPlanId || null,
@@ -1320,7 +1321,8 @@ export default function EnhancedShoppingListGenerator({
         }
 
         console.log('🔄 Converting shopping list for modal...');
-        const initialMode = options.includePriceOptimization ? 'unified' : 'enhanced';
+        // Set mode based on whether price optimization was used
+        const initialMode = options.includePriceOptimization ? 'smart' : 'enhanced';
         return {
             convertedItems: convertShoppingListForModal(shoppingList),
             mode: initialMode,
