@@ -8,6 +8,7 @@ import Image from 'next/image';
 import {StarRating, RatingStats} from '@/components/reviews/RecipeRating';
 import RecipeReviewsSection from '@/components/reviews/RecipeReviewsSection';
 import RecipeShoppingList from '@/components/recipes/RecipeShoppingList';
+import NutritionFacts from '@/components/nutrition/NutritionFacts';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
@@ -1248,7 +1249,6 @@ const SinglePartRecipeSection = ({recipe, servings, getScaledAmount, formatCookT
 };
 
 
-
 export default function RecipeDetailPage() {
     // Keep all existing state and logic unchanged - just the component is working now
     let session = null;
@@ -2038,7 +2038,8 @@ export default function RecipeDetailPage() {
                                             )}
                                             {recipe.photoCount > 0 && (
                                                 <div className="text-xs text-gray-500">
-                                                    {recipe.photoCount} photo{recipe.photoCount !== 1 ? 's' : ''} in collection
+                                                    {recipe.photoCount} photo{recipe.photoCount !== 1 ? 's' : ''} in
+                                                    collection
                                                 </div>
                                             )}
                                             {recipe.imageMetadata.updateCount > 0 && (
@@ -2160,100 +2161,73 @@ export default function RecipeDetailPage() {
                             </div>
                         </div>
 
-                        {/* FIXED: Compact Nutrition Display with proper UpdateNutritionButton integration */}
-                        <div className="bg-white rounded-lg border p-6">
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
-                                {hasNutritionData && (
+                        {/* RESTORED: Compact Nutrition Display with FDA-style label */}
+                        {hasNutritionData && (
+                            <div className="bg-white rounded-lg border p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
                                     <TouchEnhancedButton
                                         onClick={() => setShowNutritionModal(true)}
                                         className="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded text-sm font-medium transition-colors"
                                     >
                                         View Details
                                     </TouchEnhancedButton>
-                                )}
-                            </div>
-
-                            {/* FIXED: Use UpdateNutritionButton component with proper nutrition update handling */}
-                            <UpdateNutritionButton
-                                recipe={recipe}
-                                onNutritionUpdate={(newNutrition, analysisResult) => {
-                                    console.log('🔄 Nutrition updated from UpdateNutritionButton:', newNutrition);
-                                    console.log('📊 Analysis result:', analysisResult);
-
-                                    // Handle the nutrition data properly
-                                    let processedNutrition = newNutrition;
-
-                                    // If newNutrition is not in the expected format, try to process it
-                                    if (newNutrition && !newNutrition.calories && newNutrition.nutrition_per_serving) {
-                                        console.log('🔄 Converting nutrition_per_serving format');
-                                        processedNutrition = convertNutritionFormat(newNutrition.nutrition_per_serving);
-                                    } else if (newNutrition && !newNutrition.calories) {
-                                        console.log('🔄 Using raw nutrition data');
-                                        processedNutrition = newNutrition;
-                                    }
-
-                                    setRecipe(prev => ({
-                                        ...prev,
-                                        nutrition: processedNutrition,
-                                        nutritionCalculatedAt: new Date(),
-                                        nutritionCoverage: analysisResult?.coverage || 0.9,
-                                        nutritionManuallySet: false,
-                                        // Add analysis metadata
-                                        aiAnalysis: {
-                                            ...prev.aiAnalysis,
-                                            nutritionGenerated: true,
-                                            nutritionMetadata: analysisResult
-                                        }
-                                    }));
-                                }}
-                                disabled={getAllIngredientsFromRecipe(recipe).length === 0}
-                                className="w-full"
-                            />
-
-                            {/* Display current nutrition if available */}
-                            {hasNutritionData && (
-                                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
-                                    <div className="grid grid-cols-2 gap-4 text-sm">
-                                        <div>
-                                            <span className="text-gray-500">Calories:</span>
-                                            <span className="ml-2 font-medium">
-                                                {getNormalizedNutrition()?.calories?.value || 0}
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-500">Protein:</span>
-                                            <span className="ml-2 font-medium">
-                                                {getNormalizedNutrition()?.protein?.value || 0}g
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-500">Carbs:</span>
-                                            <span className="ml-2 font-medium">
-                                                {getNormalizedNutrition()?.carbs?.value || 0}g
-                                            </span>
-                                        </div>
-                                        <div>
-                                            <span className="text-gray-500">Fat:</span>
-                                            <span className="ml-2 font-medium">
-                                                {getNormalizedNutrition()?.fat?.value || 0}g
-                                            </span>
-                                        </div>
-                                    </div>
-
-                                    {recipe.nutritionCalculatedAt && (
-                                        <div className="text-xs text-gray-500 mt-3 pt-3 border-t border-gray-200">
-                                            Last updated: {new Date(recipe.nutritionCalculatedAt).toLocaleDateString()}
-                                            {recipe.aiAnalysis?.nutritionMetadata?.coverage && (
-                                                <span className="ml-2">
-                                                    • {Math.round(recipe.aiAnalysis.nutritionMetadata.coverage * 100)}% coverage
-                                                </span>
-                                            )}
-                                        </div>
-                                    )}
                                 </div>
-                            )}
-                        </div>
+                                <NutritionFacts
+                                    nutrition={getNormalizedNutrition()}
+                                    servings={recipe.servings || 1}
+                                    showPerServing={true}
+                                    compact={false}
+                                />
+                            </div>
+                        )}
+
+
+                        {/* UpdateNutritionButton for recipes without nutrition data */}
+                        {!hasNutritionData && (
+                            <div className="bg-white rounded-lg border p-6">
+                                <div className="flex justify-between items-center mb-4">
+                                    <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
+                                </div>
+
+                                {/* FIXED: Use UpdateNutritionButton component with proper nutrition update handling */}
+                                <UpdateNutritionButton
+                                    recipe={recipe}
+                                    onNutritionUpdate={(newNutrition, analysisResult) => {
+                                        console.log('🔄 Nutrition updated from UpdateNutritionButton:', newNutrition);
+                                        console.log('📊 Analysis result:', analysisResult);
+
+                                        // Handle the nutrition data properly
+                                        let processedNutrition = newNutrition;
+
+                                        // If newNutrition is not in the expected format, try to process it
+                                        if (newNutrition && !newNutrition.calories && newNutrition.nutrition_per_serving) {
+                                            console.log('🔄 Converting nutrition_per_serving format');
+                                            processedNutrition = convertNutritionFormat(newNutrition.nutrition_per_serving);
+                                        } else if (newNutrition && !newNutrition.calories) {
+                                            console.log('🔄 Using raw nutrition data');
+                                            processedNutrition = newNutrition;
+                                        }
+
+                                        setRecipe(prev => ({
+                                            ...prev,
+                                            nutrition: processedNutrition,
+                                            nutritionCalculatedAt: new Date(),
+                                            nutritionCoverage: analysisResult?.coverage || 0.9,
+                                            nutritionManuallySet: false,
+                                            // Add analysis metadata
+                                            aiAnalysis: {
+                                                ...prev.aiAnalysis,
+                                                nutritionGenerated: true,
+                                                nutritionMetadata: analysisResult
+                                            }
+                                        }));
+                                    }}
+                                    disabled={getAllIngredientsFromRecipe(recipe).length === 0}
+                                    className="w-full"
+                                />
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>
@@ -2291,7 +2265,8 @@ export default function RecipeDetailPage() {
                         <div className="flex-1 overflow-y-auto p-6">
                             {loadingMealPlans ? (
                                 <div className="text-center py-12">
-                                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
+                                    <div
+                                        className="animate-spin rounded-full h-12 w-12 border-b-2 border-indigo-600 mx-auto"></div>
                                     <p className="mt-4 text-gray-600">Loading meal plans...</p>
                                 </div>
                             ) : mealPlans.length === 0 ? (
@@ -2312,11 +2287,13 @@ export default function RecipeDetailPage() {
                             ) : (
                                 <div className="space-y-6">
                                     {mealPlans.map(mealPlan => (
-                                        <div key={mealPlan._id} className="border border-gray-200 rounded-lg overflow-hidden">
+                                        <div key={mealPlan._id}
+                                             className="border border-gray-200 rounded-lg overflow-hidden">
                                             <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
                                                 <h4 className="font-semibold text-gray-900 text-lg">{mealPlan.name}</h4>
                                                 <p className="text-sm text-gray-600 mt-1">
-                                                    Week of {new Date(mealPlan.weekStartDate).toLocaleDateString('en-US', {
+                                                    Week
+                                                    of {new Date(mealPlan.weekStartDate).toLocaleDateString('en-US', {
                                                     month: 'long',
                                                     day: 'numeric',
                                                     year: 'numeric'
@@ -2328,7 +2305,8 @@ export default function RecipeDetailPage() {
                                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-7 gap-4">
                                                     {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map(day => (
                                                         <div key={day} className="space-y-3">
-                                                            <div className="font-medium text-gray-700 capitalize text-center">
+                                                            <div
+                                                                className="font-medium text-gray-700 capitalize text-center">
                                                                 {day}
                                                             </div>
                                                             <div className="space-y-2">
