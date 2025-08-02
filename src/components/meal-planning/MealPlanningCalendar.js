@@ -1579,14 +1579,8 @@ export default function MealPlanningCalendar() {
             console.log('🔄 Generating shopping list for meal plan:', mealPlan.name);
 
             // Call the shopping list generation API
-            const response = await fetch('/api/shopping/generate', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    mealPlanId: mealPlan._id
-                }),
+            const response = await apiPost('/api/shopping/generate', {
+                mealPlanId: mealPlan._id
             });
 
             if (!response.ok) {
@@ -1845,7 +1839,7 @@ export default function MealPlanningCalendar() {
                             <div className="grid grid-cols-2 gap-3">
                                 {mealsPlanned && (
                                     <TouchEnhancedButton
-                                        onClick={() => setShowShoppingList(true)}
+                                        onClick={() => handleShowShoppingList(true)}
                                         className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md"
                                         title="Generate shopping list from your meal plan"
                                     >
@@ -2719,7 +2713,7 @@ export default function MealPlanningCalendar() {
                             {/* Second row */}
                             {mealsPlanned && (
                                 <TouchEnhancedButton
-                                    onClick={() => setShowShoppingList(true)}
+                                    onClick={() => handleShowShoppingList(true)}
                                     className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
                                     title="Generate shopping list from your meal plan"
                                 >
