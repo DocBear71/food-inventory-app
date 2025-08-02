@@ -3,7 +3,7 @@
 
 import {useState, useEffect} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
-import ShoppingListGenerator from '@/components/meal-planning/ShoppingListGenerator';
+import EnhancedAIShoppingListModal from "@/components/shopping/EnhancedAIShoppingListModal";
 import MealPrepButton from '@/components/meal-planning/MealPrepButton';
 import NutritionAnalysisButton from '@/components/nutrition/NutritionAnalysisButton';
 import TemplateLibraryButton from '@/components/meal-planning/TemplateLibraryButton';
@@ -65,6 +65,8 @@ export default function MealPlanningCalendar() {
     const [showVoiceMealPlanning, setShowVoiceMealPlanning] = useState(false);
     const [processingVoiceMeal, setProcessingVoiceMeal] = useState(false);
     const [voiceMealResults, setVoiceMealResults] = useState('');
+    const [shoppingListData, setShoppingListData] = useState(null);
+    const [loadingShoppingList, setLoadingShoppingList] = useState(false);
 
     const showToast = (message, type = 'success') => {
         const toast = document.createElement('div');
@@ -1569,6 +1571,59 @@ export default function MealPlanningCalendar() {
         }
     };
 
+    const generateShoppingListData = async (mealPlan) => {
+        if (!mealPlan?._id) return null;
+
+        setLoadingShoppingList(true);
+        try {
+            console.log('🔄 Generating shopping list for meal plan:', mealPlan.name);
+
+            // Call the shopping list generation API
+            const response = await fetch('/api/shopping/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mealPlanId: mealPlan._id
+                }),
+            });
+
+            if (!response.ok) {
+                throw new Error(`Failed to generate shopping list: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+                console.log('✅ Shopping list generated:', data.shoppingList);
+                return data.shoppingList;
+            } else {
+                throw new Error(data.error || 'Failed to generate shopping list');
+            }
+        } catch (error) {
+            console.error('❌ Error generating shopping list:', error);
+            // Return a basic structure so modal can still open
+            return {
+                items: {},
+                summary: { totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0 },
+                recipes: [],
+                generatedAt: new Date().toISOString()
+            };
+        } finally {
+            setLoadingShoppingList(false);
+        }
+    };
+
+    const handleShowShoppingList = async () => {
+        if (mealPlan) {
+            setShowShoppingList(true);
+            // Generate shopping list data when opening
+            const listData = await generateShoppingListData(mealPlan);
+            setShoppingListData(listData);
+        }
+    };
+
     useEffect(() => {
         const checkMobile = () => {
             setIsMobile(window.innerWidth < 768);
@@ -2517,11 +2572,50 @@ export default function MealPlanningCalendar() {
 
                 {/* Shopping List Modal */}
                 {showShoppingList && mealPlan && (
-                    <ShoppingListGenerator
-                        mealPlanId={mealPlan._id}
-                        mealPlanName={mealPlan.name}
-                        onClose={() => setShowShoppingList(false)}
-                        priceIntelligence={priceIntelligence.enabled} // NEW: Pass price intelligence flag
+                    <EnhancedAIShoppingListModal
+                        isOpen={showShoppingList}
+                        onClose={() => {
+                            setShowShoppingList(false);
+                            setShoppingListData(null); // Clear data when closing
+                        }}
+                        // Pass the generated shopping list data
+                        shoppingList={shoppingListData}
+                        currentShoppingList={shoppingListData}
+
+                        // Meal plan context
+                        sourceMealPlanId={mealPlan._id}
+                        sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
+
+                        // Modal configuration
+                        title="🍽️ Meal Plan Shopping List"
+                        subtitle={`Smart shopping for ${mealPlan.name}`}
+
+                        // Features based on price intelligence setting
+                        initialMode={priceIntelligence.enabled ? 'unified' : 'enhanced'}
+
+                        // Pass budget if available
+                        initialBudget={mealPlan.budget || null}
+
+                        // Shopping list specific props
+                        contextName={mealPlan.name}
+
+                        // Show loading state
+                        loading={loadingShoppingList}
+
+                        // Handle successful save
+                        onSave={(savedList) => {
+                            console.log('✅ Meal plan shopping list saved:', savedList);
+                            setShowShoppingList(false);
+                            setShoppingListData(null);
+                            // Optionally show success message
+                        }}
+
+                        // Additional props for enhanced functionality
+                        showRefresh={true}
+                        onRefresh={async () => {
+                            const listData = await generateShoppingListData(mealPlan);
+                            setShoppingListData(listData);
+                        }}
                     />
                 )}
 
@@ -3476,11 +3570,50 @@ export default function MealPlanningCalendar() {
 
             {/* Shopping List Modal */}
             {showShoppingList && mealPlan && (
-                <ShoppingListGenerator
-                    mealPlanId={mealPlan._id}
-                    mealPlanName={mealPlan.name}
-                    onClose={() => setShowShoppingList(false)}
-                    priceIntelligence={priceIntelligence.enabled} // NEW: Pass price intelligence flag
+                <EnhancedAIShoppingListModal
+                    isOpen={showShoppingList}
+                    onClose={() => {
+                        setShowShoppingList(false);
+                        setShoppingListData(null); // Clear data when closing
+                    }}
+                    // Pass the generated shopping list data
+                    shoppingList={shoppingListData}
+                    currentShoppingList={shoppingListData}
+
+                    // Meal plan context
+                    sourceMealPlanId={mealPlan._id}
+                    sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
+
+                    // Modal configuration
+                    title="🍽️ Meal Plan Shopping List"
+                    subtitle={`Smart shopping for ${mealPlan.name}`}
+
+                    // Features based on price intelligence setting
+                    initialMode={priceIntelligence.enabled ? 'unified' : 'enhanced'}
+
+                    // Pass budget if available
+                    initialBudget={mealPlan.budget || null}
+
+                    // Shopping list specific props
+                    contextName={mealPlan.name}
+
+                    // Show loading state
+                    loading={loadingShoppingList}
+
+                    // Handle successful save
+                    onSave={(savedList) => {
+                        console.log('✅ Meal plan shopping list saved:', savedList);
+                        setShowShoppingList(false);
+                        setShoppingListData(null);
+                        // Optionally show success message
+                    }}
+
+                    // Additional props for enhanced functionality
+                    showRefresh={true}
+                    onRefresh={async () => {
+                        const listData = await generateShoppingListData(mealPlan);
+                        setShoppingListData(listData);
+                    }}
                 />
             )}
 
