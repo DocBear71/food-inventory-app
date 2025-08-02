@@ -1418,9 +1418,6 @@ export default function EnhancedAIShoppingListModal({
         setPurchasedItems({});
     }, []);
 
-    // FIXED SECTION: handleSmartSave function with correct listType
-// file: /src/components/shopping/EnhancedAIShoppingListModal.js v11 - FIXED listType validation error
-
     // Enhanced Smart Save Function for unified modes - FIXED listType
     const handleSmartSave = useCallback(async () => {
         const config = getModeConfig();
@@ -3797,6 +3794,7 @@ export default function EnhancedAIShoppingListModal({
             />
 
             {/* Save Shopping List Modal */}
+            {/* Save Shopping List Modal - FIXED listType */}
             <SaveShoppingListModal
                 isOpen={showSaveModal}
                 onClose={() => setShowSaveModal(false)}
@@ -3805,7 +3803,8 @@ export default function EnhancedAIShoppingListModal({
                     if (onSave) onSave(savedList);
                 }}
                 shoppingList={normalizedList}
-                listType={`unified-${shoppingMode}`}
+                // FIXED: Use valid enum value instead of mode-based string
+                listType={sourceMealPlanId ? 'meal-plan' : 'recipes'}
                 contextName={`${config.title} - ${selectedStore || 'Store'}`}
                 sourceRecipeIds={sourceRecipeIds}
                 sourceMealPlanId={sourceMealPlanId}
