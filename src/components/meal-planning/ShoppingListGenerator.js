@@ -416,130 +416,498 @@ export default function EnhancedShoppingListGenerator({
         setStep('options');
     };
 
-    // ENHANCED: Save handler specifically designed for categorized shopping lists
+    // BULLETPROOF: Enhanced save handling for complex categorized shopping lists
     const handleSaveToUnifiedModal = useCallback(async (listData) => {
-        console.log('✅ Shopping list save requested after categorization:', {
-            hasItems: !!listData.items,
-            itemsType: typeof listData.items,
-            isArray: Array.isArray(listData.items),
-            name: listData.name
+        console.log('🔄 SAVE REQUEST - Starting bulletproof save process...');
+        console.log('📊 Input data analysis:', {
+            hasListData: !!listData,
+            listDataType: typeof listData,
+            hasItems: !!listData?.items,
+            itemsType: typeof listData?.items,
+            isItemsArray: Array.isArray(listData?.items),
+            itemsKeys: listData?.items ? Object.keys(listData.items).slice(0, 10) : 'none',
+            name: listData?.name || 'unnamed'
         });
 
         try {
-            let itemsToSave = [];
+            // STEP 1: Extract and validate all items with comprehensive error handling
+            const extractedItems = extractAllItemsRobustly(listData);
 
-            // ENHANCED: Handle the categorized items structure after moves
-            if (listData.items && typeof listData.items === 'object' && !Array.isArray(listData.items)) {
-                console.log('📂 Processing categorized items after moves...');
-
-                // Extract items from categorized structure
-                Object.entries(listData.items).forEach(([category, categoryItems]) => {
-                    console.log(`📋 Processing category "${category}" with ${Array.isArray(categoryItems) ? categoryItems.length : 'non-array'} items`);
-
-                    if (Array.isArray(categoryItems)) {
-                        categoryItems.forEach((item, index) => {
-                            if (item && typeof item === 'object') {
-                                // Ensure the item has the correct category after moves
-                                const enhancedItem = {
-                                    ...item,
-                                    category: category, // Use the current category it's been moved to
-                                    // Preserve move history if it exists
-                                    originalCategory: item.originalCategory || item.category || category
-                                };
-                                itemsToSave.push(enhancedItem);
-                            } else {
-                                console.warn(`⚠️ Invalid item in category "${category}" at index ${index}:`, item);
-                            }
-                        });
-                    } else {
-                        console.warn(`⚠️ Category "${category}" doesn't contain an array:`, typeof categoryItems);
-                    }
-                });
-            } else if (Array.isArray(listData.items)) {
-                console.log('📋 Processing flat array of items...');
-                itemsToSave = listData.items;
-            } else if (listData.categorizedItems && Array.isArray(listData.categorizedItems)) {
-                console.log('📋 Processing categorizedItems array...');
-                itemsToSave = listData.categorizedItems;
-            } else {
-                // Fallback to original shopping list data
-                console.log('🔄 Falling back to original shopping list data...');
-                if (shoppingList && shoppingList.items) {
-                    if (Array.isArray(shoppingList.items)) {
-                        itemsToSave = shoppingList.items;
-                    } else if (typeof shoppingList.items === 'object') {
-                        Object.values(shoppingList.items).forEach(categoryItems => {
-                            if (Array.isArray(categoryItems)) {
-                                itemsToSave.push(...categoryItems);
-                            }
-                        });
-                    }
-                }
+            if (extractedItems.length === 0) {
+                console.error('❌ No valid items extracted from listData');
+                throw new Error('No valid items found in shopping list data');
             }
 
-            console.log('📊 Items extraction results:', {
-                totalItems: itemsToSave.length,
-                categoriesFound: listData.items ? Object.keys(listData.items).length : 0,
-                sampleCategories: listData.items ? Object.keys(listData.items).slice(0, 5) : []
-            });
+            console.log(`✅ Successfully extracted ${extractedItems.length} items for save`);
 
-            if (itemsToSave.length === 0) {
-                throw new Error('No items found to save after category processing');
-            }
-
-            // Enhanced formatting for categorized items
-            const formattedItems = formatCategorizedItemsForSave(itemsToSave);
+            // STEP 2: Format items for the SavedShoppingList schema
+            const formattedItems = formatItemsForSaveRobustly(extractedItems);
 
             if (formattedItems.length === 0) {
-                throw new Error('No valid items found after formatting');
+                console.error('❌ No valid items after formatting');
+                throw new Error('No valid items remain after formatting');
             }
 
-            // Create save payload
-            const savePayload = {
-                name: listData.name || `Shopping List ${new Date().toLocaleDateString()}`,
-                description: listData.description || '',
-                listType: 'meal-plan',
-                contextName: mealPlanName,
-                sourceRecipeIds: [],
-                sourceMealPlanId: mealPlanId,
-                items: formattedItems,
-                tags: listData.tags || [],
-                color: listData.color || '#3b82f6',
-                isTemplate: listData.isTemplate || false
-            };
+            console.log(`✅ Successfully formatted ${formattedItems.length} items for schema`);
 
-            console.log('📤 Sending save request:', {
+            // STEP 3: Create the save payload with validation
+            const savePayload = createSavePayload(listData, formattedItems);
+
+            console.log('📤 Save payload summary:', {
                 name: savePayload.name,
                 itemCount: savePayload.items.length,
                 categories: [...new Set(savePayload.items.map(item => item.category))],
-                sampleItems: savePayload.items.slice(0, 3).map(item => ({
-                    ingredient: item.ingredient,
-                    category: item.category,
-                    amount: item.amount
-                }))
+                listType: savePayload.listType,
+                hasDescription: !!savePayload.description
             });
 
+            // STEP 4: Execute the save with enhanced error handling
             const response = await apiPost('/api/shopping/saved', savePayload);
 
             if (!response.ok) {
                 const errorText = await response.text();
-                console.error('❌ Save API Error:', {
+                let errorDetails;
+                try {
+                    errorDetails = JSON.parse(errorText);
+                } catch {
+                    errorDetails = { message: errorText };
+                }
+
+                console.error('❌ API Save Error:', {
                     status: response.status,
                     statusText: response.statusText,
-                    body: errorText
+                    errorDetails: errorDetails
                 });
-                throw new Error(`Failed to save shopping list: ${response.status} ${response.statusText}`);
+
+                throw new Error(`Save failed (${response.status}): ${errorDetails.error || errorDetails.message || 'Unknown error'}`);
             }
 
             const result = await response.json();
             console.log('✅ Shopping list saved successfully:', result);
 
-            onClose(); // Close the generator after saving
+            onClose(); // Close the generator after successful save
+
         } catch (error) {
-            console.error('❌ Error saving categorized shopping list:', error);
-            throw error;
+            console.error('💥 SAVE ERROR - Complete error details:', {
+                name: error.name,
+                message: error.message,
+                stack: error.stack,
+                inputData: {
+                    hasItems: !!listData?.items,
+                    itemsType: typeof listData?.items,
+                    isArray: Array.isArray(listData?.items)
+                }
+            });
+            throw error; // Let the modal handle the error display
         }
     }, [onClose, mealPlanId, mealPlanName, shoppingList]);
+
+// STEP 1: Robust item extraction that handles all possible data structures
+    const extractAllItemsRobustly = (listData) => {
+        console.log('🔍 EXTRACT - Starting robust item extraction...');
+
+        const extractedItems = [];
+        let extractionMethod = 'unknown';
+
+        try {
+            // Method 1: Direct items array
+            if (listData?.items && Array.isArray(listData.items)) {
+                console.log('📋 EXTRACT - Method 1: Direct items array');
+                extractionMethod = 'direct-array';
+                listData.items.forEach((item, index) => {
+                    const processed = processItemSafely(item, index, 'direct-array');
+                    if (processed) extractedItems.push(processed);
+                });
+            }
+
+            // Method 2: Categorized items object
+            else if (listData?.items && typeof listData.items === 'object') {
+                console.log('📂 EXTRACT - Method 2: Categorized items object');
+                extractionMethod = 'categorized-object';
+
+                Object.entries(listData.items).forEach(([category, categoryItems]) => {
+                    console.log(`📂 Processing category: "${category}" with ${Array.isArray(categoryItems) ? categoryItems.length : 'non-array'} items`);
+
+                    if (Array.isArray(categoryItems)) {
+                        categoryItems.forEach((item, index) => {
+                            const processed = processItemSafely(item, index, `category-${category}`);
+                            if (processed) {
+                                // Ensure the item has the correct category from its current location
+                                processed.category = category;
+                                processed.originalCategory = processed.originalCategory || category;
+                                extractedItems.push(processed);
+                            }
+                        });
+                    } else if (categoryItems && typeof categoryItems === 'object') {
+                        // Handle single item objects that aren't arrays
+                        console.log(`⚠️ Converting single item object in category "${category}"`);
+                        const processed = processItemSafely(categoryItems, 0, `single-${category}`);
+                        if (processed) {
+                            processed.category = category;
+                            processed.originalCategory = processed.originalCategory || category;
+                            extractedItems.push(processed);
+                        }
+                    }
+                });
+            }
+
+            // Method 3: Try categorizedItems property
+            else if (listData?.categorizedItems && Array.isArray(listData.categorizedItems)) {
+                console.log('📋 EXTRACT - Method 3: categorizedItems array');
+                extractionMethod = 'categorized-items-array';
+                listData.categorizedItems.forEach((item, index) => {
+                    const processed = processItemSafely(item, index, 'categorized-items');
+                    if (processed) extractedItems.push(processed);
+                });
+            }
+
+            // Method 4: Fall back to original shopping list
+            else if (shoppingList?.items) {
+                console.log('🔄 EXTRACT - Method 4: Fallback to original shoppingList');
+                extractionMethod = 'fallback-original';
+
+                if (Array.isArray(shoppingList.items)) {
+                    shoppingList.items.forEach((item, index) => {
+                        const processed = processItemSafely(item, index, 'fallback-array');
+                        if (processed) extractedItems.push(processed);
+                    });
+                } else if (typeof shoppingList.items === 'object') {
+                    Object.values(shoppingList.items).forEach((categoryItems, categoryIndex) => {
+                        if (Array.isArray(categoryItems)) {
+                            categoryItems.forEach((item, index) => {
+                                const processed = processItemSafely(item, index, `fallback-category-${categoryIndex}`);
+                                if (processed) extractedItems.push(processed);
+                            });
+                        }
+                    });
+                }
+            }
+
+            console.log(`✅ EXTRACT - Completed using method: ${extractionMethod}, extracted ${extractedItems.length} items`);
+
+        } catch (extractError) {
+            console.error('💥 EXTRACT ERROR:', extractError);
+            console.error('📊 Data that caused error:', {
+                listData: listData,
+                shoppingList: shoppingList
+            });
+        }
+
+        return extractedItems;
+    };
+
+// ROBUST: Process individual items with comprehensive validation
+    const processItemSafely = (item, index, source) => {
+        try {
+            // Skip null/undefined items
+            if (!item) {
+                console.log(`⚠️ PROCESS - Skipping null/undefined item at index ${index} from ${source}`);
+                return null;
+            }
+
+            // Handle string items (shouldn't happen but be safe)
+            if (typeof item === 'string') {
+                console.log(`⚠️ PROCESS - Converting string item "${item}" to object`);
+                return {
+                    name: item,
+                    ingredient: item,
+                    category: 'Other',
+                    amount: '',
+                    unit: '',
+                    quantity: '1'
+                };
+            }
+
+            // Skip non-object items
+            if (typeof item !== 'object') {
+                console.warn(`⚠️ PROCESS - Skipping non-object item at index ${index}:`, typeof item, item);
+                return null;
+            }
+
+            // Extract name with multiple fallbacks
+            const name = extractItemName(item);
+            if (!name) {
+                console.warn(`⚠️ PROCESS - Skipping item with no valid name at index ${index}:`, item);
+                return null;
+            }
+
+            // Extract other properties safely
+            const category = extractItemCategory(item);
+            const { amount, unit, quantity } = extractAmountInfo(item);
+
+            // Create processed item with all required fields
+            const processedItem = {
+                name: name,
+                ingredient: name,
+                category: category,
+                amount: amount,
+                unit: unit,
+                quantity: quantity,
+
+                // Additional properties with safe extraction
+                inInventory: Boolean(item.inInventory),
+                purchased: Boolean(item.purchased || item.checked),
+                selected: item.selected !== false,
+                optional: Boolean(item.optional),
+
+                // Recipe information
+                recipes: extractRecipeList(item),
+
+                // Original data preservation
+                originalName: item.originalName || name,
+                id: item.id || generateSafeItemId(name, index),
+
+                // Additional safe properties
+                notes: (item.notes && typeof item.notes === 'string') ? item.notes : '',
+                haveAmount: (item.haveAmount && typeof item.haveAmount === 'string') ? item.haveAmount : '',
+                needAmount: (item.needAmount && typeof item.needAmount === 'string') ? item.needAmount : amount,
+
+                // Metadata
+                processedFrom: source,
+                processedAt: Date.now()
+            };
+
+            console.log(`✅ PROCESS - Successfully processed: ${name} [${category}]`);
+            return processedItem;
+
+        } catch (processError) {
+            console.error(`💥 PROCESS ERROR - Failed to process item at index ${index}:`, processError);
+            console.error(`📊 Item data:`, item);
+            return null;
+        }
+    };
+
+// HELPER: Extract item name with multiple fallbacks
+    const extractItemName = (item) => {
+        const possibleFields = ['ingredient', 'name', 'title', 'itemName', 'displayName'];
+
+        for (const field of possibleFields) {
+            if (item[field] && typeof item[field] === 'string' && item[field].trim()) {
+                return item[field].trim();
+            }
+        }
+
+        return null;
+    };
+
+// HELPER: Extract category with validation
+    const extractItemCategory = (item) => {
+        if (item.category && typeof item.category === 'string' && item.category.trim()) {
+            return item.category.trim();
+        }
+        return 'Other';
+    };
+
+// HELPER: Extract amount information with comprehensive parsing
+    const extractAmountInfo = (item) => {
+        let amount = '';
+        let unit = '';
+        let quantity = '';
+
+        // Try different amount fields
+        const amountFields = ['amount', 'quantity', 'qty', 'size'];
+        const unitFields = ['unit', 'units', 'measure'];
+
+        // Extract amount
+        for (const field of amountFields) {
+            if (item[field] && (typeof item[field] === 'string' || typeof item[field] === 'number')) {
+                const value = String(item[field]).trim();
+                if (value) {
+                    amount = value;
+                    quantity = value;
+                    break;
+                }
+            }
+        }
+
+        // Extract unit
+        for (const field of unitFields) {
+            if (item[field] && typeof item[field] === 'string' && item[field].trim()) {
+                unit = item[field].trim();
+                break;
+            }
+        }
+
+        // If we have both amount and unit, combine them for display
+        if (amount && unit && !amount.includes(unit)) {
+            amount = `${amount} ${unit}`.trim();
+        }
+
+        return {
+            amount: amount || '',
+            unit: unit || '',
+            quantity: quantity || '1'
+        };
+    };
+
+// HELPER: Extract recipe list safely
+    const extractRecipeList = (item) => {
+        if (Array.isArray(item.recipes)) {
+            return item.recipes.filter(recipe => recipe && typeof recipe === 'string');
+        } else if (item.recipes && typeof item.recipes === 'string') {
+            return [item.recipes];
+        } else if (item.recipe && typeof item.recipe === 'string') {
+            return [item.recipe];
+        }
+        return [];
+    };
+
+// HELPER: Generate safe item ID
+    const generateSafeItemId = (name, index) => {
+        const safeName = name.toLowerCase().replace(/[^a-z0-9]/g, '-');
+        return `${safeName}-${Date.now()}-${index}`;
+    };
+
+// STEP 2: Format items for SavedShoppingList schema with comprehensive validation
+    const formatItemsForSaveRobustly = (items) => {
+        console.log(`🔧 FORMAT - Starting robust formatting of ${items.length} items...`);
+
+        if (!Array.isArray(items)) {
+            console.error('❌ FORMAT - Items is not an array:', typeof items);
+            return [];
+        }
+
+        const formattedItems = [];
+        const seenNames = new Set(); // Prevent duplicates
+
+        items.forEach((item, index) => {
+            try {
+                if (!item || typeof item !== 'object') {
+                    console.warn(`⚠️ FORMAT - Skipping invalid item at index ${index}:`, item);
+                    return;
+                }
+
+                const name = item.name || item.ingredient;
+                if (!name || typeof name !== 'string' || !name.trim()) {
+                    console.warn(`⚠️ FORMAT - Skipping item with invalid name at index ${index}:`, item);
+                    return;
+                }
+
+                const trimmedName = name.trim();
+
+                // Skip duplicates based on name
+                if (seenNames.has(trimmedName.toLowerCase())) {
+                    console.log(`⚠️ FORMAT - Skipping duplicate item: ${trimmedName}`);
+                    return;
+                }
+                seenNames.add(trimmedName.toLowerCase());
+
+                // Create formatted item according to SavedShoppingList schema
+                const formattedItem = {
+                    // Required fields
+                    ingredient: trimmedName,
+
+                    // Amount information
+                    amount: formatAmountSafely(item),
+
+                    // Categorization
+                    category: formatCategorySafely(item.category),
+
+                    // Status fields
+                    inInventory: Boolean(item.inInventory),
+                    purchased: Boolean(item.purchased),
+
+                    // Recipe information
+                    recipes: formatRecipesSafely(item.recipes),
+
+                    // Additional fields from schema
+                    originalName: item.originalName || trimmedName,
+                    needAmount: item.needAmount || '',
+                    haveAmount: item.haveAmount || '',
+                    itemKey: item.itemKey || item.id || generateSafeItemId(trimmedName, index),
+                    notes: item.notes || '',
+
+                    // Price information (if available)
+                    price: formatPriceSafely(item.price),
+                    unitPrice: formatPriceSafely(item.unitPrice),
+                    estimatedPrice: formatPriceSafely(item.estimatedPrice) || 0,
+                    priceSource: (item.priceSource && typeof item.priceSource === 'string') ? item.priceSource : 'estimated'
+                };
+
+                formattedItems.push(formattedItem);
+                console.log(`✅ FORMAT - Item ${index + 1}: ${trimmedName} -> ${formattedItem.category}`);
+
+            } catch (formatError) {
+                console.error(`💥 FORMAT ERROR - Item ${index}:`, formatError, item);
+            }
+        });
+
+        console.log(`✅ FORMAT - Completed: ${formattedItems.length} items formatted successfully`);
+        return formattedItems;
+    };
+
+// HELPER: Format amount safely
+    const formatAmountSafely = (item) => {
+        if (item.amount && typeof item.amount === 'string') {
+            return item.amount.trim();
+        } else if (item.quantity && typeof item.quantity === 'string') {
+            const unit = (item.unit && typeof item.unit === 'string') ? item.unit.trim() : '';
+            return unit ? `${item.quantity.trim()} ${unit}`.trim() : item.quantity.trim();
+        }
+        return '';
+    };
+
+// HELPER: Format category safely
+    const formatCategorySafely = (category) => {
+        if (category && typeof category === 'string' && category.trim()) {
+            return category.trim();
+        }
+        return 'other';
+    };
+
+// HELPER: Format recipes safely
+    const formatRecipesSafely = (recipes) => {
+        if (Array.isArray(recipes)) {
+            return recipes.filter(recipe => recipe && typeof recipe === 'string');
+        } else if (recipes && typeof recipes === 'string') {
+            return [recipes];
+        }
+        return [];
+    };
+
+// HELPER: Format price safely
+    const formatPriceSafely = (price) => {
+        if (typeof price === 'number' && !isNaN(price) && price >= 0) {
+            return price;
+        }
+        return undefined;
+    };
+
+// STEP 3: Create save payload with validation
+    const createSavePayload = (listData, formattedItems) => {
+        console.log('📦 PAYLOAD - Creating save payload...');
+
+        const payload = {
+            name: (listData.name && typeof listData.name === 'string')
+                ? listData.name.trim()
+                : `Shopping List ${new Date().toLocaleDateString()}`,
+            description: (listData.description && typeof listData.description === 'string')
+                ? listData.description.trim()
+                : '',
+            listType: 'meal-plan',
+            contextName: mealPlanName || '',
+            sourceRecipeIds: [],
+            sourceMealPlanId: mealPlanId || null,
+            items: formattedItems,
+            tags: Array.isArray(listData.tags) ? listData.tags : [],
+            color: (listData.color && typeof listData.color === 'string')
+                ? listData.color
+                : '#3b82f6',
+            isTemplate: Boolean(listData.isTemplate)
+        };
+
+        // Validate payload
+        if (!payload.name || payload.name.length === 0) {
+            throw new Error('Shopping list name is required');
+        }
+
+        if (!Array.isArray(payload.items) || payload.items.length === 0) {
+            throw new Error('Shopping list must contain at least one item');
+        }
+
+        console.log(`✅ PAYLOAD - Created valid payload with ${payload.items.length} items`);
+        return payload;
+    };
 
 // ENHANCED: Specialized formatter for items that have been moved between categories
     const formatCategorizedItemsForSave = (items) => {
@@ -628,19 +996,6 @@ export default function EnhancedShoppingListGenerator({
         });
 
         return validItems;
-    };
-
-// Helper function to extract item names with multiple fallbacks
-    const extractItemName = (item) => {
-        const possibleFields = ['ingredient', 'name', 'title', 'itemName', 'displayName'];
-
-        for (const field of possibleFields) {
-            if (item[field] && typeof item[field] === 'string' && item[field].trim()) {
-                return item[field].trim();
-            }
-        }
-
-        return null;
     };
 
 // Enhanced amount parsing for grocery shopping context

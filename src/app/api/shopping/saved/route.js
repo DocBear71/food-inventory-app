@@ -104,28 +104,36 @@ export async function GET(request) {
     }
 }
 
-// POST - Save a new shopping list (ENHANCED WITH DEBUGGING)
+// POST - Save a new shopping list (ENHANCED ERROR HANDLING)
 export async function POST(request) {
     try {
+        console.log('📥 SAVE API - Starting save request processing...');
+
         const session = await auth();
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
+        console.log('✅ SAVE API - User authenticated:', session.user.id);
+
         let requestData;
         try {
             requestData = await request.json();
+            console.log('📊 SAVE API - Request data received:', {
+                hasName: !!requestData.name,
+                hasItems: !!requestData.items,
+                itemsType: typeof requestData.items,
+                isItemsArray: Array.isArray(requestData.items),
+                itemsCount: requestData.items?.length || 0,
+                listType: requestData.listType
+            });
         } catch (parseError) {
-            console.error('❌ Failed to parse request JSON:', parseError);
-            return NextResponse.json({ error: 'Invalid JSON in request body' }, { status: 400 });
+            console.error('❌ SAVE API - Failed to parse request JSON:', parseError);
+            return NextResponse.json({
+                error: 'Invalid JSON in request body',
+                details: parseError.message
+            }, { status: 400 });
         }
-
-        console.log('📥 Received save request:', {
-            name: requestData.name,
-            listType: requestData.listType,
-            itemsCount: requestData.items?.length,
-            userId: session.user.id
-        });
 
         const {
             name,
@@ -140,52 +148,148 @@ export async function POST(request) {
             isTemplate
         } = requestData;
 
-        // Enhanced Validation
-        if (!name || typeof name !== 'string') {
-            console.error('❌ Invalid name:', name);
-            return NextResponse.json({ error: 'Name is required and must be a string' }, { status: 400 });
+        // ENHANCED VALIDATION with detailed error messages
+        console.log('🔍 SAVE API - Starting validation...');
+
+        if (!name || typeof name !== 'string' || !name.trim()) {
+            console.error('❌ SAVE API - Invalid name:', { name, type: typeof name });
+            return NextResponse.json({
+                error: 'Shopping list name is required and must be a non-empty string',
+                field: 'name',
+                received: { value: name, type: typeof name }
+            }, { status: 400 });
         }
 
         if (!listType || typeof listType !== 'string') {
-            console.error('❌ Invalid listType:', listType);
-            return NextResponse.json({ error: 'ListType is required and must be a string' }, { status: 400 });
+            console.error('❌ SAVE API - Invalid listType:', { listType, type: typeof listType });
+            return NextResponse.json({
+                error: 'ListType is required and must be a string',
+                field: 'listType',
+                received: { value: listType, type: typeof listType }
+            }, { status: 400 });
         }
 
         if (!items || !Array.isArray(items)) {
-            console.error('❌ Invalid items:', { type: typeof items, isArray: Array.isArray(items) });
-            return NextResponse.json({ error: 'Items must be an array' }, { status: 400 });
+            console.error('❌ SAVE API - Invalid items:', {
+                hasItems: !!items,
+                type: typeof items,
+                isArray: Array.isArray(items)
+            });
+            return NextResponse.json({
+                error: 'Items must be provided as an array',
+                field: 'items',
+                received: {
+                    hasItems: !!items,
+                    type: typeof items,
+                    isArray: Array.isArray(items),
+                    length: items?.length
+                }
+            }, { status: 400 });
         }
 
         if (items.length === 0) {
-            console.error('❌ Empty items array');
-            return NextResponse.json({ error: 'Items array cannot be empty' }, { status: 400 });
+            console.error('❌ SAVE API - Empty items array');
+            return NextResponse.json({
+                error: 'Shopping list must contain at least one item',
+                field: 'items',
+                received: { length: 0 }
+            }, { status: 400 });
         }
 
         if (name.length > 100) {
-            return NextResponse.json({ error: 'Name must be 100 characters or less' }, { status: 400 });
+            return NextResponse.json({
+                error: 'Shopping list name must be 100 characters or less',
+                field: 'name',
+                received: { length: name.length, maxLength: 100 }
+            }, { status: 400 });
         }
 
-        // Validate each item
+        // DETAILED ITEM VALIDATION
+        console.log(`🔍 SAVE API - Validating ${items.length} items...`);
         const invalidItems = [];
+        const validItems = [];
+
         items.forEach((item, index) => {
-            if (!item || typeof item !== 'object') {
-                invalidItems.push({ index, error: 'Item is not an object', item: typeof item });
-            } else if (!item.ingredient || typeof item.ingredient !== 'string') {
-                invalidItems.push({ index, error: 'Missing or invalid ingredient', item: item.ingredient });
+            try {
+                if (!item || typeof item !== 'object') {
+                    invalidItems.push({
+                        index,
+                        error: 'Item must be an object',
+                        received: { type: typeof item, value: item }
+                    });
+                    return;
+                }
+
+                if (!item.ingredient || typeof item.ingredient !== 'string' || !item.ingredient.trim()) {
+                    invalidItems.push({
+                        index,
+                        error: 'Item must have a valid ingredient name',
+                        received: {
+                            ingredient: item.ingredient,
+                            type: typeof item.ingredient
+                        }
+                    });
+                    return;
+                }
+
+                // Create a clean, validated item
+                const cleanItem = {
+                    ingredient: String(item.ingredient).trim(),
+                    amount: item.amount ? String(item.amount).trim() : '',
+                    category: item.category ? String(item.category).trim() : 'other',
+                    inInventory: Boolean(item.inInventory),
+                    purchased: Boolean(item.purchased),
+                    recipes: Array.isArray(item.recipes) ? item.recipes.filter(r => r && typeof r === 'string') : [],
+                    originalName: item.originalName ? String(item.originalName).trim() : String(item.ingredient).trim(),
+                    needAmount: item.needAmount ? String(item.needAmount).trim() : '',
+                    haveAmount: item.haveAmount ? String(item.haveAmount).trim() : '',
+                    itemKey: item.itemKey ? String(item.itemKey).trim() : `${item.ingredient}-${item.category || 'other'}`,
+                    notes: item.notes ? String(item.notes).trim() : ''
+                };
+
+                // Add price information if provided and valid
+                if (typeof item.price === 'number' && !isNaN(item.price) && item.price >= 0) {
+                    cleanItem.price = item.price;
+                }
+                if (typeof item.unitPrice === 'number' && !isNaN(item.unitPrice) && item.unitPrice >= 0) {
+                    cleanItem.unitPrice = item.unitPrice;
+                }
+                if (typeof item.estimatedPrice === 'number' && !isNaN(item.estimatedPrice) && item.estimatedPrice >= 0) {
+                    cleanItem.estimatedPrice = item.estimatedPrice;
+                }
+                if (item.priceSource && typeof item.priceSource === 'string') {
+                    cleanItem.priceSource = item.priceSource;
+                }
+
+                validItems.push(cleanItem);
+                console.log(`✅ SAVE API - Item ${index + 1} validated: ${cleanItem.ingredient}`);
+
+            } catch (itemError) {
+                console.error(`💥 SAVE API - Error validating item ${index}:`, itemError);
+                invalidItems.push({
+                    index,
+                    error: `Validation failed: ${itemError.message}`,
+                    item: item
+                });
             }
         });
 
         if (invalidItems.length > 0) {
-            console.error('❌ Invalid items found:', invalidItems.slice(0, 5)); // Log first 5
+            console.error(`❌ SAVE API - ${invalidItems.length} invalid items found:`, invalidItems.slice(0, 5));
             return NextResponse.json({
                 error: `${invalidItems.length} invalid items found`,
-                details: invalidItems.slice(0, 5)
+                field: 'items',
+                invalidItems: invalidItems.slice(0, 10), // Limit to first 10 for response size
+                validItemsCount: validItems.length
             }, { status: 400 });
         }
+
+        console.log(`✅ SAVE API - All ${validItems.length} items validated successfully`);
 
         await connectDB();
 
         // Check for duplicate names (within user's lists)
+        console.log('🔍 SAVE API - Checking for duplicate names...');
         const existingList = await SavedShoppingList.findOne({
             userId: session.user.id,
             name: name.trim(),
@@ -193,41 +297,16 @@ export async function POST(request) {
         });
 
         if (existingList) {
+            console.log('❌ SAVE API - Duplicate name found:', name.trim());
             return NextResponse.json({
-                error: 'A shopping list with this name already exists'
+                error: 'A shopping list with this name already exists',
+                field: 'name',
+                existingListId: existingList._id
             }, { status: 400 });
         }
 
-        // Process items with enhanced validation
-        const processedItems = items.map((item, index) => {
-            try {
-                return {
-                    ingredient: String(item.ingredient).trim(),
-                    amount: item.amount ? String(item.amount).trim() : '',
-                    category: item.category ? String(item.category).trim() : 'other',
-                    inInventory: Boolean(item.inInventory),
-                    purchased: Boolean(item.purchased),
-                    recipes: Array.isArray(item.recipes) ? item.recipes : [],
-                    originalName: item.originalName ? String(item.originalName).trim() : String(item.ingredient).trim(),
-                    needAmount: item.needAmount ? String(item.needAmount).trim() : '',
-                    haveAmount: item.haveAmount ? String(item.haveAmount).trim() : '',
-                    itemKey: item.itemKey ? String(item.itemKey).trim() : `${item.ingredient}-${item.category || 'other'}`,
-                    notes: item.notes ? String(item.notes).trim() : '',
-                    price: (typeof item.price === 'number') ? item.price : undefined,
-                    unitPrice: (typeof item.unitPrice === 'number') ? item.unitPrice : undefined,
-                    estimatedPrice: (typeof item.estimatedPrice === 'number') ? item.estimatedPrice : undefined,
-                    priceSource: item.priceSource || undefined,
-                    priceUpdatedAt: item.priceUpdatedAt || undefined
-                };
-            } catch (itemError) {
-                console.error(`❌ Error processing item ${index}:`, itemError, item);
-                throw new Error(`Failed to process item ${index}: ${itemError.message}`);
-            }
-        });
-
-        console.log('✅ Processed items successfully:', processedItems.length);
-
         // Create new saved shopping list
+        console.log('💾 SAVE API - Creating new shopping list...');
         const savedList = new SavedShoppingList({
             userId: session.user.id,
             name: name.trim(),
@@ -236,20 +315,21 @@ export async function POST(request) {
             contextName: contextName?.trim() || '',
             sourceRecipeIds: Array.isArray(sourceRecipeIds) ? sourceRecipeIds : [],
             sourceMealPlanId: sourceMealPlanId || null,
-            items: processedItems,
+            items: validItems,
             tags: Array.isArray(tags) ? tags : [],
             color: color || '#3b82f6',
             isTemplate: Boolean(isTemplate)
         });
 
+        console.log('💾 SAVE API - Saving to database...');
         await savedList.save();
-        console.log('✅ Shopping list saved to database:', savedList._id);
+        console.log('✅ SAVE API - Shopping list saved to database:', savedList._id);
 
         // Populate references for response
         await savedList.populate('sourceRecipeIds', 'title');
         await savedList.populate('sourceMealPlanId', 'name');
 
-        return NextResponse.json({
+        const response = {
             success: true,
             message: 'Shopping list saved successfully',
             savedList: {
@@ -266,14 +346,45 @@ export async function POST(request) {
                 sourceMealPlan: savedList.sourceMealPlanId,
                 createdAt: savedList.createdAt
             }
-        });
+        };
+
+        console.log('✅ SAVE API - Response prepared successfully');
+        return NextResponse.json(response);
 
     } catch (error) {
-        console.error('❌ Error saving shopping list:', error);
-        console.error('❌ Error stack:', error.stack);
+        console.error('💥 SAVE API - Unexpected error:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack
+        });
+
+        // Check for specific MongoDB errors
+        if (error.name === 'ValidationError') {
+            const validationErrors = Object.values(error.errors).map(err => ({
+                field: err.path,
+                message: err.message,
+                value: err.value
+            }));
+
+            return NextResponse.json({
+                error: 'Data validation failed',
+                type: 'ValidationError',
+                validationErrors: validationErrors
+            }, { status: 400 });
+        }
+
+        if (error.code === 11000) {
+            return NextResponse.json({
+                error: 'Duplicate key error - this shopping list name already exists',
+                type: 'DuplicateKeyError',
+                field: Object.keys(error.keyPattern)[0]
+            }, { status: 409 });
+        }
+
         return NextResponse.json({
-            error: 'Failed to save shopping list',
-            details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            error: 'Internal server error occurred while saving shopping list',
+            type: error.name || 'UnknownError',
+            details: process.env.NODE_ENV === 'development' ? error.message : 'Contact support if this persists'
         }, { status: 500 });
     }
 }
