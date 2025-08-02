@@ -66,103 +66,6 @@ export default function MealPlanningCalendar() {
     const [processingVoiceMeal, setProcessingVoiceMeal] = useState(false);
     const [voiceMealResults, setVoiceMealResults] = useState('');
 
-    useEffect(() => {
-        const checkMobile = () => {
-            setIsMobile(window.innerWidth < 768);
-        };
-        checkMobile();
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    useEffect(() => {
-        if (session?.user) {
-            loadUserPreferences();
-            loadPriceIntelligence();
-        }
-    }, [session]);
-
-    useEffect(() => {
-        const dismissed = localStorage.getItem('weekSettingsNotificationDismissed');
-        if (dismissed === 'true') {
-            setShowWeekNotification(false);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (recipes.length > 0) {
-            let filtered = filterRecipesByDietaryPreferences(recipes);
-
-            console.log(`🔍 Recipe filtering: Starting with ${recipes.length} recipes, after dietary filter: ${filtered.length}`);
-
-            if (recipeSearchQuery.trim()) {
-                const query = recipeSearchQuery.toLowerCase();
-                filtered = filtered.filter(recipe =>
-                    recipe.title.toLowerCase().includes(query) ||
-                    (recipe.description && recipe.description.toLowerCase().includes(query)) ||
-                    (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(query))) ||
-                    (recipe.ingredients && recipe.ingredients.some(ingredient => {
-                        const ingredientName = typeof ingredient === 'string'
-                            ? ingredient.toLowerCase()
-                            : ingredient.name?.toLowerCase() || '';
-                        return ingredientName.includes(query);
-                    }))
-                );
-                console.log(`🔍 After search filter "${query}": ${filtered.length} recipes`);
-            }
-
-            if (selectedRecipeCategory !== 'all') {
-                filtered = filtered.filter(recipe =>
-                    categorizeRecipe(recipe) === selectedRecipeCategory
-                );
-                console.log(`🔍 After category filter "${selectedRecipeCategory}": ${filtered.length} recipes`);
-            }
-
-            setFilteredRecipes(filtered);
-
-            if (recipes.length > 0 && filtered.length < recipes.length * 0.5) {
-                setDietaryWarningMessage(
-                    `${recipes.length - filtered.length} of ${recipes.length} recipes were filtered out based on your preferences.`
-                );
-            } else {
-                setDietaryWarningMessage('');
-            }
-        }
-    }, [recipes, userDietaryRestrictions, userAvoidIngredients, recipeSearchQuery, selectedRecipeCategory]);
-
-    useEffect(() => {
-        if (session?.user) {
-            fetchInventory();
-        }
-    }, [session]);
-
-    useEffect(() => {
-        if (mealPlan && priceIntelligence.enabled) {
-            calculateMealPlanCosts(mealPlan);
-        }
-    }, [mealPlan, priceIntelligence.enabled]);
-
-    useEffect(() => {
-        const handleClickOutside = (event) => {
-            if (!event.target.closest('.meal-dropdown')) {
-                closeMealDropdowns();
-            }
-        };
-
-        document.addEventListener('mousedown', handleClickOutside);
-        return () => {
-            document.removeEventListener('mousedown', handleClickOutside);
-        };
-    }, []);
-
-    // MOVE THIS useEffect HERE - before any early returns
-    useEffect(() => {
-        if (session?.user && weekStartDay && userMealTypes.length > 0) {
-            fetchMealPlan();
-            fetchRecipes();
-        }
-    }, [session, currentWeek, weekStartDay, userMealTypes]);
-
     const showToast = (message, type = 'success') => {
         const toast = document.createElement('div');
         const bgColor = type === 'success' ? 'bg-green-500' :
@@ -1399,23 +1302,6 @@ export default function MealPlanningCalendar() {
         );
     };
 
-    if (!session) {
-        return (
-            <div className="text-center py-8">
-                <p className="text-gray-600">Please sign in to access meal planning.</p>
-            </div>
-        );
-    }
-
-    if (loading) {
-        return (
-            <div className="text-center py-8">
-                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
-                <p className="mt-2 text-gray-600">Loading meal plan...</p>
-            </div>
-        );
-    }
-
     const updateMealTypePreferences = async (newMealTypes) => {
         try {
             const response = await apiPut('/api/user/preferences', {
@@ -1683,8 +1569,123 @@ export default function MealPlanningCalendar() {
         }
     };
 
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
+
+    useEffect(() => {
+        if (session?.user) {
+            loadUserPreferences();
+            loadPriceIntelligence();
+        }
+    }, [session]);
+
+    useEffect(() => {
+        const dismissed = localStorage.getItem('weekSettingsNotificationDismissed');
+        if (dismissed === 'true') {
+            setShowWeekNotification(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (recipes.length > 0) {
+            let filtered = filterRecipesByDietaryPreferences(recipes);
+
+            console.log(`🔍 Recipe filtering: Starting with ${recipes.length} recipes, after dietary filter: ${filtered.length}`);
+
+            if (recipeSearchQuery.trim()) {
+                const query = recipeSearchQuery.toLowerCase();
+                filtered = filtered.filter(recipe =>
+                    recipe.title.toLowerCase().includes(query) ||
+                    (recipe.description && recipe.description.toLowerCase().includes(query)) ||
+                    (recipe.tags && recipe.tags.some(tag => tag.toLowerCase().includes(query))) ||
+                    (recipe.ingredients && recipe.ingredients.some(ingredient => {
+                        const ingredientName = typeof ingredient === 'string'
+                            ? ingredient.toLowerCase()
+                            : ingredient.name?.toLowerCase() || '';
+                        return ingredientName.includes(query);
+                    }))
+                );
+                console.log(`🔍 After search filter "${query}": ${filtered.length} recipes`);
+            }
+
+            if (selectedRecipeCategory !== 'all') {
+                filtered = filtered.filter(recipe =>
+                    categorizeRecipe(recipe) === selectedRecipeCategory
+                );
+                console.log(`🔍 After category filter "${selectedRecipeCategory}": ${filtered.length} recipes`);
+            }
+
+            setFilteredRecipes(filtered);
+
+            if (recipes.length > 0 && filtered.length < recipes.length * 0.5) {
+                setDietaryWarningMessage(
+                    `${recipes.length - filtered.length} of ${recipes.length} recipes were filtered out based on your preferences.`
+                );
+            } else {
+                setDietaryWarningMessage('');
+            }
+        }
+    }, [recipes, userDietaryRestrictions, userAvoidIngredients, recipeSearchQuery, selectedRecipeCategory]);
+
+    useEffect(() => {
+        if (session?.user) {
+            fetchInventory();
+        }
+    }, [session]);
+
+    useEffect(() => {
+        if (mealPlan && priceIntelligence.enabled) {
+            calculateMealPlanCosts(mealPlan);
+        }
+    }, [mealPlan, priceIntelligence.enabled]);
+
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (!event.target.closest('.meal-dropdown')) {
+                closeMealDropdowns();
+            }
+        };
+
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+        };
+    }, []);
+
+    // MOVE THIS useEffect HERE - before any early returns
+    useEffect(() => {
+        if (session?.user && weekStartDay && userMealTypes.length > 0) {
+            fetchMealPlan();
+            fetchRecipes();
+        }
+    }, [session, currentWeek, weekStartDay, userMealTypes]);
+
+
     const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']
     const mealsPlanned = hasMealsPlanned();
+
+    if (!session) {
+        return (
+            <div className="text-center py-8">
+                <p className="text-gray-600">Please sign in to access meal planning.</p>
+            </div>
+        );
+    }
+
+    if (loading) {
+        return (
+            <div className="text-center py-8">
+                <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                <p className="mt-2 text-gray-600">Loading meal plan...</p>
+            </div>
+        );
+    }
 
     // Mobile Layout
     if (isMobile) {
