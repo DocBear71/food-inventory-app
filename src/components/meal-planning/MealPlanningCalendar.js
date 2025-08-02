@@ -2568,54 +2568,21 @@ export default function MealPlanningCalendar() {
                 {showShoppingList && mealPlan && (
                     <EnhancedAIShoppingListModal
                         isOpen={showShoppingList}
-                        onClose={() => {
-                            setShowShoppingList(false);
-                            setShoppingListData(null);
-                        }}
+                        onClose={() => setShowShoppingList(false)}
 
-                        // FIXED: Pass the shopping list data in the correct prop
-                        shoppingList={shoppingListData}
-
-                        // FIXED: Also pass as currentShoppingList for compatibility
-                        currentShoppingList={shoppingListData}
-
-                        // Meal plan context
+                        // Just pass the meal plan ID and let the modal generate the data internally
                         sourceMealPlanId={mealPlan._id}
-                        sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
 
                         // Modal configuration
                         title="🍽️ Meal Plan Shopping List"
                         subtitle={`Smart shopping for ${mealPlan.name}`}
-
-                        // Features based on price intelligence setting
                         initialMode={priceIntelligence.enabled ? 'unified' : 'enhanced'}
-
-                        // FIXED: Pass initial items in the format the modal expects
-                        initialItems={shoppingListData ? Object.values(shoppingListData.items || {}).flat() : []}
-
-                        // Pass budget if available
-                        initialBudget={mealPlan.budget || null}
-
-                        // Shopping list specific props
-                        contextName={mealPlan.name}
 
                         // Handle successful save
                         onSave={(savedList) => {
                             console.log('✅ Meal plan shopping list saved:', savedList);
                             setShowShoppingList(false);
-                            setShoppingListData(null);
                         }}
-
-                        // Additional props for enhanced functionality
-                        showRefresh={true}
-                        onRefresh={async () => {
-                            console.log('🔄 Refreshing shopping list...');
-                            const listData = await generateShoppingListData(mealPlan);
-                            setShoppingListData(listData);
-                        }}
-
-                        // FIXED: Add loading state
-                        loading={loadingShoppingList}
                     />
                 )}
 
@@ -3572,54 +3539,21 @@ export default function MealPlanningCalendar() {
             {showShoppingList && mealPlan && (
                 <EnhancedAIShoppingListModal
                     isOpen={showShoppingList}
-                    onClose={() => {
-                        setShowShoppingList(false);
-                        setShoppingListData(null);
-                    }}
+                    onClose={() => setShowShoppingList(false)}
 
-                    // FIXED: Pass the shopping list data in the correct prop
-                    shoppingList={shoppingListData}
-
-                    // FIXED: Also pass as currentShoppingList for compatibility
-                    currentShoppingList={shoppingListData}
-
-                    // Meal plan context
+                    // Just pass the meal plan ID and let the modal generate the data internally
                     sourceMealPlanId={mealPlan._id}
-                    sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
 
                     // Modal configuration
                     title="🍽️ Meal Plan Shopping List"
                     subtitle={`Smart shopping for ${mealPlan.name}`}
-
-                    // Features based on price intelligence setting
                     initialMode={priceIntelligence.enabled ? 'unified' : 'enhanced'}
-
-                    // FIXED: Pass initial items in the format the modal expects
-                    initialItems={shoppingListData ? Object.values(shoppingListData.items || {}).flat() : []}
-
-                    // Pass budget if available
-                    initialBudget={mealPlan.budget || null}
-
-                    // Shopping list specific props
-                    contextName={mealPlan.name}
 
                     // Handle successful save
                     onSave={(savedList) => {
                         console.log('✅ Meal plan shopping list saved:', savedList);
                         setShowShoppingList(false);
-                        setShoppingListData(null);
                     }}
-
-                    // Additional props for enhanced functionality
-                    showRefresh={true}
-                    onRefresh={async () => {
-                        console.log('🔄 Refreshing shopping list...');
-                        const listData = await generateShoppingListData(mealPlan);
-                        setShoppingListData(listData);
-                    }}
-
-                    // FIXED: Add loading state
-                    loading={loadingShoppingList}
                 />
             )}
 
