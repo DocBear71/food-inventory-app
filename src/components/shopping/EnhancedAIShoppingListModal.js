@@ -1418,43 +1418,100 @@ export default function EnhancedAIShoppingListModal({
         setPurchasedItems({});
     }, []);
 
-    // Enhanced Smart Save Function for unified modes
+    // FIXED SECTION: handleSmartSave function with correct listType
+// file: /src/components/shopping/EnhancedAIShoppingListModal.js v11 - FIXED listType validation error
+
+    // Enhanced Smart Save Function for unified modes - FIXED listType
     const handleSmartSave = useCallback(async () => {
         const config = getModeConfig();
 
         const saveData = {
-            // Enhanced AI data
-            items: currentShoppingList?.items || {},
-            selectedStore,
-            aiOptimization,
-            aiInsights,
-            customCategories,
+            // Basic required fields with FIXED listType
+            name: `Shopping List ${new Date().toLocaleDateString()}`,
+            description: `${config.title} - Generated ${new Date().toLocaleString()}`,
+            // FIXED: Use valid enum value from schema instead of mode-based string
+            listType: sourceMealPlanId ? 'meal-plan' : 'recipes',
+            contextName: `${config.title} - ${selectedStore || 'Store'}`,
+            sourceRecipeIds: sourceRecipeIds || [],
+            sourceMealPlanId: sourceMealPlanId || null,
 
-            // Smart Price data
-            priceComparison,
-            priceAnalysis,
-            budgetTracking,
+            // Shopping list items - convert to proper format
+            items: (() => {
+                const formattedItems = [];
 
-            // Unified metadata
-            shoppingMode,
-            metadata: {
-                generatedAt: new Date().toISOString(),
-                mode: shoppingMode,
-                priceMode,
-                optimized: true,
-                hasAIFeatures: config.showAdvancedFeatures,
-                hasPriceFeatures: config.showPriceFeatures
-            }
+                if (currentShoppingList?.items) {
+                    if (Array.isArray(currentShoppingList.items)) {
+                        // Handle flat array
+                        currentShoppingList.items.forEach((item, index) => {
+                            if (item && (item.ingredient || item.name)) {
+                                formattedItems.push({
+                                    ingredient: item.ingredient || item.name,
+                                    amount: item.amount || item.quantity || '',
+                                    category: item.category || 'other',
+                                    inInventory: Boolean(item.inInventory),
+                                    purchased: Boolean(item.purchased),
+                                    recipes: Array.isArray(item.recipes) ? item.recipes : [],
+                                    originalName: item.originalName || item.ingredient || item.name,
+                                    needAmount: item.needAmount || '',
+                                    haveAmount: item.haveAmount || '',
+                                    itemKey: item.itemKey || `item-${index}`,
+                                    notes: item.notes || '',
+                                    estimatedPrice: typeof item.estimatedPrice === 'number' ? item.estimatedPrice : 0,
+                                    priceSource: item.priceSource || 'estimated'
+                                });
+                            }
+                        });
+                    } else if (typeof currentShoppingList.items === 'object') {
+                        // Handle categorized object
+                        Object.entries(currentShoppingList.items).forEach(([category, categoryItems]) => {
+                            if (Array.isArray(categoryItems)) {
+                                categoryItems.forEach((item, index) => {
+                                    if (item && (item.ingredient || item.name)) {
+                                        formattedItems.push({
+                                            ingredient: item.ingredient || item.name,
+                                            amount: item.amount || item.quantity || '',
+                                            category: category,
+                                            inInventory: Boolean(item.inInventory),
+                                            purchased: Boolean(item.purchased),
+                                            recipes: Array.isArray(item.recipes) ? item.recipes : [],
+                                            originalName: item.originalName || item.ingredient || item.name,
+                                            needAmount: item.needAmount || '',
+                                            haveAmount: item.haveAmount || '',
+                                            itemKey: item.itemKey || `${category}-${index}`,
+                                            notes: item.notes || '',
+                                            estimatedPrice: typeof item.estimatedPrice === 'number' ? item.estimatedPrice : 0,
+                                            priceSource: item.priceSource || 'estimated'
+                                        });
+                                    }
+                                });
+                            }
+                        });
+                    }
+                }
+
+                return formattedItems;
+            })(),
+
+            // Optional fields
+            tags: [],
+            color: '#3b82f6',
+            isTemplate: false
         };
+
+        console.log('💾 FIXED SAVE - Payload with correct listType:', {
+            listType: saveData.listType,
+            itemCount: saveData.items.length,
+            sourceMealPlanId: saveData.sourceMealPlanId,
+            sourceRecipeIds: saveData.sourceRecipeIds.length
+        });
 
         if (onSave) {
             await onSave(saveData);
         }
 
-        console.log(`✅ ${config.title} saved successfully:`, saveData);
+        console.log(`✅ ${config.title} saved successfully with listType: ${saveData.listType}`);
         MobileHaptics?.success();
-    }, [getModeConfig, currentShoppingList?.items, selectedStore, aiOptimization, aiInsights, customCategories,
-        priceComparison, priceAnalysis, budgetTracking, shoppingMode, priceMode, onSave]);
+    }, [getModeConfig, currentShoppingList?.items, selectedStore, sourceRecipeIds, sourceMealPlanId, onSave]);
 
     // Early return if not open or no data
     if (!isOpen) {
