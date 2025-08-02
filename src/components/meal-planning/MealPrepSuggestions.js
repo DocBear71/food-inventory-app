@@ -1,6 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/MealPrepSuggestions.js v2 - Mobile optimized
-
+// file: /src/components/meal-planning/MealPrepSuggestions.js v3 - Enhanced meal prep analysis with better detection
 
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -31,19 +30,25 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
         setError('');
 
         try {
+            console.log('🔍 Fetching meal prep suggestions for:', mealPlanId);
+
             // First try to fetch existing suggestions
             const response = await apiGet(`/api/meal-prep/generate?mealPlanId=${mealPlanId}`);
             const result = await response.json();
 
+            console.log('📨 Meal prep API response:', result);
+
             if (result.success && result.suggestions) {
+                console.log('✅ Found existing suggestions');
                 setSuggestions(result.suggestions);
                 setCompletedTasks(new Set(result.suggestions.implementation?.tasksCompleted || []));
             } else {
+                console.log('🔄 No existing suggestions, generating new ones...');
                 // Generate new suggestions
                 await generateSuggestions();
             }
         } catch (error) {
-            console.error('Error fetching meal prep suggestions:', error);
+            console.error('❌ Error fetching meal prep suggestions:', error);
             setError('Failed to load meal prep suggestions');
         } finally {
             setLoading(false);
@@ -55,22 +60,43 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
         setError('');
 
         try {
+            console.log('🔄 Generating meal prep suggestions...');
+            console.log('Meal Plan ID:', mealPlanId);
+            console.log('User Preferences:', userPreferences);
+
             const response = await apiPost('/api/meal-prep/generate', {
                 mealPlanId,
                 userPreferences,
                 regenerate
             });
 
-            const result = await response.json();
+            console.log('📨 Generate API response status:', response.status);
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to generate suggestions');
+                const errorText = await response.text();
+                console.error('❌ API Error:', errorText);
+                throw new Error(`Failed to generate suggestions: ${response.status}`);
             }
 
-            setSuggestions(result.suggestions);
-            setCompletedTasks(new Set());
+            const result = await response.json();
+            console.log('📊 Generated suggestions result:', result);
+
+            if (result.success) {
+                setSuggestions(result.suggestions);
+                setCompletedTasks(new Set());
+
+                // Log summary for debugging
+                console.log('📋 Suggestions summary:', {
+                    batchCooking: result.suggestions?.batchCookingSuggestions?.length || 0,
+                    ingredientPrep: result.suggestions?.ingredientPrepSuggestions?.length || 0,
+                    totalPrepTime: result.suggestions?.metrics?.totalPrepTime || 0,
+                    timeSaved: result.suggestions?.metrics?.timeSaved || 0
+                });
+            } else {
+                throw new Error(result.error || 'Failed to generate suggestions');
+            }
         } catch (error) {
-            console.error('Error generating meal prep suggestions:', error);
+            console.error('❌ Error generating meal prep suggestions:', error);
             setError(error.message);
         } finally {
             setLoading(false);
@@ -131,6 +157,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
     };
 
     const formatTime = (minutes) => {
+        if (!minutes || minutes === 0) return '0 min';
         if (minutes < 60) return `${minutes} min`;
         const hours = Math.floor(minutes / 60);
         const mins = minutes % 60;
@@ -174,7 +201,34 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
         );
     }
 
-    if (!suggestions) return null;
+    if (!suggestions) {
+        // Show empty state with option to generate
+        return (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                <div className="bg-white p-6 rounded-lg text-center max-w-md w-full">
+                    <div className="text-6xl mb-4">🍱</div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No Meal Prep Data</h3>
+                    <p className="text-gray-600 mb-6">
+                        Let's analyze your meal plan to find batch cooking and prep opportunities that can save you time during the week.
+                    </p>
+                    <div className="flex gap-3 justify-center">
+                        <TouchEnhancedButton
+                            onClick={() => generateSuggestions(true)}
+                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium"
+                        >
+                            🔍 Analyze Meal Plan
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={onClose}
+                            className="bg-gray-600 hover:bg-gray-700 text-white px-4 py-3 rounded-lg"
+                        >
+                            Close
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
@@ -183,7 +237,7 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                 <div className="p-4 border-b border-gray-200 flex justify-between items-center bg-white">
                     <div className="min-w-0 flex-1">
                         <h2 className="text-lg font-semibold text-gray-900 truncate">
-                            🍳 Meal Prep
+                            🍳 Meal Prep Analysis
                         </h2>
                         <p className="text-xs text-gray-600 truncate">
                             {mealPlanName}
@@ -203,25 +257,25 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                         <div className="grid grid-cols-4 gap-2">
                             <div className="bg-blue-50 p-2 rounded text-center">
                                 <div className="text-sm font-bold text-blue-600">
-                                    {formatTime(suggestions.metrics.totalPrepTime)}
+                                    {formatTime(suggestions.metrics.totalPrepTime || 0)}
                                 </div>
                                 <div className="text-xs text-blue-500">Prep Time</div>
                             </div>
                             <div className="bg-green-50 p-2 rounded text-center">
                                 <div className="text-sm font-bold text-green-600">
-                                    {formatTime(suggestions.metrics.timeSaved)}
+                                    {formatTime(suggestions.metrics.timeSaved || 0)}
                                 </div>
                                 <div className="text-xs text-green-500">Time Saved</div>
                             </div>
                             <div className="bg-yellow-50 p-2 rounded text-center">
                                 <div className="text-sm font-bold text-yellow-600">
-                                    {suggestions.metrics.efficiency}%
+                                    {suggestions.metrics.efficiency || 0}%
                                 </div>
                                 <div className="text-xs text-yellow-500">Efficiency</div>
                             </div>
                             <div className="bg-purple-50 p-2 rounded text-center">
                                 <div className="text-sm font-bold text-purple-600">
-                                    {suggestions.metrics.recipesAffected}
+                                    {suggestions.metrics.recipesAffected || 0}
                                 </div>
                                 <div className="text-xs text-purple-500">Recipes</div>
                             </div>
@@ -263,22 +317,40 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                         <div className="space-y-4">
                             <div className="bg-gray-50 p-3 rounded-lg">
                                 <h3 className="font-semibold text-gray-900 mb-2 flex items-center">
-                                    📊 Summary
+                                    📊 Analysis Summary
                                 </h3>
                                 <p className="text-sm text-gray-700 mb-2">
                                     Found <strong>{suggestions.batchCookingSuggestions?.length || 0}</strong> batch cooking opportunities
                                     and <strong>{suggestions.ingredientPrepSuggestions?.length || 0}</strong> ingredient prep tasks.
                                 </p>
                                 <p className="text-xs text-gray-600">
-                                    Total prep: <strong>{formatTime(suggestions.metrics.totalPrepTime)}</strong> •
-                                    Time saved: <strong>{formatTime(suggestions.metrics.timeSaved)}</strong>
+                                    Total prep: <strong>{formatTime(suggestions.metrics?.totalPrepTime || 0)}</strong> •
+                                    Time saved: <strong>{formatTime(suggestions.metrics?.timeSaved || 0)}</strong>
                                 </p>
                             </div>
+
+                            {/* Show message if no suggestions found */}
+                            {(!suggestions.batchCookingSuggestions || suggestions.batchCookingSuggestions.length === 0) &&
+                                (!suggestions.ingredientPrepSuggestions || suggestions.ingredientPrepSuggestions.length === 0) && (
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-center">
+                                        <div className="text-4xl mb-3">🎯</div>
+                                        <h4 className="font-semibold text-blue-900 mb-2">Your Meal Plan Looks Great!</h4>
+                                        <p className="text-sm text-blue-800 mb-3">
+                                            We didn't find major batch cooking opportunities, but here are some general tips:
+                                        </p>
+                                        <div className="text-xs text-blue-700 space-y-1">
+                                            <p>• Consider preparing ingredients in advance (washing, chopping vegetables)</p>
+                                            <p>• Cook proteins for multiple meals at once</p>
+                                            <p>• Prepare sauces and seasonings ahead of time</p>
+                                            <p>• Pre-portion ingredients for easier cooking</p>
+                                        </div>
+                                    </div>
+                                )}
 
                             {suggestions.batchCookingSuggestions?.length > 0 && (
                                 <div>
                                     <h4 className="font-semibold text-gray-900 mb-3 flex items-center">
-                                        🍳 Top Batch Cooking
+                                        🍳 Top Batch Cooking Opportunities
                                     </h4>
                                     <div className="space-y-3">
                                         {suggestions.batchCookingSuggestions.slice(0, 3).map((suggestion, index) => (
@@ -289,14 +361,14 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                                                             {suggestion.totalAmount} {suggestion.ingredient}
                                                         </h5>
                                                         <p className="text-xs text-gray-600 mb-2">
-                                                            Used in: {suggestion.recipes.join(', ')}
+                                                            Used in: {suggestion.recipes?.join(', ') || 'Multiple recipes'}
                                                         </p>
                                                         <p className="text-xs text-gray-700">
-                                                            {suggestion.prepInstructions}
+                                                            {suggestion.prepInstructions || 'Batch cook this ingredient for multiple meals'}
                                                         </p>
                                                     </div>
                                                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs ml-2">
-                                                        {formatTime(suggestion.estimatedPrepTime)}
+                                                        {formatTime(suggestion.estimatedPrepTime || 30)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -316,17 +388,17 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                                                 <div className="flex justify-between items-start">
                                                     <div className="flex-1">
                                                         <h5 className="font-medium text-gray-900 mb-1">
-                                                            {suggestion.prepType} {suggestion.totalAmount} {suggestion.ingredient}
+                                                            {suggestion.prepType || 'Prep'} {suggestion.totalAmount} {suggestion.ingredient}
                                                         </h5>
                                                         <p className="text-xs text-gray-600 mb-2">
-                                                            Used in: {suggestion.recipes.join(', ')}
+                                                            Used in: {suggestion.recipes?.join(', ') || 'Multiple recipes'}
                                                         </p>
                                                         <p className="text-xs text-gray-700">
-                                                            {suggestion.prepInstructions}
+                                                            {suggestion.prepInstructions || 'Prepare this ingredient in advance'}
                                                         </p>
                                                     </div>
                                                     <span className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs ml-2">
-                                                        {formatTime(suggestion.estimatedPrepTime)}
+                                                        {formatTime(suggestion.estimatedPrepTime || 15)}
                                                     </span>
                                                 </div>
                                             </div>
@@ -351,16 +423,16 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                                                     {suggestion.totalAmount} {suggestion.ingredient}
                                                 </h4>
                                                 <div className="text-xs text-gray-500 text-right">
-                                                    <div>⏱️ {formatTime(suggestion.estimatedPrepTime)}</div>
-                                                    <div>📊 {suggestion.difficulty}</div>
-                                                    <div>🗓️ {suggestion.shelfLife}</div>
+                                                    <div>⏱️ {formatTime(suggestion.estimatedPrepTime || 30)}</div>
+                                                    <div>📊 {suggestion.difficulty || 'medium'}</div>
+                                                    <div>🗓️ {suggestion.shelfLife || '3-5 days'}</div>
                                                 </div>
                                             </div>
 
                                             <div className="mb-3">
                                                 <h5 className="text-sm font-medium text-gray-700 mb-1">Used in:</h5>
                                                 <div className="flex flex-wrap gap-1">
-                                                    {suggestion.recipes.map((recipe, idx) => (
+                                                    {(suggestion.recipes || ['Multiple recipes']).map((recipe, idx) => (
                                                         <span key={idx} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
                                                             {recipe}
                                                         </span>
@@ -370,12 +442,16 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
                                             <div className="mb-3">
                                                 <h5 className="text-sm font-medium text-gray-700 mb-1">Instructions:</h5>
-                                                <p className="text-sm text-gray-600">{suggestion.prepInstructions}</p>
+                                                <p className="text-sm text-gray-600">
+                                                    {suggestion.prepInstructions || 'Cook this ingredient in larger quantities and use across multiple meals this week.'}
+                                                </p>
                                             </div>
 
                                             <div>
                                                 <h5 className="text-sm font-medium text-gray-700 mb-1">Storage:</h5>
-                                                <p className="text-sm text-gray-600">{suggestion.storageInstructions}</p>
+                                                <p className="text-sm text-gray-600">
+                                                    {suggestion.storageInstructions || 'Store in refrigerator in airtight containers for 3-5 days.'}
+                                                </p>
                                             </div>
                                         </div>
                                     ))}
@@ -383,7 +459,13 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             ) : (
                                 <div className="text-center py-8 text-gray-500">
                                     <div className="text-4xl mb-4">🍳</div>
-                                    <p>No batch cooking opportunities found.</p>
+                                    <p className="mb-3">No specific batch cooking opportunities found in your current meal plan.</p>
+                                    <div className="text-sm space-y-1">
+                                        <p><strong>General batch cooking tips:</strong></p>
+                                        <p>• Cook proteins (chicken, beef, tofu) in larger quantities</p>
+                                        <p>• Prepare grains and legumes in bulk</p>
+                                        <p>• Make large batches of sauces and dressings</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -400,17 +482,17 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                                         <div key={index} className="bg-white border border-gray-200 rounded-lg p-4">
                                             <div className="flex justify-between items-start mb-3">
                                                 <h4 className="font-semibold text-gray-900">
-                                                    {suggestion.prepType} {suggestion.totalAmount} {suggestion.ingredient}
+                                                    {suggestion.prepType || 'Prep'} {suggestion.totalAmount} {suggestion.ingredient}
                                                 </h4>
                                                 <span className="text-xs text-gray-500">
-                                                    ⏱️ {formatTime(suggestion.estimatedPrepTime)}
+                                                    ⏱️ {formatTime(suggestion.estimatedPrepTime || 15)}
                                                 </span>
                                             </div>
 
                                             <div className="mb-3">
                                                 <h5 className="text-sm font-medium text-gray-700 mb-1">Used in:</h5>
                                                 <div className="flex flex-wrap gap-1">
-                                                    {suggestion.recipes.map((recipe, idx) => (
+                                                    {(suggestion.recipes || ['Multiple recipes']).map((recipe, idx) => (
                                                         <span key={idx} className="bg-gray-100 text-gray-600 px-2 py-1 rounded text-xs">
                                                             {recipe}
                                                         </span>
@@ -420,12 +502,16 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
                                             <div className="mb-3">
                                                 <h5 className="text-sm font-medium text-gray-700 mb-1">Instructions:</h5>
-                                                <p className="text-sm text-gray-600">{suggestion.prepInstructions}</p>
+                                                <p className="text-sm text-gray-600">
+                                                    {suggestion.prepInstructions || 'Prepare this ingredient in advance to save time during cooking.'}
+                                                </p>
                                             </div>
 
                                             <div>
                                                 <h5 className="text-sm font-medium text-gray-700 mb-1">Storage:</h5>
-                                                <p className="text-sm text-gray-600">{suggestion.storageMethod}</p>
+                                                <p className="text-sm text-gray-600">
+                                                    {suggestion.storageMethod || 'Store in refrigerator until needed.'}
+                                                </p>
                                             </div>
                                         </div>
                                     ))}
@@ -433,7 +519,14 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             ) : (
                                 <div className="text-center py-8 text-gray-500">
                                     <div className="text-4xl mb-4">🔪</div>
-                                    <p>No ingredient prep tasks found.</p>
+                                    <p className="mb-3">No specific ingredient prep tasks identified.</p>
+                                    <div className="text-sm space-y-1">
+                                        <p><strong>General prep suggestions:</strong></p>
+                                        <p>• Wash and chop vegetables in advance</p>
+                                        <p>• Pre-measure spices and seasonings</p>
+                                        <p>• Marinate proteins the night before</p>
+                                        <p>• Pre-cook grains and store in portions</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -453,13 +546,13 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                                                     {getDayName(daySchedule.day)}
                                                 </h4>
                                                 <p className="text-sm text-gray-600">
-                                                    {daySchedule.tasks.length} task{daySchedule.tasks.length !== 1 ? 's' : ''} •
-                                                    {formatTime(daySchedule.tasks.reduce((total, task) => total + (task.estimatedTime || 0), 0))}
+                                                    {daySchedule.tasks?.length || 0} task{(daySchedule.tasks?.length || 0) !== 1 ? 's' : ''} •
+                                                    {formatTime(daySchedule.tasks?.reduce((total, task) => total + (task.estimatedTime || 0), 0) || 0)}
                                                 </p>
                                             </div>
                                             <div className="p-3">
                                                 <div className="space-y-3">
-                                                    {daySchedule.tasks.map((task, taskIndex) => {
+                                                    {(daySchedule.tasks || []).map((task, taskIndex) => {
                                                         const taskId = `${daySchedule.day}-${taskIndex}`;
                                                         const isCompleted = completedTasks.has(taskId);
 
@@ -514,7 +607,15 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                             ) : (
                                 <div className="text-center py-8 text-gray-500">
                                     <div className="text-4xl mb-4">📅</div>
-                                    <p>No prep schedule available.</p>
+                                    <p className="mb-3">No detailed prep schedule available.</p>
+                                    <div className="text-sm space-y-2">
+                                        <p><strong>Suggested prep schedule:</strong></p>
+                                        <div className="bg-gray-50 rounded-lg p-3 text-left">
+                                            <p><strong>Sunday:</strong> Wash and chop vegetables, cook grains</p>
+                                            <p><strong>Wednesday:</strong> Mid-week prep refresh</p>
+                                            <p><strong>Daily:</strong> 15 minutes before cooking to organize</p>
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>

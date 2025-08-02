@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/meal-planning/ShoppingListGenerator.js v14 - FIXED all null/undefined issues
+// file: /src/components/meal-planning/ShoppingListGenerator.js v15 - FIXED data structure issues and save functionality
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -417,10 +417,74 @@ export default function EnhancedShoppingListGenerator({
     };
 
     // FIXED: Wrap in useCallback to prevent recreating on every render
-    const handleSaveToUnifiedModal = useCallback((listData) => {
-        console.log('✅ Shopping list saved from unified modal:', listData);
-        onClose(); // Close the generator after saving
-    }, [onClose]);
+    const handleSaveToUnifiedModal = useCallback(async (listData) => {
+        console.log('✅ Shopping list save requested:', listData);
+
+        try {
+            // FIXED: Properly format the data for the API
+            const savePayload = {
+                name: listData.name || `Shopping List ${new Date().toLocaleDateString()}`,
+                description: listData.description || '',
+                listType: 'meal-plan',
+                contextName: mealPlanName,
+                sourceRecipeIds: [], // Extract from meal plan if needed
+                sourceMealPlanId: mealPlanId,
+                items: formatItemsForSave(listData.items || []),
+                tags: listData.tags || [],
+                color: listData.color || '#3b82f6',
+                isTemplate: listData.isTemplate || false
+            };
+
+            console.log('📤 Sending save request with payload:', savePayload);
+
+            const response = await apiPost('/api/shopping/saved', savePayload);
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.error || 'Failed to save shopping list');
+            }
+
+            const result = await response.json();
+            console.log('✅ Shopping list saved successfully:', result);
+
+            onClose(); // Close the generator after saving
+        } catch (error) {
+            console.error('❌ Error saving shopping list:', error);
+            throw error; // Let the modal handle the error display
+        }
+    }, [onClose, mealPlanId, mealPlanName]);
+
+    // FIXED: Properly format items for the SavedShoppingList schema
+    const formatItemsForSave = (items) => {
+        if (!Array.isArray(items)) {
+            console.warn('Items is not an array:', typeof items);
+            return [];
+        }
+
+        return items.map(item => {
+            if (!item || typeof item !== 'object') {
+                console.warn('Invalid item:', item);
+                return null;
+            }
+
+            return {
+                ingredient: item.ingredient || item.name || 'Unknown Item',
+                amount: `${item.quantity || ''} ${item.unit || ''}`.trim() || '',
+                category: item.category || 'other',
+                inInventory: !!item.inInventory,
+                purchased: !!item.purchased,
+                recipes: Array.isArray(item.recipes) ? item.recipes : [],
+                originalName: item.ingredient || item.name || '',
+                needAmount: item.needAmount || '',
+                haveAmount: item.haveAmount || '',
+                itemKey: item.id || `${item.ingredient || item.name}-${item.category || 'other'}`,
+                notes: item.notes || '',
+                price: item.estimatedPrice || 0,
+                estimatedPrice: item.estimatedPrice || 0,
+                priceSource: 'estimated'
+            };
+        }).filter(item => item !== null);
+    };
 
     // FIXED: Move convertShoppingListForModal function before useMemo to prevent temporal dead zone
     const convertShoppingListForModal = useCallback((shoppingList) => {

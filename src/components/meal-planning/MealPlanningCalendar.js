@@ -1,8 +1,8 @@
 'use client';
-// file: /src/components/meal-planning/MealPlanningCalendar.js v16 - Enhanced with Price Intelligence Integration
+// file: /src/components/meal-planning/MealPlanningCalendar.js v17 - Fixed button layout and mobile responsiveness
 
 import {useState, useEffect} from 'react';
-import { useSafeSession } from '@/hooks/useSafeSession';
+import {useSafeSession} from '@/hooks/useSafeSession';
 import ShoppingListGenerator from '@/components/meal-planning/ShoppingListGenerator';
 import MealPrepButton from '@/components/meal-planning/MealPrepButton';
 import NutritionAnalysisButton from '@/components/nutrition/NutritionAnalysisButton';
@@ -10,9 +10,9 @@ import TemplateLibraryButton from '@/components/meal-planning/TemplateLibraryBut
 import SimpleMealBuilder from '@/components/meal-planning/SimpleMealBuilder';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MealCompletionModal from '@/components/meal-planning/MealCompletionModal';
-import { apiGet, apiPost, apiPut } from '@/lib/api-config';
+import {apiGet, apiPost, apiPut} from '@/lib/api-config';
 import SmartSuggestionsModal from '@/components/meal-planning/SmartSuggestionsModal';
-import { VoiceInput } from '@/components/mobile/VoiceInput';
+import {VoiceInput} from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 export default function MealPlanningCalendar() {
@@ -98,14 +98,14 @@ export default function MealPlanningCalendar() {
     };
 
     const RECIPE_CATEGORIES = [
-        { id: 'entree', name: 'Entrees', icon: '🍖' },
-        { id: 'side', name: 'Sides', icon: '🥗' },
-        { id: 'appetizer', name: 'Appetizers', icon: '🥨' },
-        { id: 'dessert', name: 'Desserts', icon: '🍰' },
-        { id: 'soup', name: 'Soups', icon: '🍲' },
-        { id: 'salad', name: 'Salads', icon: '🥬' },
-        { id: 'breakfast', name: 'Breakfast', icon: '🥞' },
-        { id: 'snack', name: 'Snacks', icon: '🍿' }
+        {id: 'entree', name: 'Entrees', icon: '🍖'},
+        {id: 'side', name: 'Sides', icon: '🥗'},
+        {id: 'appetizer', name: 'Appetizers', icon: '🥨'},
+        {id: 'dessert', name: 'Desserts', icon: '🍰'},
+        {id: 'soup', name: 'Soups', icon: '🍲'},
+        {id: 'salad', name: 'Salads', icon: '🥬'},
+        {id: 'breakfast', name: 'Breakfast', icon: '🥞'},
+        {id: 'snack', name: 'Snacks', icon: '🍿'}
     ];
 
     // 💰 NEW: Price Intelligence Functions
@@ -172,7 +172,7 @@ export default function MealPlanningCalendar() {
                         servings: 4
                     });
                     const data = await response.json();
-                    return data.success ? { recipeId, cost: data.cost, breakdown: data.breakdown } : null;
+                    return data.success ? {recipeId, cost: data.cost, breakdown: data.breakdown} : null;
                 } catch (error) {
                     console.error(`Error calculating cost for recipe ${recipeId}:`, error);
                     return null;
@@ -298,7 +298,6 @@ export default function MealPlanningCalendar() {
             // Modal stays open regardless of success/failure
         }
     };
-
 
     const handleApplySuggestion = async (suggestion) => {
         try {
@@ -428,7 +427,7 @@ export default function MealPlanningCalendar() {
         }
     };
 
-// Add this function to handle meal plan updates when suggestions are applied:
+    // Add this function to handle meal plan updates when suggestions are applied:
     const handleMealPlanUpdate = async () => {
         try {
             await fetchMealPlan();
@@ -441,7 +440,6 @@ export default function MealPlanningCalendar() {
             showToast('Error updating meal plan', 'error');
         }
     };
-
 
     const formatPrice = (price) => {
         return typeof price === 'number' ? `$${price.toFixed(2)}` : '$0.00';
@@ -529,7 +527,7 @@ export default function MealPlanningCalendar() {
             }
         });
 
-        return actions.length > 0 ? { actions } : null;
+        return actions.length > 0 ? {actions} : null;
     };
 
     const parseSingleMealAction = (segment) => {
@@ -709,7 +707,7 @@ export default function MealPlanningCalendar() {
         );
     };
 
-    // Enhanced categorize recipe function (same as original)
+    // Enhanced categorize recipe function
     const categorizeRecipe = (recipe) => {
         const title = recipe.title?.toLowerCase() || '';
         const tags = recipe.tags || [];
@@ -754,7 +752,7 @@ export default function MealPlanningCalendar() {
         return 'entree';
     };
 
-    // Week days configuration based user preference (same as original)
+    // Week days configuration based user preference
     const getWeekDaysOrder = (startDay) => {
         const allDays = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
         const startIndex = allDays.indexOf(startDay);
@@ -764,7 +762,7 @@ export default function MealPlanningCalendar() {
     const weekDays = getWeekDaysOrder(weekStartDay);
     const mealTypes = userMealTypes;
 
-    // Filter recipes based on dietary restrictions and avoided ingredients (same as original)
+    // Filter recipes based on dietary restrictions and avoided ingredients
     const filterRecipesByDietaryPreferences = (recipeList) => {
         if (!recipeList || recipeList.length === 0) return [];
 
@@ -827,7 +825,7 @@ export default function MealPlanningCalendar() {
         });
     };
 
-    // Check if a meal conflicts with dietary preferences (same as original)
+    // Check if a meal conflicts with dietary preferences
     const checkMealDietaryConflicts = (meal) => {
         const conflicts = [];
 
@@ -863,7 +861,7 @@ export default function MealPlanningCalendar() {
     useEffect(() => {
         if (session?.user) {
             loadUserPreferences();
-            loadPriceIntelligence(); // 💰 NEW: Load price data
+            loadPriceIntelligence(); // NEW: Load price data
         }
     }, [session]);
 
@@ -922,7 +920,7 @@ export default function MealPlanningCalendar() {
         }
     }, [session]);
 
-    // 💰 NEW: Calculate costs when meal plan changes
+    // NEW: Calculate costs when meal plan changes
     useEffect(() => {
         if (mealPlan && priceIntelligence.enabled) {
             calculateMealPlanCosts(mealPlan);
@@ -941,7 +939,7 @@ export default function MealPlanningCalendar() {
         }
     };
 
-    // All the meal handling functions remain the same...
+    // All the meal handling functions
     const handleMealCompletion = async (completionData) => {
         if (!mealPlan) return;
 
@@ -956,7 +954,7 @@ export default function MealPlanningCalendar() {
                 completionNotes: completionData.notes
             };
 
-            const updatedMeals = { ...mealPlan.meals };
+            const updatedMeals = {...mealPlan.meals};
             const dayMeals = updatedMeals[selectedMealForCompletion.day] || [];
             const mealIndex = dayMeals.findIndex(m =>
                 (m.recipeId === mealEntry.recipeId && m.mealType === mealEntry.mealType) ||
@@ -967,7 +965,7 @@ export default function MealPlanningCalendar() {
                 dayMeals[mealIndex] = updatedMeal;
             }
 
-            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, { meals: updatedMeals });
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {meals: updatedMeals});
 
             if (response.ok) {
                 setMealPlan(prev => ({
@@ -999,7 +997,7 @@ export default function MealPlanningCalendar() {
         if (!confirmUndo) return;
 
         try {
-            const updatedMeals = { ...mealPlan.meals };
+            const updatedMeals = {...mealPlan.meals};
             const dayMeals = updatedMeals[day] || [];
             const mealIndex = dayMeals.findIndex(m =>
                 (m.recipeId === meal.recipeId && m.mealType === meal.mealType && m.createdAt === meal.createdAt) ||
@@ -1020,7 +1018,7 @@ export default function MealPlanningCalendar() {
                 dayMeals[mealIndex] = updatedMeal;
             }
 
-            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, { meals: updatedMeals });
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {meals: updatedMeals});
 
             if (response.ok) {
                 setMealPlan(prev => ({
@@ -1050,7 +1048,7 @@ export default function MealPlanningCalendar() {
 
     const handleEditMeal = (meal, day) => {
         if (meal.entryType === 'simple') {
-            setSelectedSlot({ day, mealType: meal.mealType });
+            setSelectedSlot({day, mealType: meal.mealType});
             setShowSimpleMealBuilder(true);
         } else if (meal.entryType === 'recipe') {
             alert(`Recipe meal editing: You can remove this meal and add a different recipe, or modify the servings/notes.\n\nFull recipe editing should be done in the Recipe section.`);
@@ -1093,7 +1091,7 @@ export default function MealPlanningCalendar() {
         };
     }, []);
 
-    // Migration function for existing users with old meal types (same as original)
+    // Migration function for existing users with old meal types
     const migrateOldMealTypes = (mealTypes) => {
         const oldMealTypes = ['breakfast', 'lunch', 'dinner', 'snack'];
         const newMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
@@ -1134,7 +1132,7 @@ export default function MealPlanningCalendar() {
                     setUserAvoidIngredients(data.preferences.avoidIngredients);
                 }
 
-                // 💰 NEW: Load price intelligence preferences
+                // NEW: Load price intelligence preferences
                 if (data.preferences.priceIntelligence) {
                     setPriceIntelligence(prev => ({
                         ...prev,
@@ -1150,7 +1148,8 @@ export default function MealPlanningCalendar() {
 
     const updateWeekStartPreference = async (newStartDay) => {
         try {
-            const response = await apiPut('/api/user/preferences', {
+            const response = await api;
+            Put('/api/user/preferences', {
                 weekStartDay: newStartDay
             });
 
@@ -1162,273 +1161,6 @@ export default function MealPlanningCalendar() {
             }
         } catch (error) {
             console.error('Error updating week start preference:', error);
-        }
-    };
-
-    const updateMealTypePreferences = async (newMealTypes) => {
-        try {
-            const response = await apiPut('/api/user/preferences', {
-                defaultMealTypes: newMealTypes
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                setUserMealTypes(newMealTypes);
-            }
-        } catch (error) {
-            console.error('Error updating meal type preferences:', error);
-        }
-    };
-
-    // 💰 NEW: Update price intelligence preferences
-    const updatePricePreferences = async (newPreferences) => {
-        try {
-            const response = await apiPut('/api/user/preferences', {
-                priceIntelligence: newPreferences
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                setPriceIntelligence(prev => ({
-                    ...prev,
-                    ...newPreferences
-                }));
-            }
-        } catch (error) {
-            console.error('Error updating price preferences:', error);
-        }
-    };
-
-    const updateWeeklyBudget = async (newBudget) => {
-        try {
-            const response = await apiPut('/api/user/budget', {
-                weeklyMealBudget: newBudget
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                setPriceIntelligence(prev => ({
-                    ...prev,
-                    weeklyBudget: newBudget
-                }));
-                showToast('Weekly budget updated!', 'success');
-            }
-        } catch (error) {
-            console.error('Error updating budget:', error);
-            showToast('Failed to update budget', 'error');
-        }
-    };
-
-    const getWeekStart = (date) => {
-        const d = new Date(date);
-        const currentDay = d.getDay();
-
-        const dayNumbers = {
-            'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
-            'thursday': 4, 'friday': 5, 'saturday': 6
-        };
-
-        const startDayNumber = dayNumbers[weekStartDay];
-
-        let daysToSubtract = currentDay - startDayNumber;
-        if (daysToSubtract < 0) {
-            daysToSubtract += 7;
-        }
-
-        const weekStart = new Date(d);
-        weekStart.setDate(d.getDate() - daysToSubtract);
-        weekStart.setHours(0, 0, 0, 0);
-        return weekStart;
-    };
-
-    const getFormattedWeekStart = (date) => {
-        const weekStart = getWeekStart(date);
-        return weekStart.toISOString().split('T')[0];
-    };
-
-    const hasMealsPlanned = () => {
-        if (!mealPlan?.meals) return false;
-
-        const totalMeals = Object.values(mealPlan.meals).reduce((total, dayMeals) => {
-            return total + (Array.isArray(dayMeals) ? dayMeals.length : 0);
-        }, 0);
-
-        return totalMeals > 0;
-    };
-
-    const fetchMealPlan = async () => {
-        const weekStartParam = getFormattedWeekStart(currentWeek);
-
-        try {
-            const response = await apiGet(`/api/meal-plans?weekStart=${weekStartParam}`);
-            const data = await response.json();
-
-            if (data.success && data.mealPlans.length > 0) {
-                setMealPlan(data.mealPlans[0]);
-            } else {
-                await createMealPlan();
-            }
-        } catch (error) {
-            console.error('Error fetching meal plan:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const createMealPlan = async () => {
-        try {
-            const weekStart = getWeekStart(currentWeek);
-
-            const mealsObject = {};
-            weekDays.forEach(day => {
-                mealsObject[day] = [];
-            });
-
-            const response = await apiPost('/api/meal-plans', {
-                name: `Week of ${weekStart.toLocaleDateString('en-US', {
-                    weekday: 'short',
-                    month: 'short',
-                    day: 'numeric'
-                })}`,
-                weekStartDate: weekStart.toISOString(),
-                meals: mealsObject,
-                preferences: {
-                    mealTypes: userMealTypes,
-                    weekStartDay: weekStartDay,
-                    dietaryRestrictions: userDietaryRestrictions,
-                    avoidIngredients: userAvoidIngredients,
-                    priceIntelligence: priceIntelligence // 💰 NEW: Include price preferences
-                }
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                setMealPlan(data.mealPlan);
-            }
-        } catch (error) {
-            console.error('Error creating meal plan:', error);
-        }
-    };
-
-    const fetchRecipes = async () => {
-        try {
-            const response = await apiGet('/api/recipes');
-            const data = await response.json();
-            if (data.success) {
-                setRecipes(data.recipes);
-            }
-        } catch (error) {
-            console.error('Error fetching recipes:', error);
-        }
-    };
-
-    const handleTemplateApplied = (updatedMealPlan) => {
-        setMealPlan(updatedMealPlan);
-    };
-
-    const addMealToSlot = async (day, mealType, recipe) => {
-        if (!mealPlan) return;
-
-        const newMeal = {
-            entryType: 'recipe',
-            recipeId: recipe._id,
-            recipeName: recipe.title,
-            mealType: mealType,
-            servings: recipe.servings || 4,
-            notes: '',
-            prepTime: recipe.prepTime || 0,
-            cookTime: recipe.cookTime || 0,
-            createdAt: new Date()
-        };
-
-        const updatedMeals = {
-            ...mealPlan.meals,
-            [day]: [...(mealPlan.meals[day] || []), newMeal]
-        };
-
-        try {
-            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
-                meals: updatedMeals
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                setMealPlan(prev => ({
-                    ...prev,
-                    meals: updatedMeals
-                }));
-            }
-        } catch (error) {
-            console.error('Error adding meal:', error);
-        }
-
-        setShowRecipeModal(false);
-        setSelectedSlot(null);
-        setRecipeSearchQuery('');
-        setSelectedRecipeCategory('all');
-    };
-
-    const addSimpleMealToSlot = async (day, mealType, simpleMealEntry) => {
-        if (!mealPlan) return;
-
-        const conflicts = checkMealDietaryConflicts(simpleMealEntry);
-        if (conflicts.length > 0) {
-            const confirmAdd = window.confirm(
-                `This meal may conflict with your dietary preferences:\n\n${conflicts.join('\n')}\n\nDo you want to add it anyway?`
-            );
-            if (!confirmAdd) return;
-        }
-
-        const updatedMeals = {
-            ...mealPlan.meals,
-            [day]: [...(mealPlan.meals[day] || []), simpleMealEntry]
-        };
-
-        try {
-            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
-                meals: updatedMeals
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                setMealPlan(prev => ({
-                    ...prev,
-                    meals: updatedMeals
-                }));
-            }
-        } catch (error) {
-            console.error('Error adding simple meal:', error);
-        }
-
-        setShowSimpleMealBuilder(false);
-        setSelectedSlot(null);
-    };
-
-    const removeMealFromSlot = async (day, mealIndex) => {
-        if (!mealPlan) return;
-
-        const updatedMeals = {
-            ...mealPlan.meals,
-            [day]: mealPlan.meals[day].filter((_, index) => index !== mealIndex)
-        };
-
-        try {
-            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
-                meals: updatedMeals
-            });
-
-            const data = await response.json();
-
-            if (data.success) {
-                setMealPlan(prev => ({
-                    ...prev,
-                    meals: updatedMeals
-                }));
-            }
-        } catch (error) {
-            console.error('Error removing meal:', error);
         }
     };
 
@@ -1515,7 +1247,7 @@ export default function MealPlanningCalendar() {
                         {getMealDisplayDetails(meal)}
                     </div>
 
-                    {/* 💰 NEW: Price information display */}
+                    {/* NEW: Price information display */}
                     {meal.recipeId && getMealCostIndicator(day, meal.mealType, meal.recipeId)}
 
                     {meal.entryType === 'simple' && meal.simpleMeal?.description && (
@@ -1551,7 +1283,8 @@ export default function MealPlanningCalendar() {
                         title="Meal options"
                     >
                         <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                            <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                            <path
+                                d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z"/>
                         </svg>
                     </TouchEnhancedButton>
 
@@ -1686,8 +1419,274 @@ export default function MealPlanningCalendar() {
         );
     }
 
-    const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack'];
+    const updateMealTypePreferences = async (newMealTypes) => {
+        try {
+            const response = await apiPut('/api/user/preferences', {
+                defaultMealTypes: newMealTypes
+            });
 
+            const data = await response.json();
+            if (data.success) {
+                setUserMealTypes(newMealTypes);
+            }
+        } catch (error) {
+            console.error('Error updating meal type preferences:', error);
+        }
+    };
+
+    // NEW: Update price intelligence preferences
+    const updatePricePreferences = async (newPreferences) => {
+        try {
+            const response = await apiPut('/api/user/preferences', {
+                priceIntelligence: newPreferences
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setPriceIntelligence(prev => ({
+                    ...prev,
+                    ...newPreferences
+                }));
+            }
+        } catch (error) {
+            console.error('Error updating price preferences:', error);
+        }
+    };
+
+    const updateWeeklyBudget = async (newBudget) => {
+        try {
+            const response = await apiPut('/api/user/budget', {
+                weeklyMealBudget: newBudget
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setPriceIntelligence(prev => ({
+                    ...prev,
+                    weeklyBudget: newBudget
+                }));
+                showToast('Weekly budget updated!', 'success');
+            }
+        } catch (error) {
+            console.error('Error updating budget:', error);
+            showToast('Failed to update budget', 'error');
+        }
+    };
+
+    const getWeekStart = (date) => {
+        const d = new Date(date);
+        const currentDay = d.getDay();
+
+        const dayNumbers = {
+            'sunday': 0, 'monday': 1, 'tuesday': 2, 'wednesday': 3,
+            'thursday': 4, 'friday': 5, 'saturday': 6
+        };
+
+        const startDayNumber = dayNumbers[weekStartDay];
+
+        let daysToSubtract = currentDay - startDayNumber;
+        if (daysToSubtract < 0) {
+            daysToSubtract += 7;
+        }
+
+        const weekStart = new Date(d);
+        weekStart.setDate(d.getDate() - daysToSubtract);
+        weekStart.setHours(0, 0, 0, 0);
+        return weekStart;
+    };
+
+    const getFormattedWeekStart = (date) => {
+        const weekStart = getWeekStart(date);
+        return weekStart.toISOString().split('T')[0];
+    };
+
+    const hasMealsPlanned = () => {
+        if (!mealPlan?.meals) return false;
+
+        const totalMeals = Object.values(mealPlan.meals).reduce((total, dayMeals) => {
+            return total + (Array.isArray(dayMeals) ? dayMeals.length : 0);
+        }, 0);
+
+        return totalMeals > 0;
+    };
+
+    const fetchMealPlan = async () => {
+        const weekStartParam = getFormattedWeekStart(currentWeek);
+
+        try {
+            const response = await apiGet(`/api/meal-plans?weekStart=${weekStartParam}`);
+            const data = await response.json();
+
+            if (data.success && data.mealPlans.length > 0) {
+                setMealPlan(data.mealPlans[0]);
+            } else {
+                await createMealPlan();
+            }
+        } catch (error) {
+            console.error('Error fetching meal plan:', error);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const createMealPlan = async () => {
+        try {
+            const weekStart = getWeekStart(currentWeek);
+
+            const mealsObject = {};
+            weekDays.forEach(day => {
+                mealsObject[day] = [];
+            });
+
+            const response = await apiPost('/api/meal-plans', {
+                name: `Week of ${weekStart.toLocaleDateString('en-US', {
+                    weekday: 'short',
+                    month: 'short',
+                    day: 'numeric'
+                })}`,
+                weekStartDate: weekStart.toISOString(),
+                meals: mealsObject,
+                preferences: {
+                    mealTypes: userMealTypes,
+                    weekStartDay: weekStartDay,
+                    dietaryRestrictions: userDietaryRestrictions,
+                    avoidIngredients: userAvoidIngredients,
+                    priceIntelligence: priceIntelligence // NEW: Include price preferences
+                }
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setMealPlan(data.mealPlan);
+            }
+        } catch (error) {
+            console.error('Error creating meal plan:', error);
+        }
+    };
+
+    const fetchRecipes = async () => {
+        try {
+            const response = await apiGet('/api/recipes');
+            const data = await response.json();
+            if (data.success) {
+                setRecipes(data.recipes);
+            }
+        } catch (error) {
+            console.error('Error fetching recipes:', error);
+        }
+    };
+
+    const handleTemplateApplied = (updatedMealPlan) => {
+        setMealPlan(updatedMealPlan);
+    };
+
+    const addMealToSlot = async (day, mealType, recipe) => {
+        if (!mealPlan) return;
+
+        const newMeal = {
+            entryType: 'recipe',
+            recipeId: recipe._id,
+            recipeName: recipe.title,
+            mealType: mealType,
+            servings: recipe.servings || 4,
+            notes: '',
+            prepTime: recipe.prepTime || 0,
+            cookTime: recipe.cookTime || 0,
+            createdAt: new Date()
+        };
+
+        const updatedMeals = {
+            ...mealPlan.meals,
+            [day]: [...(mealPlan.meals[day] || []), newMeal]
+        };
+
+        try {
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
+                meals: updatedMeals
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setMealPlan(prev => ({
+                    ...prev,
+                    meals: updatedMeals
+                }));
+            }
+        } catch (error) {
+            console.error('Error adding meal:', error);
+        }
+
+        setShowRecipeModal(false);
+        setSelectedSlot(null);
+        setRecipeSearchQuery('');
+        setSelectedRecipeCategory('all');
+    };
+
+    const addSimpleMealToSlot = async (day, mealType, simpleMealEntry) => {
+        if (!mealPlan) return;
+
+        const conflicts = checkMealDietaryConflicts(simpleMealEntry);
+        if (conflicts.length > 0) {
+            const confirmAdd = window.confirm(
+                `This meal may conflict with your dietary preferences:\n\n${conflicts.join('\n')}\n\nDo you want to add it anyway?`
+            );
+            if (!confirmAdd) return;
+        }
+
+        const updatedMeals = {
+            ...mealPlan.meals,
+            [day]: [...(mealPlan.meals[day] || []), simpleMealEntry]
+        };
+
+        try {
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
+                meals: updatedMeals
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setMealPlan(prev => ({
+                    ...prev,
+                    meals: updatedMeals
+                }));
+            }
+        } catch (error) {
+            console.error('Error adding simple meal:', error);
+        }
+
+        setShowSimpleMealBuilder(false);
+        setSelectedSlot(null);
+    };
+
+    const removeMealFromSlot = async (day, mealIndex) => {
+        if (!mealPlan) return;
+
+        const updatedMeals = {
+            ...mealPlan.meals,
+            [day]: mealPlan.meals[day].filter((_, index) => index !== mealIndex)
+        };
+
+        try {
+            const response = await apiPut(`/api/meal-plans/${mealPlan._id}`, {
+                meals: updatedMeals
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                setMealPlan(prev => ({
+                    ...prev,
+                    meals: updatedMeals
+                }));
+            }
+        } catch (error) {
+            console.error('Error removing meal:', error);
+        }
+    };
+
+    const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']
     // Mobile Layout
     if (isMobile) {
         return (
@@ -1702,7 +1701,7 @@ export default function MealPlanningCalendar() {
                                 </h1>
                                 <p className="text-gray-600 text-sm mt-1">Plan your meals for the week</p>
 
-                                {/* 💰 NEW: Price Intelligence Summary */}
+                                {/* NEW: Price Intelligence Summary */}
                                 {priceIntelligence.enabled && (
                                     <div className="text-xs text-gray-500 mt-1 space-y-1">
                                         {priceIntelligence.weeklyBudget > 0 && (
@@ -1710,9 +1709,10 @@ export default function MealPlanningCalendar() {
                                                 <span>Budget: {formatPrice(priceIntelligence.weeklyBudget)}</span>
                                                 <span>•</span>
                                                 <span>Used: {formatPrice(priceIntelligence.currentCost)}</span>
-                                                <span className={priceIntelligence.currentCost > priceIntelligence.weeklyBudget ? 'text-red-600' : 'text-green-600'}>
-                                                    ({priceIntelligence.weeklyBudget > 0 ? ((priceIntelligence.currentCost / priceIntelligence.weeklyBudget) * 100).toFixed(0) : 0}%)
-                                                </span>
+                                                <span
+                                                    className={priceIntelligence.currentCost > priceIntelligence.weeklyBudget ? 'text-red-600' : 'text-green-600'}>
+                                                ({priceIntelligence.weeklyBudget > 0 ? ((priceIntelligence.currentCost / priceIntelligence.weeklyBudget) * 100).toFixed(0) : 0}%)
+                                            </span>
                                             </div>
                                         )}
                                         {priceIntelligence.dealOpportunities.length > 0 && (
@@ -1739,10 +1739,13 @@ export default function MealPlanningCalendar() {
                             </div>
 
                             <div className="flex items-center space-x-2">
-                                {/* 💰 NEW: Price Intelligence Toggle */}
+                                {/* NEW: Price Intelligence Toggle */}
                                 {priceIntelligence.enabled && (
                                     <TouchEnhancedButton
-                                        onClick={() => setPriceIntelligence(prev => ({ ...prev, showInsights: !prev.showInsights }))}
+                                        onClick={() => setPriceIntelligence(prev => ({
+                                            ...prev,
+                                            showInsights: !prev.showInsights
+                                        }))}
                                         className={`p-2 rounded-lg transition-colors ${
                                             priceIntelligence.showInsights
                                                 ? 'text-green-600 bg-green-100'
@@ -1769,146 +1772,74 @@ export default function MealPlanningCalendar() {
                             </div>
                         </div>
 
-                        {/* 💰 NEW: Price Intelligence Insights Panel */}
-                        {priceIntelligence.enabled && priceIntelligence.showInsights && (
-                            <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
-                                <h3 className="text-sm font-semibold text-green-900 mb-3">💡 Smart Insights</h3>
-
-                                <div className="grid grid-cols-1 gap-3">
-                                    {/* Budget Status */}
-                                    <div className="bg-white rounded-lg p-3 border border-green-300">
-                                        <div className="flex items-center justify-between mb-2">
-                                            <h4 className="font-medium text-green-900 text-sm">💰 Budget Status</h4>
-                                            <TouchEnhancedButton
-                                                onClick={() => setShowBudgetModal(true)}
-                                                className="text-xs text-green-600 hover:text-green-700"
-                                            >
-                                                {priceIntelligence.weeklyBudget === 0 ? 'Set Budget' : 'Edit'}
-                                            </TouchEnhancedButton>
-                                        </div>
-                                        <div className="text-sm text-green-800">
-                                            {priceIntelligence.weeklyBudget > 0 ? (
-                                                priceIntelligence.currentCost < priceIntelligence.weeklyBudget ? (
-                                                    `Under budget by ${formatPrice(priceIntelligence.weeklyBudget - priceIntelligence.currentCost)}`
-                                                ) : (
-                                                    `Over budget by ${formatPrice(priceIntelligence.currentCost - priceIntelligence.weeklyBudget)}`
-                                                )
-                                            ) : (
-                                                'Set a weekly budget to track spending'
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Inventory Opportunities */}
-                                    <div className="bg-white rounded-lg p-3 border border-green-300">
-                                        <h4 className="font-medium text-green-900 mb-2 text-sm">📦 Use Your Inventory</h4>
-                                        <div className="text-sm text-green-800">
-                                            You have {inventory.length} items that could be used in meals this week
-                                        </div>
-                                        <TouchEnhancedButton
-                                            onClick={generateSmartSuggestions}
-                                            className="text-xs text-green-600 hover:text-green-700 mt-2"
-                                        >
-                                            Get Suggestions →
-                                        </TouchEnhancedButton>
-                                    </div>
-
-                                    {/* Current Deals */}
-                                    {priceIntelligence.dealOpportunities.length > 0 && (
-                                        <div className="bg-white rounded-lg p-3 border border-green-300">
-                                            <h4 className="font-medium text-green-900 mb-2 text-sm">🎯 Best Deals Today</h4>
-                                            <div className="text-sm text-green-800">
-                                                {priceIntelligence.dealOpportunities.slice(0, 2).map((deal, index) => (
-                                                    <div key={index} className="mb-1">
-                                                        {deal.itemName} - {deal.savingsPercent}% off
-                                                    </div>
-                                                ))}
-                                                {priceIntelligence.dealOpportunities.length > 2 && (
-                                                    <div className="text-xs text-green-600 mt-1">
-                                                        +{priceIntelligence.dealOpportunities.length - 2} more deals
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Dietary filtering notification */}
-                        {dietaryWarningMessage && (
-                            <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
-                                <div className="flex items-start">
-                                    <span className="text-orange-500 mr-2">⚠️</span>
-                                    <div className="text-sm text-orange-700">
-                                        {dietaryWarningMessage}
-                                        <TouchEnhancedButton
-                                            onClick={() => setDietaryWarningMessage('')}
-                                            className="ml-2 text-orange-500 hover:text-orange-700"
-                                        >
-                                            Dismiss
-                                        </TouchEnhancedButton>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
-                        {/* Enhanced Action Buttons - Mobile */}
+                        {/* Enhanced Action Buttons - Mobile - FIXED LAYOUT */}
                         <div className="flex flex-col space-y-3">
-                            {mealPlan && (
-                                <TemplateLibraryButton
-                                    mealPlanId={mealPlan._id}
-                                    mealPlanName={mealPlan.name}
-                                    onTemplateApplied={handleTemplateApplied}
-                                    disabled={false}
-                                />
-                            )}
+                            {/* First row - Templates */}
+                            <div className="w-full">
+                                {mealPlan && (
+                                    <TemplateLibraryButton
+                                        mealPlanId={mealPlan._id}
+                                        mealPlanName={mealPlan.name}
+                                        onTemplateApplied={handleTemplateApplied}
+                                        disabled={false}
+                                    />
+                                )}
+                            </div>
 
-                            {mealsPlanned && (
+                            {/* Second row - Two button grid */}
+                            <div className="grid grid-cols-2 gap-3">
+                                {mealsPlanned && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowShoppingList(true)}
+                                        className="bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                        title="Generate shopping list from your meal plan"
+                                    >
+                                        🛒 Shopping List
+                                    </TouchEnhancedButton>
+                                )}
+
+                                {/* NEW: Smart Suggestions Button */}
+                                {priceIntelligence.enabled && mealPlan && (
+                                    <TouchEnhancedButton
+                                        onClick={generateSmartSuggestions}
+                                        className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                        title="Get AI-powered money-saving meal suggestions"
+                                    >
+                                        💡 Smart Ideas
+                                    </TouchEnhancedButton>
+                                )}
+                            </div>
+
+                            {/* Third row - Voice & Additional Features */}
+                            <div className="grid grid-cols-1 gap-3">
+                                {/* NEW: Voice Meal Planning Button */}
                                 <TouchEnhancedButton
-                                    onClick={() => setShowShoppingList(true)}
-                                    className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
-                                    title="Generate shopping list from your meal plan"
+                                    onClick={() => setShowVoiceMealPlanning(true)}
+                                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                    title="Plan meals using voice commands"
                                 >
-                                    🛒 {priceIntelligence.enabled ? 'Smart Shopping List' : 'Shopping List'}
+                                    🎤 Voice Planning
                                 </TouchEnhancedButton>
-                            )}
+                            </div>
 
-                            {/* 💰 NEW: Smart Suggestions Button */}
-                            {priceIntelligence.enabled && mealPlan && (
-                                <TouchEnhancedButton
-                                    onClick={generateSmartSuggestions}
-                                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
-                                    title="Get AI-powered money-saving meal suggestions"
-                                >
-                                    💡 Money-Saving Ideas
-                                </TouchEnhancedButton>
-                            )}
+                            {/* Fourth row - Meal Prep and Nutrition */}
+                            <div className="grid grid-cols-2 gap-3">
+                                {mealPlan && (
+                                    <MealPrepButton
+                                        mealPlanId={mealPlan._id}
+                                        mealPlanName={mealPlan.name}
+                                        disabled={!mealsPlanned}
+                                    />
+                                )}
 
-                            {/* NEW: Voice Meal Planning Button */}
-                            <TouchEnhancedButton
-                                onClick={() => setShowVoiceMealPlanning(true)}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
-                                title="Plan meals using voice commands"
-                            >
-                                🎤 Voice Meal Planning
-                            </TouchEnhancedButton>
-
-                            {mealPlan && (
-                                <MealPrepButton
-                                    mealPlanId={mealPlan._id}
-                                    mealPlanName={mealPlan.name}
-                                    disabled={!mealsPlanned}
-                                />
-                            )}
-
-                            {mealPlan && (
-                                <NutritionAnalysisButton
-                                    mealPlanId={mealPlan._id}
-                                    mealPlanName={mealPlan.name}
-                                    disabled={!mealsPlanned}
-                                />
-                            )}
+                                {mealPlan && (
+                                    <NutritionAnalysisButton
+                                        mealPlanId={mealPlan._id}
+                                        mealPlanName={mealPlan.name}
+                                        disabled={!mealsPlanned}
+                                    />
+                                )}
+                            </div>
                         </div>
                     </div>
 
@@ -1923,18 +1854,16 @@ export default function MealPlanningCalendar() {
                             </svg>
                         </TouchEnhancedButton>
 
-                        <h2 className="text-xl font-semibold text-gray-900">
+                        <h2 className="text-lg font-semibold text-gray-900 text-center flex-1">
                             {getWeekStart(currentWeek).toLocaleDateString('en-US', {
-                                month: 'long',
-                                day: 'numeric',
-                                year: 'numeric'
+                                month: 'short',
+                                day: 'numeric'
                             })} - {(() => {
                             const weekEnd = new Date(getWeekStart(currentWeek));
                             weekEnd.setDate(weekEnd.getDate() + 6);
                             return weekEnd.toLocaleDateString('en-US', {
-                                month: 'long',
-                                day: 'numeric',
-                                year: 'numeric'
+                                month: 'short',
+                                day: 'numeric'
                             });
                         })()}
                         </h2>
@@ -1948,13 +1877,100 @@ export default function MealPlanningCalendar() {
                             </svg>
                         </TouchEnhancedButton>
                     </div>
-                    <TouchEnhancedButton
-                        onClick={goToToday}
-                        className="px-4 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors"
-                    >
-                        Today
-                    </TouchEnhancedButton>
+                    <div className="mt-2 text-center">
+                        <TouchEnhancedButton
+                            onClick={goToToday}
+                            className="px-4 py-2 text-indigo-600 hover:text-indigo-800 hover:bg-indigo-50 rounded-lg transition-colors text-sm"
+                        >
+                            Today
+                        </TouchEnhancedButton>
+                    </div>
                 </div>
+
+                {/* NEW: Mobile Price Intelligence Insights Panel */}
+                {priceIntelligence.enabled && priceIntelligence.showInsights && (
+                    <div
+                        className="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
+                        <h3 className="text-sm font-semibold text-green-900 mb-3">💡 Smart Insights</h3>
+
+                        <div className="grid grid-cols-1 gap-3">
+                            {/* Budget Status */}
+                            <div className="bg-white rounded-lg p-3 border border-green-300">
+                                <div className="flex items-center justify-between mb-2">
+                                    <h4 className="font-medium text-green-900 text-sm">💰 Budget Status</h4>
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowBudgetModal(true)}
+                                        className="text-xs text-green-600 hover:text-green-700"
+                                    >
+                                        {priceIntelligence.weeklyBudget === 0 ? 'Set Budget' : 'Edit'}
+                                    </TouchEnhancedButton>
+                                </div>
+                                <div className="text-sm text-green-800">
+                                    {priceIntelligence.weeklyBudget > 0 ? (
+                                        priceIntelligence.currentCost < priceIntelligence.weeklyBudget ? (
+                                            `Under budget by ${formatPrice(priceIntelligence.weeklyBudget - priceIntelligence.currentCost)}`
+                                        ) : (
+                                            `Over budget by ${formatPrice(priceIntelligence.currentCost - priceIntelligence.weeklyBudget)}`
+                                        )
+                                    ) : (
+                                        'Set a weekly budget to track spending'
+                                    )}
+                                </div>
+                            </div>
+
+                            {/* Inventory Opportunities */}
+                            <div className="bg-white rounded-lg p-3 border border-green-300">
+                                <h4 className="font-medium text-green-900 mb-2 text-sm">📦 Use Your Inventory</h4>
+                                <div className="text-sm text-green-800">
+                                    You have {inventory.length} items that could be used in meals this week
+                                </div>
+                                <TouchEnhancedButton
+                                    onClick={generateSmartSuggestions}
+                                    className="text-xs text-green-600 hover:text-green-700 mt-2"
+                                >
+                                    Get Suggestions →
+                                </TouchEnhancedButton>
+                            </div>
+
+                            {/* Current Deals */}
+                            {priceIntelligence.dealOpportunities.length > 0 && (
+                                <div className="bg-white rounded-lg p-3 border border-green-300">
+                                    <h4 className="font-medium text-green-900 mb-2 text-sm">🎯 Best Deals Today</h4>
+                                    <div className="text-sm text-green-800">
+                                        {priceIntelligence.dealOpportunities.slice(0, 2).map((deal, index) => (
+                                            <div key={index} className="mb-1">
+                                                {deal.itemName} - {deal.savingsPercent}% off
+                                            </div>
+                                        ))}
+                                        {priceIntelligence.dealOpportunities.length > 2 && (
+                                            <div className="text-xs text-green-600 mt-1">
+                                                +{priceIntelligence.dealOpportunities.length - 2} more deals
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
+
+                {/* Dietary filtering notification */}
+                {dietaryWarningMessage && (
+                    <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
+                        <div className="flex items-start">
+                            <span className="text-orange-500 mr-2">⚠️</span>
+                            <div className="text-sm text-orange-700">
+                                {dietaryWarningMessage}
+                                <TouchEnhancedButton
+                                    onClick={() => setDietaryWarningMessage('')}
+                                    className="ml-2 text-orange-500 hover:text-orange-700"
+                                >
+                                    Dismiss
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Week Start Notification */}
                 {showWeekNotification && (
@@ -1974,13 +1990,14 @@ export default function MealPlanningCalendar() {
                                 <div className="mt-1 text-sm text-blue-700">
                                     <p>
                                         Click the <span className="inline-flex items-center mx-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                </span> settings icon to choose which day starts your week and which meal types to show.
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round"
+                                                                  strokeWidth={2}
+                                                                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </span> settings icon to choose which day starts your week and which meal types to show.
                                     </p>
                                 </div>
                             </div>
@@ -2054,7 +2071,7 @@ export default function MealPlanningCalendar() {
                             </div>
 
                             <div className="space-y-6">
-                                {/* 💰 NEW: Price Intelligence Settings */}
+                                {/* NEW: Price Intelligence Settings */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-3">
                                         Price Intelligence:
@@ -2065,10 +2082,11 @@ export default function MealPlanningCalendar() {
                                                 type="checkbox"
                                                 id="price-intelligence-enabled"
                                                 checked={priceIntelligence.enabled}
-                                                onChange={(e) => updatePricePreferences({ enabled: e.target.checked })}
+                                                onChange={(e) => updatePricePreferences({enabled: e.target.checked})}
                                                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                             />
-                                            <label htmlFor="price-intelligence-enabled" className="ml-3 text-sm text-gray-700">
+                                            <label htmlFor="price-intelligence-enabled"
+                                                   className="ml-3 text-sm text-gray-700">
                                                 Enable price tracking and budget features
                                             </label>
                                         </div>
@@ -2080,10 +2098,11 @@ export default function MealPlanningCalendar() {
                                                         type="checkbox"
                                                         id="show-insights"
                                                         checked={priceIntelligence.showInsights}
-                                                        onChange={(e) => updatePricePreferences({ showInsights: e.target.checked })}
+                                                        onChange={(e) => updatePricePreferences({showInsights: e.target.checked})}
                                                         className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                                     />
-                                                    <label htmlFor="show-insights" className="ml-3 text-sm text-gray-700">
+                                                    <label htmlFor="show-insights"
+                                                           className="ml-3 text-sm text-gray-700">
                                                         Show smart insights panel
                                                     </label>
                                                 </div>
@@ -2171,14 +2190,14 @@ export default function MealPlanningCalendar() {
                                         <div className="text-sm text-gray-600 space-y-1">
                                             {userDietaryRestrictions.length > 0 && (
                                                 <div>
-                                            <span
-                                                className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                        <span
+                                            className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
                                                 </div>
                                             )}
                                             {userAvoidIngredients.length > 0 && (
                                                 <div>
-                                            <span
-                                                className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                        <span
+                                            className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
                                                 </div>
                                             )}
                                         </div>
@@ -2197,7 +2216,7 @@ export default function MealPlanningCalendar() {
                     </div>
                 )}
 
-                {/* 💰 NEW: Budget Setting Modal */}
+                {/* NEW: Budget Setting Modal */}
                 {showBudgetModal && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                         <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -2208,7 +2227,8 @@ export default function MealPlanningCalendar() {
                                     Weekly Meal Budget
                                 </label>
                                 <div className="relative">
-                                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                    <span
+                                        className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
                                     <KeyboardOptimizedInput
                                         type="number"
                                         step="0.01"
@@ -2256,7 +2276,8 @@ export default function MealPlanningCalendar() {
                             <div className="p-4 border-b border-gray-200 flex-shrink-0">
                                 <div className="flex items-center justify-between mb-3">
                                     <h3 className="text-lg font-semibold text-gray-900">
-                                        Add Recipe to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                        Add Recipe
+                                        to {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                     </h3>
                                     <TouchEnhancedButton
                                         onClick={() => {
@@ -2344,7 +2365,8 @@ export default function MealPlanningCalendar() {
                                                 >
                                                     <div className="flex items-start justify-between mb-2">
                                                         <div className="flex-1">
-                                                            <div className="font-medium text-gray-900 mb-1">{recipe.title}</div>
+                                                            <div
+                                                                className="font-medium text-gray-900 mb-1">{recipe.title}</div>
                                                             <div className="text-xs text-gray-600 mb-1">
                                                                 {categoryInfo.icon} {categoryInfo.name}
                                                             </div>
@@ -2352,7 +2374,8 @@ export default function MealPlanningCalendar() {
                                                     </div>
 
                                                     <div className="text-sm text-gray-600 mb-2">
-                                                        {recipe.servings} servings • {recipe.prepTime + recipe.cookTime} min • {recipe.difficulty}
+                                                        {recipe.servings} servings
+                                                        • {recipe.prepTime + recipe.cookTime} min • {recipe.difficulty}
                                                     </div>
 
                                                     {recipe.description && (
@@ -2364,14 +2387,16 @@ export default function MealPlanningCalendar() {
                                                     {recipe.tags && recipe.tags.length > 0 && (
                                                         <div className="flex flex-wrap gap-1">
                                                             {recipe.tags.slice(0, 3).map(tag => (
-                                                                <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                            {tag}
-                                        </span>
+                                                                <span key={tag}
+                                                                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                        {tag}
+                                    </span>
                                                             ))}
                                                             {recipe.tags.length > 3 && (
-                                                                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                            +{recipe.tags.length - 3} more
-                                        </span>
+                                                                <span
+                                                                    className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                        +{recipe.tags.length - 3} more
+                                    </span>
                                                             )}
                                                         </div>
                                                     )}
@@ -2496,7 +2521,7 @@ export default function MealPlanningCalendar() {
                         mealPlanId={mealPlan._id}
                         mealPlanName={mealPlan.name}
                         onClose={() => setShowShoppingList(false)}
-                        priceIntelligence={priceIntelligence.enabled} // 💰 NEW: Pass price intelligence flag
+                        priceIntelligence={priceIntelligence.enabled} // NEW: Pass price intelligence flag
                     />
                 )}
 
@@ -2506,7 +2531,8 @@ export default function MealPlanningCalendar() {
                         <div className="text-6xl mb-4">🍽️</div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
                         <div className="space-y-2">
-                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
+                            <p className="text-gray-600">Start by using a template, adding recipes, or creating quick
+                                meals.</p>
                             {mealPlan && (
                                 <div className="mt-4">
                                     <TemplateLibraryButton
@@ -2542,16 +2568,15 @@ export default function MealPlanningCalendar() {
 // Desktop Layout
     return (
         <div className="max-w-7xl mx-auto p-6">
-            {/* Enhanced Desktop Header with Price Intelligence */}
+            {/* Enhanced Desktop Header with Price Intelligence - FIXED BUTTON LAYOUT */}
             <div className="mb-6">
-                <div className="flex items-center justify-between">
-                    <div>
+                <div className="flex items-start justify-between">
+                    <div className="flex-1">
                         <h1 className="text-3xl font-bold text-gray-900">
-                            {priceIntelligence.enabled ? '💰📅' : '📅'} Meal Planning
-                        </h1>
+                            {priceIntelligence.enabled ? '💰📅' : '📅'} Meal Planning</h1>
                         <p className="text-gray-600 mt-1">Plan your meals for the week</p>
 
-                        {/* 💰 NEW: Desktop Price Intelligence Summary */}
+                        {/* NEW: Desktop Price Intelligence Summary */}
                         {priceIntelligence.enabled && (
                             <div className="text-sm text-gray-500 mt-1 space-y-1">
                                 {priceIntelligence.weeklyBudget > 0 && (
@@ -2559,7 +2584,8 @@ export default function MealPlanningCalendar() {
                                         <span>Budget: {formatPrice(priceIntelligence.weeklyBudget)}</span>
                                         <span>Used: {formatPrice(priceIntelligence.currentCost)} ({priceIntelligence.weeklyBudget > 0 ? ((priceIntelligence.currentCost / priceIntelligence.weeklyBudget) * 100).toFixed(0) : 0}%)</span>
                                         {priceIntelligence.dealOpportunities.length > 0 && (
-                                            <span className="text-green-600">💡 {priceIntelligence.dealOpportunities.length} deals available</span>
+                                            <span
+                                                className="text-green-600">💡 {priceIntelligence.dealOpportunities.length} deals available</span>
                                         )}
                                     </div>
                                 )}
@@ -2581,94 +2607,104 @@ export default function MealPlanningCalendar() {
                         )}
                     </div>
 
-                    {/* Enhanced Action Buttons - Desktop */}
-                    <div className="flex items-center space-x-3">
-                        <div className="text-sm text-gray-500">
-                            Meals: {mealsPlanned ? 'Yes' : 'No'}
+                    {/* Enhanced Action Buttons - Desktop - FIXED GRID LAYOUT */}
+                    <div className="flex-shrink-0 ml-6">
+                        <div className="grid grid-cols-2 gap-3 mb-3">
+                            {/* Top row */}
+                            <div className="col-span-2">
+                                {mealPlan && (
+                                    <TemplateLibraryButton
+                                        mealPlanId={mealPlan._id}
+                                        mealPlanName={mealPlan.name}
+                                        onTemplateApplied={handleTemplateApplied}
+                                        disabled={false}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Second row */}
+                            {mealsPlanned && (
+                                <TouchEnhancedButton
+                                    onClick={() => setShowShoppingList(true)}
+                                    className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                    title="Generate shopping list from your meal plan"
+                                >
+                                    🛒 Smart Shopping
+                                </TouchEnhancedButton>
+                            )}
+
+                            {/* NEW: Smart Suggestions Button */}
+                            {priceIntelligence.enabled && mealPlan && (
+                                <TouchEnhancedButton
+                                    onClick={generateSmartSuggestions}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                    title="Get AI-powered money-saving meal suggestions"
+                                >
+                                    💡 Smart Ideas
+                                </TouchEnhancedButton>
+                            )}
+
+                            {/* Third row */}
+                            <TouchEnhancedButton
+                                onClick={() => setShowVoiceMealPlanning(true)}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
+                                title="Plan meals using voice commands"
+                            >
+                                🎤 Voice Planning
+                            </TouchEnhancedButton>
+
+                            <div className="flex items-center space-x-2">
+                                {/* NEW: Price Intelligence Toggle */}
+                                {priceIntelligence.enabled && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setPriceIntelligence(prev => ({
+                                            ...prev,
+                                            showInsights: !prev.showInsights
+                                        }))}
+                                        className={`p-2 rounded-lg transition-colors ${
+                                            priceIntelligence.showInsights
+                                                ? 'text-green-600 bg-green-100'
+                                                : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
+                                        }`}
+                                        title="Toggle Price Insights"
+                                    >
+                                        💡
+                                    </TouchEnhancedButton>
+                                )}
+
+                                <TouchEnhancedButton
+                                    onClick={() => setShowWeekSettings(true)}
+                                    className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                                    title="Settings"
+                                >
+                                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                    </svg>
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
 
-                        {/* 💰 NEW: Price Intelligence Toggle */}
-                        {priceIntelligence.enabled && (
-                            <TouchEnhancedButton
-                                onClick={() => setPriceIntelligence(prev => ({ ...prev, showInsights: !prev.showInsights }))}
-                                className={`p-2 rounded-lg transition-colors ${
-                                    priceIntelligence.showInsights
-                                        ? 'text-green-600 bg-green-100'
-                                        : 'text-gray-600 hover:text-gray-900 hover:bg-gray-100'
-                                }`}
-                                title="Toggle Price Insights"
-                            >
-                                💡
-                            </TouchEnhancedButton>
-                        )}
+                        {/* Fourth row - Meal Prep and Nutrition */}
+                        <div className="grid grid-cols-2 gap-3">
+                            {mealPlan && (
+                                <MealPrepButton
+                                    mealPlanId={mealPlan._id}
+                                    mealPlanName={mealPlan.name}
+                                    disabled={!mealsPlanned}
+                                />
+                            )}
 
-                        <TouchEnhancedButton
-                            onClick={() => setShowWeekSettings(true)}
-                            className="p-2 text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
-                            title="Settings"
-                        >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                        </TouchEnhancedButton>
-
-                        {mealPlan && (
-                            <TemplateLibraryButton
-                                mealPlanId={mealPlan._id}
-                                mealPlanName={mealPlan.name}
-                                onTemplateApplied={handleTemplateApplied}
-                                disabled={false}
-                            />
-                        )}
-
-                        {mealsPlanned && (
-                            <TouchEnhancedButton
-                                onClick={() => setShowShoppingList(true)}
-                                className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
-                                title="Generate shopping list from your meal plan"
-                            >
-                                🛒 {priceIntelligence.enabled ? 'Smart Shopping List' : 'Shopping List'}
-                            </TouchEnhancedButton>
-                        )}
-
-                        {/* 💰 NEW: Smart Suggestions Button */}
-                        {priceIntelligence.enabled && mealPlan && (
-                            <TouchEnhancedButton
-                                onClick={generateSmartSuggestions}
-                                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg flex items-center gap-2 text-sm font-medium transition-colors shadow-md"
-                                title="Get AI-powered money-saving meal suggestions"
-                            >
-                                💡 Money-Saving Ideas
-                            </TouchEnhancedButton>
-                        )}
-
-                        {/* NEW: Voice Meal Planning Button */}
-                        <TouchEnhancedButton
-                            onClick={() => setShowVoiceMealPlanning(true)}
-                            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg flex items-center justify-center gap-2 text-sm font-medium transition-colors shadow-md w-full"
-                            title="Plan meals using voice commands"
-                        >
-                            🎤 Voice Meal Planning
-                        </TouchEnhancedButton>
-
-                        {mealPlan && (
-                            <MealPrepButton
-                                mealPlanId={mealPlan._id}
-                                mealPlanName={mealPlan.name}
-                                disabled={!mealsPlanned}
-                            />
-                        )}
-
-                        {mealPlan && (
-                            <NutritionAnalysisButton
-                                mealPlanId={mealPlan._id}
-                                mealPlanName={mealPlan.name}
-                                disabled={!mealsPlanned}
-                            />
-                        )}
+                            {mealPlan && (
+                                <NutritionAnalysisButton
+                                    mealPlanId={mealPlan._id}
+                                    mealPlanName={mealPlan.name}
+                                    disabled={!mealsPlanned}
+                                />
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -2721,9 +2757,10 @@ export default function MealPlanningCalendar() {
                 </div>
             </div>
 
-            {/* 💰 NEW: Desktop Price Intelligence Insights Panel */}
+            {/* NEW: Desktop Price Intelligence Insights Panel */}
             {priceIntelligence.enabled && priceIntelligence.showInsights && (
-                <div className="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
+                <div
+                    className="mb-4 bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-4">
                     <h3 className="text-lg font-semibold text-green-900 mb-3">💡 Smart Insights</h3>
 
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
@@ -2742,7 +2779,8 @@ export default function MealPlanningCalendar() {
                                 {priceIntelligence.weeklyBudget > 0 ? (
                                     <div>
                                         <div>{formatPrice(priceIntelligence.currentCost)} / {formatPrice(priceIntelligence.weeklyBudget)}</div>
-                                        <div className={priceIntelligence.currentCost > priceIntelligence.weeklyBudget ? 'text-red-600' : 'text-green-600'}>
+                                        <div
+                                            className={priceIntelligence.currentCost > priceIntelligence.weeklyBudget ? 'text-red-600' : 'text-green-600'}>
                                             {priceIntelligence.currentCost < priceIntelligence.weeklyBudget ? 'Under budget' : 'Over budget'}
                                         </div>
                                     </div>
@@ -2793,7 +2831,9 @@ export default function MealPlanningCalendar() {
                         <div className="bg-white rounded-lg p-3 border border-green-300">
                             <h4 className="font-medium text-green-900 mb-2">📊 Week Summary</h4>
                             <div className="text-sm text-green-800">
-                                <div>{Object.keys(mealPlan?.meals || {}).reduce((total, day) => total + (mealPlan.meals[day]?.length || 0), 0)} meals planned</div>
+                                <div>{Object.keys(mealPlan?.meals || {}).reduce((total, day) => total + (mealPlan.meals[day]?.length || 0), 0)} meals
+                                    planned
+                                </div>
                                 <div>Cost: {formatPrice(priceIntelligence.currentCost)}</div>
                                 {priceIntelligence.priceAlerts.length > 0 && (
                                     <div className="text-orange-600">
@@ -2806,20 +2846,20 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            {/* Dietary filtering notification for desktop */}
+            {/* Dietary filtering notification */}
             {dietaryWarningMessage && (
-                <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
+                <div className="mb-4 bg-orange-50 border border-orange-200 rounded-lg p-3">
                     <div className="flex items-start">
                         <span className="text-orange-500 mr-2">⚠️</span>
-                        <div className="text-sm text-orange-700 flex-1">
+                        <div className="text-sm text-orange-700">
                             {dietaryWarningMessage}
+                            <TouchEnhancedButton
+                                onClick={() => setDietaryWarningMessage('')}
+                                className="ml-2 text-orange-500 hover:text-orange-700"
+                            >
+                                Dismiss
+                            </TouchEnhancedButton>
                         </div>
-                        <TouchEnhancedButton
-                            onClick={() => setDietaryWarningMessage('')}
-                            className="ml-2 text-orange-500 hover:text-orange-700"
-                        >
-                            Dismiss
-                        </TouchEnhancedButton>
                     </div>
                 </div>
             )}
@@ -2842,13 +2882,13 @@ export default function MealPlanningCalendar() {
                             <div className="mt-1 text-sm text-blue-700">
                                 <p>
                                     Click the <span className="inline-flex items-center mx-1">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                              d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
-                    </svg>
-                </span> settings icon to choose which day starts your week and which meal types to show.
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                          d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </span> settings icon to choose which day starts your week and which meal types to show.
                                 </p>
                             </div>
                         </div>
@@ -2916,7 +2956,8 @@ export default function MealPlanningCalendar() {
                 ))}
             </div>
 
-            {/* Enhanced Week Settings Modal with Price Intelligence - Same as mobile */}
+            {/* All modals and other components remain the same... */}
+            {/* Enhanced Week Settings Modal with Price Intelligence */}
             {showWeekSettings && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-md w-full p-6 max-h-[80vh] overflow-y-auto">
@@ -2931,7 +2972,7 @@ export default function MealPlanningCalendar() {
                         </div>
 
                         <div className="space-y-6">
-                            {/* Price Intelligence Settings */}
+                            {/* NEW: Price Intelligence Settings */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-3">
                                     Price Intelligence:
@@ -2940,12 +2981,13 @@ export default function MealPlanningCalendar() {
                                     <div className="flex items-center">
                                         <input
                                             type="checkbox"
-                                            id="price-intelligence-enabled-desktop"
+                                            id="price-intelligence-enabled"
                                             checked={priceIntelligence.enabled}
-                                            onChange={(e) => updatePricePreferences({ enabled: e.target.checked })}
+                                            onChange={(e) => updatePricePreferences({enabled: e.target.checked})}
                                             className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                         />
-                                        <label htmlFor="price-intelligence-enabled-desktop" className="ml-3 text-sm text-gray-700">
+                                        <label htmlFor="price-intelligence-enabled"
+                                               className="ml-3 text-sm text-gray-700">
                                             Enable price tracking and budget features
                                         </label>
                                     </div>
@@ -2955,12 +2997,12 @@ export default function MealPlanningCalendar() {
                                             <div className="flex items-center">
                                                 <input
                                                     type="checkbox"
-                                                    id="show-insights-desktop"
+                                                    id="show-insights"
                                                     checked={priceIntelligence.showInsights}
-                                                    onChange={(e) => updatePricePreferences({ showInsights: e.target.checked })}
+                                                    onChange={(e) => updatePricePreferences({showInsights: e.target.checked})}
                                                     className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                                 />
-                                                <label htmlFor="show-insights-desktop" className="ml-3 text-sm text-gray-700">
+                                                <label htmlFor="show-insights" className="ml-3 text-sm text-gray-700">
                                                     Show smart insights panel
                                                 </label>
                                             </div>
@@ -2978,7 +3020,6 @@ export default function MealPlanningCalendar() {
                                 </div>
                             </div>
 
-                            {/* Week Start Settings */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Week starts on:
@@ -3003,7 +3044,6 @@ export default function MealPlanningCalendar() {
                                 </div>
                             </div>
 
-                            {/* Meal Types Settings */}
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Show meal types:
@@ -3013,7 +3053,7 @@ export default function MealPlanningCalendar() {
                                         <div key={mealType} className="flex items-center">
                                             <input
                                                 type="checkbox"
-                                                id={`meal-type-desktop-${mealType.toLowerCase().replace(' ', '-')}`}
+                                                id={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
                                                 checked={userMealTypes.includes(mealType)}
                                                 onChange={(e) => {
                                                     const updatedMealTypes = e.target.checked
@@ -3027,7 +3067,7 @@ export default function MealPlanningCalendar() {
                                                 className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
                                             />
                                             <label
-                                                htmlFor={`meal-type-desktop-${mealType.toLowerCase().replace(' ', '-')}`}
+                                                htmlFor={`meal-type-${mealType.toLowerCase().replace(' ', '-')}`}
                                                 className="ml-3 text-sm text-gray-700"
                                             >
                                                 {mealType}
@@ -3036,12 +3076,12 @@ export default function MealPlanningCalendar() {
                                     ))}
                                 </div>
                                 <p className="text-xs text-gray-500 mt-2">
-                                    Select which meal types you want to see in your calendar. You must have at least one
-                                    selected.
+                                    Select which meal types you want to see in your calendar. You must have at least
+                                    one selected.
                                 </p>
                             </div>
 
-                            {/* Current dietary preferences */}
+                            {/* Show current dietary preferences */}
                             {(userDietaryRestrictions.length > 0 || userAvoidIngredients.length > 0) && (
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -3050,12 +3090,14 @@ export default function MealPlanningCalendar() {
                                     <div className="text-sm text-gray-600 space-y-1">
                                         {userDietaryRestrictions.length > 0 && (
                                             <div>
-                                                <span className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
+                                    <span
+                                        className="font-medium">Diet:</span> {userDietaryRestrictions.join(', ')}
                                             </div>
                                         )}
                                         {userAvoidIngredients.length > 0 && (
                                             <div>
-                                                <span className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
+                                    <span
+                                        className="font-medium">Avoiding:</span> {userAvoidIngredients.join(', ')}
                                             </div>
                                         )}
                                     </div>
@@ -3066,14 +3108,15 @@ export default function MealPlanningCalendar() {
                             )}
 
                             <div className="text-xs text-gray-500">
-                                These settings will apply to all your meal plans and will update the calendar layout.
+                                These settings will apply to all your meal plans and will update the calendar
+                                layout.
                             </div>
                         </div>
                     </div>
                 </div>
             )}
 
-            {/* Budget Setting Modal - Same as mobile */}
+            {/* NEW: Budget Setting Modal */}
             {showBudgetModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-md w-full p-6">
@@ -3084,8 +3127,9 @@ export default function MealPlanningCalendar() {
                                 Weekly Meal Budget
                             </label>
                             <div className="relative">
-                                <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                                <input
+                                <span
+                                    className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
+                                <KeyboardOptimizedInput
                                     type="number"
                                     step="0.01"
                                     min="0"
@@ -3124,7 +3168,7 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-            {/* Enhanced Desktop Recipe Selection Modal with price info */}
+            {/* Recipe Selection Modal - Enhanced desktop version */}
             {showRecipeModal && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
                     <div className="bg-white rounded-lg max-w-6xl w-full h-[85vh] overflow-hidden flex flex-col">
@@ -3132,7 +3176,8 @@ export default function MealPlanningCalendar() {
                         <div className="p-6 border-b border-gray-200 flex-shrink-0">
                             <div className="flex items-center justify-between mb-4">
                                 <h3 className="text-xl font-semibold text-gray-900">
-                                    Select Recipe for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
+                                    Select Recipe
+                                    for {selectedSlot && getDayName(selectedSlot.day)} {selectedSlot?.mealType}
                                 </h3>
                                 <TouchEnhancedButton
                                     onClick={() => {
@@ -3301,14 +3346,16 @@ export default function MealPlanningCalendar() {
                                                 {recipe.tags && recipe.tags.length > 0 && (
                                                     <div className="flex flex-wrap gap-1 mt-auto">
                                                         {recipe.tags.slice(0, 3).map(tag => (
-                                                            <span key={tag} className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                {tag}
-                                            </span>
+                                                            <span key={tag}
+                                                                  className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                            {tag}
+                                        </span>
                                                         ))}
                                                         {recipe.tags.length > 3 && (
-                                                            <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
-                                                +{recipe.tags.length - 3}
-                                            </span>
+                                                            <span
+                                                                className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded">
+                                            +{recipe.tags.length - 3}
+                                        </span>
                                                         )}
                                                     </div>
                                                 )}
@@ -3320,59 +3367,6 @@ export default function MealPlanningCalendar() {
                         </div>
                     </div>
                 </div>
-            )}
-
-            {/* Meal Completion Modal */}
-            {showMealCompletion && selectedMealForCompletion && (
-                <MealCompletionModal
-                    isOpen={showMealCompletion}
-                    onClose={() => {
-                        setShowMealCompletion(false);
-                        setSelectedMealForCompletion(null);
-                    }}
-                    onComplete={handleMealCompletion}
-                    meal={selectedMealForCompletion.meal}
-                    selectedSlot={selectedMealForCompletion}
-                    inventory={inventory}
-                />
-            )}
-
-            {/* Smart Suggestions Modal */}
-            {showSmartSuggestions && (
-                <SmartSuggestionsModal
-                    isOpen={showSmartSuggestions}
-                    onClose={() => setShowSmartSuggestions(false)}
-                    suggestions={smartSuggestions}
-                    onApplySuggestion={handleApplySuggestion}
-                    isLoading={suggestionsLoading}
-                    mealPlan={mealPlan}
-                    onMealPlanUpdate={handleMealPlanUpdate}
-                />
-            )}
-
-            {/* Simple Meal Builder Modal - Desktop */}
-            {showSimpleMealBuilder && (
-                <SimpleMealBuilder
-                    isOpen={showSimpleMealBuilder}
-                    onClose={() => {
-                        setShowSimpleMealBuilder(false);
-                        setSelectedSlot(null);
-                    }}
-                    onSave={addSimpleMealToSlot}
-                    selectedSlot={selectedSlot}
-                    userDietaryRestrictions={userDietaryRestrictions}
-                    userAvoidIngredients={userAvoidIngredients}
-                />
-            )}
-
-            {/* Shopping List Modal */}
-            {showShoppingList && mealPlan && (
-                <ShoppingListGenerator
-                    mealPlanId={mealPlan._id}
-                    mealPlanName={mealPlan.name}
-                    onClose={() => setShowShoppingList(false)}
-                    priceIntelligence={priceIntelligence.enabled} // 💰 NEW: Pass price intelligence flag
-                />
             )}
 
             {/* NEW: Voice Meal Planning Modal */}
@@ -3452,13 +3446,52 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
+            {/* Smart Suggestions Modal */}
+            {showSmartSuggestions && (
+                <SmartSuggestionsModal
+                    isOpen={showSmartSuggestions}
+                    onClose={() => setShowSmartSuggestions(false)}
+                    suggestions={smartSuggestions}
+                    onApplySuggestion={handleApplySuggestion}
+                    isLoading={suggestionsLoading}
+                    mealPlan={mealPlan}
+                    onMealPlanUpdate={handleMealPlanUpdate}
+                />
+            )}
+
+            {/* Simple Meal Builder Modal - Desktop */}
+            {showSimpleMealBuilder && (
+                <SimpleMealBuilder
+                    isOpen={showSimpleMealBuilder}
+                    onClose={() => {
+                        setShowSimpleMealBuilder(false);
+                        setSelectedSlot(null);
+                    }}
+                    onSave={addSimpleMealToSlot}
+                    selectedSlot={selectedSlot}
+                    userDietaryRestrictions={userDietaryRestrictions}
+                    userAvoidIngredients={userAvoidIngredients}
+                />
+            )}
+
+            {/* Shopping List Modal */}
+            {showShoppingList && mealPlan && (
+                <ShoppingListGenerator
+                    mealPlanId={mealPlan._id}
+                    mealPlanName={mealPlan.name}
+                    onClose={() => setShowShoppingList(false)}
+                    priceIntelligence={priceIntelligence.enabled} // NEW: Pass price intelligence flag
+                />
+            )}
+
             {/* Empty State */}
             {!loading && (!mealPlan?.meals || !mealsPlanned) && (
                 <div className="text-center py-12 bg-gray-50 rounded-lg mt-6">
                     <div className="text-6xl mb-4">🍽️</div>
                     <h3 className="text-lg font-medium text-gray-900 mb-2">No meals planned yet</h3>
                     <div className="space-y-4">
-                        <p className="text-gray-600">Start by using a template, adding recipes, or creating quick meals.</p>
+                        <p className="text-gray-600">Start by using a template, adding recipes, or creating quick
+                            meals.</p>
                         {mealPlan && (
                             <TemplateLibraryButton
                                 mealPlanId={mealPlan._id}
@@ -3471,8 +3504,20 @@ export default function MealPlanningCalendar() {
                 </div>
             )}
 
-
-
+            {/* Meal Completion Modal */}
+            {showMealCompletion && selectedMealForCompletion && (
+                <MealCompletionModal
+                    isOpen={showMealCompletion}
+                    onClose={() => {
+                        setShowMealCompletion(false);
+                        setSelectedMealForCompletion(null);
+                    }}
+                    onComplete={handleMealCompletion}
+                    meal={selectedMealForCompletion.meal}
+                    selectedSlot={selectedMealForCompletion}
+                    inventory={inventory}
+                />
+            )}
         </div>
     );
 }
