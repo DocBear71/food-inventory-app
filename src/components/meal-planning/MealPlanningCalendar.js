@@ -1400,8 +1400,6 @@ export default function MealPlanningCalendar() {
         }
     }, [session, currentWeek, weekStartDay, userMealTypes]);
 
-    const mealsPlanned = hasMealsPlanned();
-
     if (!session) {
         return (
             <div className="text-center py-8">
@@ -1687,6 +1685,8 @@ export default function MealPlanningCalendar() {
     };
 
     const availableMealTypes = ['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']
+    const mealsPlanned = hasMealsPlanned();
+
     // Mobile Layout
     if (isMobile) {
         return (
