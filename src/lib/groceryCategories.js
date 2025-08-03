@@ -1,4 +1,4 @@
-// file: /src/lib/groceryCategories.js v2 - Comprehensive grocery store category system with International sections
+// file: /src/lib/groceryCategories.js v3 - FIXED categorization patterns for better matching
 
 /**
  * Comprehensive grocery store category system based on real store layouts
@@ -863,7 +863,7 @@ export function normalizeIngredientForCategorization(ingredientName) {
         .replace(/\b\d+\b/g, '')
 
         // Remove measurement units (expanded list)
-        .replace(/\b(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|ml|liters?|l|grams?|g|kg|kilograms?|pt\.?|pints?|qt|quarts?|gal|gallons?|fl\.?\s*oz|fluid\s*ounces?|cloves?|heads?|bunches?|stalks?|pieces?|slices?|strips?|cans?|jars?|bottles?|bags?|boxes?|packages?|containers?)\b/gi, '')
+        .replace(/\b(cups?|tbsp|tsp|tablespoons?|teaspoons?|lbs?|pounds?|oz|ounces?|ml|liters?|l|grams?|g|kg|kilograms?|pt\.?|pints?|qt|quarts?|gal|gallons?|fl\.?\s*oz|fluid\s*ounces?|cloves?|heads?|bunches?|stalks?|pieces?|slices?|strips?|cans?|jars?|bottles?|bags?|boxes?|packages?|containers?|ea)\b/gi, '')
 
         // Remove size descriptors
         .replace(/\b(small|medium|large|extra\s*large|jumbo|mini|tiny|huge|giant|big)\b/gi, '')
@@ -977,22 +977,28 @@ export function suggestCategoryForItem(itemName) {
 }
 
 /**
- * ENHANCED: Core categorization logic with comprehensive patterns
+ * FIXED: Core categorization logic with comprehensive patterns
+ * Better handling of comma-separated and parenthetical ingredients
  */
 function getCategoryForNormalizedItem(item) {
     if (!item) return 'Other';
 
-    // MEXICAN ITEMS - High priority patterns (including your cornhusks issue)
-    if (/\b(tortilla|tortillas|taco|enchilada|salsa|queso|chorizo|masa|tamale|jalapeño|serrano|poblano|chipotle|cilantro|lime|avocado|tomatillo|refried\s*beans|mexican|spanish\s*rice|verde|picante|adobo|mole|horchata|piloncillo|cornhusks?|cornhusk)\b/i.test(item)) {
+    // MEXICAN ITEMS - High priority patterns (including cornhusks issue)
+    if (/\b(tortilla|tortillas|taco|enchilada|salsa|queso|chorizo|masa|tamale|jalapeño|serrano|poblano|chipotle|cilantro|lime|avocado|tomatillo|refried\s*beans|mexican|spanish\s*rice|verde|picante|adobo|mole|horchata|piloncillo|cornhusks?|cornhusk|dried\s*cornhusks)\b/i.test(item)) {
         return 'Mexican Items';
     }
 
-    // ASIAN ITEMS - High priority patterns
-    if (/\b(soy\s*sauce|sesame\s*oil|rice\s*vinegar|fish\s*sauce|oyster\s*sauce|hoisin|teriyaki|sriracha|miso|tahini|rice\s*wine|mirin|sake|jasmine\s*rice|sushi\s*rice|udon|soba|ramen|rice\s*noodles|wonton|dumpling|spring\s*roll|nori|shiitake|bok\s*choy|daikon|lemongrass|wasabi|panko|coconut\s*milk|curry\s*paste|five\s*spice|tofu|tempeh|kimchi|dashi)\b/i.test(item)) {
+    // ASIAN ITEMS - High priority patterns (including eggroll wrappers)
+    if (/\b(soy\s*sauce|sesame\s*oil|rice\s*vinegar|fish\s*sauce|oyster\s*sauce|hoisin|teriyaki|sriracha|miso|tahini|rice\s*wine|mirin|sake|jasmine\s*rice|sushi\s*rice|udon|soba|ramen|rice\s*noodles|wonton|dumpling|spring\s*roll|eggroll|egg\s*roll\s*wrapper|nori|shiitake|bok\s*choy|daikon|lemongrass|wasabi|panko|coconut\s*milk|curry\s*paste|five\s*spice|tofu|tempeh|kimchi|dashi|bean\s*thread|black\s*fungus)\b/i.test(item)) {
         return 'Asian Items';
     }
 
-    // TOMATO PRODUCTS - Very specific matching (fixed for "chopped cherry tomatoes")
+    // PASTA ITEMS - High priority (including lasagna noodles)
+    if (/\b(pasta|spaghetti|penne|fusilli|rigatoni|linguine|fettuccine|angel\s*hair|bow\s*tie|farfalle|macaroni|shells|rotini|gemelli|orzo|pappardelle|tagliatelle|bucatini|cavatappi|ziti|lasagna\s*noodles?|ravioli|tortellini|gnocchi)\b/i.test(item)) {
+        return 'Pasta';
+    }
+
+    // TOMATO PRODUCTS - Very specific matching (for canned tomato sauce)
     if (/\b(tomato\s*paste|paste)\b/i.test(item) && /tomato/i.test(item)) {
         return 'Canned Tomatoes';
     }
@@ -1003,76 +1009,163 @@ function getCategoryForNormalizedItem(item) {
         return 'Canned Tomatoes';
     }
 
-    // FRESH PRODUCE - Enhanced patterns (fixed for fresh items like lettuce, tomatoes)
+    // FRESH PRODUCE - Enhanced patterns (for fresh items like lettuce, tomatoes)
     if (/^(apple|banana|orange|lemon|lime|grape|berry|melon|peach|pear|plum|cherry|kiwi|mango|pineapple|avocado|coconut|strawberry|blueberry|raspberry|blackberry|cranberry|watermelon|cantaloupe|pomegranate)/i.test(item)) {
         return 'Fresh Fruits';
     }
 
-    if (/\b(lettuce|spinach|arugula|kale|chard|greens)\b/i.test(item)) {
+    if (/\b(lettuce|spinach|arugula|kale|chard|greens|shredded\s*lettuce)\b/i.test(item)) {
         return 'Fresh Produce';
     }
 
-    if (/\b(tomato|tomatoes)\b/i.test(item) && !/\b(paste|sauce|crushed|diced|whole|stewed|fire\s*roasted|canned|can)\b/i.test(item)) {
-        // This catches "chopped cherry tomatoes" and puts them in produce
+    // Fresh tomatoes (including cherry tomatoes)
+    if (/\b(cherry\s*tomatoes|grape\s*tomatoes|roma\s*tomatoes|fresh\s*tomatoes)\b/i.test(item) ||
+        (/\b(tomato|tomatoes)\b/i.test(item) && !/\b(paste|sauce|crushed|diced|whole|stewed|fire\s*roasted|canned|can|jar)\b/i.test(item))) {
+        return 'Fresh Fruits';
+    }
+
+    // Bell peppers and produce peppers (FIXED: better pattern for bell pepper items)
+    if (/\b(bell\s*pepper|red\s*bell\s*pepper|green\s*bell\s*pepper|yellow\s*bell\s*pepper)\b/i.test(item) && !/\bblack\s*pepper|white\s*pepper|red\s*pepper\s*flakes/i.test(item)) {
         return 'Fresh Produce';
     }
 
-    if (/^(onion|garlic|carrot|celery|pepper|broccoli|cauliflower|cucumber|potato|mushroom|cabbage|zucchini|bell\s*pepper|ginger|herbs?|basil|mint|thyme|oregano|rosemary|sage|dill|chive|scallion|green\s*onion|shallot)/i.test(item)) {
-        return /\b(bell\s*pepper|jalapeño|serrano|poblano|pepper)\b/i.test(item) && !/\bblack\s*pepper|white\s*pepper|red\s*pepper\s*flakes/i.test(item) ? 'Fresh Produce' : 'Fresh Vegetables';
+    // General fresh vegetables (FIXED: better onion and garlic handling)
+    if (/\b(onion|onions|yellow\s*onion|white\s*onion|red\s*onion|sweet\s*onion)\b/i.test(item) && !/green\s*onion|scallion/i.test(item)) {
+        return 'Fresh Vegetables';
     }
 
-    // DAIRY PATTERNS - Enhanced (fixed for butter issue)
-    if (/\b(milk|cream|half|buttermilk|almond\s*milk|soy\s*milk|oat\s*milk|coconut\s*milk|rice\s*milk|cashew\s*milk)\b/i.test(item) && !/\bcoconut\s*milk\b.*\b(canned|can)\b/i.test(item)) {
+    if (/\b(garlic|cloves\s*garlic)\b/i.test(item)) {
+        return 'Fresh Vegetables';
+    }
+
+    if (/^(carrot|celery|broccoli|cauliflower|cucumber|mushroom|cabbage|zucchini|ginger|herbs?|basil|mint|thyme|oregano|rosemary|sage|dill|chive|scallion|green\s*onion|shallot)/i.test(item)) {
+        return 'Fresh Vegetables';
+    }
+
+    // POTATOES - specific handling
+    if (/\b(potato|potatoes|russet|red\s*potato|yukon|sweet\s*potato|large\s*russet\s*potatoes|large\s*potato)\b/i.test(item)) {
+        return 'Fresh Vegetables';
+    }
+
+    // DAIRY PATTERNS - Enhanced (for butter and milk items)
+    if (/\b(milk|cream|half|buttermilk|almond\s*milk|soy\s*milk|oat\s*milk|coconut\s*milk|rice\s*milk|cashew\s*milk|cold\s*milk|whole\s*milk)\b/i.test(item) && !/\bcoconut\s*milk\b.*\b(canned|can)\b/i.test(item)) {
         return 'Dairy';
     }
 
-    if (/\b(butter)\b/i.test(item) && !/\b(peanut|almond|cashew|sunflower)\b/i.test(item)) {
+    if (/\b(butter|melted\s*butter)\b/i.test(item) && !/\b(peanut|almond|cashew|sunflower)\b/i.test(item)) {
         return 'Dairy';
     }
 
-    if (/\b(cheese|cheddar|mozzarella|swiss|parmesan|cream\s*cheese|cottage\s*cheese|ricotta|feta|goat\s*cheese|blue\s*cheese|provolone|monterey\s*jack|pepper\s*jack|colby|muenster|brie|camembert|gorgonzola)\b/i.test(item)) {
+    if (/\b(sour\s*cream|heavy\s*cream|cream\s*cheese)\b/i.test(item)) {
+        return 'Dairy';
+    }
+
+    // CHEESE PATTERNS - Enhanced
+    if (/\b(cheese|cheddar|mozzarella|swiss|parmesan|cottage\s*cheese|ricotta|feta|goat\s*cheese|blue\s*cheese|provolone|monterey\s*jack|pepper\s*jack|colby|muenster|brie|camembert|gorgonzola|shredded\s*cheese|shredded\s*mozzarella|shredded\s*cheddar|shredded\s*monterey\s*jack)\b/i.test(item)) {
         return 'Cheese';
     }
 
-    // MEAT PATTERNS - Enhanced (fixed for bacon issue)
-    if (/\b(bacon)\b/i.test(item) && !/\b(vegan|plant|turkey)\b/i.test(item)) {
+    // MEAT PATTERNS - Enhanced (FIXED: better cube steak handling)
+    if (/\b(bacon|strips\s*bacon)\b/i.test(item) && !/\b(vegan|plant|turkey)\b/i.test(item)) {
         return 'Fresh Meat';
     }
 
-    if (/\b(beef|steak|ground\s*beef|hamburger|roast|chuck|sirloin|ribeye|filet|tenderloin|brisket|short\s*rib|flank|skirt|round|cube\s*steak)\b/i.test(item)) {
+    if (/\b(beef|steak|ground\s*beef|lean\s*ground\s*beef|hamburger|roast|chuck|sirloin|ribeye|filet|tenderloin|brisket|short\s*rib|flank|skirt|round|cube\s*steaks?|beef\s*patty|roast\s*pork|steaks?)\b/i.test(item)) {
         return 'Fresh Meat';
     }
 
     // EGGS
-    if (/\b(egg|eggs)\b/i.test(item) && !/\begg\s*roll|eggplant|eggnog/i.test(item)) {
+    if (/\b(egg|eggs|beaten\s*egg)\b/i.test(item) && !/\begg\s*roll|eggplant|eggnog/i.test(item)) {
         return 'Eggs';
     }
 
-    // BREAD PATTERNS (fixed for tortilla issue)
+    // BREAD PATTERNS - Enhanced (for eggroll wrappers and other wraps)
     if (/\b(bread|loaf|bagel|english\s*muffin|roll|bun|baguette|sourdough|whole\s*wheat|multigrain|rye|pumpernickel|ciabatta|focaccia|naan|flatbread)\b/i.test(item)) {
         return 'Breads';
     }
 
-    // OILS AND VINEGARS (fixed for melted butter categorization)
-    if (/\b(oil|olive\s*oil|vegetable\s*oil|canola\s*oil|coconut\s*oil|cooking\s*spray|avocado\s*oil|sunflower\s*oil|corn\s*oil|peanut\s*oil|sesame\s*oil|walnut\s*oil|grapeseed\s*oil)\b/i.test(item)) {
+    // Egg roll wrappers should go to Asian Items (handled above), but if not caught, put in Breads
+    if (/\b(wrapper|wrappers|egg\s*roll\s*wrapper)\b/i.test(item)) {
+        return 'Breads';
+    }
+
+    // OILS AND COOKING OILS
+    if (/\b(oil|olive\s*oil|vegetable\s*oil|canola\s*oil|coconut\s*oil|cooking\s*spray|avocado\s*oil|sunflower\s*oil|corn\s*oil|peanut\s*oil|sesame\s*oil|walnut\s*oil|grapeseed\s*oil|for\s*frying)\b/i.test(item)) {
         return 'Cooking Oil';
     }
 
-    // VEGETABLES - Specific patterns (fixed for potatoes issue)
-    if (/\b(potato|potatoes|russet|red\s*potato|yukon|sweet\s*potato)\b/i.test(item)) {
+    // SPICES AND SEASONINGS - Enhanced (FIXED: better salt handling)
+    if (/\b(salt|pepper|black\s*pepper|white\s*pepper|kosher\s*salt|sea\s*salt|table\s*salt|garlic\s*powder|onion\s*powder|paprika|smoked\s*paprika|cumin|chili\s*powder|oregano|mexican\s*oregano|basil|thyme|rosemary|sage|red\s*pepper\s*flakes|hot\s*sauce|tabasco)\b/i.test(item)) {
+        return 'Spices & Seasonings';
+    }
+
+    // FLOUR AND BAKING - Enhanced (FIXED: better flour handling)
+    if (/\b(flour|all\s*purpose\s*flour|cups\s*all\s*purpose\s*flour|sugar|brown\s*sugar|white\s*sugar|vanilla\s*extract|baking\s*powder|baking\s*soda|corn\s*starch|cornstarch)\b/i.test(item)) {
+        return 'Baking Ingredients';
+    }
+
+    // STOCK AND BROTH
+    if (/\b(stock|broth|chicken\s*stock|beef\s*stock|vegetable\s*stock|veggie\s*stock|chicken\s*or\s*veggie\s*stock|chicken\s*or\s*beef\s*stock)\b/i.test(item)) {
+        return 'Soups';
+    }
+
+    // PICKLES AND CONDIMENTS
+    if (/\b(pickle|pickles|pickle\s*slices|olives?|black\s*olives)\b/i.test(item)) {
+        return 'Sauces & Condiments';
+    }
+
+    // MIXED VEGETABLES AND FROZEN ITEMS
+    if (/\b(mixed\s*vegetables)\b/i.test(item)) {
+        return 'Frozen Vegetables';
+    }
+
+    // BISCUIT DOUGH AND PREPARED ITEMS
+    if (/\b(biscuit\s*dough|cookie\s*dough|pie\s*crust|pizza\s*dough)\b/i.test(item)) {
+        return 'Refrigerated Items';
+    }
+
+    // WATER
+    if (/\b(water|cold\s*water)\b/i.test(item) && !/\bwater\s*chestnuts/i.test(item)) {
+        return 'Water';
+    }
+
+    // WINE (including white wine for cooking)
+    if (/\b(wine|white\s*wine|red\s*wine|cooking\s*wine)\b/i.test(item)) {
+        return 'Beer & Wine';
+    }
+
+    // FRESH HERBS (catch-all for herbs not caught above)
+    if (/\b(herbs?|fresh\s*herbs?|parsley|cilantro\s*leaves|chopped\s*fresh\s*herbs)\b/i.test(item)) {
+        return 'Fresh Produce';
+    }
+
+    // CARROTS AND ROOT VEGETABLES
+    if (/\b(carrot|carrots|shredded\s*carrot)\b/i.test(item)) {
         return 'Fresh Vegetables';
     }
 
-    if (/\b(olives?)\b/i.test(item)) {
-        return 'Sauces & Condiments'; // or wherever you prefer olives
+    // CELERY
+    if (/\b(celery|shredded\s*celery)\b/i.test(item)) {
+        return 'Fresh Vegetables';
     }
 
-    // Continue with all your other existing patterns...
-    // (I'm abbreviating here, but include ALL your existing categorization logic)
+    // GREEN CABBAGE
+    if (/\b(cabbage|green\s*cabbage)\b/i.test(item)) {
+        return 'Fresh Vegetables';
+    }
+
+    // GROUND PORK AND OTHER MEATS
+    if (/\b(ground\s*pork|pork)\b/i.test(item)) {
+        return 'Fresh Meat';
+    }
+
+    // FILLING - generic catch for prepared items
+    if (/\b(filling|filling\s*of\s*choice)\b/i.test(item)) {
+        return 'Other';
+    }
 
     return 'Other';
 }
-
 
 /**
  * Get all category names as array
