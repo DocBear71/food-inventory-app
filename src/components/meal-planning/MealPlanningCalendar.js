@@ -2585,8 +2585,9 @@ export default function MealPlanningCalendar() {
                 )}
 
                 {/* Shopping List Modal */}
-                {showShoppingList && mealPlan && (
+                {showShoppingList && mealPlan && shoppingListData && !loadingShoppingList && (
                     <EnhancedAIShoppingListModal
+                        key={`shopping-modal-${mealPlan._id}-${shoppingListData.generatedAt}`} // Force re-render with unique key
                         isOpen={showShoppingList}
                         onClose={() => {
                             console.log('🔄 Closing shopping list modal');
@@ -2594,15 +2595,13 @@ export default function MealPlanningCalendar() {
                             setShoppingListData(null);
                         }}
 
-                        // FIXED: Pass shopping list data in the correct prop name
+                        // Pass shopping list data
                         shoppingList={shoppingListData}
-
-                        // FIXED: Also try currentShoppingList prop
                         currentShoppingList={shoppingListData}
 
                         // Modal identification
                         sourceMealPlanId={mealPlan._id}
-                        sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
+                        sourceRecipeIds={shoppingListData.sourceRecipeIds || []}
 
                         // Modal configuration
                         title="🍽️ Meal Plan Shopping List"
@@ -3578,8 +3577,9 @@ export default function MealPlanningCalendar() {
             )}
 
             {/* Shopping List Modal */}
-            {showShoppingList && mealPlan && (
+            {showShoppingList && mealPlan && shoppingListData && !loadingShoppingList && (
                 <EnhancedAIShoppingListModal
+                    key={`shopping-modal-${mealPlan._id}-${shoppingListData.generatedAt}`} // Force re-render with unique key
                     isOpen={showShoppingList}
                     onClose={() => {
                         console.log('🔄 Closing shopping list modal');
@@ -3587,15 +3587,13 @@ export default function MealPlanningCalendar() {
                         setShoppingListData(null);
                     }}
 
-                    // FIXED: Pass shopping list data in the correct prop name
+                    // Pass shopping list data
                     shoppingList={shoppingListData}
-
-                    // FIXED: Also try currentShoppingList prop
                     currentShoppingList={shoppingListData}
 
                     // Modal identification
                     sourceMealPlanId={mealPlan._id}
-                    sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
+                    sourceRecipeIds={shoppingListData.sourceRecipeIds || []}
 
                     // Modal configuration
                     title="🍽️ Meal Plan Shopping List"
