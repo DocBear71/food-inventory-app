@@ -159,7 +159,7 @@ export default function LandingPage() {
                     position: relative;
                     overflow: hidden;
                     border-radius: 0.5rem;
-                    height: 44rem; 
+                    height: 42rem; 
                 }
 
                 .image-carousel img {
