@@ -160,7 +160,7 @@ export default function LandingPage() {
                     overflow: hidden;
                     border-radius: 0.5rem;
                     width: 100%;
-                    height: 200px;
+                    height: 650px;
                 }
 
                 .image-carousel img {
@@ -183,7 +183,7 @@ export default function LandingPage() {
 
                 /* Make static images match the carousel height */
                 .feature-image-container {
-                    height: 200px;
+                    height: 650px;
                     width: 100%;
                     position: relative;
                     overflow: hidden;
