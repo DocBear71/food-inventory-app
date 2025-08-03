@@ -4,7 +4,7 @@ export async function GET() {
         const startTime = Date.now();
 
         // Test basic functionality
-        const testResponse = await fetch(`https://docbear71--unified-nutrition-analyzer-health.modal.run`, {
+        const testResponse = await fetch(`https://doc-bears-comfort-kitchen--unified-nutrition-analyzer-health.modal.run`, {
             method: 'GET',
             headers: {
                 'Authorization': `Bearer ${process.env.MODAL_API_TOKEN}`

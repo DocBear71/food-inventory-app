@@ -1,4 +1,4 @@
-// /scripts/migrate-freezer-locations.js - Atlas M0 optimized with aggressive timeouts
+// /assign-images/migrate-freezer-locations.js - Atlas M0 optimized with aggressive timeouts
 import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';

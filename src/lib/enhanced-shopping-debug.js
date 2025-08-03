@@ -144,7 +144,7 @@ export const debugAIIntegration = () => {
 🤖 AI INTEGRATION DEBUG CHECKLIST:
 
 1. Check Modal.com endpoints are reachable:
-   - https://docbear71--smart-inventory-manager-health.modal.run
+   - https://doc-bears-comfort-kitchen--smart-inventory-manager-health.modal.run
 
 2. Verify API route exists:
    - /api/integrations/smart-inventory/suggest

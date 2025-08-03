@@ -34,7 +34,7 @@ export async function POST(request) {
 
         // FIXED: Use the correct deployed endpoint URL
         const modalEndpoint = process.env.MODAL_INVENTORY_ENDPOINT_URL ||
-            'https://docbear71--smart-inventory-manager-suggest-ingredients.modal.run';
+            'https://doc-bears-comfort-kitchen--smart-inventory-manager-sugge-308eea.modal.run';
 
         // Format the request exactly as your Python script expects
         const modalRequest = {

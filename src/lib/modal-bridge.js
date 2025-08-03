@@ -2,15 +2,15 @@
 
 class ModalServiceBridge {
     constructor() {
-        this.baseUrl = process.env.MODAL_ENDPOINT_URL || 'https://docbear71--social-video-recipe-extractor-extract-recipe--01df04.modal.run';
-        this.receiptUrl = process.env.MODAL_RECEIPT_ENDPOINT_URL || 'https://docbear71--receipt-processor-process-receipt-with-ai.modal.run';
-        this.nutritionUrl = process.env.MODAL_NUTRITION_ENDPOINT_URL || 'https://docbear71--unified-nutrition-analyzer-analyze-nutrition.modal.run';
+        this.baseUrl = process.env.MODAL_ENDPOINT_URL || 'https://doc-bears-comfort-kitchen--social-video-recipe-extractor-703821.modal.run';
+        this.receiptUrl = process.env.MODAL_RECEIPT_ENDPOINT_URL || 'https://doc-bears-comfort-kitchen--receipt-processor-process-rec-3ff802.modal.run';
+        this.nutritionUrl = process.env.MODAL_NUTRITION_ENDPOINT_URL || 'https://doc-bears-comfort-kitchen--unified-nutrition-analyzer-an-247a5e.modal.run';
 
         // FIXED: Correct smart-inventory-manager endpoint from your deployment
-        this.inventoryUrl = process.env.MODAL_INVENTORY_ENDPOINT_URL || 'https://docbear71--smart-inventory-manager-suggest-ingredients.modal.run';
+        this.inventoryUrl = process.env.MODAL_INVENTORY_ENDPOINT_URL || 'https://doc-bears-comfort-kitchen--smart-inventory-manager-sugge-308eea.modal.run';
 
         // Health check endpoint for testing connectivity
-        this.inventoryHealthUrl = 'https://docbear71--smart-inventory-manager-health.modal.run';
+        this.inventoryHealthUrl = 'https://doc-bears-comfort-kitchen--smart-inventory-manager-health.modal.run';
 
         this.defaultHeaders = {
             'Content-Type': 'application/json',

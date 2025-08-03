@@ -12,7 +12,7 @@ export async function callModalTransformationService(data) {
     // FIXED: Check both client and server environment variables and clean URL
     let modalUrl = process.env.NEXT_PUBLIC_MODAL_FUNCTION_URL ||
         process.env.MODAL_FUNCTION_URL ||
-        'https://docbear71--recipe-transformation-service-transform-recipe.modal.run';
+        'https://doc-bears-comfort-kitchen--recipe-transformation-service-fc1db9.modal.run';
 
     // FIXED: Remove any leading slashes that might cause URL parsing issues
     modalUrl = modalUrl.replace(/^\/+/, '');

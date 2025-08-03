@@ -1,4 +1,4 @@
-// file: src/components/legal/AboutUs.jsx v1.5.0 - Updated with store category management, meal completion enhancements, and mobile UX improvements
+// file: src/components/legal/AboutUs.jsx v1.6.0 - Updated with multi-part recipes, enhanced landing page, superior recipe system, image integration, and cross-platform optimization
 
 import React from 'react';
 
@@ -32,7 +32,7 @@ const AboutUs = () => {
                             margin: '0',
                             fontWeight: 'bold'
                         }}>
-                            🌍 Now featuring advanced store category management, enhanced meal completion with UPC lookup, improved voice input, optimized mobile experience, international barcode support, AI-powered recipe scaling, and full international compliance with GDPR & COPPA!
+                            🌍 Now featuring multi-part recipe management, enhanced landing page with superior UX, advanced recipe search and discovery system, comprehensive image integration, cross-platform optimization for web/PWA/mobile, enhanced shopping list management, advanced store category management, meal completion with UPC lookup, voice input, international barcode support, AI-powered recipe scaling, and full international compliance with GDPR & COPPA!
                         </p>
                     </div>
                 </div>
@@ -41,16 +41,111 @@ const AboutUs = () => {
                 <section style={{ marginBottom: '3rem' }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>About Our Application</h2>
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Doc Bear's Comfort Kitchen is a comprehensive, AI-powered web application designed to revolutionize how you manage your home food inventory and discover delicious recipes. Our platform seamlessly combines intelligent inventory tracking with advanced recipe matching, AI-powered social media recipe extraction, voice nutrition analysis, comprehensive nutritional intelligence dashboard, advanced store category management, enhanced meal completion tracking, international barcode support, intelligent recipe scaling, and full international compliance, making meal planning easier and more efficient than ever before.
+                        Doc Bear's Comfort Kitchen is a comprehensive, AI-powered web application designed to revolutionize how you manage your home food inventory and discover delicious recipes. Our platform seamlessly combines intelligent inventory tracking with advanced recipe matching, multi-part recipe management, superior recipe discovery system, comprehensive image integration, AI-powered social media recipe extraction, voice nutrition analysis, comprehensive nutritional intelligence dashboard, advanced store category management, enhanced meal completion tracking, international barcode support, intelligent recipe scaling, cross-platform optimization, and full international compliance, making meal planning easier and more efficient than ever before.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Whether you're organizing your shopping with customizable store category layouts, completing meals with smart ingredient additions and UPC lookup, scanning international UPC codes from 80+ countries, scaling recipes with AI-powered intelligence, manually entering food items, importing recipes from TikTok videos, asking for nutrition information with voice commands, or exploring our extensive database of over 650 public recipes from the acclaimed "Doc Bear's Comfort Food Survival Guide" cookbook series, our application helps you make the most of what you have while discovering new culinary adventures. The intelligent recipe matching system automatically suggests meals you can make with your current inventory, provides detailed nutritional analysis, smart optimization recommendations, and even suggests recipes that are just a few ingredients away from completion.
+                        Whether you're creating complex multi-part recipes with separate sections for fillings and toppings, discovering recipes through our enhanced search system with advanced filtering, browsing our beautiful image-rich recipe collection, organizing your shopping with customizable store category layouts, completing meals with smart ingredient additions and UPC lookup, scanning international UPC codes from 80+ countries, scaling recipes with AI-powered intelligence, manually entering food items, importing recipes from TikTok videos, asking for nutrition information with voice commands, or exploring our extensive database of over 650 public recipes from the acclaimed "Doc Bear's Comfort Food Survival Guide" cookbook series, our application helps you make the most of what you have while discovering new culinary adventures. The intelligent recipe matching system automatically suggests meals you can make with your current inventory, handles complex multi-part recipes, provides detailed nutritional analysis, smart optimization recommendations, and even suggests recipes that are just a few ingredients away from completion.
                     </p>
 
                     <div style={{ backgroundColor: '#f8f9fa', padding: '1.5rem', borderRadius: '8px', margin: '1.5rem 0' }}>
                         <h3 style={{ fontSize: '20px', color: '#2c3e50', marginBottom: '1rem' }}>Comprehensive Features</h3>
                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '1.5rem' }}>
+
+                            <div>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🧩 Multi-Part Recipe Management</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Complex Recipe Support:</strong> Create recipes with multiple sections like "Filling" and "Topping" for dishes like Chicken Pot Pie.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Tabbed Interface:</strong> Manage each recipe part independently with its own ingredients, instructions, and timing.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Smart Text Parsing:</strong> Automatically detect and parse multi-part recipes from text with intelligent section recognition.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Flexible Display:</strong> View parts in tabs or sequential "show all parts" mode for cooking workflow.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Backward Compatible:</strong> All existing single-part recipes continue to work seamlessly without changes.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🎨 Enhanced Landing Page & UX</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Unified Cross-Platform Design:</strong> Consistent branding and experience across web, PWA, Android, and iOS platforms.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Interactive Elements:</strong> Floating animations, glass effects, and micro-interactions for engaging user experience.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Better Navigation:</strong> Improved navigation with Recipes and Pricing links for superior user flow.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Social Proof Integration:</strong> Statistics section with glass effects showcasing platform success.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Mobile-First Approach:</strong> Responsive design optimized for all devices with progressive enhancement.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🔍 Superior Recipe Discovery System</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Advanced Search & Filtering:</strong> Natural language search with category, difficulty, time, and dietary restriction filters.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Rich Recipe Cards:</strong> Beautiful cards with ratings, reviews, nutrition info, tags, and author information.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Quick Browse Categories:</strong> One-click category filters for fast recipe discovery and exploration.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Real-time Results:</strong> Instant filtering and sorting with auto-suggestions for efficient searching.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Smart Recommendations:</strong> AI-powered related recipe suggestions based on your preferences and inventory.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📸 Comprehensive Image Integration</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Recipe Image Management:</strong> Upload, display, and manage recipe images with fallback handling.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Hero Image Display:</strong> Large hero images with click-to-enlarge functionality and full-screen modal.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Image Attribution:</strong> Proper photo credit information with source tracking and visual indicators.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Performance Optimized:</strong> Next.js Image component with proper optimization and loading states.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>User Photo Support:</strong> Indicators for user-uploaded photos vs stock images with proper handling.
+                                </p>
+                            </div>
+
+                            <div>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🛒 Enhanced Shopping List Management</h4>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Advanced Category Matching:</strong> Improved logic for matching ingredients to store categories with better accuracy.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Multi-Part Recipe Support:</strong> Generate shopping lists from complex multi-part recipes with consolidated ingredients.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Item Removal Feature:</strong> Remove unneeded items from shopping lists with easy management interface.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>New Categories Added:</strong> Expanded category system with better organization and matching algorithms.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
+                                    <strong>Smart List Generation:</strong> Intelligent shopping list creation from "What Can I Make?" suggestions including multi-part recipes.
+                                </p>
+                            </div>
 
                             <div>
                                 <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🏪 Advanced Store Category Management</h4>
@@ -115,16 +210,16 @@ const AboutUs = () => {
                                     <strong>Intelligent Recipe Scaling:</strong> AI-powered scaling that goes beyond simple math - smart handling of seasonings, leavening agents, and aromatics.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Multi-Part Recipe Scaling:</strong> Scale complex multi-part recipes with intelligent adjustments for each section.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>US ⟷ Metric Conversion:</strong> Context-aware conversions between US standard and metric measurements with cultural adaptations.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Cooking Method Adjustments:</strong> Provides intelligent suggestions for cooking time, pan sizes, and equipment changes for scaled recipes.
                                 </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Practical Measurements:</strong> Converts awkward measurements to practical equivalents (e.g., "7.3 eggs" becomes "7 eggs + 1 egg white").
-                                </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Regional Recipe Adaptation:</strong> Adapts recipes for different countries with local ingredient availability and cultural preferences.
+                                    <strong>Practical Measurements:</strong> Converts awkward measurements to practical equivalents (e.g., "7.3 eggs" becomes "7 eggs + 1 egg white").
                                 </p>
                             </div>
 
@@ -143,7 +238,7 @@ const AboutUs = () => {
                                     <strong>Voice Nutrition Queries:</strong> Ask about nutrition information for any inventory item using natural voice commands.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Smart Voice Recognition:</strong> AI-powered voice processing that understands natural language nutrition questions.
+                                    <strong>Multi-Part Recipe Support:</strong> Voice input for each part of multi-part recipes with intelligent section recognition.
                                 </p>
                             </div>
 
@@ -172,6 +267,9 @@ const AboutUs = () => {
                                     <strong>Social Media Integration:</strong> Import recipes directly from TikTok, Instagram, Facebook, and YouTube videos using advanced AI analysis.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Multi-Part Recipe Detection:</strong> Automatically detect and parse multi-part recipes from social media content.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Mobile Share Integration:</strong> Share videos from social media apps directly to Doc Bear's for automatic recipe extraction.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
@@ -188,13 +286,13 @@ const AboutUs = () => {
                                     <strong>Smart Analytics:</strong> AI-powered nutrition dashboard with comprehensive insights and intelligent recommendations.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Multi-Part Recipe Analysis:</strong> Comprehensive nutrition analysis across all parts of complex recipes.
+                                </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Inventory Optimization:</strong> Smart suggestions to reduce waste, save money, and improve nutrition with actionable recommendations.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Recipe Suggestions:</strong> AI-generated recipe recommendations based on your current inventory with smart insights.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Smart Shopping Lists:</strong> AI-powered shopping list generation with budget optimization and cost estimation.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
                                     <strong>Nutrition Goals Tracking:</strong> Set and monitor personal nutrition targets with progress visualization and recommendations.
@@ -215,119 +313,34 @@ const AboutUs = () => {
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Smart Categories:</strong> Organize inventory with intelligent categorization including produce, dairy, proteins, pantry staples, and more.
                                 </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Complete Item Management:</strong> Edit items to add brand names, expiration dates, multiple storage locations, price tracking, and detailed notes.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Comprehensive Tracking:</strong> Monitor consumption, waste, donations with detailed history tracking and expiration alerts.
-                                </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Smart Status System:</strong> Track items as "Good," "Expiring Soon," "Expired," or "Used" with automatic status updates.
+                                    <strong>Complete Item Management:</strong> Edit items to add brand names, expiration dates, multiple storage locations, price tracking, and detailed notes.
                                 </p>
                             </div>
 
                             <div>
                                 <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>👨‍🍳 Enhanced Recipe Discovery & Management</h4>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Extensive Recipe Database:</strong> Access to over 650 public recipes, primarily from the Doc Bear's Comfort Food Survival Guide cookbook series.
+                                    <strong>Extensive Recipe Database:</strong> Access to over 650 public recipes, including multi-part recipes from the Doc Bear's Comfort Food Survival Guide cookbook series.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Advanced Recipe Search:</strong> Search your recipe collection by title, ingredients, categories, or cooking methods with intelligent filtering.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>"What Can I Make?" Intelligence:</strong> Advanced recipe matching based on your current inventory with percentage-based ingredient matching and smart suggestions.
+                                    <strong>"What Can I Make?" Intelligence:</strong> Advanced recipe matching based on your current inventory including multi-part recipes with percentage-based matching.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>AI-Powered Recipe Scaling:</strong> Intelligently scale recipes up or down with smart adjustments for seasonings, leavening, and cooking methods.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Recipe Photos:</strong> Add photos to recipes from uploads or social media imports for visual recipe management.
+                                    <strong>Interactive Recipe Details:</strong> Dynamic serving adjustment, ingredient checkboxes, step-by-step instructions with timing.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Simple Meals Matching:</strong> Discover simple meal combinations using your inventory items without requiring complex recipes.
+                                    <strong>Recipe Review System:</strong> Star ratings, comments, helpful votes, and chef's notes for community engagement.
                                 </p>
                             </div>
 
                             <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>🥗 Advanced Nutritional Analysis & Tracking</h4>
+                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📱 Cross-Platform Access & PWA</h4>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Comprehensive Nutrition Data:</strong> Detailed nutritional information including calories, macros (protein, carbs, fats), vitamins, minerals, and micronutrients.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Recipe Nutrition Analysis:</strong> Automatic calculation of complete nutritional profiles for all recipes, including per-serving breakdowns.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Scaled Recipe Nutrition:</strong> Automatically recalculates nutritional information when recipes are scaled or converted between measurement systems.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Meal Plan Nutrition Tracking:</strong> Monitor nutritional content across entire meal plans and individual meals with daily/weekly summaries.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Personal Nutrition Goals:</strong> Set and track personal nutrition targets within your profile settings with progress monitoring.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📅 Advanced Meal Planning & Templates</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Flexible Planning:</strong> Plan meals for multiple weeks with customizable meal times per day (breakfast, lunch, dinner, snacks) based on your preferences.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Meal Planning Templates:</strong> Save and reuse common meal planning patterns, including weekly templates and seasonal meal plans.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Recipe & Simple Meal Integration:</strong> Plan using specific recipes or create quick meals from inventory items with nutritional tracking.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Meal Prep Planning:</strong> Generate detailed weekly meal prep lists to plan and organize ingredient preparation in advance.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Nutritional Overview:</strong> Monitor nutritional information from recipes and ingredients across your entire meal plan with goal tracking.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📋 Intelligent Shopping Lists & Budget Management</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Multiple Generation Methods:</strong> Create shopping lists from individual recipes, "What Can I Make?" suggestions, weekly meal plans, or custom recipe collections.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Smart Shopping List Generator:</strong> Select multiple recipes to create comprehensive shopping lists with organized categories and quantity consolidation.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>International Currency Support:</strong> Price tracking and budget management in 40+ currencies with regional optimization.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Price Tracking & Totals:</strong> Add prices to shopping list items with automatic total calculations and budget tracking.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Budget Alerts:</strong> Set shopping budgets with alerts when approaching or exceeding spending limits.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Email Integration:</strong> Send shopping lists directly to family and friends via email for collaborative shopping.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>👑 Professional Admin Dashboard</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Complete User Management:</strong> Administrative controls for user account management, statistics tracking, and system monitoring.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Account Upgrades:</strong> Manage user account upgrades and premium features with automated email notifications.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>User Suspension Controls:</strong> Administrative tools for user suspension and account management with notification systems.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>System Analytics:</strong> Comprehensive usage statistics and system performance monitoring for platform optimization.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📱 Multi-Device Access & PWA</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Cross-Platform Compatibility:</strong> Works seamlessly on desktop and mobile devices with responsive design and optimized mobile experience.
+                                    <strong>Unified Platform Strategy:</strong> Consistent experience across web, PWA, Android, and iOS with unified landing page.
                                 </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Progressive Web App (PWA):</strong> Full PWA functionality with app-like experience, offline capabilities, and mobile-first design.
@@ -335,40 +348,11 @@ const AboutUs = () => {
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
                                     <strong>Native Mobile Integration:</strong> Share content directly from social media apps to Doc Bear's recipe extractor on mobile devices.
                                 </p>
+                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
+                                    <strong>Cross-Platform Promotion:</strong> App store badges work on web, PWA can promote native apps for seamless transitions.
+                                </p>
                                 <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
                                     <strong>Coming Soon:</strong> Native mobile apps available in Google Play Store and Apple App Store.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>📧 Smart Notification System</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Automated Email Notifications:</strong> Receive notifications for account upgrades, suspensions, and important account changes.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Expiration Alerts:</strong> Customizable email notifications for food items approaching expiration dates.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Meal Planning Reminders:</strong> Optional reminders for meal prep, shopping, and cooking schedules.
-                                </p>
-                            </div>
-
-                            <div>
-                                <h4 style={{ color: '#e74c3c', fontSize: '16px', marginBottom: '0.5rem' }}>⚙️ Enhanced Personalized Profile Settings</h4>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>International Preferences:</strong> Support for 40+ currencies, regions, unit systems, and localization preferences.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Barcode Preferences:</strong> Configure which barcode formats to accept (EAN-8, EAN-13, UPC-A, GTIN-14) and regional prioritization.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Advanced Meal Planning Preferences:</strong> Set dietary restrictions, ingredients to avoid, preferred cuisines, and meal planning preferences.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0 0 0.5rem 0' }}>
-                                    <strong>Detailed Nutrition Goals:</strong> Establish personal nutrition targets including calories, macros, vitamins, and minerals with progress tracking.
-                                </p>
-                                <p style={{ fontSize: '14px', color: '#666', margin: '0' }}>
-                                    <strong>Budget Management:</strong> Set shopping budgets and financial goals for meal planning and grocery management in your local currency.
                                 </p>
                             </div>
                         </div>
@@ -380,8 +364,34 @@ const AboutUs = () => {
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>Recent Updates</h2>
 
                     <div style={{ backgroundColor: '#e8f5e8', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #28a745' }}>
-                        <h3 style={{ fontSize: '18px', color: '#155724', marginBottom: '1rem' }}>Version 1.5.0 (Latest) - Advanced Store Management & Enhanced User Experience</h3>
+                        <h3 style={{ fontSize: '18px', color: '#155724', marginBottom: '1rem' }}>Version 1.6.0 (Latest) - Multi-Part Recipes & Superior User Experience</h3>
                         <ul style={{ color: '#155724', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li style={{ marginBottom: '0.5rem' }}>Revolutionary multi-part recipe system supporting complex recipes with multiple sections (Filling, Topping, etc.)</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Enhanced recipe form with tabbed interface for managing recipe parts independently</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Smart text parsing that automatically detects and creates multi-part recipes from pasted text</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Unified landing page strategy with consistent branding across web, PWA, Android, and iOS platforms</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Superior recipe discovery system with advanced filtering, natural language search, and real-time results</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Rich recipe cards with ratings, reviews, nutrition info, tags, and beautiful image integration</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Comprehensive image management system with hero images, click-to-enlarge, and attribution tracking</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Interactive recipe detail pages with dynamic serving adjustment and ingredient checkboxes</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Enhanced shopping list management with multi-part recipe support and improved category matching</li>
+                            <li style={{ marginBottom: '0.5rem' }}>New shopping list features including item removal and better category organization</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Updated "What Can I Make?" functionality to include multi-part recipes in suggestions</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Voice input support for each part of multi-part recipes with intelligent section recognition</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Enhanced recipe scaling that works across all parts of complex multi-part recipes</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Improved mobile responsiveness with better touch interfaces and optimized layouts</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Cross-platform optimization ensuring consistent experience across all devices and platforms</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Advanced recipe parser with intelligent section detection and multi-part recipe creation</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Database schema enhancements to support multi-part recipes while maintaining backward compatibility</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Enhanced API routes supporting creation and editing of multi-part recipes</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Comprehensive nutrition analysis across all parts of multi-part recipes</li>
+                            <li>Performance improvements and code optimization for better user experience across all features</li>
+                        </ul>
+                    </div>
+
+                    <div style={{ backgroundColor: '#fff3cd', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #ffc107' }}>
+                        <h3 style={{ fontSize: '18px', color: '#856404', marginBottom: '1rem' }}>Version 1.5.0 - Advanced Store Management & Enhanced User Experience</h3>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem' }}>
                             <li style={{ marginBottom: '0.5rem' }}>Complete category ordering system with drag & drop functionality for personalized shopping flows</li>
                             <li style={{ marginBottom: '0.5rem' }}>Quick movement controls: jump to position, bulk moves (±5), top/bottom positioning for efficient management</li>
                             <li style={{ marginBottom: '0.5rem' }}>Store layout templates (Fresh-First, Food Safety, Perimeter-First) for optimal shopping organization</li>
@@ -404,9 +414,9 @@ const AboutUs = () => {
                         </ul>
                     </div>
 
-                    <div style={{ backgroundColor: '#fff3cd', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #ffc107' }}>
-                        <h3 style={{ fontSize: '18px', color: '#856404', marginBottom: '1rem' }}>Version 1.4.1 - International Compliance & UI Improvements</h3>
-                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem' }}>
+                    <div style={{ backgroundColor: '#d1ecf1', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #17a2b8' }}>
+                        <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Version 1.4.1 - International Compliance & UI Improvements</h3>
+                        <ul style={{ color: '#0c5460', fontSize: '15px', marginLeft: '1.5rem' }}>
                             <li style={{ marginBottom: '0.5rem' }}>Full GDPR compliance with explicit consent management and data protection rights tracking</li>
                             <li style={{ marginBottom: '0.5rem' }}>COPPA-compliant minor protection with parental consent verification system</li>
                             <li style={{ marginBottom: '0.5rem' }}>Multi-jurisdictional privacy compliance (US, EU, UK, Canada, Australia)</li>
@@ -422,9 +432,9 @@ const AboutUs = () => {
                         </ul>
                     </div>
 
-                    <div style={{ backgroundColor: '#d1ecf1', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #17a2b8' }}>
-                        <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Version 1.4.0 - International Support & AI Recipe Scaling</h3>
-                        <ul style={{ color: '#0c5460', fontSize: '15px', marginLeft: '1.5rem' }}>
+                    <div style={{ backgroundColor: '#f8d7da', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #dc3545' }}>
+                        <h3 style={{ fontSize: '18px', color: '#721c24', marginBottom: '1rem' }}>Version 1.4.0 - International Support & AI Recipe Scaling</h3>
+                        <ul style={{ color: '#721c24', fontSize: '15px', marginLeft: '1.5rem' }}>
                             <li style={{ marginBottom: '0.5rem' }}>International barcode support for 80+ countries with EAN-8, EAN-13, UPC-A, and GTIN-14 format recognition</li>
                             <li style={{ marginBottom: '0.5rem' }}>Regional database integration with Open Food Facts (UK/EU/Global) and intelligent country detection via GS1 prefixes</li>
                             <li style={{ marginBottom: '0.5rem' }}>AI-powered recipe scaling with intelligent handling of seasonings, leavening agents, and aromatics</li>
@@ -440,9 +450,9 @@ const AboutUs = () => {
                         </ul>
                     </div>
 
-                    <div style={{ backgroundColor: '#f8d7da', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #dc3545' }}>
-                        <h3 style={{ fontSize: '18px', color: '#721c24', marginBottom: '1rem' }}>Version 1.3.1 - Voice Intelligence & Nutrition Dashboard</h3>
-                        <ul style={{ color: '#721c24', fontSize: '15px', marginLeft: '1.5rem' }}>
+                    <div style={{ backgroundColor: '#e2e3e5', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #6c757d' }}>
+                        <h3 style={{ fontSize: '18px', color: '#383d41', marginBottom: '1rem' }}>Version 1.3.1 - Voice Intelligence & Nutrition Dashboard</h3>
+                        <ul style={{ color: '#383d41', fontSize: '15px', marginLeft: '1.5rem' }}>
                             <li style={{ marginBottom: '0.5rem' }}>Voice nutrition analysis with natural language processing for instant ingredient insights</li>
                             <li style={{ marginBottom: '0.5rem' }}>Comprehensive nutrition intelligence dashboard with AI-powered analytics and recommendations</li>
                             <li style={{ marginBottom: '0.5rem' }}>Smart inventory optimization with waste reduction and cost-saving suggestions</li>
@@ -454,9 +464,9 @@ const AboutUs = () => {
                         </ul>
                     </div>
 
-                    <div style={{ backgroundColor: '#e2e3e5', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #6c757d' }}>
-                        <h3 style={{ fontSize: '18px', color: '#383d41', marginBottom: '1rem' }}>Version 1.3.0 - Enhanced User Experience</h3>
-                        <ul style={{ color: '#383d41', fontSize: '15px', marginLeft: '1.5rem' }}>
+                    <div style={{ backgroundColor: '#d4edda', padding: '1.5rem', borderRadius: '8px', marginBottom: '1rem', borderLeft: '4px solid #28a745' }}>
+                        <h3 style={{ fontSize: '18px', color: '#155724', marginBottom: '1rem' }}>Version 1.3.0 - Enhanced User Experience</h3>
+                        <ul style={{ color: '#155724', fontSize: '15px', marginLeft: '1.5rem' }}>
                             <li style={{ marginBottom: '0.5rem' }}>Shopping list totals and budget management with price tracking</li>
                             <li style={{ marginBottom: '0.5rem' }}>Professional printing functionality for shopping lists</li>
                             <li style={{ marginBottom: '0.5rem' }}>Advanced recipe collection search and filtering</li>
@@ -467,9 +477,9 @@ const AboutUs = () => {
                         </ul>
                     </div>
 
-                    <div style={{ backgroundColor: '#d4edda', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #28a745' }}>
-                        <h3 style={{ fontSize: '18px', color: '#155724', marginBottom: '1rem' }}>Version 1.2.0 - Mobile & Admin Features</h3>
-                        <ul style={{ color: '#155724', fontSize: '15px', marginLeft: '1.5rem' }}>
+                    <div style={{ backgroundColor: '#fff3cd', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #ffc107' }}>
+                        <h3 style={{ fontSize: '18px', color: '#856404', marginBottom: '1rem' }}>Version 1.2.0 - Mobile & Admin Features</h3>
+                        <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem' }}>
                             <li style={{ marginBottom: '0.5rem' }}>Mobile share integration for direct recipe imports from social media apps</li>
                             <li style={{ marginBottom: '0.5rem' }}>Comprehensive admin dashboard with user management capabilities</li>
                             <li style={{ marginBottom: '0.5rem' }}>Automated email notification system for account changes</li>
@@ -571,16 +581,18 @@ const AboutUs = () => {
                 <section style={{ marginBottom: '3rem' }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>Our Mission</h2>
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Doc Bear's Comfort Kitchen was born from a simple belief: managing your home food inventory and meal planning should be simple, efficient, and enjoyable. By combining intelligent inventory tracking with AI-powered recipe discovery, advanced store category management, enhanced meal completion tracking, social media integration, voice nutrition intelligence, comprehensive nutritional analysis dashboard, international barcode support, intelligent recipe scaling tools, and full international compliance, we're helping families worldwide reduce food waste, save money, and discover new culinary adventures using ingredients they already have at home.
+                        Doc Bear's Comfort Kitchen was born from a simple belief: managing your home food inventory and meal planning should be simple, efficient, and enjoyable. By combining intelligent inventory tracking with AI-powered recipe discovery, multi-part recipe management, enhanced recipe search and discovery, comprehensive image integration, advanced store category management, enhanced meal completion tracking, social media integration, voice nutrition intelligence, comprehensive nutritional analysis dashboard, international barcode support, intelligent recipe scaling tools, cross-platform optimization, and full international compliance, we're helping families worldwide reduce food waste, save money, and discover new culinary adventures using ingredients they already have at home.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Our platform bridges the gap between what's in your pantry and what's on your dinner table, while leveraging cutting-edge AI technology to extract recipes from your favorite social media cooking videos, provide instant voice-activated nutrition insights, intelligently scale recipes for any serving size, organize your shopping with customizable store layouts, track meal completion with smart ingredient additions, and ensure full compliance with international privacy regulations including GDPR and COPPA. Whether you're a busy parent trying to plan the week's meals, a college student learning to cook, or a food enthusiast looking to make the most of your ingredients, our comprehensive application provides all the AI-powered tools you need to succeed in the kitchen and beyond.
+                        Our platform bridges the gap between what's in your pantry and what's on your dinner table, while leveraging cutting-edge AI technology to extract recipes from your favorite social media cooking videos, create complex multi-part recipes with separate sections for fillings and toppings, provide enhanced recipe discovery with beautiful image-rich cards, provide instant voice-activated nutrition insights, intelligently scale recipes for any serving size, organize your shopping with customizable store layouts, track meal completion with smart ingredient additions, ensure consistent experience across web, PWA, Android, and iOS platforms, and ensure full compliance with international privacy regulations including GDPR and COPPA. Whether you're a busy parent trying to plan the week's meals, a college student learning to cook, or a food enthusiast looking to make the most of your ingredients, our comprehensive application provides all the AI-powered tools you need to succeed in the kitchen and beyond.
                     </p>
 
                     <div style={{ backgroundColor: '#d1ecf1', padding: '1.5rem', borderRadius: '8px', borderLeft: '4px solid #17a2b8' }}>
                         <h3 style={{ fontSize: '18px', color: '#0c5460', marginBottom: '1rem' }}>Why Doc Bear's Comfort Kitchen?</h3>
                         <ul style={{ color: '#0c5460', fontSize: '15px', marginLeft: '1.5rem' }}>
+                            <li style={{ marginBottom: '0.5rem' }}>Create and manage complex multi-part recipes with separate sections for fillings, toppings, and more</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Discover recipes through enhanced search system with advanced filtering and beautiful image integration</li>
                             <li style={{ marginBottom: '0.5rem' }}>Organize your shopping with customizable store category layouts and drag & drop functionality</li>
                             <li style={{ marginBottom: '0.5rem' }}>Track meal completion with smart ingredient additions and UPC lookup integration</li>
                             <li style={{ marginBottom: '0.5rem' }}>Import recipes instantly from TikTok, Instagram, Facebook, and YouTube videos using advanced AI technology</li>
@@ -592,13 +604,13 @@ const AboutUs = () => {
                             <li style={{ marginBottom: '0.5rem' }}>Ensure full privacy compliance with GDPR, COPPA, and multi-jurisdictional data protection</li>
                             <li style={{ marginBottom: '0.5rem' }}>Reduce food waste by tracking expiration dates and using ingredients efficiently with smart suggestions</li>
                             <li style={{ marginBottom: '0.5rem' }}>Save money by planning meals around what you already have with intelligent inventory matching and international currency support</li>
-                            <li style={{ marginBottom: '0.5rem' }}>Discover new recipes that match your available ingredients with percentage-based matching and scaling options</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Discover new recipes that match your available ingredients including complex multi-part recipes with percentage-based matching</li>
                             <li style={{ marginBottom: '0.5rem' }}>Streamline shopping with intelligent list generation, price tracking, and budget alerts in your local currency</li>
-                            <li style={{ marginBottom: '0.5rem' }}>Access 650+ trusted recipes from the Doc Bear's Comfort Food Survival Guide series</li>
+                            <li style={{ marginBottom: '0.5rem' }}>Access 650+ trusted recipes including multi-part recipes from the Doc Bear's Comfort Food Survival Guide series</li>
                             <li style={{ marginBottom: '0.5rem' }}>Make informed dietary choices with comprehensive nutritional analysis and goal tracking</li>
                             <li style={{ marginBottom: '0.5rem' }}>Simplify meal planning with flexible weekly templates and multi-week planning capabilities</li>
                             <li style={{ marginBottom: '0.5rem' }}>Share content seamlessly from mobile apps with native social media integration</li>
-                            <li>Track comprehensive nutrition data including calories, macros, vitamins, and minerals for optimal health management across different regions</li>
+                            <li>Experience consistent branding and functionality across web, PWA, Android, and iOS platforms</li>
                         </ul>
                     </div>
                 </section>
@@ -607,15 +619,15 @@ const AboutUs = () => {
                 <section style={{ marginBottom: '3rem' }}>
                     <h2 style={{ fontSize: '24px', color: '#2c3e50', marginBottom: '1rem' }}>Built with Advanced AI & Modern Technology</h2>
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        Our application is built using cutting-edge web technologies including React for a responsive, intuitive user interface, combined with advanced artificial intelligence for recipe extraction, voice recognition, intelligent recipe scaling, nutritional analysis, store category management, meal completion tracking, and full international compliance management. The platform leverages machine learning algorithms to process video content from social media platforms, extracting recipes through both audio narration analysis and visual cooking step recognition, while providing instant voice-activated nutrition insights, intelligent recipe conversions, comprehensive data protection features, and intuitive store organization tools.
+                        Our application is built using cutting-edge web technologies including React for a responsive, intuitive user interface, combined with advanced artificial intelligence for recipe extraction, multi-part recipe management, enhanced recipe discovery, comprehensive image integration, voice recognition, intelligent recipe scaling, nutritional analysis, store category management, meal completion tracking, cross-platform optimization, and full international compliance management. The platform leverages machine learning algorithms to process video content from social media platforms, extracting recipes through both audio narration analysis and visual cooking step recognition, while providing instant voice-activated nutrition insights, intelligent recipe conversions, comprehensive data protection features, intuitive store organization tools, beautiful image-rich recipe experiences, and seamless multi-part recipe creation and management.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px', marginBottom: '1rem' }}>
-                        The platform is designed to work seamlessly across all devices and is currently available as a Progressive Web App (PWA), allowing for offline access and app-like functionality on mobile devices. Our mobile-first approach includes native sharing integration, allowing users to share videos directly from social media apps to Doc Bear's recipe extractor, voice-activated features for hands-free nutrition analysis, international barcode scanning capabilities, optimized touch interfaces for store category management, enhanced meal completion workflows, and robust privacy compliance features. Native mobile apps for Google Play Store and Apple App Store are coming soon.
+                        The platform is designed to work seamlessly across all devices and is currently available as a Progressive Web App (PWA), allowing for offline access and app-like functionality on mobile devices. Our unified cross-platform approach includes consistent branding and user experience across web, PWA, Android, and iOS platforms, native sharing integration allowing users to share videos directly from social media apps to Doc Bear's recipe extractor, voice-activated features for hands-free nutrition analysis, international barcode scanning capabilities, optimized touch interfaces for store category management, enhanced meal completion workflows, comprehensive image management with hero images and attribution tracking, advanced multi-part recipe creation and editing capabilities, and robust privacy compliance features. Native mobile apps for Google Play Store and Apple App Store are coming soon.
                     </p>
 
                     <p style={{ color: '#444', fontSize: '16px' }}>
-                        We integrate with reliable international nutritional databases including Open Food Facts (UK/EU/Global), USDA databases, AI-powered food recognition systems, comprehensive UPC databases covering 80+ countries, advanced voice processing technology, and international compliance frameworks (GDPR, COPPA, etc.) to provide accurate information while respecting intellectual property rights and protecting user privacy. Our advanced AI systems, receipt processing capabilities, voice nutrition analysis, international barcode support, recipe scaling intelligence, store category organization features, meal completion tracking, social media integration capabilities, and comprehensive compliance management make it easy to build your inventory and recipe collection quickly and efficiently while discovering new culinary inspirations from your favorite creators worldwide, all while ensuring your data is protected according to the highest international standards.
+                        We integrate with reliable international nutritional databases including Open Food Facts (UK/EU/Global), USDA databases, AI-powered food recognition systems, comprehensive UPC databases covering 80+ countries, advanced voice processing technology, comprehensive image processing and management systems, and international compliance frameworks (GDPR, COPPA, etc.) to provide accurate information while respecting intellectual property rights and protecting user privacy. Our advanced AI systems, multi-part recipe parsing capabilities, enhanced recipe discovery algorithms, comprehensive image integration features, receipt processing capabilities, voice nutrition analysis, international barcode support, recipe scaling intelligence, store category organization features, meal completion tracking, social media integration capabilities, cross-platform optimization tools, and comprehensive compliance management make it easy to build your inventory and recipe collection quickly and efficiently while discovering new culinary inspirations from your favorite creators worldwide, all while ensuring your data is protected according to the highest international standards.
                     </p>
                 </section>
 
@@ -644,7 +656,7 @@ const AboutUs = () => {
                 {/* Footer Note */}
                 <div style={{ marginTop: '3rem', padding: '1rem', backgroundColor: '#e9ecef', borderRadius: '5px' }}>
                     <p style={{ color: '#6c757d', fontSize: '14px', textAlign: 'center', margin: '0' }}>
-                        Doc Bear's Comfort Kitchen - Making home cooking easier with AI-powered innovation, one recipe at a time. 🍳🤖🌍⚖️🎤🔒🏪
+                        Doc Bear's Comfort Kitchen - Making home cooking easier with AI-powered innovation, one recipe at a time. 🧩🍳🤖🌍⚖️🎤🔒🏪📸
                     </p>
                 </div>
             </div>

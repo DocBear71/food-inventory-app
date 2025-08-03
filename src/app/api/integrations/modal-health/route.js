@@ -6,8 +6,8 @@ export async function GET() {
 
         // Check all Modal services - use the direct health URLs (don't append /health)
         const services = [
-            { name: 'nutrition-analyzer', url: `https://docbear71--unified-nutrition-analyzer-health.modal.run` },
-            { name: 'inventory-manager', url: `https://docbear71--smart-inventory-manager-health.modal.run` }
+            { name: 'nutrition-analyzer', url: `https://doc-bears-comfort-kitchen--unified-nutrition-analyzer-health.modal.run` },
+            { name: 'inventory-manager', url: `https://doc-bears-comfort-kitchen--smart-inventory-manager-health.modal.run` }
         ];
 
         for (const service of services) {

@@ -485,7 +485,7 @@ export default function EnhancedAIShoppingListModal({
 
             console.log('📤 Sending request to Modal.com...');
 
-            const response = await fetch('https://docbear71--smart-inventory-manager-suggest-ingredients.modal.run', {
+            const response = await fetch('https://doc-bears-comfort-kitchen--smart-inventory-manager-sugge-308eea.modal.run', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',

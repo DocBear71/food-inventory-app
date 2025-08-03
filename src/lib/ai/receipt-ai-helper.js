@@ -82,7 +82,7 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
 
         console.log('📤 Sending request to Modal with currency support:', currencyInfo);
 
-        const response = await fetch('https://docbear71--receipt-processor-process-receipt-with-ai.modal.run', {
+        const response = await fetch('https://doc-bears-comfort-kitchen--receipt-processor-process-rec-3ff802.modal.run', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
