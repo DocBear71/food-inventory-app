@@ -159,7 +159,8 @@ export default function LandingPage() {
                     position: relative;
                     overflow: hidden;
                     border-radius: 0.5rem;
-                    height: 42rem; 
+                    width: 100%;
+                    aspect-ratio: 5/3; /* Same aspect ratio as width={200} height={120} */
                 }
 
                 .image-carousel img {
@@ -470,13 +471,15 @@ export default function LandingPage() {
                                 Scan barcodes from 80+ countries. Supports EAN-8, EAN-13, UPC-A, and GTIN-14 formats with automatic regional optimization.
                             </p>
                             <div className="bg-white rounded-xl p-4 shadow-sm">
-                                <Image
-                                    src="/images/barcode-scanning-demo.jpg"
-                                    alt="Barcode Scanning"
-                                    width={200}
-                                    height={120}
-                                    className="w-full rounded-lg"
-                                />
+                                <div className="relative w-full" style={{ aspectRatio: '5/3' }}>
+                                    <Image
+                                        src="/images/barcode-scanning-demo.jpg"
+                                        alt="Barcode Scanning"
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                        className="rounded-lg object-cover"
+                                    />
+                                </div>
                             </div>
                         </div>
 
@@ -512,13 +515,15 @@ export default function LandingPage() {
                                 Ask about nutrition information using natural voice commands. Get instant AI-powered analysis with comprehensive breakdowns for all recipe parts.
                             </p>
                             <div className="bg-white rounded-xl p-4 shadow-sm">
-                                <Image
-                                    src="/images/voice-nutrition-demo.jpg"
-                                    alt="Voice Analysis"
-                                    width={200}
-                                    height={120}
-                                    className="w-full rounded-lg"
-                                />
+                                <div className="relative w-full" style={{ aspectRatio: '5/3' }}>
+                                    <Image
+                                        src="/images/voice-nutrition-demo.jpg"
+                                        alt="Voice Analysis"
+                                        fill
+                                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                        className="rounded-lg object-cover"
+                                    />
+                                </div>
                             </div>
                         </div>
 
