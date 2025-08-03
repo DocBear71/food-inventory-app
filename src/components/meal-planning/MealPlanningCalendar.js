@@ -1578,9 +1578,14 @@ export default function MealPlanningCalendar() {
         try {
             console.log('🔄 Generating shopping list for meal plan:', mealPlan.name);
 
-            // Call the shopping list generation API
-            const response = await apiPost('/api/shopping/generate', {
-                mealPlanId: mealPlan._id
+            const response = await fetch('/api/shopping/generate', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    mealPlanId: mealPlan._id
+                }),
             });
 
             if (!response.ok) {
@@ -1591,30 +1596,35 @@ export default function MealPlanningCalendar() {
 
             if (data.success) {
                 console.log('✅ Shopping list generated:', data.shoppingList);
+                // IMPORTANT: Set the data in state so modal can access it
+                setShoppingListData(data.shoppingList);
                 return data.shoppingList;
             } else {
                 throw new Error(data.error || 'Failed to generate shopping list');
             }
         } catch (error) {
             console.error('❌ Error generating shopping list:', error);
-            // Return a basic structure so modal can still open
-            return {
+            // Return basic structure so modal can still open
+            const basicList = {
                 items: {},
                 summary: { totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0 },
                 recipes: [],
                 generatedAt: new Date().toISOString()
             };
+            setShoppingListData(basicList);
+            return basicList;
         } finally {
             setLoadingShoppingList(false);
         }
     };
 
+// 2. Update your button/trigger to generate data when clicked:
     const handleShowShoppingList = async () => {
         if (mealPlan) {
+            console.log('🔄 Opening shopping list modal...');
             setShowShoppingList(true);
-            // Generate shopping list data when opening
-            const listData = await generateShoppingListData(mealPlan);
-            setShoppingListData(listData);
+            // Generate the shopping list data
+            await generateShoppingListData(mealPlan);
         }
     };
 
@@ -1716,9 +1726,12 @@ export default function MealPlanningCalendar() {
     }, [session, currentWeek, weekStartDay, userMealTypes]);
 
     if (showShoppingList && mealPlan) {
-        console.log('🔍 MINIMAL MODAL TEST:', {
+        console.log('🔍 MODAL DATA CHECK:', {
             showShoppingList,
-            mealPlanId: mealPlan._id
+            hasShoppingListData: !!shoppingListData,
+            dataKeys: shoppingListData ? Object.keys(shoppingListData) : 'none',
+            itemsCount: shoppingListData?.summary?.totalItems || 0,
+            loadingShoppingList
         });
     }
 
@@ -2574,13 +2587,44 @@ export default function MealPlanningCalendar() {
                 {/* Shopping List Modal */}
                 {showShoppingList && mealPlan && (
                     <EnhancedAIShoppingListModal
-                        isOpen={true}
+                        isOpen={showShoppingList}
                         onClose={() => {
-                            console.log('🔄 Minimal modal closing');
+                            console.log('🔄 Closing shopping list modal');
                             setShowShoppingList(false);
+                            setShoppingListData(null);
                         }}
-                        title="🍽️ Test Modal"
-                        subtitle="Testing if modal opens"
+
+                        // FIXED: Pass shopping list data in the correct prop name
+                        shoppingList={shoppingListData}
+
+                        // FIXED: Also try currentShoppingList prop
+                        currentShoppingList={shoppingListData}
+
+                        // Modal identification
+                        sourceMealPlanId={mealPlan._id}
+                        sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
+
+                        // Modal configuration
+                        title="🍽️ Meal Plan Shopping List"
+                        subtitle={`Smart shopping for ${mealPlan.name}`}
+                        initialMode="enhanced"
+
+                        // Context
+                        contextName={mealPlan.name}
+
+                        // Handle save
+                        onSave={(savedList) => {
+                            console.log('✅ MEAL PLAN: Shopping list saved:', savedList);
+                            setShowShoppingList(false);
+                            setShoppingListData(null);
+                        }}
+
+                        // Optional props
+                        showRefresh={true}
+                        onRefresh={async () => {
+                            console.log('🔄 Refreshing shopping list...');
+                            await generateShoppingListData(mealPlan);
+                        }}
                     />
                 )}
 
@@ -3536,13 +3580,44 @@ export default function MealPlanningCalendar() {
             {/* Shopping List Modal */}
             {showShoppingList && mealPlan && (
                 <EnhancedAIShoppingListModal
-                    isOpen={true}
+                    isOpen={showShoppingList}
                     onClose={() => {
-                        console.log('🔄 Minimal modal closing');
+                        console.log('🔄 Closing shopping list modal');
                         setShowShoppingList(false);
+                        setShoppingListData(null);
                     }}
-                    title="🍽️ Test Modal"
-                    subtitle="Testing if modal opens"
+
+                    // FIXED: Pass shopping list data in the correct prop name
+                    shoppingList={shoppingListData}
+
+                    // FIXED: Also try currentShoppingList prop
+                    currentShoppingList={shoppingListData}
+
+                    // Modal identification
+                    sourceMealPlanId={mealPlan._id}
+                    sourceRecipeIds={shoppingListData?.sourceRecipeIds || []}
+
+                    // Modal configuration
+                    title="🍽️ Meal Plan Shopping List"
+                    subtitle={`Smart shopping for ${mealPlan.name}`}
+                    initialMode="enhanced"
+
+                    // Context
+                    contextName={mealPlan.name}
+
+                    // Handle save
+                    onSave={(savedList) => {
+                        console.log('✅ MEAL PLAN: Shopping list saved:', savedList);
+                        setShowShoppingList(false);
+                        setShoppingListData(null);
+                    }}
+
+                    // Optional props
+                    showRefresh={true}
+                    onRefresh={async () => {
+                        console.log('🔄 Refreshing shopping list...');
+                        await generateShoppingListData(mealPlan);
+                    }}
                 />
             )}
 
