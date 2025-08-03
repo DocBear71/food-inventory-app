@@ -2584,10 +2584,107 @@ export default function MealPlanningCalendar() {
                     />
                 )}
 
-                {/* Shopping List Modal */}
+                {/* LOADING SCREEN: Show while data is being generated */}
+                {showShoppingList && mealPlan && loadingShoppingList && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000
+                    }}>
+                        <div style={{
+                            backgroundColor: 'white',
+                            borderRadius: '12px',
+                            padding: '2rem',
+                            textAlign: 'center',
+                            minWidth: '320px',
+                            maxWidth: '400px',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                        }}>
+                            {/* Spinning loader */}
+                            <div style={{
+                                display: 'inline-block',
+                                width: '3rem',
+                                height: '3rem',
+                                border: '4px solid #e5e7eb',
+                                borderTopColor: '#3b82f6',
+                                borderRadius: '50%',
+                                animation: 'spin 1s linear infinite',
+                                marginBottom: '1.5rem'
+                            }}></div>
+
+                            {/* Loading text */}
+                            <h3 style={{
+                                margin: '0 0 0.5rem 0',
+                                fontSize: '1.25rem',
+                                fontWeight: '600',
+                                color: '#111827'
+                            }}>
+                                🛒 Generating Shopping List
+                            </h3>
+
+                            <p style={{
+                                margin: '0 0 1.5rem 0',
+                                color: '#6b7280',
+                                fontSize: '0.875rem',
+                                lineHeight: '1.4'
+                            }}>
+                                Analyzing your meal plan and checking inventory...
+                            </p>
+
+                            {/* Progress steps */}
+                            <div style={{
+                                fontSize: '0.75rem',
+                                color: '#9ca3af',
+                                marginBottom: '1.5rem'
+                            }}>
+                                <div style={{marginBottom: '0.25rem'}}>✓ Loading recipes</div>
+                                <div style={{marginBottom: '0.25rem'}}>✓ Combining ingredients</div>
+                                <div style={{marginBottom: '0.25rem'}}>🔄 Checking inventory</div>
+                                <div style={{opacity: 0.5}}>⏳ Organizing categories</div>
+                            </div>
+
+                            {/* Cancel button */}
+                            <button
+                                onClick={() => {
+                                    setShowShoppingList(false);
+                                    setShoppingListData(null);
+                                    setLoadingShoppingList(false);
+                                }}
+                                style={{
+                                    padding: '0.75rem 1.5rem',
+                                    backgroundColor: '#f3f4f6',
+                                    border: '1px solid #d1d5db',
+                                    borderRadius: '8px',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    fontWeight: '500',
+                                    color: '#374151',
+                                    transition: 'all 0.2s'
+                                }}
+                                onMouseOver={(e) => {
+                                    e.target.style.backgroundColor = '#e5e7eb';
+                                }}
+                                onMouseOut={(e) => {
+                                    e.target.style.backgroundColor = '#f3f4f6';
+                                }}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {/* SHOPPING LIST MODAL: Show when data is ready */}
                 {showShoppingList && mealPlan && shoppingListData && !loadingShoppingList && (
                     <EnhancedAIShoppingListModal
-                        key={`shopping-modal-${mealPlan._id}-${shoppingListData.generatedAt}`} // Force re-render with unique key
+                        key={`shopping-modal-${mealPlan._id}-${shoppingListData.generatedAt}`}
                         isOpen={showShoppingList}
                         onClose={() => {
                             console.log('🔄 Closing shopping list modal');
@@ -2606,7 +2703,7 @@ export default function MealPlanningCalendar() {
                         // Modal configuration
                         title="🍽️ Meal Plan Shopping List"
                         subtitle={`Smart shopping for ${mealPlan.name}`}
-                        initialMode="enhanced"
+                        initialMode={priceIntelligence?.enabled ? 'unified' : 'enhanced'}
 
                         // Context
                         contextName={mealPlan.name}
@@ -3576,10 +3673,107 @@ export default function MealPlanningCalendar() {
                 />
             )}
 
-            {/* Shopping List Modal */}
+            {/* LOADING SCREEN: Show while data is being generated */}
+            {showShoppingList && mealPlan && loadingShoppingList && (
+                <div style={{
+                    position: 'fixed',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    zIndex: 1000
+                }}>
+                    <div style={{
+                        backgroundColor: 'white',
+                        borderRadius: '12px',
+                        padding: '2rem',
+                        textAlign: 'center',
+                        minWidth: '320px',
+                        maxWidth: '400px',
+                        boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                    }}>
+                        {/* Spinning loader */}
+                        <div style={{
+                            display: 'inline-block',
+                            width: '3rem',
+                            height: '3rem',
+                            border: '4px solid #e5e7eb',
+                            borderTopColor: '#3b82f6',
+                            borderRadius: '50%',
+                            animation: 'spin 1s linear infinite',
+                            marginBottom: '1.5rem'
+                        }}></div>
+
+                        {/* Loading text */}
+                        <h3 style={{
+                            margin: '0 0 0.5rem 0',
+                            fontSize: '1.25rem',
+                            fontWeight: '600',
+                            color: '#111827'
+                        }}>
+                            🛒 Generating Shopping List
+                        </h3>
+
+                        <p style={{
+                            margin: '0 0 1.5rem 0',
+                            color: '#6b7280',
+                            fontSize: '0.875rem',
+                            lineHeight: '1.4'
+                        }}>
+                            Analyzing your meal plan and checking inventory...
+                        </p>
+
+                        {/* Progress steps */}
+                        <div style={{
+                            fontSize: '0.75rem',
+                            color: '#9ca3af',
+                            marginBottom: '1.5rem'
+                        }}>
+                            <div style={{marginBottom: '0.25rem'}}>✓ Loading recipes</div>
+                            <div style={{marginBottom: '0.25rem'}}>✓ Combining ingredients</div>
+                            <div style={{marginBottom: '0.25rem'}}>🔄 Checking inventory</div>
+                            <div style={{opacity: 0.5}}>⏳ Organizing categories</div>
+                        </div>
+
+                        {/* Cancel button */}
+                        <button
+                            onClick={() => {
+                                setShowShoppingList(false);
+                                setShoppingListData(null);
+                                setLoadingShoppingList(false);
+                            }}
+                            style={{
+                                padding: '0.75rem 1.5rem',
+                                backgroundColor: '#f3f4f6',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '8px',
+                                cursor: 'pointer',
+                                fontSize: '0.875rem',
+                                fontWeight: '500',
+                                color: '#374151',
+                                transition: 'all 0.2s'
+                            }}
+                            onMouseOver={(e) => {
+                                e.target.style.backgroundColor = '#e5e7eb';
+                            }}
+                            onMouseOut={(e) => {
+                                e.target.style.backgroundColor = '#f3f4f6';
+                            }}
+                        >
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {/* SHOPPING LIST MODAL: Show when data is ready */}
             {showShoppingList && mealPlan && shoppingListData && !loadingShoppingList && (
                 <EnhancedAIShoppingListModal
-                    key={`shopping-modal-${mealPlan._id}-${shoppingListData.generatedAt}`} // Force re-render with unique key
+                    key={`shopping-modal-${mealPlan._id}-${shoppingListData.generatedAt}`}
                     isOpen={showShoppingList}
                     onClose={() => {
                         console.log('🔄 Closing shopping list modal');
@@ -3598,7 +3792,7 @@ export default function MealPlanningCalendar() {
                     // Modal configuration
                     title="🍽️ Meal Plan Shopping List"
                     subtitle={`Smart shopping for ${mealPlan.name}`}
-                    initialMode="enhanced"
+                    initialMode={priceIntelligence?.enabled ? 'unified' : 'enhanced'}
 
                     // Context
                     contextName={mealPlan.name}
