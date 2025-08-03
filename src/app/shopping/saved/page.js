@@ -128,9 +128,29 @@ export default function SavedShoppingListsPage() {
 
     const deleteSavedLists = async (listIds, archive = false) => {
         try {
-            const response = await apiDelete('/api/shopping/saved', { listIds, archive });
+            console.log('🗑️ Frontend - Starting delete request:', { listIds, archive });
+
+            // Ensure all IDs are strings
+            const cleanIds = listIds.map(id => id.toString());
+            console.log('🗑️ Frontend - Clean IDs:', cleanIds);
+
+            // Use direct fetch instead of apiDelete to ensure proper JSON handling
+            const response = await fetch('/api/shopping/saved', {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    listIds: cleanIds,
+                    archive: archive
+                })
+            });
+
+            console.log('🗑️ Frontend - Response status:', response.status);
+            console.log('🗑️ Frontend - Response headers:', Object.fromEntries(response.headers.entries()));
 
             const result = await response.json();
+            console.log('🗑️ Frontend - Response data:', result);
 
             if (!response.ok) {
                 throw new Error(result.error || 'Failed to delete lists');
@@ -139,9 +159,18 @@ export default function SavedShoppingListsPage() {
             setSelectedLists([]);
             fetchSavedLists();
 
+            // Show success message
+            showToast(
+                archive
+                    ? `Successfully archived ${cleanIds.length} list${cleanIds.length !== 1 ? 's' : ''}`
+                    : `Successfully deleted ${cleanIds.length} list${cleanIds.length !== 1 ? 's' : ''}`,
+                'success'
+            );
+
         } catch (error) {
-            console.error('Error deleting lists:', error);
+            console.error('🗑️ Frontend - Error deleting lists:', error);
             setError(error.message);
+            showToast('Failed to delete lists: ' + error.message, 'error');
         }
     };
 
