@@ -2444,7 +2444,6 @@ export default function EnhancedAIShoppingListModal({
 
     const config = getModeConfig();
     const stats = getStats();
-    const groupedItems = getGroupedItems();
 
     return (
         <>
