@@ -1,4 +1,4 @@
-// file: /src/lib/api-config.js v1 - Simple session injection without global fetch override
+// file: /src/lib/api-config.js v2 - Fixed apiDelete function to handle request bodies properly
 
 import { Capacitor } from '@capacitor/core';
 
@@ -111,13 +111,26 @@ export async function apiPut(endpoint, data, options = {}) {
     });
 }
 
-export async function apiDelete(endpoint, options = {}) {
+// FIXED: apiDelete now properly handles request bodies like apiPost and apiPut
+export async function apiDelete(endpoint, data = null, options = {}) {
     const url = getApiUrl(endpoint);
-    return fetchWithSession(url, {
+
+    const deleteOptions = {
         method: 'DELETE',
         credentials: 'include',
         ...options
-    });
+    };
+
+    // If data is provided, add JSON headers and serialize the body
+    if (data !== null && data !== undefined) {
+        deleteOptions.headers = {
+            'Content-Type': 'application/json',
+            ...deleteOptions.headers
+        };
+        deleteOptions.body = JSON.stringify(data);
+    }
+
+    return fetchWithSession(url, deleteOptions);
 }
 
 export async function getRecipeUrl(recipeId) {
