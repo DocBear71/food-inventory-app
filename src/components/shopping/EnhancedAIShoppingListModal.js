@@ -585,45 +585,141 @@ export default function EnhancedAIShoppingListModal({
         }
     }, [session?.user?.id, currentShoppingList?.items, getAISmartSuggestions]);
 
-    // Item and category management (keeping working version)
+    // FIXED: handleMoveItemToCategory function with proper item removal
     const handleMoveItemToCategory = useCallback(async (item, fromCategory, toCategory) => {
-        if (fromCategory === toCategory) return;
+        if (fromCategory === toCategory) {
+            console.log('⚠️ Source and destination categories are the same, no move needed');
+            return;
+        }
 
-        console.log(`🔄 Moving ${item.ingredient || item.name} from ${fromCategory} to ${toCategory}`);
+        console.log(`🔄 Moving "${item.ingredient || item.name}" from "${fromCategory}" to "${toCategory}"`);
 
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
 
-        // Remove from source category
+        // STEP 1: Remove from source category with better matching
         if (updatedItems[fromCategory]) {
-            updatedItems[fromCategory] = updatedItems[fromCategory].filter(
-                listItem => {
-                    const itemId = listItem.id || `${listItem.ingredient || listItem.name}`;
-                    const moveItemId = item.id || `${item.ingredient || item.name}`;
-                    return itemId !== moveItemId;
-                }
-            );
+            const itemToMoveId = item.id || `${item.ingredient || item.name}-${fromCategory}`;
+            const itemToMoveName = (item.ingredient || item.name).toLowerCase().trim();
 
+            console.log(`🔍 Looking for item to remove: ID="${itemToMoveId}", Name="${itemToMoveName}"`);
+
+            const beforeCount = updatedItems[fromCategory].length;
+
+            updatedItems[fromCategory] = updatedItems[fromCategory].filter(listItem => {
+                // Try multiple matching strategies
+                const listItemId = listItem.id || `${listItem.ingredient || listItem.name}-${fromCategory}`;
+                const listItemName = (listItem.ingredient || listItem.name).toLowerCase().trim();
+
+                // Match by ID first, then by name, then by ingredient
+                const matchById = listItemId === itemToMoveId;
+                const matchByName = listItemName === itemToMoveName;
+                const matchByIngredient = (listItem.ingredient || '').toLowerCase().trim() === (item.ingredient || '').toLowerCase().trim();
+                const matchByOriginalName = (listItem.originalName || '').toLowerCase().trim() === (item.originalName || item.ingredient || item.name || '').toLowerCase().trim();
+
+                const isMatch = matchById || matchByName || matchByIngredient || matchByOriginalName;
+
+                if (isMatch) {
+                    console.log(`✅ Found matching item to remove:`, {
+                        listItemId,
+                        listItemName,
+                        matchType: matchById ? 'ID' : matchByName ? 'Name' : matchByIngredient ? 'Ingredient' : 'OriginalName'
+                    });
+                }
+
+                return !isMatch; // Keep items that DON'T match (remove the one that does match)
+            });
+
+            const afterCount = updatedItems[fromCategory].length;
+            const removedCount = beforeCount - afterCount;
+
+            console.log(`📊 Removal results: ${beforeCount} → ${afterCount} (removed ${removedCount} items)`);
+
+            // If no items were removed, try a more aggressive search
+            if (removedCount === 0) {
+                console.warn('⚠️ No items removed with standard matching, trying partial name matching...');
+
+                const partialNameMatch = (item.ingredient || item.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+
+                updatedItems[fromCategory] = updatedItems[fromCategory].filter(listItem => {
+                    const listItemPartial = (listItem.ingredient || listItem.name).toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const isPartialMatch = listItemPartial.includes(partialNameMatch) || partialNameMatch.includes(listItemPartial);
+
+                    if (isPartialMatch) {
+                        console.log(`✅ Found partial match for removal: "${listItem.ingredient || listItem.name}"`);
+                    }
+
+                    return !isPartialMatch;
+                });
+            }
+
+            // Remove empty categories
             if (updatedItems[fromCategory].length === 0) {
+                console.log(`🗑️ Removing empty category: ${fromCategory}`);
                 delete updatedItems[fromCategory];
             }
+        } else {
+            console.warn(`⚠️ Source category "${fromCategory}" not found in shopping list`);
         }
 
-        // Add to destination category
+        // STEP 2: Add to destination category
         if (!updatedItems[toCategory]) {
+            console.log(`📁 Creating new category: ${toCategory}`);
             updatedItems[toCategory] = [];
         }
 
-        const updatedItem = {...item, category: toCategory};
-        updatedItems[toCategory].push(updatedItem);
+        // Create the moved item with updated category
+        const movedItem = {
+            ...item,
+            category: toCategory,
+            id: item.id || `${item.ingredient || item.name}-${toCategory}`, // Update ID to reflect new category
+            itemKey: `${item.ingredient || item.name}-${toCategory}` // Update itemKey as well
+        };
 
+        // Check if item already exists in destination (prevent duplicates)
+        const existsInDestination = updatedItems[toCategory].some(existingItem => {
+            const existingName = (existingItem.ingredient || existingItem.name).toLowerCase().trim();
+            const movingName = (movedItem.ingredient || movedItem.name).toLowerCase().trim();
+            return existingName === movingName;
+        });
+
+        if (existsInDestination) {
+            console.warn(`⚠️ Item "${movedItem.ingredient || movedItem.name}" already exists in "${toCategory}", skipping add`);
+        } else {
+            updatedItems[toCategory].push(movedItem);
+            console.log(`✅ Added item to destination category "${toCategory}"`);
+        }
+
+        // STEP 3: Update the shopping list
         updatedShoppingList.items = updatedItems;
         setCurrentShoppingList(updatedShoppingList);
 
+        // STEP 4: Update purchased items state (move the purchased status)
+        const oldItemKey = `${item.ingredient || item.name}-${fromCategory}`;
+        const newItemKey = `${item.ingredient || item.name}-${toCategory}`;
+
+        setPurchasedItems(prev => {
+            const updated = {...prev};
+
+            // If the old item was purchased, transfer that status to the new location
+            if (updated[oldItemKey]) {
+                updated[newItemKey] = updated[oldItemKey];
+                delete updated[oldItemKey];
+                console.log(`📦 Transferred purchased status from "${oldItemKey}" to "${newItemKey}"`);
+            }
+
+            return updated;
+        });
+
+        // STEP 5: Save user preference and cleanup
         saveItemCategoryPreference(item.ingredient || item.name, toCategory);
         setMovingItem(null);
 
-        console.log('✅ Item moved successfully');
+        console.log(`✅ Item "${item.ingredient || item.name}" successfully moved from "${fromCategory}" to "${toCategory}"`);
+
+        // Provide haptic feedback
+        MobileHaptics?.success();
+
     }, [currentShoppingList, saveItemCategoryPreference]);
 
     // Smart Price Shopping List Functions
