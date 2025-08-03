@@ -1,10 +1,10 @@
-// file: /src/app/api/shopping/saved/route.js v1
+// file: /src/app/api/shopping/saved/route.js v2 - Fixed DELETE endpoint with enhanced error handling
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
-
 import connectDB from '@/lib/mongodb';
 import { SavedShoppingList, Recipe, MealPlan } from '@/lib/models';
+import { ObjectId } from 'mongodb';
 
 // GET - Fetch user's saved shopping lists
 export async function GET(request) {
@@ -66,7 +66,7 @@ export async function GET(request) {
         return NextResponse.json({
             success: true,
             lists: lists.map(list => ({
-                id: list._id,
+                id: list._id.toString(), // Ensure ID is always a string
                 name: list.name,
                 description: list.description,
                 listType: list.listType,
@@ -333,7 +333,7 @@ export async function POST(request) {
             success: true,
             message: 'Shopping list saved successfully',
             savedList: {
-                id: savedList._id,
+                id: savedList._id.toString(), // Ensure ID is always a string
                 name: savedList.name,
                 description: savedList.description,
                 listType: savedList.listType,
@@ -389,58 +389,225 @@ export async function POST(request) {
     }
 }
 
-// DELETE - Delete multiple saved lists
+// DELETE - Delete multiple saved lists (FIXED WITH ENHANCED ERROR HANDLING)
 export async function DELETE(request) {
+    console.log('🗑️ DELETE API - Starting delete request processing...');
+
     try {
         const session = await auth();
         if (!session?.user?.id) {
+            console.log('❌ DELETE API - Unauthorized access attempt');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
 
-        const { listIds, archive = false } = await request.json();
+        console.log('✅ DELETE API - User authenticated:', session.user.id);
 
-        if (!listIds || !Array.isArray(listIds) || listIds.length === 0) {
+        let requestData;
+        try {
+            requestData = await request.json();
+            console.log('📊 DELETE API - Request data received:', {
+                hasListIds: !!requestData.listIds,
+                listIdsType: typeof requestData.listIds,
+                isListIdsArray: Array.isArray(requestData.listIds),
+                listIdsCount: requestData.listIds?.length || 0,
+                archive: requestData.archive
+            });
+        } catch (parseError) {
+            console.error('❌ DELETE API - Failed to parse request JSON:', parseError);
             return NextResponse.json({
-                error: 'List IDs are required'
+                error: 'Invalid JSON in request body',
+                details: parseError.message
             }, { status: 400 });
         }
 
+        const { listIds, archive = false } = requestData;
+
+        // Enhanced validation
+        if (!listIds || !Array.isArray(listIds) || listIds.length === 0) {
+            console.error('❌ DELETE API - Invalid listIds:', {
+                hasListIds: !!listIds,
+                type: typeof listIds,
+                isArray: Array.isArray(listIds),
+                length: listIds?.length
+            });
+            return NextResponse.json({
+                error: 'List IDs are required and must be a non-empty array',
+                field: 'listIds',
+                received: {
+                    hasListIds: !!listIds,
+                    type: typeof listIds,
+                    isArray: Array.isArray(listIds),
+                    length: listIds?.length
+                }
+            }, { status: 400 });
+        }
+
+        // Validate each listId format
+        const invalidIds = [];
+        const validIds = [];
+
+        listIds.forEach((id, index) => {
+            if (!id || typeof id !== 'string') {
+                invalidIds.push({
+                    index,
+                    value: id,
+                    error: 'ID must be a non-empty string'
+                });
+                return;
+            }
+
+            // Check if it's a valid ObjectId format
+            try {
+                new ObjectId(id);
+                validIds.push(id);
+            } catch (objectIdError) {
+                invalidIds.push({
+                    index,
+                    value: id,
+                    error: 'Invalid ObjectId format'
+                });
+            }
+        });
+
+        if (invalidIds.length > 0) {
+            console.error(`❌ DELETE API - ${invalidIds.length} invalid IDs found:`, invalidIds);
+            return NextResponse.json({
+                error: `${invalidIds.length} invalid list IDs found`,
+                field: 'listIds',
+                invalidIds: invalidIds,
+                validIdsCount: validIds.length
+            }, { status: 400 });
+        }
+
+        console.log(`✅ DELETE API - All ${validIds.length} IDs validated successfully`);
+
+        // Connect to database
+        console.log('🔌 DELETE API - Connecting to database...');
         await connectDB();
+        console.log('✅ DELETE API - Database connected successfully');
+
+        // First, check if the lists exist and belong to the user
+        console.log('🔍 DELETE API - Checking list ownership...');
+        const existingLists = await SavedShoppingList.find({
+            _id: { $in: validIds },
+            userId: session.user.id
+        }).select('_id name listType');
+
+        console.log(`📊 DELETE API - Found ${existingLists.length} lists owned by user out of ${validIds.length} requested`);
+
+        if (existingLists.length === 0) {
+            console.log('❌ DELETE API - No lists found or user does not own any of the requested lists');
+            return NextResponse.json({
+                error: 'No lists found or you do not have permission to delete these lists',
+                requestedCount: validIds.length,
+                foundCount: 0
+            }, { status: 404 });
+        }
+
+        const existingIds = existingLists.map(list => list._id.toString());
 
         if (archive) {
+            console.log(`📦 DELETE API - Archiving ${existingIds.length} lists...`);
+
             // Archive instead of delete
             const result = await SavedShoppingList.updateMany(
                 {
-                    _id: { $in: listIds },
+                    _id: { $in: existingIds },
                     userId: session.user.id
                 },
                 {
-                    isArchived: true,
-                    updatedAt: new Date()
+                    $set: {
+                        isArchived: true,
+                        updatedAt: new Date()
+                    }
                 }
             );
+
+            console.log('✅ DELETE API - Archive operation completed:', {
+                matchedCount: result.matchedCount,
+                modifiedCount: result.modifiedCount,
+                acknowledged: result.acknowledged
+            });
 
             return NextResponse.json({
                 success: true,
                 message: `${result.modifiedCount} list(s) archived successfully`,
-                archivedCount: result.modifiedCount
+                operation: 'archive',
+                requestedCount: validIds.length,
+                foundCount: existingLists.length,
+                modifiedCount: result.modifiedCount,
+                archivedLists: existingLists.map(list => ({
+                    id: list._id,
+                    name: list.name,
+                    listType: list.listType
+                }))
             });
         } else {
+            console.log(`🗑️ DELETE API - Permanently deleting ${existingIds.length} lists...`);
+
             // Permanent delete
             const result = await SavedShoppingList.deleteMany({
-                _id: { $in: listIds },
+                _id: { $in: existingIds },
                 userId: session.user.id
+            });
+
+            console.log('✅ DELETE API - Delete operation completed:', {
+                deletedCount: result.deletedCount,
+                acknowledged: result.acknowledged
             });
 
             return NextResponse.json({
                 success: true,
                 message: `${result.deletedCount} list(s) deleted successfully`,
-                deletedCount: result.deletedCount
+                operation: 'delete',
+                requestedCount: validIds.length,
+                foundCount: existingLists.length,
+                deletedCount: result.deletedCount,
+                deletedLists: existingLists.map(list => ({
+                    id: list._id,
+                    name: list.name,
+                    listType: list.listType
+                }))
             });
         }
 
     } catch (error) {
-        console.error('Error deleting shopping lists:', error);
-        return NextResponse.json({ error: 'Failed to delete shopping lists' }, { status: 500 });
+        console.error('💥 DELETE API - Unexpected error:', {
+            name: error.name,
+            message: error.message,
+            stack: error.stack?.split('\n').slice(0, 5).join('\n') // Limit stack trace
+        });
+
+        // Check for specific MongoDB/Mongoose errors
+        if (error.name === 'CastError') {
+            return NextResponse.json({
+                error: 'Invalid ID format provided',
+                type: 'CastError',
+                details: 'One or more list IDs have invalid format'
+            }, { status: 400 });
+        }
+
+        if (error.name === 'MongoServerError' || error.name === 'MongoError') {
+            return NextResponse.json({
+                error: 'Database operation failed',
+                type: error.name,
+                details: process.env.NODE_ENV === 'development' ? error.message : 'Database error occurred'
+            }, { status: 500 });
+        }
+
+        if (error.name === 'ValidationError') {
+            return NextResponse.json({
+                error: 'Data validation failed',
+                type: 'ValidationError',
+                details: process.env.NODE_ENV === 'development' ? error.message : 'Invalid data provided'
+            }, { status: 400 });
+        }
+
+        // Generic error response
+        return NextResponse.json({
+            error: 'Internal server error occurred while deleting shopping lists',
+            type: error.name || 'UnknownError',
+            details: process.env.NODE_ENV === 'development' ? error.message : 'Contact support if this persists'
+        }, { status: 500 });
     }
 }
