@@ -27,9 +27,10 @@ function ImageCarousel({ images, alt, interval = 2000 }) {
                     key={index}
                     src={image}
                     alt={`${alt} ${index + 1}`}
-                    width={200}
-                    height={120}
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className={`rounded-lg ${index === currentIndex ? 'active' : 'inactive'}`}
+                    style={{ objectFit: 'cover' }}
                 />
             ))}
         </div>
@@ -159,7 +160,8 @@ export default function LandingPage() {
                     position: relative;
                     overflow: hidden;
                     border-radius: 0.5rem;
-                    height: 36rem; /* 36rem would be 144px, but 9rem (144px) matches other feature images */
+                    width: 100%;
+                    height: 120px; /* Match the height of single images in other feature cards */
                 }
 
                 .image-carousel img {
@@ -167,17 +169,20 @@ export default function LandingPage() {
                     position: absolute;
                     top: 0;
                     left: 0;
-                    width: 100%;
-                    height: 100%;
+                    width: 100% !important;
+                    height: 100% !important;
                     object-fit: cover;
+                    border-radius: 0.5rem;
                 }
 
                 .image-carousel img.active {
                     opacity: 1;
+                    z-index: 2;
                 }
 
                 .image-carousel img.inactive {
                     opacity: 0;
+                    z-index: 1;
                 }
 
                 .badge-positioning {
