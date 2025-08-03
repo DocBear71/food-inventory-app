@@ -5,7 +5,7 @@ import { auth } from '@/lib/auth';
 
 import connectDB from '@/lib/mongodb';
 import { Recipe, UserInventory, MealPlan } from '@/lib/models';
-import { CategoryUtils, suggestCategoryForItem, findBestCategoryMatch, getAllCategoryNames } from '@/lib/groceryCategories';
+import { CategoryUtils, findBestCategoryMatch, getAllCategoryNames, normalizeIngredientForCategorization } from '@/lib/groceryCategories';
 
 // UNIFIED: Use comprehensive ingredients matching from groceryCategories + enhanced variations
 const NEVER_MATCH_INGREDIENTS = [

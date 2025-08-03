@@ -843,7 +843,7 @@ export function getCategoriesBySection() {
  * ENHANCED: Comprehensive ingredient normalization that removes descriptive words
  * This is the key fix for your categorization issue
  */
-function normalizeIngredientForCategorization(ingredientName) {
+export function normalizeIngredientForCategorization(ingredientName) {
     if (!ingredientName || typeof ingredientName !== 'string') {
         return '';
     }
