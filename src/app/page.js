@@ -160,7 +160,7 @@ export default function LandingPage() {
                     overflow: hidden;
                     border-radius: 0.5rem;
                     width: 100%;
-                    aspect-ratio: 5/3; /* Same aspect ratio as width={200} height={120} */
+                    aspect-ratio: 4/3; /* More square ratio for better height */
                 }
 
                 .image-carousel img {
@@ -471,7 +471,7 @@ export default function LandingPage() {
                                 Scan barcodes from 80+ countries. Supports EAN-8, EAN-13, UPC-A, and GTIN-14 formats with automatic regional optimization.
                             </p>
                             <div className="bg-white rounded-xl p-4 shadow-sm">
-                                <div className="relative w-full" style={{ aspectRatio: '5/3' }}>
+                                <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
                                     <Image
                                         src="/images/barcode-scanning-demo.jpg"
                                         alt="Barcode Scanning"
@@ -515,7 +515,7 @@ export default function LandingPage() {
                                 Ask about nutrition information using natural voice commands. Get instant AI-powered analysis with comprehensive breakdowns for all recipe parts.
                             </p>
                             <div className="bg-white rounded-xl p-4 shadow-sm">
-                                <div className="relative w-full" style={{ aspectRatio: '5/3' }}>
+                                <div className="relative w-full" style={{ aspectRatio: '4/3' }}>
                                     <Image
                                         src="/images/voice-nutrition-demo.jpg"
                                         alt="Voice Analysis"
