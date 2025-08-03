@@ -401,16 +401,16 @@ function findBestInventoryMatch(ingredient, inventory) {
 
 // UNIFIED: Use groceryCategories for ingredient keys
 function createIngredientKey(ingredient) {
-    const normalized = normalizeIngredient(ingredient);
+    // Use the same normalization function from groceryCategories
+    const normalized = normalizeIngredientForCategorization(ingredient);
 
-    // Remove common descriptors
+    // Remove common descriptors (this logic can be simplified now)
     const cleaned = normalized
-        .replace(/\b(fresh|dried|minced|chopped|sliced|diced|whole|ground|crushed|grated|shredded|toasted|crumbled|cooked)\b/g, '')
-        .replace(/\b(small|medium|large|extra large)\b/g, '')
-        .replace(/\b(can|jar|bottle|bag|box|package)\b/g, '')
-        .replace(/\b(of|the|and|or|into|cut)\b/g, '')
+        .replace(/\b(of|the|and|or|into|cut|for|with|from|about)\b/g, '')
         .replace(/\s+/g, ' ')
         .trim();
+
+    console.log(`[INGREDIENT KEY] "${ingredient}" -> "${cleaned}"`);
 
     // ENHANCED: Use groceryCategories knowledge for better grouping
     // Pasta normalization
@@ -592,13 +592,15 @@ function combineIngredientAmounts(existing, newIngredient) {
     };
 }
 
-// UNIFIED: Use groceryCategories categorization system
+// UNIFIED: Use groceryCategories categorization system with enhanced preprocessing
 function categorizeIngredient(ingredientName) {
     if (!ingredientName || typeof ingredientName !== 'string') {
         return 'Other';
     }
 
-    // Use the unified category suggestion system from groceryCategories
+    console.log(`[CATEGORIZATION] Input ingredient: "${ingredientName}"`);
+
+    // Use the enhanced category suggestion system from groceryCategories
     const category = findBestCategoryMatch(ingredientName, 'Other');
 
     console.log(`[CATEGORIZATION] "${ingredientName}" -> "${category}"`);
