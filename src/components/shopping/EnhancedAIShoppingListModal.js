@@ -118,6 +118,7 @@ export default function EnhancedAIShoppingListModal({
     const [headerCollapsed, setHeaderCollapsed] = useState(false);
     const [footerCollapsed, setFooterCollapsed] = useState(false);
     const [initialized, setInitialized] = useState(false);
+    const [updateTrigger, setUpdateTrigger] = useState(0);
 
     // Helper functions - memoized to prevent re-creation
     const getAISuggestedCategory = useCallback((itemName) => {
@@ -1341,7 +1342,7 @@ export default function EnhancedAIShoppingListModal({
             generatedAt: currentShoppingList.generatedAt || new Date().toISOString(),
             recipes: currentShoppingList.recipes || []
         };
-    }, [currentShoppingList, getAISuggestedCategory, updateTrigger]);
+    }, [currentShoppingList, getAISuggestedCategory]);
 
     // Helper functions for rendering
     const getModeConfig = useCallback(() => {
@@ -2087,7 +2088,7 @@ export default function EnhancedAIShoppingListModal({
 
         return (
             <div
-                key={index}
+                key={`${index}-${item.id || itemKey}-${updateTrigger}`} // Include updateTrigger in key
                 style={{
                     display: 'flex',
                     alignItems: 'flex-start',
