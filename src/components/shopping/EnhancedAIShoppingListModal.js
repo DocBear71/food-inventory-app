@@ -277,38 +277,68 @@ export default function EnhancedAIShoppingListModal({
         return merged;
     }, [getAISuggestedCategory]);
 
-    // Initialize data
     const processInitialData = useCallback(() => {
         console.log('🔄 Processing initial data:', {
             hasShoppingList: !!shoppingList,
             initialItemsCount: initialItems.length,
-            initialized
+            initialized,
+            shoppingListStructure: shoppingList ? {
+                hasItems: !!shoppingList.items,
+                itemsType: typeof shoppingList.items,
+                isArray: Array.isArray(shoppingList.items),
+                itemsKeys: shoppingList.items ? Object.keys(shoppingList.items) : null,
+                sampleItem: shoppingList.items ? (
+                    Array.isArray(shoppingList.items) ? shoppingList.items[0] :
+                        Object.values(shoppingList.items)[0]?.[0]
+                ) : null
+            } : null
         });
 
-        if (initialized) return;
-
-        if (shoppingList) {
-            setCurrentShoppingList(shoppingList);
-            if (initialItems.length > 0) {
-                const mergedList = mergeShoppingLists(shoppingList, initialItems);
-                setCurrentShoppingList(mergedList);
-            }
-        } else if (initialItems.length > 0) {
-            const convertedList = convertSmartPriceToEnhanced(initialItems);
-            setCurrentShoppingList(convertedList);
-            setShoppingMode('smart-price');
+        if (initialized) {
+            console.log('⚠️ Already initialized, skipping processInitialData');
+            return;
         }
 
-        if (optimization) {
-            setPriceAnalysis({
-                totalSavings: optimization.totalSavings || 0,
-                bestDeals: optimization.bestDeals || optimization.dealAlerts || [],
-                priceAlerts: optimization.priceAlerts || [],
-                storeComparison: optimization.storeComparison || {}
+        try {
+            if (shoppingList) {
+                console.log('✅ Setting currentShoppingList from shoppingList prop');
+                setCurrentShoppingList(shoppingList);
+
+                if (initialItems.length > 0) {
+                    console.log('🔄 Merging with initial items');
+                    const mergedList = mergeShoppingLists(shoppingList, initialItems);
+                    setCurrentShoppingList(mergedList);
+                }
+            } else if (initialItems.length > 0) {
+                console.log('🔄 Converting initial items to shopping list');
+                const convertedList = convertSmartPriceToEnhanced(initialItems);
+                setCurrentShoppingList(convertedList);
+                setShoppingMode('smart-price');
+            } else {
+                console.log('⚠️ No shopping list or initial items provided');
+            }
+
+            if (optimization) {
+                console.log('🔧 Setting price analysis from optimization');
+                setPriceAnalysis({
+                    totalSavings: optimization.totalSavings || 0,
+                    bestDeals: optimization.bestDeals || optimization.dealAlerts || [],
+                    priceAlerts: optimization.priceAlerts || [],
+                    storeComparison: optimization.storeComparison || {}
+                });
+            }
+
+            setInitialized(true);
+            console.log('✅ Initial data processing complete');
+
+        } catch (error) {
+            console.error('❌ Error in processInitialData:', error);
+            console.error('🔍 Error details:', {
+                shoppingList,
+                initialItems,
+                optimization
             });
         }
-
-        setInitialized(true);
     }, [shoppingList, initialItems, optimization, initialized, convertSmartPriceToEnhanced, mergeShoppingLists]);
 
     // Load functions
@@ -1100,69 +1130,114 @@ export default function EnhancedAIShoppingListModal({
         }
     }, [currentShoppingList, getAISmartSuggestions]);
 
-    // Normalize shopping list data
+    // UPDATED: Enhanced normalizedList useMemo with comprehensive debugging
     const normalizedList = useMemo(() => {
-        if (!currentShoppingList) return {
-            items: {},
-            summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}
-        };
+        console.log('🔄 Re-computing normalized list...');
+        console.log('📊 Input currentShoppingList:', currentShoppingList);
+
+        if (!currentShoppingList) {
+            console.log('❌ No currentShoppingList provided');
+            return {
+                items: {},
+                summary: {totalItems: 0, needToBuy: 0, inInventory: 0, purchased: 0}
+            };
+        }
 
         let normalizedItems = {};
         let summary = currentShoppingList.summary || currentShoppingList.stats || {};
 
+        console.log('📋 Shopping list structure check:', {
+            hasItems: !!currentShoppingList.items,
+            itemsType: typeof currentShoppingList.items,
+            isArray: Array.isArray(currentShoppingList.items),
+            itemsKeys: currentShoppingList.items ? Object.keys(currentShoppingList.items) : 'none'
+        });
+
         if (currentShoppingList.items) {
             if (Array.isArray(currentShoppingList.items)) {
-                console.log('📋 Normalizing flat array of items');
+                console.log('📋 Processing flat array of items:', currentShoppingList.items.length);
+
                 currentShoppingList.items.forEach((item, index) => {
+                    console.log(`🔍 Processing item ${index}:`, item);
+
                     if (!item || typeof item !== 'object') {
                         console.warn(`⚠️ Skipping invalid item at index ${index}:`, item);
                         return;
                     }
 
+                    // Check for required fields
+                    const itemName = item.ingredient || item.name;
+                    if (!itemName) {
+                        console.warn(`⚠️ Skipping item without name at index ${index}:`, item);
+                        return;
+                    }
+
                     let category = item.category;
 
-                    // FIX: Handle numeric or invalid categories
+                    // FIX: Handle invalid categories more robustly
                     if (!category ||
                         typeof category === 'number' ||
-                        /^\d+$/.test(category) ||
+                        /^\d+$/.test(String(category)) ||
                         category === 'undefined' ||
-                        category === null) {
+                        category === null ||
+                        category.trim() === '') {
 
-                        category = getAISuggestedCategory(item.ingredient || item.name);
-                        console.log(`🔧 Fixed invalid category for "${item.ingredient || item.name}": ${category}`);
+                        console.log(`🔧 Fixing invalid category "${category}" for "${itemName}"`);
+                        category = getAISuggestedCategory(itemName);
+                        console.log(`🤖 AI suggested category: "${category}"`);
                     }
 
                     // Ensure category is a valid string
                     if (typeof category !== 'string' || category.trim() === '') {
+                        console.warn(`⚠️ Category still invalid after fix, using 'Other' for "${itemName}"`);
                         category = 'Other';
                     }
+
+                    // Create the normalized item
+                    const normalizedItem = {
+                        ...item,
+                        category,
+                        id: item.id || `normalized-${index}-${Date.now()}`,
+                        ingredient: itemName,
+                        name: itemName
+                    };
+
+                    console.log(`✅ Normalized item for category "${category}":`, normalizedItem);
 
                     if (!normalizedItems[category]) {
                         normalizedItems[category] = [];
                     }
-                    normalizedItems[category].push({
-                        ...item,
-                        category,
-                        id: item.id || `normalized-${index}-${Date.now()}`
-                    });
+                    normalizedItems[category].push(normalizedItem);
                 });
+
             } else if (typeof currentShoppingList.items === 'object' && currentShoppingList.items !== null) {
-                console.log('📂 Normalizing categorized items object');
+                console.log('📂 Processing categorized items object');
+
                 Object.entries(currentShoppingList.items).forEach(([category, categoryItems]) => {
+                    console.log(`🔍 Processing category "${category}" with items:`, categoryItems);
+
                     // FIX: Skip numeric categories completely
-                    if (/^\d+$/.test(category)) {
+                    if (/^\d+$/.test(String(category))) {
                         console.log(`🔧 Skipping numeric category: ${category}`);
+
+                        // Try to re-categorize items from numeric categories
                         if (Array.isArray(categoryItems)) {
-                            categoryItems.forEach(item => {
+                            categoryItems.forEach((item, itemIndex) => {
                                 if (item && typeof item === 'object' && (item.ingredient || item.name)) {
-                                    const properCategory = getAISuggestedCategory(item.ingredient || item.name);
+                                    const itemName = item.ingredient || item.name;
+                                    const properCategory = getAISuggestedCategory(itemName);
+
+                                    console.log(`🔧 Moving item "${itemName}" from numeric category "${category}" to "${properCategory}"`);
+
                                     if (!normalizedItems[properCategory]) {
                                         normalizedItems[properCategory] = [];
                                     }
                                     normalizedItems[properCategory].push({
                                         ...item,
                                         category: properCategory,
-                                        id: item.id || `fixed-${Date.now()}-${Math.random()}`
+                                        id: item.id || `fixed-${Date.now()}-${Math.random()}`,
+                                        ingredient: itemName,
+                                        name: itemName
                                     });
                                 }
                             });
@@ -1173,40 +1248,92 @@ export default function EnhancedAIShoppingListModal({
                     // Ensure valid category name
                     const validCategory = (typeof category === 'string' &&
                         category !== 'undefined' &&
-                        category.trim() !== '') ? category : 'Other';
+                        category.trim() !== '') ? category.trim() : 'Other';
+
+                    console.log(`📂 Processing valid category: "${validCategory}"`);
 
                     if (Array.isArray(categoryItems)) {
-                        normalizedItems[validCategory] = categoryItems.filter(item =>
-                            item && typeof item === 'object' && (item.ingredient || item.name)
-                        ).map(item => ({
-                            ...item,
-                            category: validCategory,
-                            id: item.id || `cat-${Date.now()}-${Math.random()}`
-                        }));
+                        console.log(`📦 Category "${validCategory}" has ${categoryItems.length} items`);
+
+                        const validItems = categoryItems.filter((item, itemIndex) => {
+                            const isValid = item &&
+                                typeof item === 'object' &&
+                                (item.ingredient || item.name);
+
+                            if (!isValid) {
+                                console.warn(`⚠️ Filtering out invalid item at index ${itemIndex} in category "${validCategory}":`, item);
+                            }
+
+                            return isValid;
+                        }).map((item, itemIndex) => {
+                            const normalizedItem = {
+                                ...item,
+                                category: validCategory,
+                                id: item.id || `cat-${Date.now()}-${Math.random()}`,
+                                ingredient: item.ingredient || item.name,
+                                name: item.ingredient || item.name
+                            };
+
+                            console.log(`✅ Normalized item ${itemIndex} in category "${validCategory}":`, normalizedItem);
+                            return normalizedItem;
+                        });
+
+                        if (validItems.length > 0) {
+                            normalizedItems[validCategory] = validItems;
+                        } else {
+                            console.warn(`⚠️ No valid items found in category "${validCategory}"`);
+                        }
+
                     } else if (categoryItems && typeof categoryItems === 'object' && (categoryItems.ingredient || categoryItems.name)) {
+                        // Single item in category
+                        console.log(`📦 Category "${validCategory}" has single item:`, categoryItems);
+
                         normalizedItems[validCategory] = [{
                             ...categoryItems,
                             category: validCategory,
-                            id: categoryItems.id || `single-${Date.now()}`
+                            id: categoryItems.id || `single-${Date.now()}`,
+                            ingredient: categoryItems.ingredient || categoryItems.name,
+                            name: categoryItems.ingredient || categoryItems.name
                         }];
+                    } else {
+                        console.warn(`⚠️ Invalid category items structure for "${validCategory}":`, categoryItems);
                     }
                 });
+            } else {
+                console.error('❌ Invalid items structure - not array or object:', currentShoppingList.items);
             }
+        } else {
+            console.warn('⚠️ No items found in currentShoppingList');
         }
 
         // Clean up empty categories
         Object.keys(normalizedItems).forEach(category => {
             if (!Array.isArray(normalizedItems[category]) || normalizedItems[category].length === 0) {
+                console.log(`🗑️ Removing empty category: ${category}`);
                 delete normalizedItems[category];
             }
         });
 
-        console.log('✅ Normalized categories:', Object.keys(normalizedItems));
+        const finalCategories = Object.keys(normalizedItems);
+        const totalItems = Object.values(normalizedItems).reduce((sum, items) => sum + items.length, 0);
+
+        console.log(`✅ Normalization complete:`, {
+            categories: finalCategories,
+            totalItems: totalItems,
+            categoriesWithCounts: Object.fromEntries(
+                Object.entries(normalizedItems).map(([cat, items]) => [cat, items.length])
+            )
+        });
+
+        // ADDITIONAL DEBUGGING: Log sample items from each category
+        Object.entries(normalizedItems).forEach(([category, items]) => {
+            console.log(`📦 Category "${category}" sample items:`, items.slice(0, 2));
+        });
 
         return {
             items: normalizedItems,
             summary: {
-                totalItems: summary.totalItems || 0,
+                totalItems: totalItems,
                 needToBuy: summary.needToBuy || 0,
                 inInventory: summary.inInventory || summary.alreadyHave || 0,
                 purchased: summary.purchased || 0
@@ -1214,7 +1341,7 @@ export default function EnhancedAIShoppingListModal({
             generatedAt: currentShoppingList.generatedAt || new Date().toISOString(),
             recipes: currentShoppingList.recipes || []
         };
-    }, [currentShoppingList, getAISuggestedCategory]);
+    }, [currentShoppingList, getAISuggestedCategory, updateTrigger]);
 
     // Helper functions for rendering
     const getModeConfig = useCallback(() => {
@@ -1281,8 +1408,17 @@ export default function EnhancedAIShoppingListModal({
         }
     }, [filter, addPurchasedStatus]);
 
-    const getGroupedItems = useCallback(() => {
+    const getGroupedItems = useMemo(() => {
+        console.log('🔄 Computing grouped items');
+        console.log('📊 Input data:', {
+            aiMode,
+            hasAiOptimization: !!aiOptimization,
+            normalizedListItems: normalizedList.items,
+            normalizedListKeys: Object.keys(normalizedList.items || {})
+        });
+
         if (aiMode === 'ai-optimized' && aiOptimization) {
+            console.log('🤖 Using AI-optimized grouping');
             return aiOptimization.optimizedRoute.reduce((grouped, section) => {
                 const sectionItems = [];
                 section.categories.forEach(category => {
@@ -1298,18 +1434,32 @@ export default function EnhancedAIShoppingListModal({
                 return grouped;
             }, {});
         } else {
+            console.log('📂 Using standard category grouping');
             const grouped = {};
 
             if (normalizedList.items && typeof normalizedList.items === 'object') {
                 Object.entries(normalizedList.items).forEach(([category, items]) => {
+                    console.log(`🔍 Processing category "${category}" with ${items?.length || 0} items`);
+
                     if (Array.isArray(items)) {
                         const filtered = getFilteredItems(items);
+                        console.log(`✅ Filtered category "${category}": ${filtered.length} items`);
+
                         if (filtered.length > 0) {
                             grouped[category] = filtered;
                         }
+                    } else {
+                        console.warn(`⚠️ Items in category "${category}" is not an array:`, items);
                     }
                 });
+            } else {
+                console.error('❌ normalizedList.items is not a valid object:', normalizedList.items);
             }
+
+            console.log('✅ Grouped items result:', {
+                categories: Object.keys(grouped),
+                totalItems: Object.values(grouped).reduce((sum, items) => sum + items.length, 0)
+            });
 
             return grouped;
         }
@@ -2236,6 +2386,19 @@ export default function EnhancedAIShoppingListModal({
             </div>
         );
     };
+
+    useEffect(() => {
+        console.log('🔄 currentShoppingList changed:', {
+            hasCurrentShoppingList: !!currentShoppingList,
+            type: typeof currentShoppingList,
+            structure: currentShoppingList ? {
+                hasItems: !!currentShoppingList.items,
+                itemsType: typeof currentShoppingList.items,
+                isArray: Array.isArray(currentShoppingList.items),
+                keys: currentShoppingList.items ? Object.keys(currentShoppingList.items) : null
+            } : null
+        });
+    }, [currentShoppingList]);
 
     // Early return if not open or no data
     if (!isOpen) {
