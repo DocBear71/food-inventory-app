@@ -160,7 +160,7 @@ export default function LandingPage() {
                     overflow: hidden;
                     border-radius: 0.5rem;
                     width: 100%;
-                    aspect-ratio: 3/2; /* Taller ratio for more image area */
+                    height: 200px;
                 }
 
                 .image-carousel img {
@@ -179,6 +179,15 @@ export default function LandingPage() {
 
                 .image-carousel img.inactive {
                     opacity: 0;
+                }
+
+                /* Make static images match the carousel height */
+                .feature-image-container {
+                    height: 200px;
+                    width: 100%;
+                    position: relative;
+                    overflow: hidden;
+                    border-radius: 0.5rem;
                 }
 
                 .badge-positioning {
@@ -471,7 +480,7 @@ export default function LandingPage() {
                                 Scan barcodes from 80+ countries. Supports EAN-8, EAN-13, UPC-A, and GTIN-14 formats with automatic regional optimization.
                             </p>
                             <div className="bg-white rounded-xl p-4 shadow-sm">
-                                <div className="relative w-full" style={{ aspectRatio: '3/2' }}>
+                                <div className="feature-image-container">
                                     <Image
                                         src="/images/barcode-scanning-demo.jpg"
                                         alt="Barcode Scanning"
@@ -515,7 +524,7 @@ export default function LandingPage() {
                                 Ask about nutrition information using natural voice commands. Get instant AI-powered analysis with comprehensive breakdowns for all recipe parts.
                             </p>
                             <div className="bg-white rounded-xl p-4 shadow-sm">
-                                <div className="relative w-full" style={{ aspectRatio: '3/2' }}>
+                                <div className="feature-image-container">
                                     <Image
                                         src="/images/voice-nutrition-demo.jpg"
                                         alt="Voice Analysis"
