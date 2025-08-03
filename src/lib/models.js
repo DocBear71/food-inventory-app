@@ -226,7 +226,6 @@ const NutritionSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-
 // Enhanced Extracted Image Schema
 const ExtractedImageSchema = new mongoose.Schema({
     data: { type: String, required: true },
@@ -342,8 +341,6 @@ const VideoMetadataSchema = new mongoose.Schema({
     }
 }, { _id: false });
 
-
-
 const RecipePhotoSchema = new mongoose.Schema({
     recipeId: {
         type: mongoose.Schema.Types.ObjectId,
@@ -426,7 +423,6 @@ RecipePhotoSchema.statics.getPrimaryPhoto = async function(recipeId) {
 RecipePhotoSchema.statics.getRecipePhotos = async function(recipeId) {
     return this.find({ recipeId }).sort({ isPrimary: -1, uploadedAt: -1 });
 };
-
 
 // NEW: Recipe Collection Schema - MISSING MODEL ADDED
 const RecipeCollectionSchema = new mongoose.Schema({
@@ -3267,8 +3263,6 @@ const UserInventorySchema = new mongoose.Schema({
     lastUpdated: {type: Date, default: Date.now}
 });
 
-
-
 // MAIN ENHANCED RECIPE SCHEMA with Multi-Part Support
 const RecipeSchema = new mongoose.Schema({
     title: { type: String, required: true },
@@ -3521,7 +3515,6 @@ const RecipeSchema = new mongoose.Schema({
     timestamps: true
 });
 
-
 // UPDATED: Pre-save middleware to update image flags
 RecipeSchema.pre('save', function(next) {
     if (this.isModified() && !this.isNew) {
@@ -3556,7 +3549,6 @@ RecipeSchema.pre('save', function(next) {
 
     next();
 });
-
 
 // === INDEXES FOR EFFICIENT QUERYING ===
 RecipeSchema.index({ createdBy: 1, createdAt: -1 });
@@ -3662,7 +3654,6 @@ RecipeSchema.statics.findAiTransformedRecipes = function() {
         ]
     });
 };
-
 
 // Ensure virtual fields are included in JSON output
 RecipeSchema.set('toJSON', { virtuals: true });
@@ -3800,7 +3791,6 @@ RecipeSchema.methods.isConvertedFromOriginal = function() {
     return this.originalMeasurementSystem && this.currentMeasurementSystem &&
         this.originalMeasurementSystem !== this.currentMeasurementSystem;
 };
-
 
 // NEW: Instance methods for image handling
 RecipeSchema.methods.hasVideoSource = function() {
@@ -3987,7 +3977,6 @@ RecipeSchema.statics.findByImageType = function(imageType = 'any') {
 RecipeSchema.statics.findByPlatform = function(platform) {
     return this.find({ 'videoMetadata.videoPlatform': platform });
 };
-
 
 // UPDATED: Daily Nutrition Log Schema with new meal types
 const DailyNutritionLogSchema = new mongoose.Schema({

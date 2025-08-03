@@ -1511,6 +1511,601 @@ export default function EnhancedAIShoppingListModal({
         MobileHaptics?.success();
     }, [getModeConfig, currentShoppingList?.items, selectedStore, sourceRecipeIds, sourceMealPlanId, onSave]);
 
+    // NEW: Item removal function
+    const handleRemoveItem = useCallback((itemToRemove, categoryName) => {
+        console.log(`🗑️ Removing item "${itemToRemove.ingredient || itemToRemove.name}" from category "${categoryName}"`);
+
+        const updatedShoppingList = {...currentShoppingList};
+        const updatedItems = {...updatedShoppingList.items};
+
+        if (updatedItems[categoryName]) {
+            // Remove the specific item from the category
+            updatedItems[categoryName] = updatedItems[categoryName].filter(item => {
+                const itemId = item.id || `${item.ingredient || item.name}-${item.category || categoryName}`;
+                const removeItemId = itemToRemove.id || `${itemToRemove.ingredient || itemToRemove.name}-${itemToRemove.category || categoryName}`;
+                return itemId !== removeItemId;
+            });
+
+            // If category is now empty, remove it entirely
+            if (updatedItems[categoryName].length === 0) {
+                delete updatedItems[categoryName];
+            }
+        }
+
+        updatedShoppingList.items = updatedItems;
+        setCurrentShoppingList(updatedShoppingList);
+
+        // Update purchased items state to remove the deleted item
+        const itemKey = itemToRemove.itemKey || `${itemToRemove.ingredient || itemToRemove.name}-${categoryName}`;
+        setPurchasedItems(prev => {
+            const updated = {...prev};
+            delete updated[itemKey];
+            return updated;
+        });
+
+        // Recalculate budget if in price mode
+        if (getModeConfig().showPriceFeatures) {
+            calculateBudgetTracking();
+        }
+
+        MobileHaptics?.light();
+        console.log(`✅ Item removed successfully`);
+    }, [currentShoppingList, getModeConfig, calculateBudgetTracking]);
+
+    const renderControls = () => (
+        <div style={{
+            padding: '0.5rem 1rem',
+            borderBottom: '1px solid #f3f4f6',
+            display: 'flex',
+            gap: '0.25rem',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            backgroundColor: '#f8fafc',
+            flexShrink: 0
+        }}>
+            {/* Filter Dropdown */}
+            <select
+                value={filter}
+                onChange={(e) => setFilter(e.target.value)}
+                disabled={editingCategories}
+                style={{
+                    padding: '0.375rem 0.5rem',
+                    border: '1px solid #d1d5db',
+                    borderRadius: '4px',
+                    fontSize: '0.75rem',
+                    backgroundColor: editingCategories ? '#f3f4f6' : 'white',
+                    flex: '1',
+                    minWidth: '80px',
+                    opacity: editingCategories ? 0.6 : 1
+                }}
+            >
+                <option value="all">All ({stats.totalItems})</option>
+                <option value="needToBuy">Need ({stats.needToBuy})</option>
+                <option value="inInventory">Have ({stats.inInventory})</option>
+                <option value="purchased">Bought ({stats.purchased})</option>
+            </select>
+
+            {/* Store Selection */}
+            <TouchEnhancedButton
+                onClick={() => setShowStoreSelector(true)}
+                disabled={editingCategories}
+                style={{
+                    backgroundColor: selectedStore ? '#059669' : '#6b7280',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '0.25rem 0.375rem',
+                    fontSize: '0.7rem',
+                    cursor: editingCategories ? 'not-allowed' : 'pointer',
+                    fontWeight: '500',
+                    opacity: editingCategories ? 0.6 : 1
+                }}
+            >
+                🏪 {selectedStore || 'Store'}
+            </TouchEnhancedButton>
+
+            {/* Smart Price Mode Controls */}
+            {config.showPriceFeatures && (
+                <>
+                    <TouchEnhancedButton
+                        onClick={() => setPriceMode('smart')}
+                        style={{
+                            padding: '0.25rem 0.375rem',
+                            fontSize: '0.7rem',
+                            fontWeight: '500',
+                            borderRadius: '4px',
+                            border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
+                            backgroundColor: priceMode === 'smart' ? '#2563eb' : 'white',
+                            color: priceMode === 'smart' ? 'white' : '#374151',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        🧠 Smart
+                    </TouchEnhancedButton>
+
+                    <TouchEnhancedButton
+                        onClick={() => setPriceMode('budget')}
+                        style={{
+                            padding: '0.25rem 0.375rem',
+                            fontSize: '0.7rem',
+                            fontWeight: '500',
+                            borderRadius: '4px',
+                            border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
+                            backgroundColor: priceMode === 'budget' ? '#059669' : 'white',
+                            color: priceMode === 'budget' ? 'white' : '#374151',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        💰 Budget
+                    </TouchEnhancedButton>
+
+                    <TouchEnhancedButton
+                        onClick={() => setPriceMode('deals')}
+                        style={{
+                            padding: '0.25rem 0.375rem',
+                            fontSize: '0.7rem',
+                            fontWeight: '500',
+                            borderRadius: '4px',
+                            border: priceMode === 'deals' ? 'none' : '1px solid #d1d5db',
+                            backgroundColor: priceMode === 'deals' ? '#7c3aed' : 'white',
+                            color: priceMode === 'deals' ? 'white' : '#374151',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        🎯 Deals
+                    </TouchEnhancedButton>
+
+                    {budgetTracking.limit && (
+                        <TouchEnhancedButton
+                            onClick={optimizeForBudget}
+                            disabled={loading}
+                            style={{
+                                padding: '0.25rem 0.375rem',
+                                fontSize: '0.7rem',
+                                backgroundColor: loading ? '#9ca3af' : '#f59e0b',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: loading ? 'not-allowed' : 'pointer',
+                                fontWeight: '500'
+                            }}
+                        >
+                            {loading ? '⏳' : '💡'} Optimize
+                        </TouchEnhancedButton>
+                    )}
+                </>
+            )}
+
+            {/* AI Optimization Button */}
+            <TouchEnhancedButton
+                onClick={async () => {
+                    if (smartSuggestions && smartSuggestions.length > 0) {
+                        setShowAiPanel(!showAiPanel);
+                    } else {
+                        setAiLoading(true);
+                        try {
+                            await autoTriggerAISuggestions();
+                        } finally {
+                            setAiLoading(false);
+                        }
+                    }
+                }}
+                disabled={aiLoading || editingCategories}
+                style={{
+                    backgroundColor: smartSuggestions?.length > 0 ? '#059669' : '#7c3aed',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '0.25rem 0.375rem',
+                    fontSize: '0.7rem',
+                    cursor: (aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
+                    fontWeight: '500',
+                    opacity: (aiLoading || editingCategories) ? 0.6 : 1
+                }}
+            >
+                {aiLoading ? '⏳ AI...' :
+                    smartSuggestions?.length > 0 ? `🧠 AI (${smartSuggestions.length})` : '🧠 Get AI'}
+            </TouchEnhancedButton>
+
+            {/* Category Management Toggle */}
+            <TouchEnhancedButton
+                onClick={() => setEditingCategories(!editingCategories)}
+                style={{
+                    backgroundColor: editingCategories ? '#dc2626' : '#f59e0b',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '0.25rem 0.375rem',
+                    fontSize: '0.7rem',
+                    cursor: 'pointer',
+                    fontWeight: '500'
+                }}
+            >
+                {editingCategories ? '✓ Done' : '📂 Categories'}
+            </TouchEnhancedButton>
+
+            {/* Voice Input Button */}
+            <TouchEnhancedButton
+                onClick={() => setShowVoiceInput(true)}
+                disabled={editingCategories}
+                style={{
+                    backgroundColor: '#3b82f6',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '4px',
+                    padding: '0.25rem 0.375rem',
+                    fontSize: '0.7rem',
+                    cursor: editingCategories ? 'not-allowed' : 'pointer',
+                    fontWeight: '500',
+                    opacity: editingCategories ? 0.6 : 1
+                }}
+            >
+                🎤 Voice
+            </TouchEnhancedButton>
+
+            {/* Quick Actions - REMOVED DUPLICATE MORE BUTTON */}
+            {!editingCategories && (
+                <>
+                    <TouchEnhancedButton
+                        onClick={markAllAsPurchased}
+                        style={{
+                            backgroundColor: '#8b5cf6',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '0.25rem 0.375rem',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        ✓ All
+                    </TouchEnhancedButton>
+                    <TouchEnhancedButton
+                        onClick={clearAllPurchased}
+                        style={{
+                            backgroundColor: '#6b7280',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '0.25rem 0.375rem',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        ✗ Clear
+                    </TouchEnhancedButton>
+
+                    {/* FIXED: Single More button that toggles expandable actions */}
+                    <TouchEnhancedButton
+                        onClick={() => setShowActions(!showActions)}
+                        style={{
+                            backgroundColor: showActions ? '#dc2626' : '#374151',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '0.25rem 0.375rem',
+                            fontSize: '0.7rem',
+                            cursor: 'pointer',
+                            fontWeight: '500'
+                        }}
+                    >
+                        {showActions ? '✗ Close' : '⋯ More'}
+                    </TouchEnhancedButton>
+                </>
+            )}
+        </div>
+    );
+
+    // ENHANCED: Item rendering with delete functionality
+    const renderShoppingItem = (item, index, category) => {
+        const itemKey = item.itemKey || `${item.ingredient || item.name}-${category}`;
+        const isPurchased = item.purchased;
+        const priceInfo = config.showPriceFeatures ? getItemPriceInfo(item.ingredient || item.name) : null;
+
+        return (
+            <div
+                key={index}
+                style={{
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '0.75rem',
+                    padding: '0.75rem',
+                    backgroundColor: isPurchased ? '#f0fdf4' :
+                        config.showPriceFeatures ? getItemStatusColor(item) : '#fafafa',
+                    borderRadius: '8px',
+                    border: '1px solid #e5e7eb',
+                    opacity: isPurchased ? 0.7 : 1,
+                    textDecoration: isPurchased ? 'line-through' : 'none'
+                }}
+            >
+                {/* Checkbox (hidden in edit mode) */}
+                {!editingCategories && (
+                    <input
+                        type="checkbox"
+                        checked={isPurchased}
+                        onChange={() => safeHandleItemToggle(itemKey)}
+                        style={{
+                            marginTop: '0.125rem',
+                            cursor: 'pointer',
+                            transform: 'scale(1.3)',
+                            accentColor: config.primaryColor
+                        }}
+                    />
+                )}
+
+                <div style={{flex: 1, minWidth: 0}}>
+                    <div style={{
+                        fontWeight: '500',
+                        color: '#374151',
+                        fontSize: '0.95rem',
+                        lineHeight: '1.4',
+                        marginBottom: '0.25rem'
+                    }}>
+                        {item.quantity && item.quantity !== 1 && `${item.quantity} `}
+                        {item.unit && `${item.unit} `}
+                        {item.ingredient || item.name}
+
+                        {/* Smart Price Status Badges */}
+                        {config.showPriceFeatures && (
+                            <>
+                                {item.dealStatus === 'deal' && (
+                                    <span style={{
+                                        marginLeft: '0.5rem',
+                                        padding: '0.125rem 0.375rem',
+                                        backgroundColor: '#dcfce7',
+                                        color: '#166534',
+                                        fontSize: '0.7rem',
+                                        borderRadius: '12px',
+                                        fontWeight: '500'
+                                    }}>
+                                        ON SALE 🎉
+                                    </span>
+                                )}
+                                {item.priceOptimized && (
+                                    <span style={{
+                                        marginLeft: '0.5rem',
+                                        padding: '0.125rem 0.375rem',
+                                        backgroundColor: '#dbeafe',
+                                        color: '#1e40af',
+                                        fontSize: '0.7rem',
+                                        borderRadius: '12px',
+                                        fontWeight: '500'
+                                    }}>
+                                        OPTIMIZED 💡
+                                    </span>
+                                )}
+                            </>
+                        )}
+                    </div>
+
+                    {/* Smart Price Quantity and Price Controls */}
+                    {config.showPriceFeatures && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.75rem',
+                            marginBottom: '0.5rem'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem'
+                            }}>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.1"
+                                    value={item.quantity || 1}
+                                    onChange={(e) => handleQuantityChange(item.id || itemKey, parseFloat(e.target.value))}
+                                    style={{
+                                        width: '3rem',
+                                        padding: '0.25rem',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px',
+                                        fontSize: '0.8rem',
+                                        textAlign: 'center'
+                                    }}
+                                />
+                                <span style={{
+                                    fontSize: '0.8rem',
+                                    color: '#6b7280'
+                                }}>
+                                    {item.unit || 'qty'}
+                                </span>
+                            </div>
+
+                            <div style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '0.25rem'
+                            }}>
+                                <span style={{
+                                    fontSize: '0.8rem',
+                                    color: '#6b7280'
+                                }}>$</span>
+                                <input
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={item.actualPrice || item.estimatedPrice || ''}
+                                    onChange={(e) => handlePriceUpdate(item.id || itemKey, e.target.value)}
+                                    placeholder="Price"
+                                    style={{
+                                        width: '4rem',
+                                        padding: '0.25rem',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px',
+                                        fontSize: '0.8rem',
+                                        textAlign: 'center'
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )}
+
+                    {/* Category Movement Controls OR Delete Button */}
+                    {editingCategories ? (
+                        <div style={{
+                            marginTop: '0.5rem',
+                            display: 'flex',
+                            gap: '0.5rem',
+                            alignItems: 'center',
+                            flexWrap: 'wrap'
+                        }}>
+                            <TouchEnhancedButton
+                                onClick={() => setMovingItem({
+                                    item,
+                                    fromCategory: category,
+                                    currentCategories: Object.keys(normalizedList.items)
+                                })}
+                                style={{
+                                    backgroundColor: '#3b82f6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.25rem 0.5rem',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                📦 Move to...
+                            </TouchEnhancedButton>
+
+                            {/* NEW: Delete Item Button - Only in category edit mode */}
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    if (window.confirm(`Remove "${item.ingredient || item.name}" from your shopping list?`)) {
+                                        handleRemoveItem(item, category);
+                                    }
+                                }}
+                                style={{
+                                    backgroundColor: '#dc2626',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.25rem 0.5rem',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                                title={`Remove ${item.ingredient || item.name} from list`}
+                            >
+                                🗑️ Remove
+                            </TouchEnhancedButton>
+
+                            {(() => {
+                                const suggested = getAISuggestedCategory(item.ingredient || item.name);
+                                if (suggested !== category && CategoryUtils.isValidCategory(suggested)) {
+                                    return (
+                                        <TouchEnhancedButton
+                                            onClick={() => handleMoveItemToCategory(item, category, suggested)}
+                                            style={{
+                                                backgroundColor: '#10b981',
+                                                color: 'white',
+                                                border: 'none',
+                                                borderRadius: '4px',
+                                                padding: '0.25rem 0.5rem',
+                                                fontSize: '0.7rem',
+                                                cursor: 'pointer',
+                                                fontWeight: '500'
+                                            }}
+                                            title={`AI suggests moving to ${suggested}`}
+                                        >
+                                            🤖 → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
+                                        </TouchEnhancedButton>
+                                    );
+                                }
+                                return null;
+                            })()}
+                        </div>
+                    ) : (
+                        /* NEW: Quick delete button for normal mode (swipe alternative) */
+                        <div style={{
+                            marginTop: '0.5rem',
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}>
+                            <div style={{flex: 1}}>
+                                {/* Inventory Status */}
+                                {item.inInventory && (
+                                    <div style={{
+                                        fontSize: '0.8rem',
+                                        color: '#16a34a',
+                                        backgroundColor: '#f0fdf4',
+                                        padding: '0.25rem 0.5rem',
+                                        borderRadius: '4px',
+                                        border: '1px solid #bbf7d0',
+                                        marginBottom: '0.5rem'
+                                    }}>
+                                        ✅ In inventory: {item.haveAmount || 'Available'}
+                                        {item.inventoryItem?.location &&
+                                            ` (${item.inventoryItem.location})`
+                                        }
+                                    </div>
+                                )}
+
+                                {/* Recipe References */}
+                                {item.recipes && item.recipes.length > 0 && (
+                                    <div style={{
+                                        fontSize: '0.7rem',
+                                        color: '#6b7280',
+                                        backgroundColor: '#f8fafc',
+                                        padding: '0.25rem 0.5rem',
+                                        borderRadius: '4px',
+                                        border: '1px solid #e2e8f0'
+                                    }}>
+                                        Used in: {item.recipes.join(', ')}
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Quick Delete Button - Always available in normal mode */}
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    if (window.confirm(`Remove "${item.ingredient || item.name}" from your shopping list?`)) {
+                                        handleRemoveItem(item, category);
+                                    }
+                                }}
+                                style={{
+                                    backgroundColor: '#f87171',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '50%',
+                                    width: '2rem',
+                                    height: '2rem',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    fontSize: '0.8rem',
+                                    marginLeft: '0.5rem',
+                                    flexShrink: 0,
+                                    opacity: 0.8,
+                                    transition: 'all 0.2s'
+                                }}
+                                title={`Remove ${item.ingredient || item.name}`}
+                                onMouseEnter={(e) => {
+                                    e.target.style.opacity = '1';
+                                    e.target.style.backgroundColor = '#dc2626';
+                                }}
+                                onMouseLeave={(e) => {
+                                    e.target.style.opacity = '0.8';
+                                    e.target.style.backgroundColor = '#f87171';
+                                }}
+                            >
+                                ×
+                            </TouchEnhancedButton>
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
     // Early return if not open or no data
     if (!isOpen) {
         return null;
@@ -1793,250 +2388,7 @@ export default function EnhancedAIShoppingListModal({
                     )}
 
                     {/* Enhanced Controls with Mode-Specific Features */}
-                    <div style={{
-                        padding: '0.5rem 1rem',
-                        borderBottom: '1px solid #f3f4f6',
-                        display: 'flex',
-                        gap: '0.25rem',
-                        alignItems: 'center',
-                        flexWrap: 'wrap',
-                        backgroundColor: '#f8fafc',
-                        flexShrink: 0
-                    }}>
-                        {/* Filter Dropdown */}
-                        <select
-                            value={filter}
-                            onChange={(e) => setFilter(e.target.value)}
-                            disabled={editingCategories}
-                            style={{
-                                padding: '0.375rem 0.5rem',
-                                border: '1px solid #d1d5db',
-                                borderRadius: '4px',
-                                fontSize: '0.75rem',
-                                backgroundColor: editingCategories ? '#f3f4f6' : 'white',
-                                flex: '1',
-                                minWidth: '80px',
-                                opacity: editingCategories ? 0.6 : 1
-                            }}
-                        >
-                            <option value="all">All ({stats.totalItems})</option>
-                            <option value="needToBuy">Need ({stats.needToBuy})</option>
-                            <option value="inInventory">Have ({stats.inInventory})</option>
-                            <option value="purchased">Bought ({stats.purchased})</option>
-                        </select>
-
-                        {/* Store Selection */}
-                        <TouchEnhancedButton
-                            onClick={() => setShowStoreSelector(true)}
-                            disabled={editingCategories}
-                            style={{
-                                backgroundColor: selectedStore ? '#059669' : '#6b7280',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.375rem',
-                                fontSize: '0.7rem',
-                                cursor: editingCategories ? 'not-allowed' : 'pointer',
-                                fontWeight: '500',
-                                opacity: editingCategories ? 0.6 : 1
-                            }}
-                        >
-                            🏪 {selectedStore || 'Store'}
-                        </TouchEnhancedButton>
-
-                        {/* Smart Price Mode Controls */}
-                        {config.showPriceFeatures && (
-                            <>
-                                <TouchEnhancedButton
-                                    onClick={() => setPriceMode('smart')}
-                                    style={{
-                                        padding: '0.25rem 0.375rem',
-                                        fontSize: '0.7rem',
-                                        fontWeight: '500',
-                                        borderRadius: '4px',
-                                        border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
-                                        backgroundColor: priceMode === 'smart' ? '#2563eb' : 'white',
-                                        color: priceMode === 'smart' ? 'white' : '#374151',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    🧠 Smart
-                                </TouchEnhancedButton>
-
-                                <TouchEnhancedButton
-                                    onClick={() => setPriceMode('budget')}
-                                    style={{
-                                        padding: '0.25rem 0.375rem',
-                                        fontSize: '0.7rem',
-                                        fontWeight: '500',
-                                        borderRadius: '4px',
-                                        border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
-                                        backgroundColor: priceMode === 'budget' ? '#059669' : 'white',
-                                        color: priceMode === 'budget' ? 'white' : '#374151',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    💰 Budget
-                                </TouchEnhancedButton>
-
-                                <TouchEnhancedButton
-                                    onClick={() => setPriceMode('deals')}
-                                    style={{
-                                        padding: '0.25rem 0.375rem',
-                                        fontSize: '0.7rem',
-                                        fontWeight: '500',
-                                        borderRadius: '4px',
-                                        border: priceMode === 'deals' ? 'none' : '1px solid #d1d5db',
-                                        backgroundColor: priceMode === 'deals' ? '#7c3aed' : 'white',
-                                        color: priceMode === 'deals' ? 'white' : '#374151',
-                                        cursor: 'pointer'
-                                    }}
-                                >
-                                    🎯 Deals
-                                </TouchEnhancedButton>
-
-                                {budgetTracking.limit && (
-                                    <TouchEnhancedButton
-                                        onClick={optimizeForBudget}
-                                        disabled={loading}
-                                        style={{
-                                            padding: '0.25rem 0.375rem',
-                                            fontSize: '0.7rem',
-                                            backgroundColor: loading ? '#9ca3af' : '#f59e0b',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            cursor: loading ? 'not-allowed' : 'pointer',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        {loading ? '⏳' : '💡'} Optimize
-                                    </TouchEnhancedButton>
-                                )}
-                            </>
-                        )}
-
-                        {/* AI Optimization Button - Enhanced AI modes */}
-                        <TouchEnhancedButton
-                            onClick={async () => {
-                                if (smartSuggestions && smartSuggestions.length > 0) {
-                                    // If we already have suggestions, just toggle the panel
-                                    setShowAiPanel(!showAiPanel);
-                                } else {
-                                    // If no suggestions, trigger AI
-                                    setAiLoading(true);
-                                    try {
-                                        await autoTriggerAISuggestions();
-                                    } finally {
-                                        setAiLoading(false);
-                                    }
-                                }
-                            }}
-                            disabled={aiLoading || editingCategories}
-                            style={{
-                                backgroundColor: smartSuggestions?.length > 0 ? '#059669' : '#7c3aed',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.375rem',
-                                fontSize: '0.7rem',
-                                cursor: (aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
-                                fontWeight: '500',
-                                opacity: (aiLoading || editingCategories) ? 0.6 : 1
-                            }}
-                        >
-                            {aiLoading ? '⏳ AI...' :
-                                smartSuggestions?.length > 0 ? `🧠 AI (${smartSuggestions.length})` : '🧠 Get AI'}
-                        </TouchEnhancedButton>
-
-                        {/* Category Management Toggle */}
-                        <TouchEnhancedButton
-                            onClick={() => setEditingCategories(!editingCategories)}
-                            style={{
-                                backgroundColor: editingCategories ? '#dc2626' : '#f59e0b',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.375rem',
-                                fontSize: '0.7rem',
-                                cursor: 'pointer',
-                                fontWeight: '500'
-                            }}
-                        >
-                            {editingCategories ? '✓ Done' : '📂 Categories'}
-                        </TouchEnhancedButton>
-
-                        {/* Voice Input Button */}
-                        <TouchEnhancedButton
-                            onClick={() => setShowVoiceInput(true)}
-                            disabled={editingCategories}
-                            style={{
-                                backgroundColor: '#3b82f6',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                padding: '0.25rem 0.375rem',
-                                fontSize: '0.7rem',
-                                cursor: editingCategories ? 'not-allowed' : 'pointer',
-                                fontWeight: '500',
-                                opacity: editingCategories ? 0.6 : 1
-                            }}
-                        >
-                            🎤 Voice
-                        </TouchEnhancedButton>
-
-                        {/* Quick Actions */}
-                        {!editingCategories && (
-                            <>
-                                <TouchEnhancedButton
-                                    onClick={markAllAsPurchased}
-                                    style={{
-                                        backgroundColor: '#8b5cf6',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    ✓ All
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={clearAllPurchased}
-                                    style={{
-                                        backgroundColor: '#6b7280',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    ✗ Clear
-                                </TouchEnhancedButton>
-
-                                <TouchEnhancedButton
-                                    onClick={() => setShowActions(!showActions)}
-                                    style={{
-                                        backgroundColor: '#374151',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        padding: '0.25rem 0.375rem',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    {showActions ? '⌄ Less' : '⋯ More'}
-                                </TouchEnhancedButton>
-                            </>
-                        )}
-                    </div>
+                    {renderControls()}
 
                     {/* Category Management Instructions */}
                     {editingCategories && (
@@ -2647,245 +2999,7 @@ export default function EnhancedAIShoppingListModal({
                                             </span>
                                         </h3>
                                         <div style={{display: 'flex', flexDirection: 'column', gap: '0.75rem'}}>
-                                            {items.map((item, index) => {
-                                                const itemKey = item.itemKey || `${item.ingredient || item.name}-${category}`;
-                                                const isPurchased = item.purchased;
-                                                const priceInfo = config.showPriceFeatures ? getItemPriceInfo(item.ingredient || item.name) : null;
-
-                                                return (
-                                                    <div
-                                                        key={index}
-                                                        style={{
-                                                            display: 'flex',
-                                                            alignItems: 'flex-start',
-                                                            gap: '0.75rem',
-                                                            padding: '0.75rem',
-                                                            backgroundColor: isPurchased ? '#f0fdf4' :
-                                                                config.showPriceFeatures ? getItemStatusColor(item) : '#fafafa',
-                                                            borderRadius: '8px',
-                                                            border: '1px solid #e5e7eb',
-                                                            opacity: isPurchased ? 0.7 : 1,
-                                                            textDecoration: isPurchased ? 'line-through' : 'none'
-                                                        }}
-                                                    >
-                                                        {/* Checkbox (hidden in edit mode) */}
-                                                        {!editingCategories && (
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={isPurchased}
-                                                                onChange={() => safeHandleItemToggle(itemKey)}
-                                                                style={{
-                                                                    marginTop: '0.125rem',
-                                                                    cursor: 'pointer',
-                                                                    transform: 'scale(1.3)',
-                                                                    accentColor: config.primaryColor
-                                                                }}
-                                                            />
-                                                        )}
-
-                                                        <div style={{flex: 1, minWidth: 0}}>
-                                                            <div style={{
-                                                                fontWeight: '500',
-                                                                color: '#374151',
-                                                                fontSize: '0.95rem',
-                                                                lineHeight: '1.4',
-                                                                marginBottom: '0.25rem'
-                                                            }}>
-                                                                {item.quantity && item.quantity !== 1 && `${item.quantity} `}
-                                                                {item.unit && `${item.unit} `}
-                                                                {item.ingredient || item.name}
-
-                                                                {/* Smart Price Status Badges */}
-                                                                {config.showPriceFeatures && (
-                                                                    <>
-                                                                        {item.dealStatus === 'deal' && (
-                                                                            <span style={{
-                                                                                marginLeft: '0.5rem',
-                                                                                padding: '0.125rem 0.375rem',
-                                                                                backgroundColor: '#dcfce7',
-                                                                                color: '#166534',
-                                                                                fontSize: '0.7rem',
-                                                                                borderRadius: '12px',
-                                                                                fontWeight: '500'
-                                                                            }}>
-                                                                                ON SALE 🎉
-                                                                            </span>
-                                                                        )}
-                                                                        {item.priceOptimized && (
-                                                                            <span style={{
-                                                                                marginLeft: '0.5rem',
-                                                                                padding: '0.125rem 0.375rem',
-                                                                                backgroundColor: '#dbeafe',
-                                                                                color: '#1e40af',
-                                                                                fontSize: '0.7rem',
-                                                                                borderRadius: '12px',
-                                                                                fontWeight: '500'
-                                                                            }}>
-                                                                                OPTIMIZED 💡
-                                                                            </span>
-                                                                        )}
-                                                                    </>
-                                                                )}
-                                                            </div>
-
-                                                            {/* Smart Price Quantity and Price Controls */}
-                                                            {config.showPriceFeatures && (
-                                                                <div style={{
-                                                                    display: 'flex',
-                                                                    alignItems: 'center',
-                                                                    gap: '0.75rem',
-                                                                    marginBottom: '0.5rem'
-                                                                }}>
-                                                                    <div style={{
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '0.25rem'
-                                                                    }}>
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            step="0.1"
-                                                                            value={item.quantity || 1}
-                                                                            onChange={(e) => handleQuantityChange(item.id || itemKey, parseFloat(e.target.value))}
-                                                                            style={{
-                                                                                width: '3rem',
-                                                                                padding: '0.25rem',
-                                                                                border: '1px solid #d1d5db',
-                                                                                borderRadius: '4px',
-                                                                                fontSize: '0.8rem',
-                                                                                textAlign: 'center'
-                                                                            }}
-                                                                        />
-                                                                        <span style={{
-                                                                            fontSize: '0.8rem',
-                                                                            color: '#6b7280'
-                                                                        }}>
-                                                                            {item.unit || 'qty'}
-                                                                        </span>
-                                                                    </div>
-
-                                                                    <div style={{
-                                                                        display: 'flex',
-                                                                        alignItems: 'center',
-                                                                        gap: '0.25rem'
-                                                                    }}>
-                                                                        <span style={{
-                                                                            fontSize: '0.8rem',
-                                                                            color: '#6b7280'
-                                                                        }}>$</span>
-                                                                        <input
-                                                                            type="number"
-                                                                            min="0"
-                                                                            step="0.01"
-                                                                            value={item.actualPrice || item.estimatedPrice || ''}
-                                                                            onChange={(e) => handlePriceUpdate(item.id || itemKey, e.target.value)}
-                                                                            placeholder="Price"
-                                                                            style={{
-                                                                                width: '4rem',
-                                                                                padding: '0.25rem',
-                                                                                border: '1px solid #d1d5db',
-                                                                                borderRadius: '4px',
-                                                                                fontSize: '0.8rem',
-                                                                                textAlign: 'center'
-                                                                            }}
-                                                                        />
-                                                                    </div>
-                                                                </div>
-                                                            )}
-
-                                                            {/* Category Movement Controls */}
-                                                            {editingCategories && (
-                                                                <div style={{
-                                                                    marginTop: '0.5rem',
-                                                                    display: 'flex',
-                                                                    gap: '0.5rem',
-                                                                    alignItems: 'center',
-                                                                    flexWrap: 'wrap'
-                                                                }}>
-                                                                    <TouchEnhancedButton
-                                                                        onClick={() => setMovingItem({
-                                                                            item,
-                                                                            fromCategory: category,
-                                                                            currentCategories: Object.keys(normalizedList.items)
-                                                                        })}
-                                                                        style={{
-                                                                            backgroundColor: '#3b82f6',
-                                                                            color: 'white',
-                                                                            border: 'none',
-                                                                            borderRadius: '4px',
-                                                                            padding: '0.25rem 0.5rem',
-                                                                            fontSize: '0.7rem',
-                                                                            cursor: 'pointer',
-                                                                            fontWeight: '500'
-                                                                        }}
-                                                                    >
-                                                                        📦 Move to...
-                                                                    </TouchEnhancedButton>
-
-                                                                    {(() => {
-                                                                        const suggested = getAISuggestedCategory(item.ingredient || item.name);
-                                                                        if (suggested !== category && CategoryUtils.isValidCategory(suggested)) {
-                                                                            return (
-                                                                                <TouchEnhancedButton
-                                                                                    onClick={() => handleMoveItemToCategory(item, category, suggested)}
-                                                                                    style={{
-                                                                                        backgroundColor: '#10b981',
-                                                                                        color: 'white',
-                                                                                        border: 'none',
-                                                                                        borderRadius: '4px',
-                                                                                        padding: '0.25rem 0.5rem',
-                                                                                        fontSize: '0.7rem',
-                                                                                        cursor: 'pointer',
-                                                                                        fontWeight: '500'
-                                                                                    }}
-                                                                                    title={`AI suggests moving to ${suggested}`}
-                                                                                >
-                                                                                    🤖
-                                                                                    → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
-                                                                                </TouchEnhancedButton>
-                                                                            );
-                                                                        }
-                                                                        return null;
-                                                                    })()}
-                                                                </div>
-                                                            )}
-
-                                                            {/* Inventory Status */}
-                                                            {item.inInventory && (
-                                                                <div style={{
-                                                                    fontSize: '0.8rem',
-                                                                    color: '#16a34a',
-                                                                    backgroundColor: '#f0fdf4',
-                                                                    padding: '0.25rem 0.5rem',
-                                                                    borderRadius: '4px',
-                                                                    marginTop: '0.5rem',
-                                                                    border: '1px solid #bbf7d0'
-                                                                }}>
-                                                                    ✅ In inventory: {item.haveAmount || 'Available'}
-                                                                    {item.inventoryItem?.location &&
-                                                                        ` (${item.inventoryItem.location})`
-                                                                    }
-                                                                </div>
-                                                            )}
-
-                                                            {/* Recipe References */}
-                                                            {item.recipes && item.recipes.length > 0 && (
-                                                                <div style={{
-                                                                    fontSize: '0.7rem',
-                                                                    color: '#6b7280',
-                                                                    backgroundColor: '#f8fafc',
-                                                                    padding: '0.25rem 0.5rem',
-                                                                    borderRadius: '4px',
-                                                                    marginTop: '0.5rem',
-                                                                    border: '1px solid #e2e8f0'
-                                                                }}>
-                                                                    Used in: {item.recipes.join(', ')}
-                                                                </div>
-                                                            )}
-                                                        </div>
-                                                    </div>
-                                                );
-                                            })}
+                                            {items.map((item, index) => renderShoppingItem(item, index, category))}
                                         </div>
                                     </div>
                                 ))}
