@@ -1,4 +1,4 @@
-// file: /src/app/api/shopping/generate/route.js v41 - UNIFIED with groceryCategories.js
+// file: /src/app/api/shopping/generate/route.js v42 - FIXED MongoDB connection issue
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
@@ -659,9 +659,12 @@ function checkInventoryCoverage(neededAmount, inventoryItem, packageInfo) {
     return false;
 }
 
-// Function to extract recipe IDs from meal plan
+// FIXED: Function to extract recipe IDs from meal plan - now properly awaits DB connection
 async function getRecipeIdsFromMealPlan(mealPlanId) {
     try {
+        // Ensure DB connection is established
+        await connectDB();
+
         const mealPlan = await MealPlan.findById(mealPlanId);
         if (!mealPlan) {
             throw new Error('Meal plan not found');
@@ -695,11 +698,15 @@ export async function POST(request) {
 
         const { recipeIds: providedRecipeIds, mealPlanId } = await request.json();
 
+        // FIXED: Establish DB connection BEFORE any database operations
+        await connectDB();
+
         let recipeIds = providedRecipeIds;
 
         if (mealPlanId) {
             console.log('Processing meal plan:', mealPlanId);
             try {
+                // DB connection is already established above
                 recipeIds = await getRecipeIdsFromMealPlan(mealPlanId);
                 console.log('Extracted recipe IDs from meal plan:', recipeIds);
             } catch (error) {
@@ -715,8 +722,6 @@ export async function POST(request) {
                 error: 'Recipe IDs are required'
             }, { status: 400 });
         }
-
-        await connectDB();
 
         const recipes = await Recipe.find({
             _id: { $in: recipeIds }
