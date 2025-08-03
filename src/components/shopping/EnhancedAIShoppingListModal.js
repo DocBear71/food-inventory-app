@@ -3147,7 +3147,7 @@ export default function EnhancedAIShoppingListModal({
                                 <TouchEnhancedButton
                                     onClick={() => {
                                         const textContent = `Shopping List - ${config.title}\n\n` +
-                                            Object.entries(groupedItems)
+                                            Object.entries(getGroupedItems)
                                                 .map(([category, items]) => {
                                                     const categoryItems = items.map(item => {
                                                         const checkbox = item.purchased ? '☑' : '☐';
@@ -3229,7 +3229,7 @@ export default function EnhancedAIShoppingListModal({
                         backgroundColor: 'white',
                         minHeight: 0
                     }}>
-                        {Object.keys(groupedItems).length === 0 ? (
+                        {Object.keys(getGroupedItems).length === 0 ? (
                             <div style={{
                                 textAlign: 'center',
                                 padding: '2rem 1rem',
@@ -3265,7 +3265,7 @@ export default function EnhancedAIShoppingListModal({
                             </div>
                         ) : (
                             <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
-                                {Object.entries(groupedItems).map(([category, items]) => (
+                                {Object.entries(getGroupedItems).map(([category, items]) => (
                                     <div key={category}>
                                         <h3 style={{
                                             fontSize: '1rem',
@@ -4378,7 +4378,7 @@ export default function EnhancedAIShoppingListModal({
                         <TouchEnhancedButton
                             onClick={() => {
                                 const textContent = `Shopping List - ${config.title}\n\n` +
-                                    Object.entries(groupedItems)
+                                    Object.entries(getGroupedItems)
                                         .map(([category, items]) => {
                                             const categoryItems = items.map(item => {
                                                 const checkbox = item.purchased ? '☑' : '☐';
