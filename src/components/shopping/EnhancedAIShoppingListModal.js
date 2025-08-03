@@ -1607,45 +1607,80 @@ export default function EnhancedAIShoppingListModal({
         MobileHaptics?.success();
     }, [getModeConfig, currentShoppingList?.items, selectedStore, sourceRecipeIds, sourceMealPlanId, onSave]);
 
-    // NEW: Item removal function
+    // FIXED: handleRemoveItem function with proper state updates and re-rendering
     const handleRemoveItem = useCallback((itemToRemove, categoryName) => {
         console.log(`🗑️ Removing item "${itemToRemove.ingredient || itemToRemove.name}" from category "${categoryName}"`);
 
-        const updatedShoppingList = {...currentShoppingList};
+        // CRITICAL FIX: Create completely new objects to trigger React re-render
+        const updatedShoppingList = JSON.parse(JSON.stringify(currentShoppingList)); // Deep clone
         const updatedItems = {...updatedShoppingList.items};
 
         if (updatedItems[categoryName]) {
+            const beforeCount = updatedItems[categoryName].length;
+
             // Remove the specific item from the category
             updatedItems[categoryName] = updatedItems[categoryName].filter(item => {
                 const itemId = item.id || `${item.ingredient || item.name}-${item.category || categoryName}`;
                 const removeItemId = itemToRemove.id || `${itemToRemove.ingredient || itemToRemove.name}-${itemToRemove.category || categoryName}`;
-                return itemId !== removeItemId;
+
+                // Also check by ingredient/name for extra safety
+                const itemName = (item.ingredient || item.name).toLowerCase().trim();
+                const removeItemName = (itemToRemove.ingredient || itemToRemove.name).toLowerCase().trim();
+
+                const shouldRemove = itemId === removeItemId || itemName === removeItemName;
+
+                if (shouldRemove) {
+                    console.log(`✅ Found and removing item: "${item.ingredient || item.name}"`);
+                }
+
+                return !shouldRemove;
             });
+
+            const afterCount = updatedItems[categoryName].length;
+            console.log(`📊 Item removal: ${beforeCount} → ${afterCount} items in "${categoryName}"`);
 
             // If category is now empty, remove it entirely
             if (updatedItems[categoryName].length === 0) {
                 delete updatedItems[categoryName];
+                console.log(`🗑️ Removed empty category: ${categoryName}`);
             }
+        } else {
+            console.warn(`⚠️ Category "${categoryName}" not found in shopping list`);
+            return; // Exit early if category doesn't exist
         }
 
+        // CRITICAL FIX: Update items first, then the shopping list
         updatedShoppingList.items = updatedItems;
-        setCurrentShoppingList(updatedShoppingList);
+
+        // Force a complete re-render by setting state to null first, then the new state
+        setCurrentShoppingList(null);
+
+        // Use setTimeout to ensure the null state is processed before setting the new state
+        setTimeout(() => {
+            setCurrentShoppingList(updatedShoppingList);
+            console.log(`✅ Shopping list state updated - ${Object.keys(updatedItems).length} categories remaining`);
+        }, 0);
 
         // Update purchased items state to remove the deleted item
         const itemKey = itemToRemove.itemKey || `${itemToRemove.ingredient || itemToRemove.name}-${categoryName}`;
         setPurchasedItems(prev => {
             const updated = {...prev};
             delete updated[itemKey];
+            console.log(`🗑️ Removed purchased status for: ${itemKey}`);
             return updated;
         });
 
         // Recalculate budget if in price mode
-        if (getModeConfig().showPriceFeatures) {
-            calculateBudgetTracking();
+        const config = getModeConfig();
+        if (config.showPriceFeatures) {
+            // Delay budget calculation to ensure state is updated
+            setTimeout(() => {
+                calculateBudgetTracking();
+            }, 100);
         }
 
         MobileHaptics?.light();
-        console.log(`✅ Item removed successfully`);
+        console.log(`✅ Item "${itemToRemove.ingredient || itemToRemove.name}" successfully removed`);
     }, [currentShoppingList, getModeConfig, calculateBudgetTracking]);
 
     const renderControls = () => (
