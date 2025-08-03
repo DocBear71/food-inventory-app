@@ -600,12 +600,15 @@ function categorizeIngredient(ingredientName) {
 
     console.log(`[CATEGORIZATION] Input ingredient: "${ingredientName}"`);
 
-    // Use the enhanced category suggestion system from groceryCategories
-    const category = findBestCategoryMatch(ingredientName, 'Other');
-
-    console.log(`[CATEGORIZATION] "${ingredientName}" -> "${category}"`);
-
-    return category;
+    try {
+        // Use the enhanced category suggestion system from groceryCategories
+        const category = findBestCategoryMatch(ingredientName, 'Other');
+        console.log(`[CATEGORIZATION] "${ingredientName}" -> "${category}"`);
+        return category;
+    } catch (error) {
+        console.error(`[CATEGORIZATION] Error categorizing "${ingredientName}":`, error);
+        return 'Other';
+    }
 }
 
 // Check if inventory covers the needed amount
@@ -729,6 +732,24 @@ export async function POST(request) {
             _id: { $in: recipeIds }
         });
 
+        console.log('🔍 DEBUG: Recipe structure analysis');
+        recipes.forEach((recipe, index) => {
+            if (index < 2) { // Only log first 2 recipes to avoid spam
+                console.log(`Recipe ${index + 1}: ${recipe.title}`);
+                console.log('- hasIngredients:', !!recipe.ingredients);
+                console.log('- ingredientsType:', typeof recipe.ingredients);
+                console.log('- ingredientsLength:', recipe.ingredients?.length);
+                console.log('- isArray:', Array.isArray(recipe.ingredients));
+                console.log('- isMultiPart:', recipe.isMultiPart);
+                console.log('- hasParts:', !!recipe.parts);
+                console.log('- sampleIngredient:', recipe.ingredients?.[0]);
+                if (recipe.isMultiPart && recipe.parts) {
+                    console.log('- partsCount:', recipe.parts.length);
+                    console.log('- firstPartIngredients:', recipe.parts[0]?.ingredients?.length);
+                }
+            }
+        });
+
         if (recipes.length === 0) {
             return NextResponse.json({
                 error: 'No valid recipes found'
@@ -747,43 +768,95 @@ export async function POST(request) {
         // Enhanced ingredient aggregation with unified categorization
         const ingredientMap = new Map();
 
+        // ENHANCED: Better ingredient processing with debugging
         recipes.forEach((recipe, recipeIndex) => {
             console.log(`[SHOPPING API] Processing recipe ${recipeIndex + 1}/${recipes.length}: ${recipe.title}`);
 
-            if (!recipe.ingredients || !Array.isArray(recipe.ingredients)) {
-                console.log(`[SHOPPING API] Recipe ${recipe.title} has no ingredients array`);
+            // CRITICAL FIX: Check both single-part and multi-part recipe structures
+            let allRecipeIngredients = [];
+
+            // Handle single-part recipes (legacy format)
+            if (recipe.ingredients && Array.isArray(recipe.ingredients) && recipe.ingredients.length > 0) {
+                console.log(`[SHOPPING API] Found ${recipe.ingredients.length} single-part ingredients in ${recipe.title}`);
+                allRecipeIngredients = [...recipe.ingredients];
+            }
+
+            // Handle multi-part recipes (new format)
+            if (recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts)) {
+                console.log(`[SHOPPING API] Found multi-part recipe with ${recipe.parts.length} parts in ${recipe.title}`);
+                recipe.parts.forEach(part => {
+                    if (part.ingredients && Array.isArray(part.ingredients)) {
+                        console.log(`[SHOPPING API] Part "${part.name}" has ${part.ingredients.length} ingredients`);
+                        allRecipeIngredients.push(...part.ingredients);
+                    }
+                });
+            }
+
+            // DEBUGGING: Log the final ingredient count
+            console.log(`[SHOPPING API] Total ingredients for ${recipe.title}: ${allRecipeIngredients.length}`);
+
+            if (allRecipeIngredients.length === 0) {
+                console.log(`[SHOPPING API] ⚠️ Recipe ${recipe.title} has no ingredients - skipping`);
                 return;
             }
 
-            recipe.ingredients.forEach((ingredient, ingredientIndex) => {
+            // Process each ingredient
+            allRecipeIngredients.forEach((ingredient, ingredientIndex) => {
                 try {
-                    if (!ingredient || typeof ingredient !== 'object') {
-                        console.log(`[SHOPPING API] Invalid ingredient at index ${ingredientIndex} in recipe ${recipe.title}:`, ingredient);
+                    // ENHANCED: Better ingredient validation
+                    if (!ingredient) {
+                        console.log(`[SHOPPING API] ⚠️ Null ingredient at index ${ingredientIndex} in recipe ${recipe.title}`);
                         return;
                     }
 
-                    if (!ingredient.name || typeof ingredient.name !== 'string') {
-                        console.log(`[SHOPPING API] Ingredient missing name at index ${ingredientIndex} in recipe ${recipe.title}:`, ingredient);
+                    // Handle different ingredient formats
+                    let ingredientName;
+                    let ingredientAmount = '';
+                    let ingredientUnit = '';
+
+                    if (typeof ingredient === 'string') {
+                        // Simple string ingredient
+                        ingredientName = ingredient;
+                        console.log(`[SHOPPING API] Processing string ingredient: "${ingredientName}"`);
+                    } else if (typeof ingredient === 'object') {
+                        // Object ingredient
+                        ingredientName = ingredient.name || ingredient.ingredient;
+                        ingredientAmount = ingredient.amount || '';
+                        ingredientUnit = ingredient.unit || '';
+
+                        console.log(`[SHOPPING API] Processing object ingredient: "${ingredientName}" (${ingredientAmount} ${ingredientUnit})`);
+                    } else {
+                        console.log(`[SHOPPING API] ⚠️ Invalid ingredient type at index ${ingredientIndex} in recipe ${recipe.title}:`, typeof ingredient, ingredient);
                         return;
                     }
 
-                    const ingredientKey = createIngredientKey(ingredient.name);
+                    if (!ingredientName || typeof ingredientName !== 'string' || ingredientName.trim() === '') {
+                        console.log(`[SHOPPING API] ⚠️ Invalid ingredient name at index ${ingredientIndex} in recipe ${recipe.title}:`, ingredient);
+                        return;
+                    }
 
-                    console.log(`[SHOPPING API] Processing ingredient: "${ingredient.name}" -> key: "${ingredientKey}"`);
+                    // Clean the ingredient name
+                    const cleanedIngredientName = ingredientName.trim();
+                    const ingredientKey = createIngredientKey(cleanedIngredientName);
 
+                    console.log(`[SHOPPING API] ✅ Processing valid ingredient: "${cleanedIngredientName}" -> key: "${ingredientKey}"`);
+
+                    // FIXED: Ensure amounts are strings
                     let safeAmount = '';
-                    if (ingredient.amount !== null && ingredient.amount !== undefined) {
-                        safeAmount = String(ingredient.amount);
+                    if (ingredientAmount !== null && ingredientAmount !== undefined) {
+                        safeAmount = String(ingredientAmount).trim();
                     }
 
                     let safeUnit = '';
-                    if (ingredient.unit && typeof ingredient.unit === 'string') {
-                        safeUnit = ingredient.unit;
+                    if (ingredientUnit && typeof ingredientUnit === 'string') {
+                        safeUnit = ingredientUnit.trim();
                     }
 
-                    console.log(`Amount: "${safeAmount}", Unit: "${safeUnit}"`);
+                    console.log(`[SHOPPING API] Amounts - Amount: "${safeAmount}", Unit: "${safeUnit}"`);
 
+                    // Process ingredient (combine or add new)
                     if (ingredientMap.has(ingredientKey)) {
+                        // Combine with existing ingredient
                         const existing = ingredientMap.get(ingredientKey);
                         existing.recipes.push(recipe.title);
 
@@ -798,38 +871,86 @@ export async function POST(request) {
                         existing.amount = combinedAmounts.amount;
                         existing.unit = combinedAmounts.unit;
 
-                        if (ingredient.name.length > existing.name.length) {
-                            existing.name = ingredient.name;
-                            existing.originalName = ingredient.name;
+                        // Use the longer/more descriptive name
+                        if (cleanedIngredientName.length > existing.name.length) {
+                            existing.name = cleanedIngredientName;
+                            existing.originalName = cleanedIngredientName;
                         }
 
-                        console.log(`[SHOPPING API] Combined ingredient: ${existing.name} - ${existing.amount} ${existing.unit}`);
+                        console.log(`[SHOPPING API] ✅ Combined ingredient: ${existing.name} - ${existing.amount} ${existing.unit}`);
                     } else {
-                        // UNIFIED: Use groceryCategories categorization
-                        const category = categorizeIngredient(ingredient.name);
+                        // Add new ingredient
+                        // CRITICAL FIX: Use the enhanced categorization
+                        const category = categorizeIngredient(cleanedIngredientName);
 
-                        ingredientMap.set(ingredientKey, {
-                            name: ingredient.name,
-                            originalName: ingredient.name,
-                            normalizedName: normalizeIngredient(ingredient.name),
+                        const newIngredient = {
+                            name: cleanedIngredientName,
+                            originalName: cleanedIngredientName,
+                            normalizedName: normalizeIngredient(cleanedIngredientName),
                             amount: safeAmount,
                             unit: safeUnit,
                             category: category,
                             recipes: [recipe.title],
                             optional: ingredient.optional || false,
                             alternatives: ingredient.alternatives || [],
-                            variations: getIngredientVariations(ingredient.name),
+                            variations: getIngredientVariations(cleanedIngredientName),
                             ingredientKey: ingredientKey
-                        });
+                        };
 
-                        console.log(`[SHOPPING API] New ingredient: ${ingredient.name} - ${safeAmount} ${safeUnit} -> ${category}`);
+                        ingredientMap.set(ingredientKey, newIngredient);
+
+                        console.log(`[SHOPPING API] ✅ New ingredient added: ${cleanedIngredientName} - ${safeAmount} ${safeUnit} -> ${category}`);
                     }
+
                 } catch (ingredientError) {
-                    console.error(`[SHOPPING API] Error processing ingredient ${ingredientIndex} in recipe ${recipe.title}:`, ingredientError);
+                    console.error(`[SHOPPING API] ❌ Error processing ingredient ${ingredientIndex} in recipe ${recipe.title}:`, ingredientError);
                     console.error(`[SHOPPING API] Ingredient data:`, ingredient);
                 }
             });
+
+            console.log(`[SHOPPING API] ✅ Completed processing ${recipe.title} - Total ingredients in map: ${ingredientMap.size}`);
         });
+
+// DEBUGGING: Log final results before creating shopping list
+        console.log(`[SHOPPING API] 🎯 Final ingredient processing results:`);
+        console.log(`[SHOPPING API] - Total recipes processed: ${recipes.length}`);
+        console.log(`[SHOPPING API] - Total unique ingredients: ${ingredientMap.size}`);
+        console.log(`[SHOPPING API] - Ingredient map keys:`, Array.from(ingredientMap.keys()).slice(0, 10));
+
+        if (ingredientMap.size === 0) {
+            console.error(`[SHOPPING API] ❌ CRITICAL: No ingredients were processed from ${recipes.length} recipes!`);
+
+            // Debug the first recipe structure
+            if (recipes.length > 0) {
+                const firstRecipe = recipes[0];
+                console.error(`[SHOPPING API] 🔍 Debug first recipe structure:`, {
+                    title: firstRecipe.title,
+                    hasIngredients: !!firstRecipe.ingredients,
+                    ingredientsType: typeof firstRecipe.ingredients,
+                    ingredientsLength: firstRecipe.ingredients?.length,
+                    isMultiPart: firstRecipe.isMultiPart,
+                    hasParts: !!firstRecipe.parts,
+                    partsLength: firstRecipe.parts?.length,
+                    sampleIngredient: firstRecipe.ingredients?.[0] || (firstRecipe.parts?.[0]?.ingredients?.[0]),
+                    fullRecipe: firstRecipe
+                });
+            }
+
+            return NextResponse.json({
+                error: 'No ingredients could be processed from the provided recipes',
+                debug: {
+                    recipesFound: recipes.length,
+                    recipesTitles: recipes.map(r => r.title),
+                    firstRecipeStructure: recipes[0] ? {
+                        hasIngredients: !!recipes[0].ingredients,
+                        ingredientsLength: recipes[0].ingredients?.length,
+                        isMultiPart: recipes[0].isMultiPart,
+                        partsLength: recipes[0].parts?.length
+                    } : null
+                }
+            }, { status: 400 });
+        }
+
 
         console.log(`[SHOPPING API] Aggregated ${ingredientMap.size} unique ingredients after combination`);
 
