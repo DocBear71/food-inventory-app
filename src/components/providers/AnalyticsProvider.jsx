@@ -1,28 +1,37 @@
 'use client';
 
-// /src/components/providers/AnalyticsProvider.jsx - Analytics provider for your app
+// /src/components/providers/AnalyticsProvider.jsx - Fixed Analytics provider for your app
 
-import { createContext, useContext, useEffect, useState } from 'react';
+import { createContext, useContext, useEffect, useState, Suspense } from 'react';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useSafeSession } from '@/hooks/useSafeSession'; // Using your existing session hook
 import { initializeAnalytics, trackPageView, identifyUser, resetUser, trackEvent, AnalyticsEvents } from '@/lib/analytics';
 
 const AnalyticsContext = createContext({});
 
-export function AnalyticsProvider({ children }) {
+// Separate component for search params to handle Suspense boundary
+function SearchParamsHandler({ onParamsChange }) {
+    const searchParams = useSearchParams();
+
+    useEffect(() => {
+        onParamsChange(searchParams);
+    }, [searchParams, onParamsChange]);
+
+    return null;
+}
+
+function AnalyticsProviderInner({ children }) {
     const { data: session, status } = useSafeSession();
     const pathname = usePathname();
-    const searchParams = useSearchParams();
+    const [searchParams, setSearchParams] = useState(null);
     const [analyticsInitialized, setAnalyticsInitialized] = useState(false);
 
     // Initialize analytics on mount
     useEffect(() => {
         if (typeof window !== 'undefined' && !analyticsInitialized) {
             const analytics = initializeAnalytics();
-            if (analytics) {
-                setAnalyticsInitialized(true);
-                console.log('📊 Analytics initialized');
-            }
+            setAnalyticsInitialized(true);
+            console.log('📊 Analytics initialized');
         }
     }, [analyticsInitialized]);
 
@@ -78,8 +87,20 @@ export function AnalyticsProvider({ children }) {
 
     return (
             <AnalyticsContext.Provider value={analyticsValue}>
+                <Suspense fallback={null}>
+                    <SearchParamsHandler onParamsChange={setSearchParams} />
+                </Suspense>
                 {children}
             </AnalyticsContext.Provider>
+    );
+}
+
+// Main export - this is what gets imported in layout.js
+export function AnalyticsProvider({ children }) {
+    return (
+            <Suspense fallback={null}>
+                <AnalyticsProviderInner>{children}</AnalyticsProviderInner>
+            </Suspense>
     );
 }
 
@@ -197,4 +218,5 @@ export function useAnalyticsEvents() {
     };
 }
 
+// Default export for convenience
 export default AnalyticsProvider;

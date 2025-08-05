@@ -1,7 +1,7 @@
 'use client';
-// file: /src/components/layout/MobileDashboardLayout.js v12 - FIXED: StatusBar layout issues
+// file: /src/components/layout/MobileDashboardLayout.js v13 - FIXED: Excessive re-rendering issues
 
-import {useState, useEffect} from 'react';
+import {useState, useEffect, useCallback, useMemo} from 'react';
 import {handleMobileSignOut} from '@/lib/mobile-signout';
 import {useSafeSession} from '@/hooks/useSafeSession';
 import {useRouter, usePathname, useSearchParams} from 'next/navigation';
@@ -10,13 +10,13 @@ import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {getApiUrl} from "@/lib/api-config";
 import VerificationBanner from '@/components/auth/VerificationBanner';
-import Link from 'next/link';
 
 export default function MobileDashboardLayout({children}) {
     const {data: session} = useSafeSession();
     const router = useRouter();
     const pathname = usePathname();
     const searchParams = useSearchParams();
+
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
     const [isScrolled, setIsScrolled] = useState(false);
     const [showPWABanner, setShowPWABanner] = useState(false);
@@ -29,125 +29,13 @@ export default function MobileDashboardLayout({children}) {
         statusBarHeight: 0
     });
 
-    // Enhanced platform detection with StatusBar handling
-    useEffect(() => {
-        async function detectPlatform() {
-            try {
-                let isNative = false;
-                let isPWA = false;
-                let statusBarHeight = 0;
+    // Memoize admin check to prevent recalculation
+    const isAdmin = useMemo(() =>
+            session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com'
+        , [session?.user?.isAdmin, session?.user?.email]);
 
-                // Check for Capacitor (native app)
-                if (typeof window !== 'undefined' && window.Capacitor) {
-                    try {
-                        const { Capacitor } = await import('@capacitor/core');
-                        isNative = Capacitor.isNativePlatform();
-
-                        // If native, try to get StatusBar info
-                        if (isNative) {
-                            try {
-                                const { StatusBar } = await import('@capacitor/status-bar');
-                                const info = await StatusBar.getInfo();
-                                statusBarHeight = info.height || 0;
-                                console.log('📱 StatusBar info:', info);
-                            } catch (statusBarError) {
-                                console.log('StatusBar plugin not available:', statusBarError);
-                                // Fallback: estimate status bar height based on platform
-                                if (Capacitor.getPlatform() === 'android') {
-                                    statusBarHeight = 24; // Typical Android status bar height in dp
-                                } else if (Capacitor.getPlatform() === 'ios') {
-                                    statusBarHeight = 44; // Typical iOS status bar height
-                                }
-                            }
-                        }
-                    } catch (capacitorError) {
-                        console.log('Capacitor import failed:', capacitorError);
-                        isNative = false;
-                    }
-                }
-
-                // Check for PWA mode
-                if (!isNative && typeof window !== 'undefined') {
-                    isPWA = window.matchMedia('(display-mode: standalone)').matches ||
-                        window.navigator.standalone ||
-                        document.referrer.includes('android-app://');
-                }
-
-                console.log('🔧 Platform detection:', { isNative, isPWA, statusBarHeight });
-
-                setPlatformInfo({
-                    isNative,
-                    isPWA,
-                    statusBarHeight,
-                    isReady: true
-                });
-
-            } catch (error) {
-                console.error('Error detecting platform:', error);
-                setPlatformInfo({
-                    isNative: false,
-                    isPWA: false,
-                    statusBarHeight: 0,
-                    isReady: true
-                });
-            }
-        }
-
-        detectPlatform();
-    }, []);
-
-    // Track screen width for responsive bottom navigation
-    useEffect(() => {
-        const updateScreenWidth = () => {
-            setScreenWidth(window.innerWidth);
-        };
-
-        // Set initial width
-        updateScreenWidth();
-
-        // Add resize listener
-        window.addEventListener('resize', updateScreenWidth);
-        return () => window.removeEventListener('resize', updateScreenWidth);
-    }, []);
-
-    // Check if user is admin
-    const isAdmin = session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com';
-
-    // Handle scroll state for header styling
-    useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 10);
-        };
-
-        window.addEventListener('scroll', handleScroll, {passive: true});
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    // PWA banner logic
-    useEffect(() => {
-        const checkPWABanner = () => {
-            const isStandalone = platformInfo.isPWA ||
-                window.matchMedia('(display-mode: standalone)').matches ||
-                window.navigator.standalone ||
-                document.referrer.includes('android-app://');
-
-            const wasDismissed = sessionStorage.getItem('pwa-install-dismissed') === 'true';
-            const shouldShow = !platformInfo.isNative && !isStandalone && !wasDismissed;
-            setShowPWABanner(shouldShow);
-        };
-
-        if (platformInfo.isReady) {
-            checkPWABanner();
-        }
-    }, [platformInfo]);
-
-    // Close mobile menu when route changes
-    useEffect(() => {
-        setMobileMenuOpen(false);
-    }, [pathname, searchParams]);
-
-    // Enhanced navigation with additional items for responsive bottom nav
-    const allNavigationItems = [
+    // Memoize navigation items to prevent recreation
+    const allNavigationItems = useMemo(() => [
         { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/', priority: 1 },
         { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory', priority: 2 },
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes'), priority: 3 },
@@ -155,39 +43,10 @@ export default function MobileDashboardLayout({children}) {
         { name: 'Shopping', href: '/shopping', icon: '🛒', current: pathname.startsWith('/shopping'), priority: 4 },
         { name: 'Nutrition', href: '/dashboard/nutrition', icon: '📊', current: pathname === '/dashboard/nutrition', priority: 5 },
         { name: 'Stores', href: '/stores', icon: '🏪', current: pathname === '/stores', priority: 6 },
-    ];
+    ], [pathname]);
 
-    // Calculate how many items can fit in bottom navigation based on screen width
-    const getBottomNavItems = () => {
-        if (screenWidth === 0) return allNavigationItems.slice(0, 4); // Default fallback
-
-        let maxItems;
-        if (screenWidth >= 480) {
-            maxItems = 6; // Large phones/small tablets
-        } else if (screenWidth >= 430) {
-            maxItems = 5; // iPhone 14 Pro Max, etc.
-        } else if (screenWidth >= 375) {
-            maxItems = 4; // iPhone SE, standard phones
-        } else {
-            maxItems = 4; // Very small screens
-        }
-
-        // Always include the current page in the navigation
-        const currentItem = allNavigationItems.find(item => item.current);
-        let itemsToShow = allNavigationItems.slice(0, maxItems);
-
-        // If current page isn't in the visible items, replace the last item
-        if (currentItem && !itemsToShow.some(item => item.current)) {
-            itemsToShow[maxItems - 1] = currentItem;
-        }
-
-        return itemsToShow;
-    };
-
-    const navigation = getBottomNavItems();
-
-    // Enhanced additional menu items for hamburger menu
-    const additionalMenuItems = [
+    // Memoize additional menu items
+    const additionalMenuItems = useMemo(() => [
         // Inventory Section
         {
             name: 'Receipt Scanner',
@@ -290,10 +149,10 @@ export default function MobileDashboardLayout({children}) {
             description: 'Find recipes based on your inventory',
             section: 'Recipes'
         }
-    ];
+    ], [pathname, searchParams]);
 
-    // ADMIN MENU ITEMS - Only visible to admin users
-    const adminMenuItems = [
+    // Memoize admin menu items
+    const adminMenuItems = useMemo(() => [
         {
             name: 'User Management',
             href: '/admin/users',
@@ -322,29 +181,216 @@ export default function MobileDashboardLayout({children}) {
             current: pathname === '/admin/settings',
             description: 'System configuration and admin tools'
         }
-    ];
+    ], [pathname]);
 
-    const handleNavigation = (href) => {
-        MobileHaptics.light();
-        setMobileMenuOpen(false);
-        router.push(href);
-    };
+    // Memoize bottom navigation calculation
+    const getBottomNavItems = useCallback(() => {
+        if (screenWidth === 0) return allNavigationItems.slice(0, 4);
 
-    const toggleMobileMenu = () => {
-        MobileHaptics.medium();
-        setMobileMenuOpen(!mobileMenuOpen);
-    };
+        let maxItems;
+        if (screenWidth >= 480) {
+            maxItems = 6;
+        } else if (screenWidth >= 430) {
+            maxItems = 5;
+        } else if (screenWidth >= 375) {
+            maxItems = 4;
+        } else {
+            maxItems = 4;
+        }
 
-    const getGroupedMenuItems = () => {
+        const currentItem = allNavigationItems.find(item => item.current);
+        let itemsToShow = allNavigationItems.slice(0, maxItems);
+
+        if (currentItem && !itemsToShow.some(item => item.current)) {
+            itemsToShow[maxItems - 1] = currentItem;
+        }
+
+        return itemsToShow;
+    }, [screenWidth, allNavigationItems]);
+
+    // Memoize the navigation items
+    const navigation = useMemo(() => getBottomNavItems(), [getBottomNavItems]);
+
+    // Memoize grouped menu items
+    const groupedMenuItems = useMemo(() => {
         return additionalMenuItems.reduce((acc, item) => {
             const section = item.section || 'Other';
             if (!acc[section]) acc[section] = [];
             acc[section].push(item);
             return acc;
         }, {});
-    };
+    }, [additionalMenuItems]);
 
-    const handleSignOut = async () => {
+    // Memoize style calculations
+    const mainContentStyle = useMemo(() => {
+        let topPadding, bottomPadding;
+
+        if (platformInfo.isNative) {
+            topPadding = '80px';
+        } else {
+            topPadding = '80px';
+        }
+
+        if (showPWABanner) {
+            bottomPadding = '60px';
+        } else {
+            bottomPadding = '20px';
+        }
+
+        return {
+            paddingTop: topPadding,
+            paddingBottom: bottomPadding
+        };
+    }, [platformInfo.isNative, showPWABanner]);
+
+    const headerStyle = useMemo(() => {
+        if (platformInfo.isNative) {
+            return {
+                top: '0',
+                paddingTop: '8px'
+            };
+        } else {
+            return {
+                top: '0',
+                paddingTop: '0'
+            };
+        }
+    }, [platformInfo.isNative]);
+
+    const bottomNavStyle = useMemo(() => ({
+        bottom: '0',
+        paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 48px)',
+        minHeight: 'calc(68px + env(safe-area-inset-bottom, 0px))'
+    }), []);
+
+    // Enhanced platform detection with StatusBar handling
+    useEffect(() => {
+        async function detectPlatform() {
+            try {
+                let isNative = false;
+                let isPWA = false;
+                let statusBarHeight = 0;
+
+                if (typeof window !== 'undefined' && window.Capacitor) {
+                    try {
+                        const { Capacitor } = await import('@capacitor/core');
+                        isNative = Capacitor.isNativePlatform();
+
+                        if (isNative) {
+                            try {
+                                const { StatusBar } = await import('@capacitor/status-bar');
+                                const info = await StatusBar.getInfo();
+                                statusBarHeight = info.height || 0;
+                                console.log('📱 StatusBar info:', info);
+                            } catch (statusBarError) {
+                                console.log('StatusBar plugin not available:', statusBarError);
+                                if (Capacitor.getPlatform() === 'android') {
+                                    statusBarHeight = 24;
+                                } else if (Capacitor.getPlatform() === 'ios') {
+                                    statusBarHeight = 44;
+                                }
+                            }
+                        }
+                    } catch (capacitorError) {
+                        console.log('Capacitor import failed:', capacitorError);
+                        isNative = false;
+                    }
+                }
+
+                if (!isNative && typeof window !== 'undefined') {
+                    isPWA = window.matchMedia('(display-mode: standalone)').matches ||
+                        window.navigator.standalone ||
+                        document.referrer.includes('android-app://');
+                }
+
+                console.log('🔧 Platform detection:', { isNative, isPWA, statusBarHeight });
+
+                setPlatformInfo({
+                    isNative,
+                    isPWA,
+                    statusBarHeight,
+                    isReady: true
+                });
+
+            } catch (error) {
+                console.error('Error detecting platform:', error);
+                setPlatformInfo({
+                    isNative: false,
+                    isPWA: false,
+                    statusBarHeight: 0,
+                    isReady: true
+                });
+            }
+        }
+
+        detectPlatform();
+    }, []); // No dependencies - only run once
+
+    // Track screen width for responsive bottom navigation
+    useEffect(() => {
+        const updateScreenWidth = () => {
+            setScreenWidth(window.innerWidth);
+        };
+
+        updateScreenWidth();
+        window.addEventListener('resize', updateScreenWidth);
+        return () => window.removeEventListener('resize', updateScreenWidth);
+    }, []);
+
+    // Handle scroll state for header styling - throttled
+    useEffect(() => {
+        let ticking = false;
+
+        const handleScroll = () => {
+            if (!ticking) {
+                requestAnimationFrame(() => {
+                    setIsScrolled(window.scrollY > 10);
+                    ticking = false;
+                });
+                ticking = true;
+            }
+        };
+
+        window.addEventListener('scroll', handleScroll, {passive: true});
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // PWA banner logic - only check when platform info is ready
+    useEffect(() => {
+        if (!platformInfo.isReady) return;
+
+        const checkPWABanner = () => {
+            const isStandalone = platformInfo.isPWA ||
+                window.matchMedia('(display-mode: standalone)').matches ||
+                window.navigator.standalone ||
+                document.referrer.includes('android-app://');
+
+            const wasDismissed = sessionStorage.getItem('pwa-install-dismissed') === 'true';
+            const shouldShow = !platformInfo.isNative && !isStandalone && !wasDismissed;
+            setShowPWABanner(shouldShow);
+        };
+
+        checkPWABanner();
+    }, [platformInfo.isReady, platformInfo.isNative, platformInfo.isPWA]);
+
+    // Close mobile menu when route changes
+    useEffect(() => {
+        setMobileMenuOpen(false);
+    }, [pathname, searchParams]);
+
+    // Memoized event handlers
+    const handleNavigation = useCallback((href) => {
+        MobileHaptics.light();
+        setMobileMenuOpen(false);
+        router.push(href);
+    }, [router]);
+
+    const toggleMobileMenu = useCallback(() => {
+        MobileHaptics.medium();
+        setMobileMenuOpen(!mobileMenuOpen);
+    }, [mobileMenuOpen]);
+
+    const handleSignOut = useCallback(async () => {
         if (isSigningOut) return;
 
         try {
@@ -370,84 +416,7 @@ export default function MobileDashboardLayout({children}) {
 
             window.location.href = '/';
         }
-    };
-
-    // FIXED: Improved layout calculations that work with global CSS
-    const getMainContentStyle = () => {
-        let topPadding, bottomPadding;
-
-        if (platformInfo.isNative) {
-            // For native apps, account for the StatusBar height
-            topPadding = '80px'; // Header height
-        } else {
-            topPadding = '80px'; // Regular header height for web/PWA
-        }
-
-        // FIXED: Let global CSS handle bottom padding, just add minimal extra for PWA banner
-        if (showPWABanner) {
-            bottomPadding = '60px'; // Just enough for PWA banner, let CSS handle the rest
-        } else {
-            bottomPadding = '20px'; // Minimal padding, let global CSS safe area classes handle the rest
-        }
-
-        return {
-            paddingTop: topPadding,
-            paddingBottom: bottomPadding
-        };
-    };
-
-    // FIXED: Improved header positioning
-    const getHeaderStyle = () => {
-        if (platformInfo.isNative) {
-            // For native apps with overlaysWebView: false, StatusBar takes up space
-            // So we position the header right at the top (0)
-            return {
-                top: '0',
-                paddingTop: '8px' // Small padding for visual spacing
-            };
-        } else {
-            // For web/PWA, normal positioning
-            return {
-                top: '0',
-                paddingTop: '0'
-            };
-        }
-    };
-
-    // FIXED: Simplified bottom nav positioning to work with global CSS
-    const getBottomNavStyle = () => {
-        return {
-            bottom: '0',
-            // FIXED: Proper CSS env() syntax - env() doesn't support max() function
-            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 48px)',
-            // Alternative: Use CSS custom properties for better browser support
-            // paddingBottom: 'env(safe-area-inset-bottom, 8px)',
-            // Ensure minimum height for touch targets
-            minHeight: 'calc(68px + env(safe-area-inset-bottom, 0px))'
-        };
-    };
-
-    // Alternative approach if the above doesn't work:
-    const getBottomNavStyleAlternative = () => {
-        return {
-            bottom: '0',
-            // Method 1: Simple env() with fallback
-            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
-            // Add minimum padding via separate property if needed
-            minHeight: '68px'
-        };
-    };
-
-// Or for more complex safe area handling:
-    const getBottomNavStyleAdvanced = () => {
-        return {
-            bottom: '0',
-            // Use CSS custom property approach for better control
-            paddingBottom: 'var(--safe-area-inset-bottom, 8px)',
-            // Ensure minimum padding
-            minHeight: 'calc(68px + var(--safe-area-inset-bottom, 0px))'
-        };
-    };
+    }, [isSigningOut]);
 
     if (!platformInfo.isReady) {
         return (
@@ -466,16 +435,14 @@ export default function MobileDashboardLayout({children}) {
 
     return (
         <div className={`min-h-screen bg-gray-50 ${platformInfo.isNative ? 'capacitor-android' : ''}`}>
-            {/* FIXED: Improved Mobile Header with proper StatusBar handling */}
+            {/* Mobile Header */}
             <header
                 className={`fixed left-0 right-0 z-40 transition-all duration-200 ${
                     isScrolled ? 'bg-white/95 backdrop-blur-md shadow-lg' : 'bg-white'
                 }`}
-                style={getHeaderStyle()}
+                style={headerStyle}
             >
-                {/* FIXED: Cleaner header layout */}
                 <div className="flex items-center justify-between px-4 py-3">
-                    {/* Left side: Just the Menu button */}
                     <div className="flex items-center">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
@@ -489,9 +456,7 @@ export default function MobileDashboardLayout({children}) {
                         </TouchEnhancedButton>
                     </div>
 
-                    {/* Right side: Action buttons + Profile */}
                     <div className="flex items-center space-x-2">
-                        {/* FIXED: Rounded square action buttons */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory/receipt-scan')}
                             className="p-2.5 rounded-lg bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
@@ -525,7 +490,6 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
-                        {/* FIXED: Only the avatar is completely round */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
                             className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden relative"
@@ -560,7 +524,7 @@ export default function MobileDashboardLayout({children}) {
                 <VerificationBanner user={session.user} />
             )}
 
-            {/* FIXED: Modern Mobile Menu */}
+            {/* Mobile Menu */}
             {mobileMenuOpen && (
                 <div className="fixed inset-0 z-50 lg:hidden">
                     <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}/>
@@ -593,7 +557,7 @@ export default function MobileDashboardLayout({children}) {
                         {/* Scrollable Navigation Content */}
                         <div className="flex-1 overflow-y-auto">
                             <nav className="px-4 py-6 space-y-2">
-                                {/* Main navigation items - Show ALL items in hamburger menu */}
+                                {/* Main navigation items */}
                                 <div className="mb-6">
                                     <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
                                         Main Navigation
@@ -617,50 +581,47 @@ export default function MobileDashboardLayout({children}) {
                                     ))}
                                 </div>
 
-                                {/* Enhanced Additional menu items */}
-                                {(() => {
-                                    const groupedItems = getGroupedMenuItems();
-                                    return Object.entries(groupedItems).map(([sectionName, items]) => (
-                                        <div key={sectionName} className="mb-6">
-                                            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
-                                                {sectionName === 'Inventory' && '📦 '}
-                                                {sectionName === 'Shopping' && '🛒 '}
-                                                {sectionName === 'Recipes' && '🍳 '}
-                                                {sectionName}
-                                            </h3>
-                                            {items.map((item) => (
-                                                <TouchEnhancedButton
-                                                    key={item.name}
-                                                    onClick={() => {
-                                                        MobileHaptics.light();
-                                                        setMobileMenuOpen(false);
-                                                        setTimeout(() => {
-                                                            router.push(item.href);
-                                                        }, 100);
-                                                    }}
-                                                    className={`w-full flex items-start space-x-3 px-4 py-3 rounded-xl text-left transition-all touch-friendly ${
-                                                        item.current
-                                                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                                                            : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
-                                                    }`}
-                                                >
-                                                    <span className="text-xl mt-0.5">{item.icon}</span>
-                                                    <div className="flex-1 min-w-0">
-                                                        <div className="font-medium">{item.name}</div>
-                                                        {item.description && (
-                                                            <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
-                                                        )}
-                                                    </div>
-                                                    {item.current && (
-                                                        <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
+                                {/* Additional menu items */}
+                                {Object.entries(groupedMenuItems).map(([sectionName, items]) => (
+                                    <div key={sectionName} className="mb-6">
+                                        <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 px-4">
+                                            {sectionName === 'Inventory' && '📦 '}
+                                            {sectionName === 'Shopping' && '🛒 '}
+                                            {sectionName === 'Recipes' && '🍳 '}
+                                            {sectionName}
+                                        </h3>
+                                        {items.map((item) => (
+                                            <TouchEnhancedButton
+                                                key={item.name}
+                                                onClick={() => {
+                                                    MobileHaptics.light();
+                                                    setMobileMenuOpen(false);
+                                                    setTimeout(() => {
+                                                        router.push(item.href);
+                                                    }, 100);
+                                                }}
+                                                className={`w-full flex items-start space-x-3 px-4 py-3 rounded-xl text-left transition-all touch-friendly ${
+                                                    item.current
+                                                        ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                                                        : 'text-gray-700 hover:bg-gray-50 active:bg-gray-100'
+                                                }`}
+                                            >
+                                                <span className="text-xl mt-0.5">{item.icon}</span>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="font-medium">{item.name}</div>
+                                                    {item.description && (
+                                                        <div className="text-xs text-gray-500 mt-0.5">{item.description}</div>
                                                     )}
-                                                </TouchEnhancedButton>
-                                            ))}
-                                        </div>
-                                    ));
-                                })()}
+                                                </div>
+                                                {item.current && (
+                                                    <div className="w-2 h-2 bg-indigo-500 rounded-full mt-2"/>
+                                                )}
+                                            </TouchEnhancedButton>
+                                        ))}
+                                    </div>
+                                ))}
 
-                                {/* ADMIN SECTION */}
+                                {/* Admin Section */}
                                 {isAdmin && (
                                     <div className="mb-6">
                                         <h3 className="text-xs font-semibold text-purple-500 uppercase tracking-wider mb-3 px-4">
@@ -697,7 +658,6 @@ export default function MobileDashboardLayout({children}) {
 
                         {/* User Profile & Sign Out Section */}
                         <div className="border-t bg-gray-50">
-                            {/* User Info */}
                             {session && (
                                 <div className="px-4 py-3 border-b border-gray-200">
                                     <div className="flex items-center space-x-3">
@@ -758,16 +718,16 @@ export default function MobileDashboardLayout({children}) {
             )}
 
             {/* Main Content */}
-            <main className="mobile-main-content mobile-safe-layout" style={getMainContentStyle()}>
+            <main className="mobile-main-content mobile-safe-layout" style={mainContentStyle}>
                 <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
                     {children}
                 </div>
             </main>
 
-            {/* FIXED: Simplified Bottom Navigation that works with global CSS */}
+            {/* Bottom Navigation */}
             <nav
                 className="fixed left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 shadow-lg z-30"
-                style={getBottomNavStyle()}
+                style={bottomNavStyle}
             >
                 <div className="flex justify-around items-center px-2" style={{
                     height: '68px',

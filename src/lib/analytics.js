@@ -1,4 +1,4 @@
-// /src/lib/analytics.js - Complete PostHog analytics implementation
+// /src/lib/analytics.js - Fixed PostHog analytics implementation (CLIENT-SIDE ONLY)
 
 // Client-side analytics (PostHog)
 let posthog = null;
@@ -11,37 +11,43 @@ export const initializeAnalytics = () => {
     if (posthog) return posthog;
 
     try {
-        const { PostHog } = require('posthog-js/react');
+        // Use dynamic import to avoid bundling issues
+        import('posthog-js').then((PostHogModule) => {
+            const PostHogJS = PostHogModule.default;
 
-        if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
-            console.warn('PostHog key not configured - analytics disabled');
-            return null;
-        }
-
-        posthog = new PostHog();
-        posthog.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
-            api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com',
-            autocapture: {
-                pageview: true,
-                click: true,
-                scroll: true,
-                input: false, // Don't capture form inputs for privacy
-                submit: true
-            },
-            capture_pageview: false, // We'll handle this manually for better Next.js support
-            disable_session_recording: false,
-            session_recording: {
-                recordCanvas: false,
-                recordCrossOriginIframes: false
-            },
-            persistence: 'localStorage+cookie',
-            cross_subdomain_cookie: false,
-            secure_cookie: true,
-            loaded: (posthog) => {
-                if (process.env.NODE_ENV === 'development') {
-                    console.log('PostHog loaded successfully');
-                }
+            if (!process.env.NEXT_PUBLIC_POSTHOG_KEY) {
+                console.warn('PostHog key not configured - analytics disabled');
+                return null;
             }
+
+            PostHogJS.init(process.env.NEXT_PUBLIC_POSTHOG_KEY, {
+                api_host: process.env.NEXT_PUBLIC_POSTHOG_HOST || 'https://app.posthog.com',
+                autocapture: {
+                    pageview: true,
+                    click: true,
+                    scroll: true,
+                    input: false, // Don't capture form inputs for privacy
+                    submit: true
+                },
+                capture_pageview: false, // We'll handle this manually for better Next.js support
+                disable_session_recording: false,
+                session_recording: {
+                    recordCanvas: false,
+                    recordCrossOriginIframes: false
+                },
+                persistence: 'localStorage+cookie',
+                cross_subdomain_cookie: false,
+                secure_cookie: true,
+                loaded: (posthog) => {
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log('PostHog loaded successfully');
+                    }
+                }
+            });
+
+            posthog = PostHogJS;
+        }).catch((error) => {
+            console.error('Failed to load PostHog:', error);
         });
 
         return posthog;
@@ -56,7 +62,10 @@ export const trackEvent = (eventName, properties = {}) => {
     if (typeof window === 'undefined') return;
 
     if (!posthog) {
-        posthog = initializeAnalytics();
+        initializeAnalytics();
+        // Wait a bit for posthog to load, then try again
+        setTimeout(() => trackEvent(eventName, properties), 100);
+        return;
     }
 
     if (posthog) {
@@ -82,7 +91,9 @@ export const trackPageView = (url = null) => {
     if (typeof window === 'undefined') return;
 
     if (!posthog) {
-        posthog = initializeAnalytics();
+        initializeAnalytics();
+        setTimeout(() => trackPageView(url), 100);
+        return;
     }
 
     if (posthog) {
@@ -110,7 +121,9 @@ export const identifyUser = (userId, userProperties = {}) => {
     if (typeof window === 'undefined') return;
 
     if (!posthog) {
-        posthog = initializeAnalytics();
+        initializeAnalytics();
+        setTimeout(() => identifyUser(userId, userProperties), 100);
+        return;
     }
 
     if (posthog && userId) {
@@ -151,7 +164,9 @@ export const setUserProperties = (properties = {}) => {
     if (typeof window === 'undefined') return;
 
     if (!posthog) {
-        posthog = initializeAnalytics();
+        initializeAnalytics();
+        setTimeout(() => setUserProperties(properties), 100);
+        return;
     }
 
     if (posthog) {
@@ -164,47 +179,6 @@ export const setUserProperties = (properties = {}) => {
         } catch (error) {
             console.error('Failed to set user properties:', error);
         }
-    }
-};
-
-// Server-side analytics tracking
-export const trackServerEvent = async (eventName, properties = {}, distinctId = null) => {
-    // Only run on server-side
-    if (typeof window !== 'undefined') return;
-
-    try {
-        const { PostHog } = await import('posthog-node');
-
-        if (!process.env.POSTHOG_API_KEY) {
-            console.warn('PostHog API key not configured - server analytics disabled');
-            return;
-        }
-
-        const client = new PostHog(process.env.POSTHOG_API_KEY, {
-            host: process.env.POSTHOG_HOST || 'https://app.posthog.com'
-        });
-
-        await client.capture({
-            distinctId: distinctId || 'anonymous',
-            event: eventName,
-            properties: {
-                ...properties,
-                timestamp: new Date().toISOString(),
-                source: 'server'
-            }
-        });
-
-        await client.shutdown();
-
-        if (process.env.NODE_ENV === 'development') {
-            console.log('📊 Server analytics event tracked:', eventName, properties);
-        }
-
-        return true;
-
-    } catch (error) {
-        console.error('Failed to track server event:', error);
-        return false;
     }
 };
 
@@ -415,16 +389,6 @@ export const useAnalytics = () => {
     };
 };
 
-// Provider component for Next.js App Router
-export const AnalyticsProvider = ({ children }) => {
-    // Initialize analytics on mount
-    React.useEffect(() => {
-        initializeAnalytics();
-    }, []);
-
-    return children;
-};
-
 // Page view tracking hook for Next.js App Router
 export const usePageViews = () => {
     React.useEffect(() => {
@@ -451,12 +415,10 @@ export default {
     initializeAnalytics,
     trackEvent,
     trackPageView,
-    trackServerEvent,
     identifyUser,
     resetUser,
     setUserProperties,
     AnalyticsEvents,
     useAnalytics,
-    AnalyticsProvider,
     usePageViews
 };

@@ -59,12 +59,42 @@ const nextConfig: NextConfig = {
         contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
     },
 
-    // Minimal webpack config to fix NextAuth issues
+    // Enhanced webpack config to fix NextAuth + PostHog issues
     webpack: (config, { isServer }) => {
-        // Only add essentials for server-side
+        // Server-side externals (your existing config)
         if (isServer) {
             config.externals = config.externals || [];
             config.externals.push('mongoose', 'bcryptjs');
+        } else {
+            // Client-side fixes for PostHog
+            config.resolve.fallback = {
+                ...config.resolve.fallback,
+                fs: false,
+                net: false,
+                tls: false,
+                crypto: false,
+                stream: false,
+                buffer: false,
+                util: false,
+                url: false,
+                querystring: false,
+                path: false,
+                os: false,
+                readline: false,
+                // Additional Node.js modules that might cause issues
+                child_process: false,
+                cluster: false,
+                dgram: false,
+                dns: false,
+                http: false,
+                https: false,
+                http2: false,
+                zlib: false,
+            };
+
+            // Exclude posthog-node from client-side bundles
+            config.externals = config.externals || [];
+            config.externals.push('posthog-node');
         }
 
         return config;
