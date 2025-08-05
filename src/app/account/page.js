@@ -18,6 +18,8 @@ export default function AccountPage() {
     const subscription = useSubscription();
     const [loading, setLoading] = useState(false);
     const [showContactModal, setShowContactModal] = useState(false);
+    const [showPreRegModal, setShowPreRegModal] = useState(false);
+    const [preRegRewardStatus, setPreRegRewardStatus] = useState(null);
 
     // Redirect if not authenticated
     useEffect(() => {
@@ -42,6 +44,99 @@ export default function AccountPage() {
     if (!session) {
         return null;
     }
+
+    const checkForPreRegistrationReward = async () => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            // Check if already claimed
+            const alreadyClaimed = localStorage.getItem('preregRewardClaimed');
+            if (alreadyClaimed) {
+                console.log('Pre-registration reward already claimed');
+                return;
+            }
+
+            // Only check for Android users
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            if (!isAndroid) {
+                console.log('Not Android device, skipping pre-reg check');
+                return;
+            }
+
+            const { Purchases } = await import('@revenuecat/purchases-capacitor');
+
+            // Configure RevenueCat if not already done
+            if (!window.revenueCatConfigured) {
+                await Purchases.configure({
+                    apiKey: process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY,
+                    appUserID: session.user.id
+                });
+                window.revenueCatConfigured = true;
+            }
+
+            const customerInfo = await Purchases.getCustomerInfo();
+            console.log('Checking for pre-registration reward...', customerInfo);
+
+            // Check for the pre-registration product in non-subscription transactions
+            const hasPreRegReward = customerInfo.nonSubscriptionTransactions?.some(
+                transaction => transaction.productIdentifier === 'preregistration_premium_30day'
+            );
+
+            if (hasPreRegReward) {
+                console.log('🎉 Pre-registration reward found!');
+                setShowPreRegModal(true);
+                setPreRegRewardStatus('available');
+            } else {
+                console.log('No pre-registration reward found');
+                setPreRegRewardStatus('not_available');
+            }
+
+        } catch (error) {
+            console.error('Pre-registration reward check failed:', error);
+            setPreRegRewardStatus('error');
+        }
+    };
+
+    const claimPreRegistrationReward = async () => {
+        try {
+            setLoading(true);
+
+            // Call your backend to activate the reward
+            const response = await apiPost('/api/subscription/claim-prereg-reward', {
+                source: 'google-play-prereg'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Mark as claimed
+                localStorage.setItem('preregRewardClaimed', 'true');
+                localStorage.setItem('preregRewardClaimedDate', new Date().toISOString());
+
+                setSuccess('🎉 Pre-registration reward activated! You now have 30 days of premium access!');
+                setShowPreRegModal(false);
+
+                // Refresh subscription data
+                subscription.refetch();
+            } else {
+                setError(data.error || 'Failed to claim pre-registration reward');
+            }
+        } catch (error) {
+            console.error('Error claiming pre-registration reward:', error);
+            setError('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        if (session?.user?.id) {
+            // Small delay to let other initialization complete
+            setTimeout(() => {
+                checkForPreRegistrationReward();
+            }, 2000);
+        }
+    }, [session?.user?.id]);
 
     // Helper functions
     const formatDate = (date) => {
@@ -483,6 +578,53 @@ export default function AccountPage() {
                 onClose={() => setShowContactModal(false)}
                 userSubscription={subscription}
             />
+
+            {/* Pre-Registration Reward Modal */}
+            {showPreRegModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+                        <div className="text-center">
+                            <div className="text-6xl mb-4">🎉</div>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                                Congratulations!
+                            </h2>
+                            <p className="text-gray-600 mb-6">
+                                Thank you for pre-registering for Doc Bear's Comfort Kitchen!
+                                As a special reward, you get <strong>30 days of premium access</strong> completely free!
+                            </p>
+
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                                <h3 className="font-semibold text-green-800 mb-2">Your Premium Benefits Include:</h3>
+                                <ul className="text-sm text-green-700 text-left space-y-1">
+                                    <li>✅ Unlimited inventory items</li>
+                                    <li>✅ Unlimited receipt scanning</li>
+                                    <li>✅ Advanced meal planning</li>
+                                    <li>✅ Nutrition goal tracking</li>
+                                    <li>✅ Priority support</li>
+                                    <li>✅ All premium features</li>
+                                </ul>
+                            </div>
+
+                            <div className="flex space-x-3">
+                                <TouchEnhancedButton
+                                    onClick={() => setShowPreRegModal(false)}
+                                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium"
+                                >
+                                    Claim Later
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={claimPreRegistrationReward}
+                                    disabled={loading}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium"
+                                >
+                                    {loading ? 'Activating...' : 'Claim Reward!'}
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </MobileOptimizedLayout>
     );
 }

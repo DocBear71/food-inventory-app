@@ -1,4 +1,4 @@
-// file: build-mobile.js v2 - Fixed Windows permission issues and improved error handling
+// file: build-mobile.js v2.1 - Fixed Windows permission issues and added missing recipe-preview route
 
 import fs from 'fs';
 import path from 'path';
@@ -20,6 +20,7 @@ const dynamicRoutes = [
     path.join(projectRoot, 'src', 'app', 'recipes', '[id]'),
     path.join(projectRoot, 'src', 'app', 'collections', '[id]'),
     path.join(projectRoot, 'src', 'app', 'admin', 'users', '[id]'),
+    path.join(projectRoot, 'src', 'app', 'recipe-preview', '[id]'), // Added missing route
 ];
 const dynamicBackups = [];
 
@@ -170,7 +171,7 @@ async function main() {
             const routePath = dynamicRoutes[i];
             if (fs.existsSync(routePath)) {
                 const backupPath = `${routePath}-backup-temp`;
-                console.log(`📦 Backing up dynamic route: ${path.basename(routePath)}`);
+                console.log(`📦 Backing up dynamic route: ${path.basename(path.dirname(routePath))}/${path.basename(routePath)}`);
 
                 const success = await safeBackup(routePath, backupPath, `Dynamic route backed up: ${path.basename(routePath)}`);
                 if (success) {

@@ -7,12 +7,11 @@ import './globals.css';
 import SessionProvider from '@/components/SessionProvider';
 import CapacitorAuthProvider from '@/components/providers/CapacitorAuthProvider';
 import {SubscriptionProvider} from '@/hooks/useSubscription';
+import { AnalyticsProvider } from '@/components/providers/AnalyticsProvider'; // ADD THIS
 import ViewportHandler from '@/components/ViewportHandler';
 import PlatformAwareWrapper from '@/components/PlatformAwareWrapper';
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-
-// ADDED: Import the auth fix for native apps
 import '@/lib/capacitor-auth-fix';
 import SafeAreaBackground from "@/components/SafeAreaBackground";
 
@@ -101,10 +100,12 @@ export default function RootLayout({children}) {
         <CapacitorAuthProvider>
             <SessionProvider>
                 <SubscriptionProvider>
-                    <PlatformAwareWrapper>
-                        <DirectShareHandler />
-                        {children}
-                    </PlatformAwareWrapper>
+                    <AnalyticsProvider> {/* ADD THIS LINE */}
+                        <PlatformAwareWrapper>
+                            <DirectShareHandler />
+                            {children}
+                        </PlatformAwareWrapper>
+                    </AnalyticsProvider> {/* ADD THIS LINE */}
                 </SubscriptionProvider>
             </SessionProvider>
         </CapacitorAuthProvider>
