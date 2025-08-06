@@ -1021,17 +1021,27 @@ export default function MealPlanningCalendar() {
 
     const loadUserPreferences = async () => {
         try {
+            console.log('🔄 Loading user preferences...');
             const response = await apiGet('/api/user/preferences');
             const data = await response.json();
+
             if (data.success && data.preferences) {
+                console.log('✅ User preferences loaded:', data.preferences);
+
                 if (data.preferences.weekStartDay) {
+                    console.log('📅 Setting week start day:', data.preferences.weekStartDay);
                     setWeekStartDay(data.preferences.weekStartDay);
+                } else {
+                    console.log('📅 No week start preference found, using default: sunday');
+                    setWeekStartDay('sunday'); // Your preferred default
                 }
 
                 if (data.preferences.defaultMealTypes && data.preferences.defaultMealTypes.length > 0) {
                     const migratedMealTypes = migrateOldMealTypes(data.preferences.defaultMealTypes);
+                    console.log('🍽️ Setting meal types:', migratedMealTypes);
                     setUserMealTypes(migratedMealTypes);
                 } else {
+                    console.log('🍽️ No meal types found, using defaults');
                     setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
                 }
 
@@ -1051,9 +1061,16 @@ export default function MealPlanningCalendar() {
                         showInsights: data.preferences.priceIntelligence.showInsights || false
                     }));
                 }
+            } else {
+                console.log('⚠️ No preferences found, using defaults');
+                setWeekStartDay('sunday'); // Your preferred default
+                setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
             }
         } catch (error) {
-            console.error('Error loading user preferences:', error);
+            console.error('❌ Error loading user preferences:', error);
+            // Set defaults on error
+            setWeekStartDay('sunday');
+            setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
         }
     };
 
