@@ -7,13 +7,16 @@ const config: CapacitorConfig = {
     
     // ENHANCED: Better server config for iOS routing
     server: {
+        url: 'https://food-inventory-app-git-ios-fixes-edward-mckeowns-projects.vercel.app?_vercel_share=vGtAPUpvHm2Y1SsK2T0X2ML6RYdaakFl', 
         cleartext: true,
         androidScheme: 'https',
         iosScheme: 'https',
         allowNavigation: [
             'https://www.docbearscomfort.kitchen',
             'https://docbearscomfort.kitchen',
-            'https://*.docbearscomfort.kitchen'
+            'https://*.docbearscomfort.kitchen',
+            'https://food-inventory-app-git-ios-fixes-edward-mckeowns-projects.vercel.app', // ADD THIS TOO
+            'https://*.vercel.app' // ADD THIS FOR ALL VERCEL PREVIEWS
         ],
         // CRITICAL: Handle 404s for dynamic routes
         errorPath: 'index.html',

@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
         optimizeCss: true,
         esmExternals: true,
     },
-    assetPrefix: process.env.NODE_ENV === 'production' ? 'https://www.docbearscomfort.kitchen' : undefined,
+    assetPrefix: undefined,
 
     // ADD THIS IMAGES CONFIGURATION ↓
     images: {
