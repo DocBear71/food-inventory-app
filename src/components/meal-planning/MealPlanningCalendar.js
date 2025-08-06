@@ -1403,7 +1403,31 @@ export default function MealPlanningCalendar() {
             const data = await response.json();
 
             if (data.success && data.mealPlans.length > 0) {
-                setMealPlan(data.mealPlans[0]);
+                // FIXED: Find the meal plan with actual meals, not just the first one
+                let selectedPlan = null;
+
+                // First, try to find a plan that has meals
+                for (const plan of data.mealPlans) {
+                    const hasMeals = Object.values(plan.meals || {}).some(dayMeals =>
+                        Array.isArray(dayMeals) && dayMeals.length > 0
+                    );
+                    if (hasMeals) {
+                        selectedPlan = plan;
+                        break;
+                    }
+                }
+
+                // If no plan has meals, take the most recent one (first in array)
+                if (!selectedPlan) {
+                    selectedPlan = data.mealPlans[0];
+                }
+
+                console.log('📅 Selected meal plan:', selectedPlan.name, 'with',
+                    Object.values(selectedPlan.meals || {}).reduce((total, dayMeals) =>
+                        total + (Array.isArray(dayMeals) ? dayMeals.length : 0), 0
+                    ), 'total meals');
+
+                setMealPlan(selectedPlan);
             } else {
                 await createMealPlan();
             }
