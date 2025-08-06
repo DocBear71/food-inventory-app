@@ -97,6 +97,25 @@ export default function AccountPage() {
         }
     }, [session?.user?.id]); // Only depend on user ID
 
+    // Helper to get usage data with mobile fallback
+    const getUsageData = useCallback((field) => {
+        // Try subscription usage first (works on web)
+        const subscriptionValue = subscription.usage?.[field];
+        if (subscriptionValue !== undefined && subscriptionValue !== null) {
+            return subscriptionValue;
+        }
+
+        // Fallback to session usage (works on mobile)
+        const sessionValue = session?.user?.usage?.[field];
+        if (sessionValue !== undefined && sessionValue !== null) {
+            return sessionValue;
+        }
+
+        // Default fallback
+        return 0;
+    }, [subscription.usage, session?.user?.usage]);
+
+
     // FIXED: Use effect with proper cleanup and stable dependencies
     useEffect(() => {
         let mounted = true;
@@ -440,14 +459,14 @@ export default function AccountPage() {
                         {/* Total Inventory Items */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-indigo-600 mb-1">
-                                {subscription.usage?.inventoryItems || 0}
+                                {getUsageData('inventoryItems') || getUsageData('totalInventoryItems')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Total Inventory Items</div>
                             {subscription.remainingInventoryItems !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.inventoryItems || 0, subscription.remainingInventoryItems + (subscription.usage?.inventoryItems || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.inventoryItems || 0, subscription.remainingInventoryItems + (subscription.usage?.inventoryItems || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('inventoryItems') || getUsageData('totalInventoryItems'), subscription.remainingInventoryItems + (getUsageData('inventoryItems') || getUsageData('totalInventoryItems'))))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('inventoryItems') || getUsageData('totalInventoryItems'), subscription.remainingInventoryItems + (getUsageData('inventoryItems') || getUsageData('totalInventoryItems')))}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -459,14 +478,14 @@ export default function AccountPage() {
                         {/* Monthly Receipt Scans */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-green-600 mb-1">
-                                {subscription.usage?.monthlyReceiptScans || 0}
+                                {getUsageData('monthlyReceiptScans')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Receipt Scans This Month</div>
                             {subscription.remainingReceiptScans !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.monthlyReceiptScans || 0, subscription.remainingReceiptScans + (subscription.usage?.monthlyReceiptScans || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.monthlyReceiptScans || 0, subscription.remainingReceiptScans + (subscription.usage?.monthlyReceiptScans || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('monthlyReceiptScans'), subscription.remainingReceiptScans + getUsageData('monthlyReceiptScans')))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('monthlyReceiptScans'), subscription.remainingReceiptScans + getUsageData('monthlyReceiptScans'))}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -478,14 +497,14 @@ export default function AccountPage() {
                         {/* Total Recipe Collections */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-blue-600 mb-1">
-                                {subscription.usage?.recipeCollections || 0}
+                                {getUsageData('recipeCollections') || getUsageData('totalRecipeCollections')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Total Recipe Collections</div>
                             {subscription.remainingRecipeCollections !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.recipeCollections || 0, subscription.remainingRecipeCollections + (subscription.usage?.recipeCollections || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.recipeCollections || 0, subscription.remainingRecipeCollections + (subscription.usage?.recipeCollections || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('recipeCollections') || getUsageData('totalRecipeCollections'), subscription.remainingRecipeCollections + (getUsageData('recipeCollections') || getUsageData('totalRecipeCollections'))))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('recipeCollections') || getUsageData('totalRecipeCollections'), subscription.remainingRecipeCollections + (getUsageData('recipeCollections') || getUsageData('totalRecipeCollections')))}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -497,14 +516,14 @@ export default function AccountPage() {
                         {/* Total Saved Recipes */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-purple-600 mb-1">
-                                {subscription.usage?.savedRecipes || 0}
+                                {getUsageData('savedRecipes') || getUsageData('totalSavedRecipes')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Total Saved Recipes</div>
                             {subscription.remainingSavedRecipes !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.savedRecipes || 0, subscription.remainingSavedRecipes + (subscription.usage?.savedRecipes || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.savedRecipes || 0, subscription.remainingSavedRecipes + (subscription.usage?.savedRecipes || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('savedRecipes') || getUsageData('totalSavedRecipes'), subscription.remainingSavedRecipes + (getUsageData('savedRecipes') || getUsageData('totalSavedRecipes'))))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('savedRecipes') || getUsageData('totalSavedRecipes'), subscription.remainingSavedRecipes + (getUsageData('savedRecipes') || getUsageData('totalSavedRecipes')))}%` }}
                                     ></div>
                                 </div>
                             )}
