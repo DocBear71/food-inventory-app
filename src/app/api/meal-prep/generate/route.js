@@ -1,14 +1,14 @@
 // file: /src/app/api/meal-prep/generate/route.js v2 - Enhanced meal prep analysis
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 
 import connectDB from '@/lib/mongodb';
 import { MealPlan } from '@/lib/models';
 
 export async function POST(request) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -75,7 +75,7 @@ export async function POST(request) {
 
 export async function GET(request) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

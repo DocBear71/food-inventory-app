@@ -5,7 +5,10 @@ import { User } from '@/lib/models';
 import connectDB from '@/lib/mongodb';
 
 export async function getEnhancedSession(request) {
-    console.log('🔍 Getting enhanced session for API...');
+    // 🔍 ADD THIS DEBUG LOGGING HERE
+    console.log('🔍 Getting enhanced session for API...', request.url || 'unknown URL');
+    console.log('🔍 Request method:', request.method);
+    console.log('🔍 Request headers:', Object.fromEntries(request.headers.entries()));
 
     try {
         // Try NextAuth session first
@@ -13,6 +16,8 @@ export async function getEnhancedSession(request) {
 
         if (nextAuthSession?.user?.id) {
             console.log('✅ NextAuth session found:', nextAuthSession.user.email);
+            // 🔍 ADD THIS DEBUG LOGGING HERE
+            console.log('✅ Returning NextAuth session for:', request.url);
             return {
                 user: nextAuthSession.user,
                 source: 'nextauth'
@@ -21,68 +26,101 @@ export async function getEnhancedSession(request) {
 
         console.log('⚠️ No NextAuth session, checking mobile session...');
 
-        // Check for mobile session in headers
-        const authHeader = request.headers.get('authorization');
-        const sessionHeader = request.headers.get('x-mobile-session');
+        // FIXED: Check for the exact headers your mobile app sends
+        const userEmail = request.headers.get('X-User-Email') || request.headers.get('x-user-email');
+        const userId = request.headers.get('X-User-ID') || request.headers.get('x-user-id');
+        const isAdmin = request.headers.get('X-Is-Admin') || request.headers.get('x-is-admin');
+        const mobileSessionHeader = request.headers.get('X-Mobile-Session') || request.headers.get('x-mobile-session');
 
-        // Try to get mobile session from user by email
-        const userEmail = request.headers.get('x-user-email');
+        console.log('📱 Mobile headers found:', {
+            userEmail,
+            userId,
+            isAdmin,
+            hasMobileSession: !!mobileSessionHeader
+        });
 
-        if (userEmail) {
-            console.log('📱 Found user email in headers:', userEmail);
-
-            // Special handling for admin user
-            if (userEmail === 'e.g.mckeown@gmail.com') {
-                await connectDB();
-                const user = await User.findOne({ email: userEmail });
-
-                if (user) {
-                    console.log('✅ Admin user found in database');
-                    return {
-                        user: {
-                            id: user._id.toString(),
-                            email: user.email,
-                            name: user.name,
-                            isAdmin: user.isAdmin || false,
-                            subscriptionTier: user.getEffectiveTier(),
-                            effectiveTier: user.getEffectiveTier()
-                        },
-                        source: 'mobile-admin'
-                    };
-                }
-            }
-        }
-
-        // Check for mobile session token in authorization header
-        if (authHeader?.startsWith('Bearer mobile-')) {
-            const token = authHeader.replace('Bearer mobile-', '');
-            console.log('📱 Found mobile bearer token');
-
-            // Implement mobile token validation here if needed
-            // For now, we'll try to get user by email from token
-        }
-
-        // Check for session data in custom header
-        if (sessionHeader) {
+        // Try mobile session header first
+        if (mobileSessionHeader) {
             try {
-                const sessionData = JSON.parse(decodeURIComponent(sessionHeader));
+                const sessionData = JSON.parse(decodeURIComponent(mobileSessionHeader));
                 if (sessionData?.user?.id) {
-                    console.log('📱 Found mobile session in header:', sessionData.user.email);
+                    console.log('✅ Mobile session found in header:', sessionData.user.email);
+                    // 🔍 ADD THIS DEBUG LOGGING HERE
+                    console.log('✅ Returning mobile session for:', request.url);
                     return {
                         user: sessionData.user,
                         source: 'mobile-header'
                     };
                 }
             } catch (e) {
-                console.log('Failed to parse mobile session header');
+                console.log('❌ Failed to parse mobile session header:', e);
             }
         }
 
-        console.log('❌ No valid session found');
+        // Fallback: use individual headers for admin user
+        if (userEmail && userId) {
+            console.log('📱 Found user email and ID in headers:', userEmail);
+
+            // Special handling for admin user
+            if (userEmail === 'e.g.mckeown@gmail.com') {
+                await connectDB();
+                const user = await User.findById(userId);
+
+                if (user) {
+                    console.log('✅ Admin user found in database via headers');
+                    // 🔍 ADD THIS DEBUG LOGGING HERE
+                    console.log('✅ Returning admin session for:', request.url);
+                    return {
+                        user: {
+                            id: user._id.toString(),
+                            email: user.email,
+                            name: user.name,
+                            isAdmin: user.isAdmin || isAdmin === 'true',
+                            subscriptionTier: user.getEffectiveTier(),
+                            effectiveTier: user.getEffectiveTier()
+                        },
+                        source: 'mobile-admin-headers'
+                    };
+                }
+            }
+        }
+
+        // Try to find user by email only
+        if (userEmail && !userId) {
+            console.log('📱 Found user email, looking up in database:', userEmail);
+            await connectDB();
+            const user = await User.findOne({ email: userEmail });
+
+            if (user) {
+                console.log('✅ User found in database by email');
+                // 🔍 ADD THIS DEBUG LOGGING HERE
+                console.log('✅ Returning email lookup session for:', request.url);
+                return {
+                    user: {
+                        id: user._id.toString(),
+                        email: user.email,
+                        name: user.name,
+                        isAdmin: user.isAdmin || false,
+                        subscriptionTier: user.getEffectiveTier(),
+                        effectiveTier: user.getEffectiveTier()
+                    },
+                    source: 'mobile-email-lookup'
+                };
+            }
+        }
+
+        // 🔍 ADD THIS DEBUG LOGGING HERE
+        console.log('❌ No valid session found for:', request.url);
+        console.log('❌ Available headers were:', {
+            userEmail,
+            userId,
+            isAdmin,
+            hasMobileSession: !!mobileSessionHeader
+        });
         return null;
 
     } catch (error) {
-        console.error('Enhanced session error:', error);
+        console.error('❌ Enhanced session error for:', request.url, error);
         return null;
     }
 }

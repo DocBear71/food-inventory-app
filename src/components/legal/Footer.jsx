@@ -260,7 +260,10 @@ const Footer = () => {
                                         <strong>Doc Bear Enterprises, LLC.</strong>
                                     </p>
                                     <p style={{ margin: '0 0 0.5rem 0' }}>
-                                        Cedar Rapids, IA, USA
+                                        5249 N Park Pl NE<br/>
+                                        PMB 4011<br/>
+                                        Cedar Rapids, IA, USA<br/>
+                                        Call: (319) 826-3463
                                     </p>
                                     <p style={{ margin: '0 0 0.5rem 0' }}>
                                         <a

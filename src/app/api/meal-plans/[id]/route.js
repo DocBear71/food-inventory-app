@@ -1,7 +1,7 @@
 // file: /src/app/api/meal-plans/[id]/route.js v1
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 
 import connectDB from '@/lib/mongodb';
 import { MealPlan } from '@/lib/models';
@@ -9,7 +9,7 @@ import { MealPlan } from '@/lib/models';
 // GET - Fetch a single meal plan
 export async function GET(request, { params }) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         const resolvedParams = await params;
         const { id } = resolvedParams;
 
@@ -57,7 +57,7 @@ export async function PUT(request, { params }) {
     try {
         console.log('=== PUT /api/meal-plans/[id] START ===');
 
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         const resolvedParams = await params;
         const { id } = resolvedParams;
 
@@ -120,7 +120,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete a meal plan
 export async function DELETE(request, { params }) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         const resolvedParams = await params;
         const { id } = resolvedParams;
 
