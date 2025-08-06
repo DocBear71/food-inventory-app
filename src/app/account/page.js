@@ -26,6 +26,13 @@ export default function AccountPage() {
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
 
+    console.log('🔍 Usage debug:', {
+        subscriptionUsage: subscription.usage,
+        sessionUsage: session?.user?.usage,
+        subscriptionInventory: subscription.usage?.inventoryItems,
+        sessionInventory: session?.user?.usage?.totalInventoryItems
+    });
+
     // FIXED: Memoize the pre-registration check to prevent re-creation on every render
     const checkForPreRegistrationReward = useCallback(async () => {
         if (typeof window === 'undefined') return;
