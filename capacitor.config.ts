@@ -54,11 +54,11 @@ const config: CapacitorConfig = {
         },
 
         CapacitorHttp: {
-            enabled: true
+            enabled: false
         },
 
         CapacitorCookies: {
-            enabled: true
+            enabled: false
         },
 
         ImageToText: {
