@@ -21,7 +21,7 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
     }, [recipeId, refreshTrigger]);
 
     // FIXED: Updated fetchAllPhotos function in RecipePhotoGallery.js
-// Replace the fetchAllPhotos function around line 15
+    // Replace the fetchAllPhotos function around line 15
 
     const fetchAllPhotos = async () => {
         try {
@@ -30,9 +30,9 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
 
             console.log('🖼️ Gallery: Fetching photos for recipe:', recipeId);
 
-            // Fetch both recipe data and separate photos
+            // FIXED: Fetch both recipe data and separate photos with correct endpoints
             const [recipeResponse, photosResponse] = await Promise.all([
-                apiGet(`/api/recipes?recipeId=${recipeId}`), // FIXED: Use correct endpoint
+                apiGet(`/api/recipes/${recipeId}`), // FIXED: Use single recipe endpoint, not query
                 apiGet(`/api/recipes/photos?recipeId=${recipeId}`)
             ]);
 
@@ -80,14 +80,19 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                 } else {
                     setRecipeImageData(null);
                 }
+            } else {
+                console.warn('🖼️ Gallery: Recipe fetch failed:', recipeData.error);
+                setRecipeImageData(null);
             }
 
             // Handle separate photos collection (unified photo system)
-            console.log('🖼️ Gallery: Photos response:', photosResponse.ok);
+            console.log('🖼️ Gallery: Photos response status:', photosResponse.status);
+
             if (photosResponse.ok) {
                 const photosData = await photosResponse.json();
-                console.log('🖼️ Gallery: Photos data:', photosData.success, photosData.photos?.length);
-                if (photosData.success) {
+                console.log('🖼️ Gallery: Photos data success:', photosData.success, 'count:', photosData.photos?.length || 0);
+
+                if (photosData.success && photosData.photos) {
                     // Add URL for each photo
                     const photosWithUrls = photosData.photos.map(photo => ({
                         ...photo,
@@ -95,20 +100,37 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                         // For display consistency
                         id: photo._id
                     }));
-                    setPhotos(photosWithUrls || []);
+                    setPhotos(photosWithUrls);
                 } else {
-                    console.warn('Photos fetch warning:', photosData.error);
+                    console.warn('🖼️ Gallery: Photos API returned error:', photosData.error);
                     setPhotos([]);
                 }
             } else {
-                console.warn('Photos endpoint response not ok:', photosResponse.status);
-                setPhotos([]);
+                console.warn('🖼️ Gallery: Photos endpoint failed:', photosResponse.status, photosResponse.statusText);
+
+                // Try to get error details
+                try {
+                    const errorData = await photosResponse.json();
+                    console.warn('🖼️ Gallery: Photos error details:', errorData);
+
+                    // Don't set error state for authentication issues - just log and continue
+                    if (photosResponse.status === 401 || photosResponse.status === 403) {
+                        console.log('🖼️ Gallery: Authentication issue, continuing without photos collection');
+                        setPhotos([]);
+                    } else {
+                        setError('Failed to load photo collection');
+                        setPhotos([]);
+                    }
+                } catch (parseError) {
+                    console.warn('🖼️ Gallery: Could not parse error response');
+                    setPhotos([]);
+                }
             }
 
             console.log('🖼️ Gallery: Fetch complete');
 
         } catch (error) {
-            console.error('Error fetching photos:', error);
+            console.error('🖼️ Gallery: Error fetching photos:', error);
             setError('Failed to load photos');
             setPhotos([]);
             setRecipeImageData(null);

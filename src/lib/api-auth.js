@@ -1,23 +1,44 @@
-// file: /src/lib/api-auth.js - Enhanced API authentication for mobile compatibility
+// file: /src/lib/api-auth.js - Enhanced API authentication with better error handling
 
 import { auth } from '@/lib/auth';
 import { User } from '@/lib/models';
 import connectDB from '@/lib/mongodb';
 
 export async function getEnhancedSession(request) {
-    // 🔍 ADD THIS DEBUG LOGGING HERE
-    console.log('🔍 Getting enhanced session for API...', request.url || 'unknown URL');
-    console.log('🔍 Request method:', request.method);
-    console.log('🔍 Request headers:', Object.fromEntries(request.headers.entries()));
-
     try {
+        console.log('🔍 Getting enhanced session for API...', request?.url || 'unknown URL');
+        console.log('🔍 Request method:', request?.method);
+
+        // FIXED: Safely extract headers to avoid entries() errors
+        let headers = {};
+        try {
+            if (request?.headers) {
+                // Use for...of instead of entries() to avoid potential errors
+                for (const [key, value] of request.headers) {
+                    headers[key] = value;
+                }
+            }
+        } catch (headerError) {
+            console.warn('⚠️ Error reading request headers:', headerError.message);
+            headers = {}; // Continue with empty headers
+        }
+
+        // Only log essential headers for debugging
+        const debugHeaders = {
+            'user-agent': headers['user-agent'],
+            'x-user-email': headers['x-user-email'],
+            'x-user-id': headers['x-user-id'],
+            'x-is-admin': headers['x-is-admin'],
+            'x-mobile-session': headers['x-mobile-session'] ? '[present]' : undefined
+        };
+        console.log('🔍 Request headers:', debugHeaders);
+
         // Try NextAuth session first
         const nextAuthSession = await auth();
 
         if (nextAuthSession?.user?.id) {
             console.log('✅ NextAuth session found:', nextAuthSession.user.email);
-            // 🔍 ADD THIS DEBUG LOGGING HERE
-            console.log('✅ Returning NextAuth session for:', request.url);
+            console.log('✅ Returning NextAuth session for:', request?.url);
             return {
                 user: nextAuthSession.user,
                 source: 'nextauth'
@@ -26,11 +47,11 @@ export async function getEnhancedSession(request) {
 
         console.log('⚠️ No NextAuth session, checking mobile session...');
 
-        // FIXED: Check for the exact headers your mobile app sends
-        const userEmail = request.headers.get('X-User-Email') || request.headers.get('x-user-email');
-        const userId = request.headers.get('X-User-ID') || request.headers.get('x-user-id');
-        const isAdmin = request.headers.get('X-Is-Admin') || request.headers.get('x-is-admin');
-        const mobileSessionHeader = request.headers.get('X-Mobile-Session') || request.headers.get('x-mobile-session');
+        // FIXED: Safe header extraction
+        const userEmail = headers['x-user-email'] || headers['X-User-Email'];
+        const userId = headers['x-user-id'] || headers['X-User-ID'];
+        const isAdmin = headers['x-is-admin'] || headers['X-Is-Admin'];
+        const mobileSessionHeader = headers['x-mobile-session'] || headers['X-Mobile-Session'];
 
         console.log('📱 Mobile headers found:', {
             userEmail,
@@ -45,15 +66,14 @@ export async function getEnhancedSession(request) {
                 const sessionData = JSON.parse(decodeURIComponent(mobileSessionHeader));
                 if (sessionData?.user?.id) {
                     console.log('✅ Mobile session found in header:', sessionData.user.email);
-                    // 🔍 ADD THIS DEBUG LOGGING HERE
-                    console.log('✅ Returning mobile session for:', request.url);
+                    console.log('✅ Returning mobile session for:', request?.url);
                     return {
                         user: sessionData.user,
                         source: 'mobile-header'
                     };
                 }
-            } catch (e) {
-                console.log('❌ Failed to parse mobile session header:', e);
+            } catch (parseError) {
+                console.log('❌ Failed to parse mobile session header:', parseError.message);
             }
         }
 
@@ -61,56 +81,80 @@ export async function getEnhancedSession(request) {
         if (userEmail && userId) {
             console.log('📱 Found user email and ID in headers:', userEmail);
 
-            // Special handling for admin user
-            if (userEmail === 'e.g.mckeown@gmail.com') {
+            try {
                 await connectDB();
-                const user = await User.findById(userId);
 
+                // Special handling for admin user
+                if (userEmail === 'e.g.mckeown@gmail.com') {
+                    const user = await User.findById(userId);
+
+                    if (user) {
+                        console.log('✅ Admin user found in database via headers');
+                        console.log('✅ Returning admin session for:', request?.url);
+                        return {
+                            user: {
+                                id: user._id.toString(),
+                                email: user.email,
+                                name: user.name,
+                                isAdmin: user.isAdmin || isAdmin === 'true',
+                                subscriptionTier: user.getEffectiveTier(),
+                                effectiveTier: user.getEffectiveTier()
+                            },
+                            source: 'mobile-admin-headers'
+                        };
+                    }
+                }
+
+                // Try to find any user by email
+                const user = await User.findOne({ email: userEmail });
                 if (user) {
-                    console.log('✅ Admin user found in database via headers');
-                    // 🔍 ADD THIS DEBUG LOGGING HERE
-                    console.log('✅ Returning admin session for:', request.url);
+                    console.log('✅ User found in database by email');
+                    console.log('✅ Returning email lookup session for:', request?.url);
                     return {
                         user: {
                             id: user._id.toString(),
                             email: user.email,
                             name: user.name,
-                            isAdmin: user.isAdmin || isAdmin === 'true',
+                            isAdmin: user.isAdmin || false,
                             subscriptionTier: user.getEffectiveTier(),
                             effectiveTier: user.getEffectiveTier()
                         },
-                        source: 'mobile-admin-headers'
+                        source: 'mobile-email-lookup'
                     };
                 }
+            } catch (dbError) {
+                console.error('❌ Database lookup error:', dbError.message);
             }
         }
 
-        // Try to find user by email only
+        // Try to find user by email only (if no userId provided)
         if (userEmail && !userId) {
-            console.log('📱 Found user email, looking up in database:', userEmail);
-            await connectDB();
-            const user = await User.findOne({ email: userEmail });
+            console.log('📱 Found user email only, looking up in database:', userEmail);
+            try {
+                await connectDB();
+                const user = await User.findOne({ email: userEmail });
 
-            if (user) {
-                console.log('✅ User found in database by email');
-                // 🔍 ADD THIS DEBUG LOGGING HERE
-                console.log('✅ Returning email lookup session for:', request.url);
-                return {
-                    user: {
-                        id: user._id.toString(),
-                        email: user.email,
-                        name: user.name,
-                        isAdmin: user.isAdmin || false,
-                        subscriptionTier: user.getEffectiveTier(),
-                        effectiveTier: user.getEffectiveTier()
-                    },
-                    source: 'mobile-email-lookup'
-                };
+                if (user) {
+                    console.log('✅ User found in database by email only');
+                    console.log('✅ Returning email-only lookup session for:', request?.url);
+                    return {
+                        user: {
+                            id: user._id.toString(),
+                            email: user.email,
+                            name: user.name,
+                            isAdmin: user.isAdmin || false,
+                            subscriptionTier: user.getEffectiveTier(),
+                            effectiveTier: user.getEffectiveTier()
+                        },
+                        source: 'mobile-email-only-lookup'
+                    };
+                }
+            } catch (dbError) {
+                console.error('❌ Email-only database lookup error:', dbError.message);
             }
         }
 
-        // 🔍 ADD THIS DEBUG LOGGING HERE
-        console.log('❌ No valid session found for:', request.url);
+        console.log('❌ No valid session found for:', request?.url);
         console.log('❌ Available headers were:', {
             userEmail,
             userId,
@@ -120,7 +164,8 @@ export async function getEnhancedSession(request) {
         return null;
 
     } catch (error) {
-        console.error('❌ Enhanced session error for:', request.url, error);
+        console.error('❌ Enhanced session error for:', request?.url || 'unknown', error.message);
+        console.error('❌ Error stack:', error.stack);
         return null;
     }
 }
