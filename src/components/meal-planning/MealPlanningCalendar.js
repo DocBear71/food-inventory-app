@@ -1680,10 +1680,12 @@ export default function MealPlanningCalendar() {
 
     useEffect(() => {
         if (session?.user) {
+            console.log('👤 Session loaded, loading user preferences...');
             loadUserPreferences();
             loadPriceIntelligence();
+            fetchInventory();
         }
-    }, [session]);
+    }, [session?.user]);
 
     useEffect(() => {
         const dismissed = localStorage.getItem('weekSettingsNotificationDismissed');
@@ -1760,11 +1762,23 @@ export default function MealPlanningCalendar() {
 
     // MOVE THIS useEffect HERE - before any early returns
     useEffect(() => {
+        // Only fetch meal plan when we have session AND preferences are fully loaded
         if (session?.user && weekStartDay && userMealTypes.length > 0) {
+            console.log('📅 Fetching meal plan with loaded preferences:', {
+                weekStartDay,
+                userMealTypes: userMealTypes.length,
+                currentWeek: currentWeek.toDateString()
+            });
             fetchMealPlan();
             fetchRecipes();
+        } else {
+            console.log('⏳ Waiting for preferences to load:', {
+                hasSession: !!session?.user,
+                weekStartDay,
+                mealTypesCount: userMealTypes.length
+            });
         }
-    }, [session, currentWeek, weekStartDay, userMealTypes]);
+    }, [session?.user, currentWeek, weekStartDay, userMealTypes]); // Changed dependency
 
     if (showShoppingList && mealPlan) {
         console.log('🔍 MODAL DATA CHECK:', {
