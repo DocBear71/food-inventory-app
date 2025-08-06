@@ -36,7 +36,7 @@ export default function MobileDashboardLayout({children}) {
 
     // Memoize navigation items to prevent recreation
     const allNavigationItems = useMemo(() => [
-        { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/', priority: 1 },
+        { name: 'Dashboard', href: '/dashboard', icon: '🏠', current: pathname === '/dashboard', priority: 1 },
         { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory', priority: 2 },
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes'), priority: 3 },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
