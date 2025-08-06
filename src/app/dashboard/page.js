@@ -22,6 +22,8 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [showNotifications, setShowNotifications] = useState(false);
 
+    console.log('🎯 DASHBOARD PAGE LOADED - Current URL:', window.location.href);
+    
     // FIXED: Use router.push instead of redirect
     useEffect(() => {
         if (status === 'unauthenticated') {

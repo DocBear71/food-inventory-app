@@ -1,13 +1,13 @@
 // file: /src/app/api/meal-planning/smart-suggestions/route.js v3 - Corrected and Clean
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { Recipe, MealPlan, UserInventory, User } from '@/lib/models';
 
 export async function POST(request) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

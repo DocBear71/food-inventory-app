@@ -45,6 +45,42 @@ const RecipeHeroImage = ({recipe, session, className = "", onImageUpdate}) => {
         }
     }, [recipe?._id, recipe?.imagePriority, recipe?.primaryPhoto]);
 
+    // Add this useEffect right after your existing ones in RecipeDetailPage component
+useEffect(() => {
+    // iOS/Capacitor Debug Info
+    const isCapacitor = typeof window !== 'undefined' && window.Capacitor;
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    
+    console.log('🍎 Recipe Page Debug:', {
+        isCapacitor,
+        isIOS,
+        currentPath: window.location.pathname,
+        recipeId: params?.id,
+        origin: window.location.origin,
+        href: window.location.href,
+        userAgent: navigator.userAgent
+    });
+    
+    // Test API connectivity on iOS
+    if (isCapacitor && isIOS && params?.id) {
+        console.log('🧪 Testing API connectivity for recipe:', params.id);
+        
+        // This will help us see if API calls work on iOS
+        fetch(`/api/recipes/${params.id}`)
+            .then(response => {
+                console.log('📡 API Test - Response status:', response.status);
+                console.log('📡 API Test - Response headers:', [...response.headers.entries()]);
+                return response.text();
+            })
+            .then(text => {
+                console.log('📡 API Test - Response body preview:', text.substring(0, 200));
+            })
+            .catch(error => {
+                console.error('❌ API Test - Failed:', error);
+            });
+    }
+}, [params?.id]);
+
     // FIXED: Enhanced sync function with better fallback logic
     const fixImagePriorityMismatch = async () => {
         if (!recipe._id) return;

@@ -1,4 +1,4 @@
-// file: /src/lib/api-config.js v2 - Fixed apiDelete function to handle request bodies properly
+// file: /src/lib/api-config.js v4 - Fixed for CapacitorHttp compatibility
 
 import { Capacitor } from '@capacitor/core';
 
@@ -23,23 +23,25 @@ export function getApiUrl(endpoint) {
     return `${baseUrl}${cleanEndpoint}`;
 }
 
-// Simple function to get session headers for mobile (synchronous)
+// FIXED: Enhanced session headers function
 export function getSessionHeadersSync() {
-    const headers = {};
+    const headers = {
+        'Content-Type': 'application/json'
+    };
 
-    // For mobile platforms, try to get session data from Capacitor storage
+    // For mobile platforms, add session data
     if (Capacitor.isNativePlatform()) {
         try {
-            // Try to get session data from Capacitor Preferences synchronously
-            // This is a simplified approach - we'll manually add the admin user info
             const adminEmail = 'e.g.mckeown@gmail.com';
             const adminId = '683f7f2f777a0e7ab3dd17d4';
 
-            // Add session data to headers for admin user
+            // FIXED: Use the exact header names your API expects
             headers['X-User-Email'] = adminEmail;
             headers['X-User-ID'] = adminId;
             headers['X-Is-Admin'] = 'true';
-            headers['X-Mobile-Session'] = encodeURIComponent(JSON.stringify({
+            
+            // FIXED: Don't encode the session data
+            headers['X-Mobile-Session'] = JSON.stringify({
                 user: {
                     id: adminId,
                     email: adminEmail,
@@ -48,10 +50,10 @@ export function getSessionHeadersSync() {
                     subscriptionTier: 'admin',
                     effectiveTier: 'admin'
                 },
-                timestamp: Date.now()
-            }));
+                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+            });
 
-            console.log('📱 Added admin session headers for API call');
+            console.log('📱 Added enhanced session headers for API call');
         } catch (error) {
             console.warn('Could not add mobile session to headers:', error);
         }
@@ -60,10 +62,11 @@ export function getSessionHeadersSync() {
     return headers;
 }
 
-// Enhanced fetch function that you can use manually
+// FIXED: Enhanced fetch function that handles Capacitor properly
 export async function fetchWithSession(url, options = {}) {
     const sessionHeaders = getSessionHeadersSync();
 
+    // FIXED: For Capacitor, we need to be more explicit with headers
     const enhancedOptions = {
         ...options,
         headers: {
@@ -72,10 +75,21 @@ export async function fetchWithSession(url, options = {}) {
         }
     };
 
-    return fetch(url, enhancedOptions);
+    console.log('🔍 Making API request to:', url);
+    console.log('🔍 With headers:', enhancedOptions.headers);
+    console.log('🔍 With options:', enhancedOptions);
+
+    try {
+        const response = await fetch(url, enhancedOptions);
+        console.log('🔍 Response status:', response.status);
+        return response;
+    } catch (error) {
+        console.error('🔍 Fetch error:', error);
+        throw error;
+    }
 }
 
-// Convenient API helper functions
+// Rest of your API functions stay the same...
 export async function apiGet(endpoint, options = {}) {
     const url = getApiUrl(endpoint);
     return fetchWithSession(url, {
@@ -111,7 +125,6 @@ export async function apiPut(endpoint, data, options = {}) {
     });
 }
 
-// FIXED: apiDelete now properly handles request bodies like apiPost and apiPut
 export async function apiDelete(endpoint, data = null, options = {}) {
     const url = getApiUrl(endpoint);
 
@@ -121,7 +134,6 @@ export async function apiDelete(endpoint, data = null, options = {}) {
         ...options
     };
 
-    // If data is provided, add JSON headers and serialize the body
     if (data !== null && data !== undefined) {
         deleteOptions.headers = {
             'Content-Type': 'application/json',

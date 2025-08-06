@@ -82,7 +82,7 @@ export const handleMobileSignIn = async (credentials, { setLoading, setError, se
                 if (Capacitor.isNativePlatform()) {
                     setTimeout(() => {
                         // Force a full page reload to ensure session is recognized
-                        window.location.replace('/dashboard');
+                        router.push('/dashboard');
                     }, 500);
                 } else {
                     router.push('/dashboard');

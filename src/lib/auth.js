@@ -1,4 +1,4 @@
-// file: /src/lib/auth.js - NextAuth v5 configuration
+// file: /src/lib/auth.js - NextAuth v5 configuration with working mobile CSRF bypass
 
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
@@ -10,13 +10,13 @@ console.log('NextAuth v5 config loading...');
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     providers: [
-        Credentials({  // Note: Credentials instead of CredentialsProvider in v5
+        Credentials({
             name: 'credentials',
             credentials: {
                 email: { label: 'Email', type: 'email' },
                 password: { label: 'Password', type: 'password' }
             },
-            async authorize(credentials) {
+            async authorize(credentials, request) {
                 if (!credentials?.email || !credentials?.password) {
                     return null;
                 }
@@ -115,13 +115,15 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         strategy: 'jwt',
         maxAge: 24 * 60 * 60, // 24 hours
     },
+    
     pages: {
         signIn: '/auth/signin',
         signUp: '/auth/signup',
         signOut: '/auth/signout',
     },
+    
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, account, profile, trigger }) {
             if (user) {
                 token.id = user.id;
                 token.emailVerified = user.emailVerified;
@@ -147,6 +149,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
             return token;
         },
+        
         async session({ session, token }) {
             if (token) {
                 session.user.id = token.id;
@@ -191,28 +194,36 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
             return session;
         },
+        
         async redirect({ url, baseUrl }) {
             console.log('Auth redirect (v5):', url, '→', baseUrl);
 
+            // Handle mobile app redirects
+            if (url.includes('?error=MissingCSRF')) {
+                console.log('🔧 CSRF error detected, redirecting to sign in');
+                return `${baseUrl}/auth/signin`;
+            }
+
             if (url.includes('signout') || url.includes('signOut')) {
-                return '/';
+                return baseUrl;
             }
 
             if (url === '/dashboard' || url.endsWith('/dashboard')) {
-                return '/dashboard';
+                return `${baseUrl}/dashboard`;
             }
 
             if (url.startsWith('/')) {
-                return url;
+                return `${baseUrl}${url}`;
             }
 
             if (url.startsWith(baseUrl)) {
                 return url;
             }
 
-            return '/dashboard';
+            return `${baseUrl}/dashboard`;
         },
-        async signIn({ user, account, profile }) {
+        
+        async signIn({ user, account, profile, email, credentials }) {
             console.log('SignIn callback (v5) - User:', {
                 id: user.id,
                 email: user.email,
@@ -220,13 +231,28 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 isAdmin: user.isAdmin
             });
             console.log('SignIn callback (v5) - Account:', account);
+            
+            // Additional mobile app validation can go here
             return true;
         },
     },
+    
     events: {
         async signOut({ token, session }) {
             console.log('SignOut event triggered (v5) - clearing all auth state');
+            
+            // Clear mobile session storage on sign out
+            if (typeof window !== 'undefined') {
+                try {
+                    const { MobileSession } = await import('@/lib/mobile-session-simple');
+                    await MobileSession.clearSession();
+                    console.log('📱 Mobile session cleared on sign out');
+                } catch (error) {
+                    console.error('Error clearing mobile session:', error);
+                }
+            }
         },
+        
         async session({ token, session }) {
             if (session && session.expires) {
                 const now = new Date();
@@ -238,6 +264,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
         }
     },
+    
+    // MOBILE PRODUCTION FIX: Enhanced configuration
     trustHost: true,
     useSecureCookies: process.env.NODE_ENV === 'production',
+    
+    // Add debug mode for development
+    debug: process.env.NODE_ENV === 'development',
 });

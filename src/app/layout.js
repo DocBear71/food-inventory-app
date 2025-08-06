@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/layout.js v12 - SIMPLIFIED: Let PlatformAwareWrapper handle platform detection
+// file: /src/app/layout.js v13 - ADDED: iOS Router Handler for Capacitor routing fixes
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -9,6 +9,7 @@ import CapacitorAuthProvider from '@/components/providers/CapacitorAuthProvider'
 import {SubscriptionProvider} from '@/hooks/useSubscription';
 import ViewportHandler from '@/components/ViewportHandler';
 import PlatformAwareWrapper from '@/components/PlatformAwareWrapper';
+import IOSRouterHandler from '@/components/IOSRouterHandler'; // NEW: Add iOS routing fix
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
@@ -102,8 +103,10 @@ export default function RootLayout({children}) {
             <SessionProvider>
                 <SubscriptionProvider>
                     <PlatformAwareWrapper>
-                        <DirectShareHandler />
-                        {children}
+                        <IOSRouterHandler>
+                            <DirectShareHandler />
+                            {children}
+                        </IOSRouterHandler>
                     </PlatformAwareWrapper>
                 </SubscriptionProvider>
             </SessionProvider>

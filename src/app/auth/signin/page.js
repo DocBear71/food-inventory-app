@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/auth/signin/page.js v5 - FIXED: Direct session storage for mobile
+// file: /src/app/auth/signin/page.js v6 - FIXED: Mobile auth interceptor for production
 
 import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
@@ -10,6 +10,7 @@ import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { apiGet, apiPost } from '@/lib/api-config';
 import { MobileSession } from '@/lib/mobile-session-simple';
+import { mobileSignIn, mobileAuthInterceptor } from '@/lib/mobile-auth-interceptor';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 function SignInContent() {
@@ -54,6 +55,9 @@ function SignInContent() {
                 case 'CredentialsSignin':
                     setError('Invalid email or password. Please try again.');
                     break;
+                case 'MissingCSRF':
+                    setError('Authentication failed due to security settings. Please try again.');
+                    break;
                 default:
                     setError('An error occurred. Please try again.');
             }
@@ -74,26 +78,107 @@ function SignInContent() {
     }, [searchParams]);
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
-        setLoading(true);
-        setError('');
-        setMessage('');
-        setShowResendVerification(false);
+    e.preventDefault();
+    setLoading(true);
+    setError('');
+    setMessage('');
+    setShowResendVerification(false);
 
-        // Use dynamic import for Capacitor to avoid require() issues
-        let isNative = false;
-        try {
-            const { Capacitor } = await import('@capacitor/core');
-            isNative = Capacitor.isNativePlatform();
-        } catch (e) {
-            isNative = false;
-        }
+    // Use dynamic import for Capacitor to avoid require() issues
+    let isNative = false;
+    try {
+        const { Capacitor } = await import('@capacitor/core');
+        isNative = Capacitor.isNativePlatform();
+    } catch (e) {
+        isNative = false;
+    }
 
-        console.log('=== LOGIN ATTEMPT ===');
-        console.log('Email:', formData.email);
-        console.log('Is native platform:', isNative);
+    console.log('=== LOGIN ATTEMPT ===');
+    console.log('Email:', formData.email);
+    console.log('Is native platform:', isNative);
 
-        try {
+    try {
+        if (isNative) {
+            // Use mobile authentication interceptor for native apps
+            console.log('📱 Using mobile authentication flow to avoid CSRF issues');
+            
+            const result = await mobileSignIn(formData.email, formData.password);
+            
+            if (result.success) {
+                console.log('✅ Mobile sign in successful');
+                setRedirecting(true);
+                
+                try {
+                    // CRITICAL: Store session in ALL storage locations
+                    
+                    // 1. Store in mobile interceptor
+                    mobileAuthInterceptor.setSessionData(result.session);
+                    console.log('✅ Session stored in mobile interceptor');
+                    
+                    // 2. Store in MobileSession (Capacitor Preferences)
+                    await MobileSession.setSession(result.session);
+                    console.log('✅ Session stored in MobileSession');
+                    
+                    // 3. Store session data directly in Capacitor Preferences as backup
+                    const { Preferences } = await import('@capacitor/preferences');
+                    await Preferences.set({
+                        key: 'mobile_session',
+                        value: JSON.stringify(result.session)
+                    });
+                    await Preferences.set({
+                        key: 'mobile_session_expiry',
+                        value: result.session.expires
+                    });
+                    console.log('✅ Session stored directly in Capacitor Preferences');
+                    
+                    // 4. Store user data separately for easier access
+                    await Preferences.set({
+                        key: 'current_user',
+                        value: JSON.stringify(result.session.user)
+                    });
+                    console.log('✅ User data stored in Capacitor Preferences');
+                    
+                    // 5. Set a flag that user is authenticated
+                    await Preferences.set({
+                        key: 'is_authenticated',
+                        value: 'true'
+                    });
+                    console.log('✅ Authentication flag set');
+                    
+                    console.log('🎉 All session storage completed successfully');
+                    
+                    // Small delay to ensure storage completes
+                    setTimeout(() => {
+                        console.log('🔄 Redirecting to dashboard after session storage...');
+                        router.push('/dashboard');
+                    }, 1000);
+                    
+                    return;
+                    
+                } catch (storageError) {
+                    console.error('📱 Session storage error:', storageError);
+                    // Still redirect even if storage partially fails
+                    setTimeout(() => {
+                        router.push('/dashboard');
+                    }, 1000);
+                }
+            } else {
+                console.log('❌ Mobile sign in failed:', result.error);
+                
+                if (result.error === 'MissingCSRF') {
+                    setError('Authentication failed due to security settings. Please try again in a moment.');
+                } else if (result.error?.includes('verify') || result.error?.includes('email')) {
+                    setError('Please verify your email before signing in.');
+                    setShowResendVerification(true);
+                    setUnverifiedEmail(formData.email);
+                } else {
+                    setError(result.error || 'Sign in failed. Please check your credentials and try again.');
+                }
+            }
+        } else {
+            // Use standard NextAuth for web/PWA
+            console.log('🌐 Using web authentication flow');
+            
             const result = await signIn('credentials', {
                 email: formData.email,
                 password: formData.password,
@@ -114,191 +199,24 @@ function SignInContent() {
                     setUnverifiedEmail(formData.email);
                 } else if (result.error === 'CredentialsSignin') {
                     setError('Invalid email or password. Please try again.');
+                } else if (result.error === 'MissingCSRF') {
+                    setError('Authentication failed due to security settings. Please try again.');
                 } else {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
                 console.log('Login appears successful');
                 setRedirecting(true);
-
-                if (isNative) {
-                    // For native platforms, we need to get the session data directly
-                    // since NextAuth session retrieval might fail
-                    console.log('🔄 Native platform - fetching session data directly...');
-
-                    try {
-                        // ENHANCED: Try multiple methods to get user data
-                        console.log('🔍 Method 1: Trying NextAuth session...');
-
-                        // First try NextAuth session
-                        const { getSession } = await import('next-auth/react');
-                        const nextAuthSession = await getSession();
-
-                        if (nextAuthSession?.user) {
-                            console.log('✅ NextAuth session found:', nextAuthSession.user);
-                            const success = await MobileSession.setSession(nextAuthSession);
-                            if (success) {
-                                console.log('✅ NextAuth session stored, redirecting...');
-                                setTimeout(() => {
-                                    window.location.replace('/dashboard');
-                                }, 1000);
-                                return;
-                            }
-                        }
-
-                        console.log('🔍 Method 2: Trying direct session API...');
-
-                        // Try direct API call to get session data
-                        const sessionResponse = await apiGet('/api/auth/session');
-
-                        if (sessionResponse.ok) {
-                            const sessionData = await sessionResponse.json();
-                            console.log('✅ Direct session fetch response:', sessionData);
-
-                            if (sessionData?.user && Object.keys(sessionData.user).length > 1) {
-                                // Store the session in mobile storage
-                                const mobileSessionData = {
-                                    user: sessionData.user,
-                                    expires: sessionData.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                                };
-
-                                const success = await MobileSession.setSession(mobileSessionData);
-                                console.log('📱 Mobile session storage result:', success);
-
-                                if (success) {
-                                    console.log('✅ Session stored successfully, redirecting...');
-                                    setTimeout(() => {
-                                        window.location.replace('/dashboard');
-                                    }, 1000);
-                                    return;
-                                }
-                            }
-                        }
-
-                        console.log('🔍 Method 3: Trying user profile API...');
-
-                        // Try to get user data from profile endpoint
-                        const profileResponse = await apiGet('/api/user/profile');
-
-                        if (profileResponse.ok) {
-                            const userData = await profileResponse.json();
-                            console.log('✅ User profile fetch successful:', userData);
-
-                            if (userData?.email) {
-                                // Create session from user data
-                                const sessionData = {
-                                    user: userData,
-                                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                                };
-
-                                const success = await MobileSession.setSession(sessionData);
-                                console.log('📱 Profile session storage result:', success);
-
-                                if (success) {
-                                    console.log('✅ Profile session stored successfully, redirecting...');
-                                    setTimeout(() => {
-                                        window.location.replace('/dashboard');
-                                    }, 1000);
-                                    return;
-                                }
-                            }
-                        }
-
-                        console.log('🔍 Method 4: Trying user data by email...');
-
-                        // Add a small delay to ensure the callback processing is complete
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-
-                        // Try to get user data by email
-                        const userResponse = await apiPost('/api/user/by-email', { email: formData.email });
-
-                        console.log('📡 User by email API response status:', userResponse.status);
-
-                        if (userResponse.ok) {
-                            const userData = await userResponse.json();
-                            console.log('✅ User data by email successful:', userData);
-
-                            if (userData?.email) {
-                                // Create session from user data
-                                const sessionData = {
-                                    user: userData,
-                                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                                };
-
-                                const success = await MobileSession.setSession(sessionData);
-                                console.log('📱 Email user session storage result:', success);
-
-                                if (success) {
-                                    console.log('✅ Email user session stored successfully, redirecting...');
-                                    setTimeout(() => {
-                                        window.location.replace('/dashboard');
-                                    }, 1000);
-                                    return;
-                                }
-                            }
-                        } else {
-                            console.error('❌ User by email API failed:', userResponse.status, userResponse.statusText);
-                            try {
-                                const errorData = await userResponse.text();
-                                console.error('Error response:', errorData);
-                            } catch (e) {
-                                console.error('Could not read error response');
-                            }
-                        }
-
-                        console.log('❌ All methods failed, using fallback...');
-                        await handleFallbackSessionRetrieval(isNative);
-
-                    } catch (fetchError) {
-                        console.error('❌ Error during session retrieval:', fetchError);
-                        // Fallback: try to get the session a different way
-                        await handleFallbackSessionRetrieval(isNative);
-                    }
-                } else {
-                    // For web platforms, use the original logic
-                    console.log('🌐 Web platform - using NextAuth session...');
-                    await handleWebSessionRetrieval();
-                }
+                await handleWebSessionRetrieval();
             }
-        } catch (error) {
-            console.error('Login exception:', error);
-            setError('Network error. Please try again.');
-        } finally {
-            setLoading(false);
         }
-    };
-
-    const handleFallbackSessionRetrieval = async (isNative) => {
-        console.log('🔄 Attempting fallback session retrieval...');
-
-        // Try to create a session based on the login credentials
-        // This is a fallback when direct session fetch fails
-        try {
-            // Create a minimal session object based on what we know
-            const fallbackSession = {
-                user: {
-                    email: formData.email,
-                    // We don't have all the user data, but we can redirect and let the app fetch it
-                },
-                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-            };
-
-            if (isNative) {
-                await MobileSession.setSession(fallbackSession);
-            }
-
-            setTimeout(() => {
-                window.location.replace('/dashboard');
-            }, 1000);
-        } catch (error) {
-            console.error('❌ Fallback session retrieval failed:', error);
-            // Final fallback - just redirect and hope for the best
-            setTimeout(() => {
-                window.location.replace('/dashboard');
-            }, 1000);
-        }
-    };
-
+    } catch (error) {
+        console.error('Login exception:', error);
+        setError('Network error. Please check your connection and try again.');
+    } finally {
+        setLoading(false);
+    }
+};
     const handleResendVerificationFromSignIn = async () => {
         if (resendLoading) return;
 
@@ -323,27 +241,6 @@ function SignInContent() {
             setError('Network error. Please try again.');
         } finally {
             setResendLoading(false);
-        }
-    };
-
-    const handleWebSessionRetrieval = async () => {
-        // Wait a moment for session to be established
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Check if session was actually created
-        const { getSession } = await import('next-auth/react');
-        const session = await getSession();
-        console.log('Session after login:', session);
-
-        if (session) {
-            console.log('Session confirmed, redirecting...');
-            router.replace('/dashboard');
-        } else {
-            console.log('No session found after successful login');
-            // Try forcing a page reload to establish session
-            setTimeout(() => {
-                window.location.replace('/dashboard');
-            }, 1000);
         }
     };
 
@@ -425,6 +322,12 @@ function SignInContent() {
                             </div>
                         )}
 
+                        {success && (
+                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                                {success}
+                            </div>
+                        )}
+
                         {redirecting && (
                             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
                                 Login successful! Redirecting to dashboard...
@@ -479,7 +382,8 @@ function SignInContent() {
                                 <Link
                                     href="/auth/verify-email"
                                     className="font-medium text-indigo-600 hover:text-indigo-500"
-                                >
+                                    onClick={handleResendVerification}  
+>
                                     Resend verification
                                 </Link>
                             </div>

@@ -25,6 +25,7 @@ import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import RecipeNavigationLink from '@/components/recipes/RecipeNavigationLink';
 
 // FINAL: RecipeImage Component with correct layout and styling
 const RecipeImage = ({ recipe, className = "", priority = false }) => {
@@ -32,34 +33,87 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [currentImageSrc, setCurrentImageSrc] = useState('');
 
-    // Simple and reliable image source detection
+    // Add this to your RecipeImage component's getImageSrc function
     const getImageSrc = () => {
-        // 1. Check external URL first (Unsplash, Pexels, Google)
-        if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
+        console.log('🖼️ iOS Image Debug for recipe:', recipe._id, {
+            imageUrl: recipe.imageUrl,
+            primaryPhoto: recipe.primaryPhoto,
+            hasPhotos: recipe.hasPhotos,
+            uploadedImage: !!recipe.uploadedImage?.data,
+            extractedImage: !!recipe.extractedImage?.data,
+            imagePriority: recipe.imagePriority
+        });
+
+        // IMMEDIATE FIX: If we have primaryPhoto but wrong priority, use it anyway
+        if (recipe.primaryPhoto && recipe.primaryPhoto._id) {
+            const photoUrl = `/api/recipes/photos/${recipe.primaryPhoto._id}`;
+            console.log('🖼️ iOS FORCE: Using primary photo despite wrong priority:', photoUrl);
+            return photoUrl;
+        }
+
+        // FIXED: Enhanced fallback logic for iOS
+        console.log('🖼️ Available sources:', {
+            primaryPhoto: !!recipe.primaryPhoto,
+            uploadedImage: !!recipe.uploadedImage?.data,
+            extractedImage: !!recipe.extractedImage?.data,
+            imageUrl: !!recipe.imageUrl,
+            imageError: imageError
+        });
+
+        // Use imagePriority to determine which image to show (existing logic)
+        switch (recipe.imagePriority) {
+            case 'primary_photo':
+                if (recipe.primaryPhoto && !imageError) {
+                    const photoUrl = `/api/recipes/photos/${recipe.primaryPhoto._id}`;
+                    console.log('🖼️ Using primary photo from priority:', photoUrl);
+                    return photoUrl;
+                }
+                break;
+
+            case 'uploaded_image':
+                if (recipe.uploadedImage?.data && !imageError) {
+                    console.log('🖼️ Using uploadedImage (embedded base64)');
+                    return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+                }
+                break;
+
+            case 'extracted_image':
+                if (recipe.extractedImage?.data && !imageError) {
+                    console.log('🖼️ Using extractedImage (embedded base64)');
+                    return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+                }
+                break;
+
+            case 'external_url':
+                if (recipe.imageUrl && !imageError) {
+                    console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
+                    return recipe.imageUrl;
+                }
+                break;
+        }
+
+        // ENHANCED fallback logic - try all available sources
+        console.log('🖼️ Priority-based selection failed, trying fallback logic...');
+
+        // First try uploaded image
+        if (recipe.uploadedImage?.data && !imageError) {
+            console.log('🖼️ Fallback: Using uploadedImage');
+            return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
+        }
+
+        // Then try extracted image
+        if (recipe.extractedImage?.data && !imageError) {
+            console.log('🖼️ Fallback: Using extractedImage');
+            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
+        }
+
+        // Try external URL even if priority is undefined
+        if (recipe.imageUrl && !imageError) {
+            console.log('🖼️ Fallback: Using external imageUrl:', recipe.imageUrl);
             return recipe.imageUrl;
         }
 
-        // 2. Check primary photo (user uploaded via photo system)
-        if (recipe.primaryPhoto && recipe.primaryPhoto._id) {
-            return `/api/recipes/photos/${recipe.primaryPhoto._id}`;
-        }
-
-        // 3. Check first photo in array
-        if (recipe.photos && recipe.photos.length > 0 && recipe.photos[0]._id) {
-            return `/api/recipes/photos/${recipe.photos[0]._id}`;
-        }
-
-        // 4. Check uploaded image (embedded in recipe)
-        if (recipe.uploadedImage?.data) {
-            return `/api/recipes/photos/upload?recipeId=${recipe._id}`;
-        }
-
-        // 5. Check extracted image (AI generated)
-        if (recipe.extractedImage?.data) {
-            return `/api/recipes/photos/upload?recipeId=${recipe._id}`;
-        }
-
-        // 6. Fallback to placeholder
+        console.log('🖼️ No image sources found, using placeholder');
         return '/images/recipe-placeholder.jpg';
     };
 
@@ -1232,12 +1286,12 @@ function RecipesContent() {
                                                 <div className="p-4">
                                                     {/* Header - Title */}
                                                     <div className="mb-3">
-                                                        <Link
-                                                            href={`/recipes/${recipe._id}`}
+                                                        <RecipeNavigationLink
+                                                            recipeId={recipe._id}
                                                             className="pyt-8 text-base font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2 block group-hover:text-indigo-600 transition-colors"
                                                         >
                                                             {recipe.title || 'Untitled Recipe'}
-                                                        </Link>
+                                                        </RecipeNavigationLink>
                                                     </div>
 
                                                     {/* Recipe Author Info (for public recipes) */}

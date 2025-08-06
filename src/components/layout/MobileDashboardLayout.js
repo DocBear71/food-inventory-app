@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/MobileDashboardLayout.js v12 - FIXED: StatusBar layout issues
+// file: /src/components/layout/MobileDashboardLayout.js v13 - FIXED: iOS navigation issues
 
 import {useState, useEffect} from 'react';
 import {handleMobileSignOut} from '@/lib/mobile-signout';
@@ -146,9 +146,9 @@ export default function MobileDashboardLayout({children}) {
         setMobileMenuOpen(false);
     }, [pathname, searchParams]);
 
-    // Enhanced navigation with additional items for responsive bottom nav
+    // FIXED: Enhanced navigation with proper iOS-friendly routes
     const allNavigationItems = [
-        { name: 'Dashboard', href: '/', icon: '🏠', current: pathname === '/', priority: 1 },
+        { name: 'Dashboard', href: '/dashboard', icon: '🏠', current: pathname === '/' || pathname === '/dashboard', priority: 1 },
         { name: 'Inventory', href: '/inventory', icon: '📦', current: pathname === '/inventory', priority: 2 },
         { name: 'Recipes', href: '/recipes', icon: '📖', current: pathname.startsWith('/recipes'), priority: 3 },
         { name: 'Meal Planning', href: '/meal-planning', icon: '📅', current: pathname.startsWith('/meal-planning')},
@@ -199,9 +199,9 @@ export default function MobileDashboardLayout({children}) {
         },
         {
             name: 'Common Items Wizard',
-            href: '/inventory?wizard=true',
+            href: '/inventory/wizard',
             icon: '🏠',
-            current: false,
+            current: pathname === '/inventory/wizard',
             description: 'Quickly add common household items to your inventory',
             section: 'Inventory'
         },
@@ -324,10 +324,28 @@ export default function MobileDashboardLayout({children}) {
         }
     ];
 
-    const handleNavigation = (href) => {
-        MobileHaptics.light();
-        setMobileMenuOpen(false);
-        router.push(href);
+    // FIXED: Enhanced navigation with error handling and iOS-specific routing
+    const handleNavigation = async (href) => {
+        try {
+            console.log('🧭 Navigating to:', href);
+            MobileHaptics.light();
+            setMobileMenuOpen(false);
+            
+            // Add small delay to ensure menu closes before navigation
+            await new Promise(resolve => setTimeout(resolve, 150));
+            
+            // FIXED: Use router.push with proper error handling
+            await router.push(href);
+            
+        } catch (error) {
+            console.error('❌ Navigation error:', error);
+            // Fallback: try window.location for problematic routes
+            try {
+                window.location.href = href;
+            } catch (fallbackError) {
+                console.error('❌ Fallback navigation failed:', fallbackError);
+            }
+        }
     };
 
     const toggleMobileMenu = () => {
@@ -427,28 +445,6 @@ export default function MobileDashboardLayout({children}) {
         };
     };
 
-    // Alternative approach if the above doesn't work:
-    const getBottomNavStyleAlternative = () => {
-        return {
-            bottom: '0',
-            // Method 1: Simple env() with fallback
-            paddingBottom: 'env(safe-area-inset-bottom, 8px)',
-            // Add minimum padding via separate property if needed
-            minHeight: '68px'
-        };
-    };
-
-// Or for more complex safe area handling:
-    const getBottomNavStyleAdvanced = () => {
-        return {
-            bottom: '0',
-            // Use CSS custom property approach for better control
-            paddingBottom: 'var(--safe-area-inset-bottom, 8px)',
-            // Ensure minimum padding
-            minHeight: 'calc(68px + var(--safe-area-inset-bottom, 0px))'
-        };
-    };
-
     if (!platformInfo.isReady) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -514,6 +510,7 @@ export default function MobileDashboardLayout({children}) {
                             </svg>
                         </TouchEnhancedButton>
 
+                        {/* FIXED: Simplified Add Inventory button - removed complex query params */}
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add&scroll=form')}
                             className="p-2.5 rounded-lg bg-green-600 text-white shadow-sm hover:bg-green-700 active:scale-95 transition-all touch-friendly"
@@ -631,13 +628,7 @@ export default function MobileDashboardLayout({children}) {
                                             {items.map((item) => (
                                                 <TouchEnhancedButton
                                                     key={item.name}
-                                                    onClick={() => {
-                                                        MobileHaptics.light();
-                                                        setMobileMenuOpen(false);
-                                                        setTimeout(() => {
-                                                            router.push(item.href);
-                                                        }, 100);
-                                                    }}
+                                                    onClick={() => handleNavigation(item.href)}
                                                     className={`w-full flex items-start space-x-3 px-4 py-3 rounded-xl text-left transition-all touch-friendly ${
                                                         item.current
                                                             ? 'bg-indigo-50 text-indigo-700 border border-indigo-200'
@@ -732,7 +723,7 @@ export default function MobileDashboardLayout({children}) {
                             {/* Navigation Buttons */}
                             <div className="p-4 space-y-2">
                                 <TouchEnhancedButton
-                                    onClick={() => handleNavigation('/account')}
+                                    onClick={() => handleNavigation('/profile/settings')}
                                     className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-gray-700 hover:bg-gray-100 active:bg-gray-200 transition-all touch-friendly"
                                 >
                                     <span className="text-xl">⚙️</span>

@@ -4,18 +4,27 @@ const config: CapacitorConfig = {
     appId: 'kitchen.docbearscomfort',
     appName: "Doc Bear's Comfort Kitchen",
     webDir: 'out',
+    
+    // ENHANCED: Better server config for iOS routing
     server: {
-        url: 'https://www.docbearscomfort.kitchen',
         cleartext: true,
-        androidScheme: 'https'
+        androidScheme: 'https',
+        iosScheme: 'https',
+        allowNavigation: [
+            'https://www.docbearscomfort.kitchen',
+            'https://docbearscomfort.kitchen',
+            'https://*.docbearscomfort.kitchen'
+        ],
+        // CRITICAL: Handle 404s for dynamic routes
+        errorPath: 'index.html',
     },
+    
     plugins: {
         StatusBar: {
             style: 'LIGHT_CONTENT',
             backgroundColor: '#00000000',
-            overlaysWebView: false, // IMPORTANT: This fixes bottom nav issues
+            overlaysWebView: false,
         },
-
         SplashScreen: {
             launchAutoHide: false,
             androidScaleType: 'CENTER_CROP',
@@ -26,67 +35,47 @@ const config: CapacitorConfig = {
             splashFullScreen: true,
             splashImmersive: true
         },
-
+        
+        // CRITICAL: Add App plugin configuration for routing
+        App: {
+            launchUrl: 'index.html',
+        },
+        
         Camera: {
             permissions: ['camera']
         },
-
         Microphone: {
             permissions: ['microphone']
         },
-
-        // FIXED: Proper @gachlab/capacitor-permissions configuration
-        Permissions: {
-            // This should match the plugin's expected configuration
-        },
-
+        Permissions: {},
         Geolocation: {
             permissions: ['coarse-location', 'fine-location']
         },
-
         PushNotifications: {
             presentationOptions: ["badge", "sound", "alert"]
         },
-
         LocalNotifications: {
             smallIcon: "ic_stat_icon_config_sample",
             iconColor: "#4f46e5"
         },
-
         CapacitorHttp: {
             enabled: true
         },
-
         CapacitorCookies: {
             enabled: true
         },
-
         ImageToText: {
             language: 'en'
         },
-
-        // ADDED: Device plugin for better permission handling
-        Device: {
-            // This helps with platform detection in VoiceInput component
-        },
-
-        // ADDED: Keyboard plugin for better voice input UX
+        Device: {},
         Keyboard: {
             resize: 'native',
             style: 'light',
             resizeOnFullScreen: true
         },
-
-        // ADDED: Haptics for voice input feedback
-        Haptics: {
-            // Enable haptic feedback for voice input buttons
-        },
-
-        Purchases: {
-            // Your existing purchases config
-        }
+        Haptics: {},
+        Purchases: {}
     },
-
     android: {
         allowMixedContent: true,
         captureInput: true,
@@ -94,11 +83,12 @@ const config: CapacitorConfig = {
         loggingBehavior: 'debug',
         backgroundColor: '#ffffff'
     },
-
     ios: {
-        contentInset: 'automatic'
+        contentInset: 'automatic',
+        allowsLinkPreview: false,
+        webContentsDebuggingEnabled: true,
+        scheme: 'App',
     }
-
 };
 
 export default config;

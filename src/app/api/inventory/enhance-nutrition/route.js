@@ -1,14 +1,14 @@
 // file: /src/app/api/inventory/enhance-nutrition/route.js v1
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { UserInventory } from '@/lib/models';
 import { modalBridge } from '@/lib/modal-bridge';
 
 export async function POST(request) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

@@ -20,6 +20,7 @@ const dynamicRoutes = [
     path.join(projectRoot, 'src', 'app', 'recipes', '[id]'),
     path.join(projectRoot, 'src', 'app', 'collections', '[id]'),
     path.join(projectRoot, 'src', 'app', 'admin', 'users', '[id]'),
+    path.join(projectRoot, 'src', 'app', 'recipe-preview', '[id]'),
 ];
 const dynamicBackups = [];
 
