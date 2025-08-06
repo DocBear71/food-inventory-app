@@ -1,7 +1,7 @@
 // file: /src/app/api/shopping/saved/route.js v2 - Fixed DELETE endpoint with enhanced error handling
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
 import { SavedShoppingList, Recipe, MealPlan } from '@/lib/models';
 import { ObjectId } from 'mongodb';
@@ -9,7 +9,7 @@ import { ObjectId } from 'mongodb';
 // GET - Fetch user's saved shopping lists
 export async function GET(request) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -109,7 +109,7 @@ export async function POST(request) {
     try {
         console.log('📥 SAVE API - Starting save request processing...');
 
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -394,7 +394,7 @@ export async function DELETE(request) {
     console.log('🗑️ DELETE API - Starting delete request processing...');
 
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             console.log('❌ DELETE API - Unauthorized access attempt');
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

@@ -1,14 +1,14 @@
 // file: /src/app/api/shopping/saved/unarchive/route.js
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 
 import dbConnect from '@/lib/mongodb';
 import { SavedShoppingList } from '@/lib/models';
 
 export async function PUT(request) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
             return NextResponse.json(

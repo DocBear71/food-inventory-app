@@ -1,7 +1,7 @@
 // file: /src/app/api/meal-plans/route.js - v2
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 
 import connectDB from '@/lib/mongodb';
 import { MealPlan, Recipe } from '@/lib/models';
@@ -11,7 +11,7 @@ export async function GET(request) {
     try {
         console.log('=== GET /api/meal-plans START ===');
 
-        const session = await auth();
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -78,7 +78,7 @@ export async function POST(request) {
     try {
         console.log('=== POST /api/meal-plans START ===');
 
-        const session = await auth();
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -196,7 +196,7 @@ export async function PUT(request) {
     try {
         console.log('=== PUT /api/meal-plans START ===');
 
-        const session = await auth();
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
@@ -262,7 +262,7 @@ export async function PUT(request) {
 // DELETE - Delete meal plan
 export async function DELETE(request) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
