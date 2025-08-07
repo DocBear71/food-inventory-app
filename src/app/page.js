@@ -1,7 +1,7 @@
 'use client';
 
 // Modern Landing Page for Doc Bear's Comfort Kitchen
-// file: /app/page.js - Updated for v1.6.1 - Added authentication redirect to dashboard
+// file: /app/page.js - Updated for v1.6.1 - FIXED: Hooks order to prevent conditional rendering error
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -39,17 +39,36 @@ function ImageCarousel({ images, alt, interval = 2000 }) {
 }
 
 export default function LandingPage() {
+    // FIXED: Move ALL hooks to the top before any conditional returns
     const [isScrolled, setIsScrolled] = useState(false);
     const { data: session, status } = useSession();
     const router = useRouter();
 
-    // ADDED: Redirect authenticated users to dashboard
+    // FIXED: Authentication redirect - moved before conditional returns
     useEffect(() => {
         if (status === 'authenticated' && session?.user) {
             console.log('🔄 Authenticated user detected, redirecting to dashboard');
             router.replace('/dashboard');
         }
     }, [status, session, router]);
+
+    // FIXED: Handle navbar scroll effect - moved before conditional returns
+    useEffect(() => {
+        const handleScroll = () => {
+            setIsScrolled(window.scrollY > 50);
+        };
+
+        window.addEventListener('scroll', handleScroll);
+        return () => window.removeEventListener('scroll', handleScroll);
+    }, []);
+
+    // Smooth scroll helper
+    const scrollToSection = (sectionId) => {
+        const element = document.getElementById(sectionId);
+        if (element) {
+            element.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
 
     // Show loading spinner while checking authentication
     if (status === 'loading') {
@@ -74,24 +93,6 @@ export default function LandingPage() {
             </div>
         );
     }
-
-    // Handle navbar scroll effect
-    useEffect(() => {
-        const handleScroll = () => {
-            setIsScrolled(window.scrollY > 50);
-        };
-
-        window.addEventListener('scroll', handleScroll);
-        return () => window.removeEventListener('scroll', handleScroll);
-    }, []);
-
-    // Smooth scroll helper
-    const scrollToSection = (sectionId) => {
-        const element = document.getElementById(sectionId);
-        if (element) {
-            element.scrollIntoView({ behavior: 'smooth' });
-        }
-    };
 
     return (
         <div className="bg-gray-50">
@@ -599,7 +600,6 @@ export default function LandingPage() {
                 </div>
                 <br/>
             </section>
-
 
             {/* How It Works Section */}
             <section className="py-20 bg-gray-50">
