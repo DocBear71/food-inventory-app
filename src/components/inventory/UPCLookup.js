@@ -880,14 +880,169 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         };
     }, []);
 
-    // Keep all existing search functionality (truncated for space, but include these methods):
-    // - performAutocomplete
-    // - handleSearchInputChange
-    // - handleAutocompleteSelect
-    // - handleSearchResultSelect
-    // - handlePageChange
-    // - handleCloseAutocomplete
-    // - handleSearchInputFocus
+    // Autocomplete functionality with rate limiting protection
+    const performAutocomplete = async (query) => {
+        if (!query.trim() || query.length < 3) {
+            setAutocompleteResults([]);
+            setShowAutocomplete(false);
+            return;
+        }
+
+        try {
+            console.log('🔍 Starting autocomplete for:', query);
+
+            const params = new URLSearchParams({
+                query: query.trim(),
+                page: '1',
+                page_size: '5'
+            });
+
+            const response = await apiGet(`/api/upc/search?${params}`);
+
+            console.log('🔍 Autocomplete response status:', response.status);
+
+            if (response.ok) {
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.log('❌ Autocomplete JSON parse error:', parseError);
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
+                    return;
+                }
+
+                console.log('🔍 Autocomplete response:', {
+                    success: data.success,
+                    resultsCount: data.results?.length || 0
+                });
+
+                if (data.success && data.results) {
+                    const suggestions = data.results.slice(0, 3).map(product => ({
+                        name: product.name,
+                        brand: product.brand,
+                        image: product.image,
+                    }));
+
+                    setAutocompleteResults(suggestions);
+                    setShowAutocomplete(suggestions.length > 0);
+                    console.log(`✅ Autocomplete: ${suggestions.length} suggestions`);
+                } else {
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
+                }
+            } else {
+                // Silently fail for autocomplete
+                console.log('❌ Autocomplete failed, status:', response.status);
+                setAutocompleteResults([]);
+                setShowAutocomplete(false);
+            }
+
+        } catch (error) {
+            // Silently handle autocomplete errors
+            console.log('❌ Autocomplete error (silent):', error.message);
+            setAutocompleteResults([]);
+            setShowAutocomplete(false);
+        }
+    };
+
+// Handle search input changes with better rate limiting
+    const handleSearchInputChange = (e) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+
+        // Clear existing timeouts
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+        if (autocompleteTimeoutRef.current) {
+            clearTimeout(autocompleteTimeoutRef.current);
+        }
+
+        // Clear results if query is too short
+        if (query.length < 3) {
+            setSearchResults([]);
+            setTotalPages(0);
+            setShowAutocomplete(false);
+            setAutocompleteResults([]);
+            return;
+        }
+
+        // Debounced autocomplete
+        autocompleteTimeoutRef.current = setTimeout(() => {
+            if (query.length >= 3) {
+                performAutocomplete(query);
+            }
+        }, 500);
+
+        // Debounced search
+        searchTimeoutRef.current = setTimeout(() => {
+            if (query.trim() && query.length >= 3) {
+                console.log('🔍 Triggering search for:', query);
+                setSearchPage(1);
+                performTextSearchWithImmediateUpdate(query, 1);
+            }
+        }, 1000);
+    };
+
+// Handle autocomplete selection
+    const handleAutocompleteSelect = (suggestion) => {
+        setSearchQuery(suggestion.name);
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+        setSearchPage(1);
+        performTextSearchWithImmediateUpdate(suggestion.name, 1);
+    };
+
+// Handle search result selection
+    const handleSearchResultSelect = async (product) => {
+        setLookupResult({success: true, product});
+        onProductFound(product);
+
+        if (product.name && (!product.category || product.category === 'Other' || product.category === 'Unknown')) {
+            console.log('🤖 Enhancing search result with AI classification...');
+            await performAiClassification(product.name, product);
+        }
+
+        // Update UPC field with the selected product's UPC
+        if (product.upc) {
+            setLocalUPC(product.upc);
+            if (onUPCChange) {
+                onUPCChange(product.upc);
+            }
+        }
+
+        // Clear search results to show the selected product
+        setSearchResults([]);
+        setSearchQuery('');
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+
+        // Refresh usage after search result selection
+        console.log('🔄 Refreshing usage info after search result selection...');
+        await loadUsageInfo();
+    };
+
+// Handle pagination
+    const handlePageChange = (newPage) => {
+        setSearchPage(newPage);
+        performTextSearchWithImmediateUpdate(searchQuery, newPage);
+    };
+
+// Manual close function for autocomplete
+    const handleCloseAutocomplete = () => {
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+    };
+
+// Handle input focus to show autocomplete again if there are results
+    const handleSearchInputFocus = () => {
+        if (autocompleteResults.length > 0 && searchQuery.length >= 3) {
+            setShowAutocomplete(true);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -947,10 +1102,62 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 type="text"
                                 id="search"
                                 value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
+                                onChange={handleSearchInputChange}
+                                onFocus={handleSearchInputFocus}
                                 placeholder="Type product name (e.g., 'Old El Paso', 'Campbell's Soup')"
                                 className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             />
+
+                            {/* Autocomplete dropdown */}
+                            {showAutocomplete && autocompleteResults.length > 0 && (
+                                <div
+                                    ref={autocompleteRef}
+                                    className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto"
+                                >
+                                    {/* Header with close button */}
+                                    <div
+                                        className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                            <span
+                                className="text-xs font-medium text-gray-600">🌍 Enhanced suggestions</span>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={handleCloseAutocomplete}
+                                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                            title="Close suggestions"
+                                        >
+                                            <span className="text-sm">✕</span>
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* Autocomplete results */}
+                                    {autocompleteResults.map((suggestion, index) => (
+                                        <TouchEnhancedButton
+                                            key={index}
+                                            type="button"
+                                            onClick={() => handleAutocompleteSelect(suggestion)}
+                                            className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-b border-gray-100 last:border-b-0"
+                                        >
+                                            {suggestion.image && (
+                                                <img
+                                                    src={suggestion.image}
+                                                    alt=""
+                                                    className="w-8 h-8 object-cover rounded flex-shrink-0"
+                                                />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                    {suggestion.name}
+                                                </div>
+                                                {suggestion.brand && (
+                                                    <div className="text-xs text-gray-500 truncate">
+                                                        {suggestion.brand}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            )}
                         </div>
 
                         {/* Help text with US examples */}
@@ -971,7 +1178,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                         </div>
                     )}
 
-                    {/* Search Results (keeping existing structure but simplified) */}
+                    {/* Search Results */}
                     {searchResults.length > 0 && (
                         <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                             <div className="flex items-center justify-between mb-4">
@@ -990,18 +1197,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                     <TouchEnhancedButton
                                         key={index}
                                         type="button"
-                                        onClick={() => {
-                                            setLookupResult({success: true, product});
-                                            onProductFound(product);
-                                            if (product.upc) {
-                                                setLocalUPC(product.upc);
-                                                if (onUPCChange) {
-                                                    onUPCChange(product.upc);
-                                                }
-                                            }
-                                            setSearchResults([]);
-                                            setSearchQuery('');
-                                        }}
+                                        onClick={() => handleSearchResultSelect(product)}
                                         className="text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:shadow-md transition-all"
                                     >
                                         <div className="flex items-start space-x-3">
@@ -1026,12 +1222,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                                 <p className="text-xs text-gray-500">{product.category}</p>
                                                 {product.scores?.nutriscore && (
                                                     <div className="mt-1">
-                                                        <span
-                                                            className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
-                                                            style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}
-                                                        >
-                                                            {product.scores.nutriscore.toUpperCase()}
-                                                        </span>
+                                            <span
+                                                className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
+                                                style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}
+                                            >
+                                                {product.scores.nutriscore.toUpperCase()}
+                                            </span>
                                                     </div>
                                                 )}
                                             </div>
@@ -1039,6 +1235,33 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                     </TouchEnhancedButton>
                                 ))}
                             </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center space-x-2 mt-4">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage - 1)}
+                                        disabled={searchPage <= 1}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Previous
+                                    </TouchEnhancedButton>
+
+                                    <span className="text-sm text-gray-600">
+                            Page {searchPage} of {totalPages}
+                        </span>
+
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage + 1)}
+                                        disabled={searchPage >= totalPages}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Next
+                                    </TouchEnhancedButton>
+                                </div>
+                            )}
                         </div>
                     )}
 
