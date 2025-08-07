@@ -1,12 +1,15 @@
+// file: /src/components/inventory/UPCLookup.js - v16 - Added iOS-specific barcode scanner support
+
 'use client';
-// file: /src/components/inventory/UPCLookup.js - v15 FIXED - Restored US domestic functionality with international support
 
 import {useState, useCallback, useRef, useEffect} from 'react';
 import BarcodeScanner from './BarcodeScanner';
+import BarcodeScannerIOS from './BarcodeScannerIOS';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {apiGet, apiPost} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -63,7 +66,7 @@ function standardizeNutritionData(nutrition) {
     };
 }
 
-// 🔧 FIXED: Enhanced UPC validation for US domestic use
+// Enhanced UPC validation for US domestic use
 function validateAndCleanUPC(upc) {
     if (!upc || typeof upc !== 'string') {
         return { valid: false, reason: 'empty', cleanCode: '' };
@@ -81,7 +84,7 @@ function validateAndCleanUPC(upc) {
         return { valid: false, reason: 'too_long', cleanCode };
     }
 
-    // 🔧 FIXED: Enhanced US domestic UPC handling
+    // Enhanced US domestic UPC handling
     if (cleanCode.length === 11) {
         // Common case: 11-digit code that should be UPC-A
         cleanCode = '0' + cleanCode;
@@ -101,7 +104,7 @@ function validateAndCleanUPC(upc) {
     return { valid: true, cleanCode };
 }
 
-// 🆕 NEW: International currency formatting helper (keeping this for completeness)
+// International currency formatting helper
 function formatPrice(amount, currencyInfo) {
     if (!amount || !currencyInfo) return '';
 
@@ -126,7 +129,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [aiClassification, setAiClassification] = useState(null);
     const [isAiClassifying, setIsAiClassifying] = useState(false);
 
-    // FIXED: Add local UPC state to ensure input works properly
+    // Platform detection
+    const [isIOS, setIsIOS] = useState(false);
+
+    // Add local UPC state to ensure input works properly
     const [localUPC, setLocalUPC] = useState(currentUPC);
     const [optimisticUsage, setOptimisticUsage] = useState(null);
     const [isUpdatingUsage, setIsUpdatingUsage] = useState(false);
@@ -153,11 +159,22 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [usageInfo, setUsageInfo] = useState(null);
     const [isLoadingUsage, setIsLoadingUsage] = useState(true);
 
-    // 🆕 International context state (keeping for enhanced features)
+    // International context state
     const [userCurrencyInfo, setUserCurrencyInfo] = useState(null);
     const [isLoadingCurrency, setIsLoadingCurrency] = useState(true);
 
-    // FIXED: Sync local UPC state with prop changes
+    // Platform detection on mount
+    useEffect(() => {
+        const detectPlatform = () => {
+            const iosDetected = PlatformDetection.isIOS();
+            setIsIOS(iosDetected);
+            console.log('🔍 Platform detected:', iosDetected ? 'iOS' : 'Other', 'Platform info:', PlatformDetection.getPlatformInfo());
+        };
+
+        detectPlatform();
+    }, []);
+
+    // Sync local UPC state with prop changes
     useEffect(() => {
         setLocalUPC(currentUPC);
     }, [currentUPC]);
@@ -258,14 +275,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         return true;
     };
 
-    // 🔧 FIXED: UPC lookup with correct endpoint and validation
+    // UPC lookup with correct endpoint and validation
     const handleUPCLookupWithImmediateUpdate = async (upc) => {
         if (!upc || upc.length < 6) {
             console.log('❌ UPC too short or empty');
             return;
         }
 
-        // 🔧 FIXED: Use enhanced US-focused validation
+        // Use enhanced US-focused validation
         const validation = validateAndCleanUPC(upc);
         if (!validation.valid) {
             console.log(`❌ Invalid UPC: ${validation.reason}`);
@@ -291,7 +308,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         setLookupResult(null);
 
         try {
-            // 🔧 FIXED: Use the correct endpoint that matches your route structure
+            // Use the correct endpoint that matches your route structure
             console.log('🔍 Starting UPC lookup with correct endpoint...');
             const response = await apiGet(`/api/upc?upc=${encodeURIComponent(cleanUpc)}`);
             const data = await response.json();
@@ -398,7 +415,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // Text search with usage tracking (keeping existing logic)
+    // Text search with usage tracking
     const performTextSearchWithImmediateUpdate = async (query, page = 1) => {
         if (!query.trim()) {
             setSearchResults([]);
@@ -504,9 +521,9 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // 🔧 FIXED: Barcode detected handler with enhanced validation
+    // Barcode detected handler with enhanced validation
     const handleBarcodeDetectedWithImmediateUpdate = async (barcode) => {
-        console.log('📱 Barcode scanned:', barcode);
+        console.log(`📱 Barcode scanned (${isIOS ? 'iOS' : 'Standard'}):`, barcode);
 
         // Prevent multiple rapid calls
         if (processingBarcodeRef.current) {
@@ -526,7 +543,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         lastProcessedBarcodeRef.current = barcode;
         lastProcessedTimeRef.current = now;
 
-        // 🔧 FIXED: Validate barcode before processing
+        // Validate barcode before processing
         const validation = validateAndCleanUPC(barcode);
         if (!validation.valid) {
             console.log(`❌ Invalid scanned barcode: ${validation.reason}`);
@@ -536,7 +553,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
 
         const cleanBarcode = validation.cleanCode;
-        console.log(`✅ Valid barcode detected: ${cleanBarcode} (original: ${barcode})`);
+        console.log(`✅ Valid barcode detected (${isIOS ? 'iOS' : 'Standard'}): ${cleanBarcode} (original: ${barcode})`);
 
         // Update both local and parent state
         setLocalUPC(cleanBarcode);
@@ -578,7 +595,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // Keep all the other functions unchanged (AI classification, usage display, etc.)
+    // AI classification function
     const performAiClassification = async (productName, existingData = {}) => {
         if (!productName || !process.env.NEXT_PUBLIC_ENABLE_AI_RECEIPTS) {
             return null;
@@ -657,6 +674,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                         {userCurrencyInfo && !isLoadingCurrency && (
                             <p className="text-xs text-blue-600 mt-1">
                                 🌍 Enhanced for {userCurrencyInfo.currency} region
+                                {isIOS && <span className="ml-2">🍎 iOS-optimized scanner</span>}
                             </p>
                         )}
                     </div>
@@ -739,9 +757,6 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         return true;
     };
 
-    // Keep all the existing UI event handlers and effects unchanged...
-    // (I'll include the key ones but truncate for space)
-
     // Check if camera is available
     const checkCameraAvailability = () => {
         console.log('🔍 Checking camera availability...');
@@ -768,7 +783,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             return;
         }
 
-        console.log('🔄 Opening barcode scanner...');
+        console.log(`🔄 Opening ${isIOS ? 'iOS' : 'standard'} barcode scanner...`);
         setShowScanner(true);
     };
 
@@ -791,7 +806,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             onUPCChange(upc);
         }
 
-        // 🔧 FIXED: Auto-lookup when UPC looks complete with better validation
+        // Auto-lookup when UPC looks complete with better validation
         const validation = validateAndCleanUPC(upc);
         if (validation.valid && validation.cleanCode.length >= 8) {
             console.log('🔍 Auto-triggering lookup for complete UPC:', validation.cleanCode);
@@ -818,18 +833,19 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const hasNutrition = lookupResult?.success && lookupResult.product.nutrition &&
         Object.values(lookupResult.product.nutrition).some(n => n.value > 0);
 
-    // Keep all existing search and autocomplete functionality unchanged
+    // Rest of the component (autocomplete and search functions)...
     const debugAPIEndpoint = () => {
         console.log('🔍 UPC API Debug:', {
             currentURL: window.location.href,
             apiEndpoint: '/api/upc',
-            userCurrency: userCurrencyInfo?.currency || 'Loading...'
+            userCurrency: userCurrencyInfo?.currency || 'Loading...',
+            platform: isIOS ? 'iOS' : 'Other'
         });
     };
 
     useEffect(() => {
         debugAPIEndpoint();
-    }, []);
+    }, [isIOS]);
 
     // Handle clicks outside autocomplete to close it
     useEffect(() => {
@@ -1068,7 +1084,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                     >
-                        📷 UPC/Barcode
+                        📷 UPC/Barcode {isIOS && '(iOS)'}
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
                         type="button"
@@ -1088,6 +1104,99 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     </TouchEnhancedButton>
                 </nav>
             </div>
+
+            {/* UPC Tab Content */}
+            {activeTab === 'upc' && (
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
+                            {isIOS ? '🍎 iOS UPC/Barcode Scanner (Enhanced for US Products)' : '🇺🇸 UPC/Barcode Scanner (Enhanced for US Products)'}
+                        </label>
+
+                        <KeyboardOptimizedInput
+                            type="text"
+                            id="upc"
+                            name="upc"
+                            value={localUPC}
+                            onChange={handleUPCInput}
+                            placeholder="Enter or scan UPC code (e.g., 0046000861210)"
+                            className="w-full mt-1 block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                        />
+
+                        {/* Enhanced buttons */}
+                        <div className="flex space-x-2 mt-3">
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={handleScannerClick}
+                                disabled={isLooking}
+                                className={`flex-1 px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
+                                    cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
+                                }`}
+                                title={cameraAvailable ? `Scan barcode with ${isIOS ? 'iOS' : 'standard'} camera` : 'Camera not available on this device'}
+                            >
+                                📷 {cameraAvailable ? (isIOS ? 'iOS Scan' : 'Scan Barcode') : 'No Camera'}
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={handleManualLookup}
+                                disabled={!localUPC || isLooking}
+                                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
+                            >
+                                {isLooking ? '🔍 Looking up...' : '🔍 Lookup Product'}
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                type="button"
+                                onClick={() => {
+                                    if (localUPC && localUPC.length >= 8) {
+                                        const productName = `Product ${localUPC}`;
+                                        performAiClassification(productName, lookupResult?.product || {});
+                                    }
+                                }}
+                                disabled={!localUPC || localUPC.length < 8 || isAiClassifying}
+                                className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400"
+                            >
+                                {isAiClassifying ? '🤖 AI Analyzing...' : '🤖 AI Classify'}
+                            </TouchEnhancedButton>
+                        </div>
+
+                        {/* Enhanced help text with platform-specific info */}
+                        <div className="mt-2 text-xs text-gray-500 space-y-1">
+                            <div>💡 <strong>{isIOS ? 'iOS-Enhanced' : 'Enhanced'} Barcode Support:</strong></div>
+                            <div>• UPC-A (12 digits, US standard): 046000861210</div>
+                            <div>• Enhanced validation for US domestic products</div>
+                            <div>• Auto-detection and cleanup of common UPC formats</div>
+                            <div>• International barcode support with regional optimization</div>
+                            {isIOS && <div>• 🍎 iOS-optimized scanner using ZXing technology</div>}
+                            {userCurrencyInfo && !isLoadingCurrency && (
+                                <div>• Currently optimized for {userCurrencyInfo.currency} products</div>
+                            )}
+                        </div>
+                    </div>
+
+                    {/* Platform-Specific Scanner Component */}
+                    {isIOS ? (
+                        <BarcodeScannerIOS
+                            isActive={showScanner}
+                            onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
+                            onClose={() => {
+                                console.log('🍎 Closing iOS barcode scanner...');
+                                setShowScanner(false);
+                            }}
+                        />
+                    ) : (
+                        <BarcodeScanner
+                            isActive={showScanner}
+                            onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
+                            onClose={() => {
+                                console.log('🔄 Closing standard barcode scanner...');
+                                setShowScanner(false);
+                            }}
+                        />
+                    )}
+                </div>
+            )}
 
             {/* Search Tab Content */}
             {activeTab === 'search' && (
@@ -1377,13 +1486,13 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 <span className="text-green-600 font-medium">✅ Product Found!</span>
                                 {hasNutrition && (
                                     <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                        🥗 Nutrition Available
-                                    </span>
+                            🥗 Nutrition Available
+                        </span>
                                 )}
                                 {lookupResult.dataSource && (
                                     <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                                        📊 {lookupResult.dataSource}
-                                    </span>
+                            📊 {lookupResult.dataSource}
+                        </span>
                                 )}
                             </div>
 
@@ -1397,12 +1506,41 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                     {lookupResult.product.quantity && (
                                         <div><strong>Size:</strong> {lookupResult.product.quantity}</div>
                                     )}
+
+                                    {/* ENHANCED: International Price Display */}
+                                    {lookupResult.product.price && userCurrencyInfo && !isLoadingCurrency && (
+                                        <div>
+                                            <strong>Price:</strong>
+                                            <span className="ml-1 text-green-600 font-medium">
+                                    {formatPrice(lookupResult.product.price, userCurrencyInfo)}
+                                </span>
+                                            {lookupResult.product.priceSource && (
+                                                <span className="ml-1 text-xs text-gray-500">
+                                        via {lookupResult.product.priceSource}
+                                    </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* International context pricing */}
+                                    {lookupResult.internationalContext?.pricing && userCurrencyInfo && (
+                                        <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                                            <div className="font-medium text-blue-800">💰 Regional Pricing:</div>
+                                            {lookupResult.internationalContext.pricing.map((priceInfo, i) => (
+                                                <div key={i} className="text-blue-700">
+                                                    {priceInfo.region}: {formatPrice(priceInfo.price, userCurrencyInfo)}
+                                                    {priceInfo.store && ` at ${priceInfo.store}`}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {lookupResult.product.scores && lookupResult.product.scores.nutriscore && (
                                         <div><strong>Nutri-Score:</strong>
                                             <span className="ml-1 px-2 py-1 text-xs font-bold text-white rounded"
                                                   style={{backgroundColor: getNutriScoreColor(lookupResult.product.scores.nutriscore)}}>
-                                                {lookupResult.product.scores.nutriscore.toUpperCase()}
-                                            </span>
+                                    {lookupResult.product.scores.nutriscore.toUpperCase()}
+                                </span>
                                         </div>
                                     )}
                                 </div>
@@ -1609,13 +1747,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
             {/* Enhanced Usage Tips */}
             <div className="text-xs text-gray-500 space-y-1">
-                <div>💡 <strong>Enhanced Scanner Tips:</strong></div>
+                <div>💡 <strong>{isIOS ? 'iOS-Enhanced' : 'Enhanced'} Scanner Tips:</strong></div>
                 {activeTab === 'upc' ? (
                     <>
                         <div>• Optimized for US UPC codes (12 digits) with international support</div>
                         <div>• Auto-validates and cleans barcodes for better accuracy</div>
                         <div>• Camera scanning works best in good lighting</div>
                         <div>• Supports UPC-A, EAN-13, and other international formats</div>
+                        {isIOS && <div>• 🍎 iOS scanner uses web-based ZXing for maximum compatibility</div>}
                         {userCurrencyInfo && !isLoadingCurrency && (
                             <div>• Currently optimized for {userCurrencyInfo.currency} products and pricing</div>
                         )}
