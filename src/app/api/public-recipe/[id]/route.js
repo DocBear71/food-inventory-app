@@ -1,4 +1,4 @@
-// file: /app/api/public-recipe/[id]/route.js v2 - Fixed with photo population
+// file: /app/api/public-recipe/[id]/route.js v3 - FIXED: Added multi-part recipe support
 
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
@@ -46,6 +46,10 @@ export async function GET(request, { params }) {
             _id: recipe._id,
             title: recipe.title,
             description: recipe.description,
+
+            // ADDED: Multi-part recipe support
+            isMultiPart: recipe.isMultiPart || false,
+            parts: recipe.parts || [],
 
             // Format ingredients for consistent display
             ingredients: Array.isArray(recipe.ingredients) ? recipe.ingredients.map(ing => {
@@ -205,14 +209,12 @@ export async function GET(request, { params }) {
             // - printing with advanced formatting
         };
 
-        // Debug logging to help troubleshoot
-        console.log(`📸 Recipe "${recipe.title}" image debug:`, {
+        // ADDED: Debug logging to help troubleshoot multi-part recipes
+        console.log(`📸 Recipe "${recipe.title}" multi-part debug:`, {
+            isMultiPart: recipe.isMultiPart,
+            partsCount: recipe.parts?.length || 0,
             hasPhotos: recipe.hasPhotos,
             primaryPhotoExists: !!recipe.primaryPhoto,
-            primaryPhotoType: typeof recipe.primaryPhoto,
-            photosCount: recipe.photos?.length || 0,
-            hasImageUrl: !!recipe.imageUrl,
-            hasUploadedImage: !!recipe.uploadedImage?.data,
             imagePriority: recipe.imagePriority
         });
 
