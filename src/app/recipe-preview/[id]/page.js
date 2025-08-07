@@ -1,6 +1,6 @@
 'use client';
 
-// file: /app/recipe-preview/[id]/page.js - Simplified Public Recipe Preview
+// file: /app/recipe-preview/[id]/page.js - Enhanced Public Recipe Preview with Multi-Part Banner
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
@@ -121,6 +121,21 @@ export default function PublicRecipePreview() {
             );
         }
         return stars;
+    };
+
+    // ADDED: Helper to get multi-part recipe stats
+    const getMultiPartStats = (recipe) => {
+        if (!recipe.isMultiPart || !recipe.parts) return null;
+
+        const totalIngredients = recipe.parts.reduce((total, part) => total + (part.ingredients?.length || 0), 0);
+        const totalInstructions = recipe.parts.reduce((total, part) => total + (part.instructions?.length || 0), 0);
+
+        return {
+            partCount: recipe.parts.length,
+            totalIngredients,
+            totalInstructions,
+            partNames: recipe.parts.map(part => part.name || 'Unnamed Part')
+        };
     };
 
     const getRecipeImage = (recipe) => {
@@ -295,6 +310,9 @@ export default function PublicRecipePreview() {
             </div>
         );
     }
+
+    // ADDED: Get multi-part stats for banner
+    const multiPartStats = getMultiPartStats(recipe);
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -477,6 +495,50 @@ export default function PublicRecipePreview() {
                     </div>
                 </div>
             </nav>
+
+            {/* ADDED: Multi-Part Recipe Banner */}
+            {multiPartStats && (
+                <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4">
+                    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+                        <div className="flex flex-col sm:flex-row items-center justify-between">
+                            <div className="flex items-center space-x-3 mb-3 sm:mb-0">
+                                <div className="bg-white bg-opacity-20 rounded-full p-2">
+                                    <span className="text-2xl">🧩</span>
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-semibold">Multi-Part Recipe</h3>
+                                    <p className="text-sm text-blue-100">
+                                        This recipe has {multiPartStats.partCount} parts with {multiPartStats.totalIngredients} total ingredients and {multiPartStats.totalInstructions} total steps
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3">
+                                <div className="flex flex-wrap gap-2 justify-center sm:justify-end">
+                                    {multiPartStats.partNames.slice(0, 2).map((partName, index) => (
+                                        <span
+                                            key={index}
+                                            className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white"
+                                        >
+                                            {partName}
+                                        </span>
+                                    ))}
+                                    {multiPartStats.partNames.length > 2 && (
+                                        <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                                            +{multiPartStats.partNames.length - 2} more
+                                        </span>
+                                    )}
+                                </div>
+                                <Link
+                                    href="/auth/signup"
+                                    className="bg-white text-blue-600 px-4 py-2 rounded-lg text-sm font-semibold hover:bg-blue-50 transition-colors shadow-sm"
+                                >
+                                    Sign Up to See Full Multi-Part View
+                                </Link>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Enhanced Recipe Header with Better Image Display */}
             <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 recipe-content">
@@ -948,6 +1010,27 @@ export default function PublicRecipePreview() {
                                     <span className="text-gray-600">Added</span>
                                     <span className="font-medium">{formatDate(recipe.createdAt)}</span>
                                 </div>
+                                {/* ADDED: Multi-part info in stats */}
+                                {multiPartStats && (
+                                    <>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Recipe Type</span>
+                                            <span className="font-medium text-blue-600">Multi-Part</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Parts</span>
+                                            <span className="font-medium">{multiPartStats.partCount}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Total Ingredients</span>
+                                            <span className="font-medium">{multiPartStats.totalIngredients}</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span className="text-gray-600">Total Steps</span>
+                                            <span className="font-medium">{multiPartStats.totalInstructions}</span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
 
@@ -994,6 +1077,23 @@ export default function PublicRecipePreview() {
                             <p className="text-sm text-gray-600 mb-4">
                                 Create your free account to save recipes, plan meals, get nutrition data, and access our full collection of 650+ recipes!
                             </p>
+
+                            {/* ADDED: Enhanced CTA for multi-part recipes */}
+                            {multiPartStats && (
+                                <div className="bg-blue-100 border border-blue-200 rounded-lg p-3 mb-4">
+                                    <div className="flex items-center space-x-2 mb-2">
+                                        <span className="text-blue-600">🧩</span>
+                                        <span className="text-sm font-semibold text-blue-900">Multi-Part Recipe Benefits</span>
+                                    </div>
+                                    <ul className="text-xs text-blue-800 space-y-1">
+                                        <li>• Organized view with {multiPartStats.partCount} separate sections</li>
+                                        <li>• Interactive ingredient lists for each part</li>
+                                        <li>• Step-by-step instructions by section</li>
+                                        <li>• Professional cooking workflow</li>
+                                    </ul>
+                                </div>
+                            )}
+
                             <div className="space-y-2">
                                 <Link
                                     href="/auth/signup"
@@ -1017,6 +1117,12 @@ export default function PublicRecipePreview() {
                                     <span>• Meal planning</span>
                                     <span>• Shopping lists</span>
                                     <span>• Recipe editing</span>
+                                    {multiPartStats && (
+                                        <>
+                                            <span>• Multi-part view</span>
+                                            <span>• Part organization</span>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
@@ -1029,6 +1135,19 @@ export default function PublicRecipePreview() {
                     <p className="text-base sm:text-lg mb-6 opacity-90">
                         Join thousands of home cooks using Doc Bear's Comfort Kitchen to organize their recipes and plan amazing meals.
                     </p>
+
+                    {/* ADDED: Multi-part specific messaging */}
+                    {multiPartStats && (
+                        <div className="bg-white bg-opacity-20 rounded-lg p-4 mb-6">
+                            <p className="text-sm mb-2">
+                                🧩 This multi-part recipe has {multiPartStats.partCount} sections with organized ingredients and step-by-step instructions for each part.
+                            </p>
+                            <p className="text-xs opacity-90">
+                                Sign up to see the full interactive multi-part experience!
+                            </p>
+                        </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
                             href="/auth/signup"
@@ -1047,5 +1166,5 @@ export default function PublicRecipePreview() {
             </div>
             <Footer />
         </div>
-);
+    );
 }

@@ -1,9 +1,11 @@
 'use client';
 
 // Modern Landing Page for Doc Bear's Comfort Kitchen
-// file: /app/page.js - Updated for v1.6.0
+// file: /app/page.js - Updated for v1.6.1 - Added authentication redirect to dashboard
 
 import { useState, useEffect } from 'react';
+import { useSession } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import Footer from '@/components/legal/Footer'
@@ -38,6 +40,40 @@ function ImageCarousel({ images, alt, interval = 2000 }) {
 
 export default function LandingPage() {
     const [isScrolled, setIsScrolled] = useState(false);
+    const { data: session, status } = useSession();
+    const router = useRouter();
+
+    // ADDED: Redirect authenticated users to dashboard
+    useEffect(() => {
+        if (status === 'authenticated' && session?.user) {
+            console.log('🔄 Authenticated user detected, redirecting to dashboard');
+            router.replace('/dashboard');
+        }
+    }, [status, session, router]);
+
+    // Show loading spinner while checking authentication
+    if (status === 'loading') {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                    <div className="text-lg text-gray-600">Loading...</div>
+                </div>
+            </div>
+        );
+    }
+
+    // Don't render the landing page if user is authenticated (they'll be redirected)
+    if (status === 'authenticated') {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="text-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-purple-600 mx-auto mb-4"></div>
+                    <div className="text-lg text-gray-600">Redirecting to dashboard...</div>
+                </div>
+            </div>
+        );
+    }
 
     // Handle navbar scroll effect
     useEffect(() => {
