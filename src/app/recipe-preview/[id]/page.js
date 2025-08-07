@@ -745,6 +745,17 @@ export default function PublicRecipePreview() {
                         </div>
                     </div>
                 </div>
+                {/* ADDED: Multi-part specific messaging */}
+                {multiPartStats && (
+                    <div className="bg-white bg-opacity-20 rounded-lg p-4 mb-6">
+                        <p className="text-sm mb-2">
+                            🧩 This multi-part recipe has {multiPartStats.partCount} sections with organized ingredients and step-by-step instructions for each part.
+                        </p>
+                        <p className="text-xs opacity-90">
+                            Sign up to see the full interactive multi-part experience!
+                        </p>
+                    </div>
+                )}
 
                 {/* Recipe Content */}
                 <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 sm:gap-8">
@@ -1136,17 +1147,6 @@ export default function PublicRecipePreview() {
                         Join thousands of home cooks using Doc Bear's Comfort Kitchen to organize their recipes and plan amazing meals.
                     </p>
 
-                    {/* ADDED: Multi-part specific messaging */}
-                    {multiPartStats && (
-                        <div className="bg-white bg-opacity-20 rounded-lg p-4 mb-6">
-                            <p className="text-sm mb-2">
-                                🧩 This multi-part recipe has {multiPartStats.partCount} sections with organized ingredients and step-by-step instructions for each part.
-                            </p>
-                            <p className="text-xs opacity-90">
-                                Sign up to see the full interactive multi-part experience!
-                            </p>
-                        </div>
-                    )}
 
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link
