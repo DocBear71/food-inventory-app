@@ -532,7 +532,7 @@ export default function PublicRecipePreview() {
                                         <span className="text-2xl">🧩</span>
                                     </div>
                                     <div>
-                                        <h3 className="text-lg font-semibold">Multi-Part Recipe</h3>
+                                        <h3 className="text-lg font-semibold text-white">Multi-Part Recipe</h3>
                                         <p className="text-sm text-blue-100">
                                             This recipe has {multiPartStats.partCount} parts with {multiPartStats.totalIngredients} total ingredients and {multiPartStats.totalInstructions} total steps
                                         </p>
@@ -543,13 +543,13 @@ export default function PublicRecipePreview() {
                                         {multiPartStats.partNames.slice(0, 2).map((partName, index) => (
                                             <span
                                                 key={index}
-                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white"
+                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-blue-100"
                                             >
                                             {partName}
                                         </span>
                                         ))}
                                         {multiPartStats.partNames.length > 2 && (
-                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-white">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-blue-100">
                                             +{multiPartStats.partNames.length - 2} more
                                         </span>
                                         )}
