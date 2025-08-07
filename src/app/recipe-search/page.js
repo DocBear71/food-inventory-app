@@ -1,6 +1,6 @@
 'use client';
 
-// file: /app/recipe-search/page.js - Public Recipe Search (Enhanced with Real Data)
+// file: /app/recipe-search/page.js - Enhanced Public Recipe Search with Multi-Part Indicators
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -17,7 +17,8 @@ export default function PublicRecipeSearch() {
         category: '',
         difficulty: '',
         maxTime: '',
-        dietary: []
+        dietary: [],
+        isMultiPart: false // ADDED: Multi-part filter
     });
     const [sortBy, setSortBy] = useState('relevance');
     const [showFilters, setShowFilters] = useState(false);
@@ -45,6 +46,10 @@ export default function PublicRecipeSearch() {
                     setRecipes(publicRecipes);
                     setFilteredRecipes(publicRecipes);
                     console.log(`Loaded ${publicRecipes.length} public recipes`);
+
+                    // ADDED: Log multi-part recipe count
+                    const multiPartCount = publicRecipes.filter(r => r.isMultiPart).length;
+                    console.log(`Found ${multiPartCount} multi-part recipes`);
                 } else {
                     throw new Error(data.error || 'Failed to load recipes');
                 }
@@ -84,6 +89,20 @@ export default function PublicRecipeSearch() {
     const dietaryOptions = [
         'vegetarian', 'vegan', 'gluten-free', 'healthy', 'protein-rich', 'low-carb'
     ];
+
+    // ADDED: Helper to get multi-part recipe stats
+    const getMultiPartStats = (recipe) => {
+        if (!recipe.isMultiPart || !recipe.parts) return null;
+
+        const totalIngredients = recipe.parts.reduce((total, part) => total + (part.ingredients?.length || 0), 0);
+        const totalInstructions = recipe.parts.reduce((total, part) => total + (part.instructions?.length || 0), 0);
+
+        return {
+            partCount: recipe.parts.length,
+            totalIngredients,
+            totalInstructions
+        };
+    };
 
     // Filter and sort recipes
     useEffect(() => {
@@ -131,6 +150,11 @@ export default function PublicRecipeSearch() {
             );
         }
 
+        // ADDED: Apply multi-part filter
+        if (filters.isMultiPart) {
+            filtered = filtered.filter(recipe => recipe.isMultiPart);
+        }
+
         // Apply sorting
         if (sortBy === 'rating') {
             filtered.sort((a, b) => (b.ratingStats?.averageRating || 0) - (a.ratingStats?.averageRating || 0));
@@ -164,7 +188,8 @@ export default function PublicRecipeSearch() {
             category: '',
             difficulty: '',
             maxTime: '',
-            dietary: []
+            dietary: [],
+            isMultiPart: false // ADDED: Reset multi-part filter
         });
         setSearchQuery('');
     };
@@ -301,6 +326,9 @@ export default function PublicRecipeSearch() {
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
+    // ADDED: Get stats for display
+    const multiPartCount = recipes.filter(r => r.isMultiPart).length;
+
     return (
         <div className="min-h-screen bg-gray-50">
             {/* Navigation */}
@@ -339,6 +367,14 @@ export default function PublicRecipeSearch() {
                     </h1>
                     <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
                         Search through our collection of {recipes.length}+ professional recipes from Dr. Edward McKeown's cookbook series
+                        {multiPartCount > 0 && (
+                            <span className="block mt-2 text-sm">
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-1">
+                                    🧩 {multiPartCount} Multi-Part Recipes
+                                </span>
+                                available with organized sections
+                            </span>
+                        )}
                     </p>
                 </div>
 
@@ -373,6 +409,7 @@ export default function PublicRecipeSearch() {
                 <div className="flex flex-wrap justify-center gap-2 mb-6 sm:mb-8">
                     {[
                         { label: 'Quick Meals', filter: { maxTime: '30' } },
+                        { label: 'Multi-Part', filter: { isMultiPart: true } }, // ADDED: Multi-part quick filter
                         { label: 'Vegetarian', filter: { dietary: ['vegetarian'] } },
                         { label: 'Desserts', filter: { category: 'desserts' } },
                         { label: 'Healthy', filter: { dietary: ['healthy'] } },
@@ -387,8 +424,13 @@ export default function PublicRecipeSearch() {
                                     setSearchQuery(category.search);
                                 }
                             }}
-                            className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                            className={`px-3 sm:px-4 py-2 border rounded-full text-sm font-medium transition-colors ${
+                                (category.filter?.isMultiPart && filters.isMultiPart) ?
+                                    'bg-blue-600 text-white border-blue-600' :
+                                    'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
                         >
+                            {category.label === 'Multi-Part' && '🧩 '}
                             {category.label}
                         </button>
                     ))}
@@ -410,6 +452,24 @@ export default function PublicRecipeSearch() {
                             </div>
 
                             <div className={`space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+                                {/* ADDED: Multi-Part Filter */}
+                                <div>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={filters.isMultiPart}
+                                            onChange={(e) => setFilters(prev => ({ ...prev, isMultiPart: e.target.checked }))}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <span className="ml-2 text-sm font-medium text-gray-700">
+                                            🧩 Multi-Part Recipes Only
+                                        </span>
+                                    </label>
+                                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                                        Recipes with organized sections like "Filling" and "Topping"
+                                    </p>
+                                </div>
+
                                 {/* Category Filter */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -492,6 +552,7 @@ export default function PublicRecipeSearch() {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                             <p className="text-gray-600 mb-4 sm:mb-0">
                                 {loading ? 'Loading...' : `${filteredRecipes.length} recipe${filteredRecipes.length !== 1 ? 's' : ''} found`}
+                                {filters.isMultiPart && ` (multi-part only)`}
                             </p>
 
                             <div className="flex items-center space-x-2">
@@ -527,103 +588,123 @@ export default function PublicRecipeSearch() {
                         ) : currentRecipes.length > 0 ? (
                             <>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                                    {currentRecipes.map((recipe) => (
-                                        <Link
-                                            key={recipe._id}
-                                            href={`/recipe-preview/${recipe._id}`}
-                                            className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow group"
-                                        >
-                                            <div className="relative">
-                                                <Image
-                                                    src={getRecipeImage(recipe)}
-                                                    alt={recipe.title || 'Recipe'}
-                                                    width={400}
-                                                    height={300}
-                                                    className="w-full h-32 object-cover rounded-t-xl group-hover:opacity-90 transition-opacity"
-                                                />
-                                                <div className="absolute top-3 right-3">
-                                                    {recipe.difficulty && (
-                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
-                                                            {recipe.difficulty}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
+                                    {currentRecipes.map((recipe) => {
+                                        const multiPartStats = getMultiPartStats(recipe); // ADDED: Get multi-part stats
 
-                                            <div className="p-4 sm:p-6">
-                                                <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2">
-                                                    {recipe.title || 'Untitled Recipe'}
-                                                </h3>
-
-                                                {recipe.description && (
-                                                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                                                        {recipe.description}
-                                                    </p>
-                                                )}
-
-                                                {recipe.ratingStats?.averageRating > 0 && (
-                                                    <div className="flex items-center mb-3">
-                                                        <div className="flex items-center mr-3">
-                                                            {renderStars(recipe.ratingStats.averageRating)}
-                                                            <span className="text-sm text-gray-600 ml-1">
-                                                                {recipe.ratingStats.averageRating.toFixed(1)} ({recipe.ratingStats.totalRatings || 0})
-                                                            </span>
+                                        return (
+                                            <Link
+                                                key={recipe._id}
+                                                href={`/recipe-preview/${recipe._id}`}
+                                                className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow group relative"
+                                            >
+                                                {/* ADDED: Multi-Part Badge */}
+                                                {recipe.isMultiPart && (
+                                                    <div className="absolute top-2 left-2 z-10">
+                                                        <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                                                            🧩 Multi-Part
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                                                    <div className="flex items-center space-x-3">
-                                                        {((recipe.cookTime || 0) + (recipe.prepTime || 0)) > 0 && (
-                                                            <span className="flex items-center">
-                                                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                                </svg>
-                                                                {formatTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}
-                                                            </span>
-                                                        )}
-                                                        {recipe.servings && (
-                                                            <span className="flex items-center">
-                                                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                                                </svg>
-                                                                {recipe.servings}
+                                                <div className="relative">
+                                                    <Image
+                                                        src={getRecipeImage(recipe)}
+                                                        alt={recipe.title || 'Recipe'}
+                                                        width={400}
+                                                        height={300}
+                                                        className="w-full h-32 object-cover rounded-t-xl group-hover:opacity-90 transition-opacity"
+                                                    />
+                                                    <div className="absolute top-3 right-3">
+                                                        {recipe.difficulty && (
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                                                                {recipe.difficulty}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                {/* Tags */}
-                                                {Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mb-2">
-                                                        {recipe.tags.slice(0, 3).map((tag, index) => (
-                                                            <span
-                                                                key={index}
-                                                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800"
-                                                            >
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                        {recipe.tags.length > 3 && (
-                                                            <span className="text-xs text-gray-500">
-                                                                +{recipe.tags.length - 3} more
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                <div className="p-4 sm:p-6">
+                                                    <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2">
+                                                        {recipe.title || 'Untitled Recipe'}
+                                                    </h3>
 
-                                                {/* Author */}
-                                                {recipe.createdBy && (
-                                                    <div className="text-xs text-gray-500">
-                                                        by {recipe.createdBy.name || recipe.createdBy.email}
-                                                        {recipe.importedFrom && (
-                                                            <span className="ml-1">(from {recipe.importedFrom})</span>
-                                                        )}
+                                                    {/* ADDED: Multi-Part Info */}
+                                                    {multiPartStats && (
+                                                        <div className="text-xs text-blue-600 mb-2 font-medium">
+                                                            {multiPartStats.partCount} parts • {multiPartStats.totalIngredients} ingredients • {multiPartStats.totalInstructions} steps
+                                                        </div>
+                                                    )}
+
+                                                    {recipe.description && (
+                                                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                                                            {recipe.description}
+                                                        </p>
+                                                    )}
+
+                                                    {recipe.ratingStats?.averageRating > 0 && (
+                                                        <div className="flex items-center mb-3">
+                                                            <div className="flex items-center mr-3">
+                                                                {renderStars(recipe.ratingStats.averageRating)}
+                                                                <span className="text-sm text-gray-600 ml-1">
+                                                                    {recipe.ratingStats.averageRating.toFixed(1)} ({recipe.ratingStats.totalRatings || 0})
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                                                        <div className="flex items-center space-x-3">
+                                                            {((recipe.cookTime || 0) + (recipe.prepTime || 0)) > 0 && (
+                                                                <span className="flex items-center">
+                                                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                                    </svg>
+                                                                    {formatTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}
+                                                                </span>
+                                                            )}
+                                                            {recipe.servings && (
+                                                                <span className="flex items-center">
+                                                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                                    </svg>
+                                                                    {recipe.servings}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        </Link>
-                                    ))}
+
+                                                    {/* Tags */}
+                                                    {Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mb-2">
+                                                            {recipe.tags.slice(0, 3).map((tag, index) => (
+                                                                <span
+                                                                    key={index}
+                                                                    className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800"
+                                                                >
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                            {recipe.tags.length > 3 && (
+                                                                <span className="text-xs text-gray-500">
+                                                                    +{recipe.tags.length - 3} more
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Author */}
+                                                    {recipe.createdBy && (
+                                                        <div className="text-xs text-gray-500">
+                                                            by {recipe.createdBy.name || recipe.createdBy.email}
+                                                            {recipe.importedFrom && (
+                                                                <span className="ml-1">(from {recipe.importedFrom})</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
 
                                 {/* Pagination */}
@@ -704,6 +785,11 @@ export default function PublicRecipeSearch() {
                     <h2 className="text-xl sm:text-2xl font-bold mb-4">Ready to Cook?</h2>
                     <p className="text-base sm:text-lg mb-6 opacity-90">
                         Create your free account to save recipes, plan meals, and access our full collection
+                        {multiPartCount > 0 && (
+                            <span className="block mt-2">
+                                Including {multiPartCount} multi-part recipes with organized sections!
+                            </span>
+                        )}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link

@@ -37,6 +37,17 @@ export default function PublicRecipePreview() {
                     }
                 }
 
+                console.log('📋 Raw recipe data from API:', {
+                    id: data.recipe._id,
+                    title: data.recipe.title,
+                    isMultiPart: data.recipe.isMultiPart,
+                    parts: data.recipe.parts,
+                    ingredients: data.recipe.ingredients,
+                    // Log the whole recipe object structure
+                    allKeys: Object.keys(data.recipe)
+                });
+
+
                 const data = await response.json();
 
                 if (data.success && data.recipe) {
@@ -125,17 +136,48 @@ export default function PublicRecipePreview() {
 
     // ADDED: Helper to get multi-part recipe stats
     const getMultiPartStats = (recipe) => {
-        if (!recipe.isMultiPart || !recipe.parts) return null;
+        console.log('🧩 Multi-part detection debug:', {
+            recipeId: recipe._id,
+            recipeTitle: recipe.title,
+            isMultiPart: recipe.isMultiPart,
+            isMultiPartType: typeof recipe.isMultiPart,
+            hasParts: !!recipe.parts,
+            partsLength: recipe.parts?.length,
+            partsArray: recipe.parts,
+            wholeRecipeKeys: Object.keys(recipe)
+        });
+
+        // Check multiple possible conditions for multi-part recipes
+        const hasMultiPartFlag = recipe.isMultiPart === true;
+        const hasPartsArray = Array.isArray(recipe.parts) && recipe.parts.length > 0;
+        const hasMultipleIngredientSections = recipe.ingredients && Array.isArray(recipe.ingredients) &&
+            recipe.ingredients.some(ing => typeof ing === 'object' && ing.section);
+
+        console.log('🧩 Multi-part conditions:', {
+            hasMultiPartFlag,
+            hasPartsArray,
+            hasMultipleIngredientSections,
+            finalDecision: hasMultiPartFlag && hasPartsArray
+        });
+
+        // Return null if not a multi-part recipe
+        if (!hasMultiPartFlag || !hasPartsArray) {
+            console.log('❌ Not a multi-part recipe');
+            return null;
+        }
 
         const totalIngredients = recipe.parts.reduce((total, part) => total + (part.ingredients?.length || 0), 0);
         const totalInstructions = recipe.parts.reduce((total, part) => total + (part.instructions?.length || 0), 0);
 
-        return {
+        const stats = {
             partCount: recipe.parts.length,
             totalIngredients,
             totalInstructions,
             partNames: recipe.parts.map(part => part.name || 'Unnamed Part')
         };
+
+        console.log('✅ Multi-part stats:', stats);
+        return stats;
     };
 
     const getRecipeImage = (recipe) => {
