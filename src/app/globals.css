@@ -728,6 +728,7 @@ input[type="radio"]:focus {
 .text-gray-700 { color: #374151 !important; }
 .text-gray-800 { color: #1f2937 !important; }
 .text-gray-900 { color: #111827 !important; }
+.text-red-200 { color: #fecaca !important; }
 .text-red-400 { color: #f87171 !important; }
 .text-red-600 { color: #dc2626 !important; }
 .text-red-700 { color: #b91c1c !important; }

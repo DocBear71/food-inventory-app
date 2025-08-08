@@ -524,16 +524,16 @@ export default function PublicRecipePreview() {
 
                 {/* ADDED: Multi-Part Recipe Banner */}
                 {multiPartStats && (
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 text-white py-4">
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 py-4">
                         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
                             <div className="flex flex-col sm:flex-row items-center justify-between">
                                 <div className="flex items-center space-x-3 mb-3 sm:mb-0">
                                     <div className="bg-white bg-opacity-20 rounded-full p-2">
-                                        <span className="text-2xl">🧩</span>
+                                        <span className="text-3xl">🧩</span>
                                     </div>
                                     <div>
                                         <h3 className="text-lg font-semibold text-white">Multi-Part Recipe</h3>
-                                        <p className="text-sm text-blue-100">
+                                        <p className="text-sm text-red-200">
                                             This recipe has {multiPartStats.partCount} parts with {multiPartStats.totalIngredients} total ingredients and {multiPartStats.totalInstructions} total steps
                                         </p>
                                     </div>
@@ -543,13 +543,13 @@ export default function PublicRecipePreview() {
                                         {multiPartStats.partNames.slice(0, 2).map((partName, index) => (
                                             <span
                                                 key={index}
-                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-blue-100"
+                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-emerald-600"
                                             >
                                             {partName}
                                         </span>
                                         ))}
                                         {multiPartStats.partNames.length > 2 && (
-                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-blue-100">
+                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-white bg-opacity-20 text-purple-800">
                                             +{multiPartStats.partNames.length - 2} more
                                         </span>
                                         )}
