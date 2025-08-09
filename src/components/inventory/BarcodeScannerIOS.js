@@ -357,29 +357,29 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }, 4000);
     }, []);
 
-    // NEW: Official Capacitor barcode scanner function with debugging
+    // NEW: Official Capacitor barcode scanner function (production ready)
     const startOfficialScan = useCallback(async () => {
         try {
             console.log('🍎 Starting official Capacitor barcode scan...');
             setIsScanning(true);
             setError(null);
-            setScanFeedback('Checking camera permissions...');
+            setScanFeedback('Opening camera...');
 
-            // Step 1: Try to check if plugin is available
+            // Step 1: Check if plugin is available
             if (!CapacitorBarcodeScanner) {
-                alert('❌ BarcodeScanner plugin not available');
+                provideScanFeedback('error', 'Barcode scanner not available on this device');
                 setIsScanning(false);
                 return;
             }
 
-            setScanFeedback('Plugin found, starting scan...');
+            setScanFeedback('Camera ready, position barcode in frame...');
 
-            // Step 2: Try minimal scan parameters
+            // Step 2: Scan with minimal parameters
             const result = await CapacitorBarcodeScanner.scanBarcode({
                 hint: 'ALL'
             });
 
-            alert(`🍎 Scan completed! Result: ${JSON.stringify(result)}`);
+            console.log('🍎 Official scan result:', result);
 
             // Check multiple possible result properties
             let scannedCode = null;
@@ -389,12 +389,12 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
             if (scannedCode) {
                 console.log('🍎 Official barcode detected:', scannedCode);
+                provideScanFeedback('success', 'Barcode captured!');
 
                 // Use existing validation logic
                 const validation = analyzeAndValidateBarcode(scannedCode);
                 if (!validation.valid) {
-                    alert(`❌ Invalid barcode: ${validation.message}`);
-                    provideScanFeedback('error', validation.message);
+                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
                     setIsScanning(false);
                     return;
                 }
@@ -404,15 +404,13 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 // Check for duplicates (using existing logic)
                 const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
                 if (processedCodesRef.current.has(sessionKey)) {
-                    alert('⚠️ Already scanned this barcode');
-                    provideScanFeedback('warning', 'Barcode already scanned in this session');
+                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
                     setIsScanning(false);
                     return;
                 }
 
                 processedCodesRef.current.add(sessionKey);
-                provideScanFeedback('success', 'Official scan successful!', validation);
-                alert(`✅ Success! Clean code: ${cleanCode}`);
+                provideScanFeedback('success', 'Barcode scan successful!', validation);
 
                 // Process the result
                 setTimeout(() => {
@@ -427,30 +425,28 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 }, 300);
 
             } else {
-                alert(`❌ No barcode found. Full result: ${JSON.stringify(result)}`);
                 console.log('🍎 No barcode found in result:', result);
-                provideScanFeedback('error', 'No barcode detected in official scan');
+                provideScanFeedback('error', 'No barcode detected - please try again');
                 setIsScanning(false);
             }
 
         } catch (error) {
             console.error('🍎 Official scanning failed:', error);
-            alert(`❌ Scan Error: ${error.message}`);
 
-            // More specific error handling
+            // User-friendly error handling
             if (error.message && (error.message.includes('cancelled') || error.message.includes('User cancelled'))) {
                 console.log('🍎 Official scan cancelled by user');
-                provideScanFeedback('info', 'Scan cancelled by user');
+                provideScanFeedback('info', 'Scan cancelled');
                 setIsScanning(false);
                 return;
             }
 
             if (error.message && (error.message.includes('permission') || error.message.includes('Permission'))) {
-                provideScanFeedback('error', 'Camera permission denied. Check iOS Settings → Privacy → Camera');
+                provideScanFeedback('error', 'Camera permission required - check iOS Settings');
             } else if (error.message && error.message.includes('invalid')) {
-                provideScanFeedback('error', 'Camera setup failed. Please try again.');
+                provideScanFeedback('error', 'Camera setup failed - please try again');
             } else {
-                provideScanFeedback('error', `Scan failed: ${error.message}`);
+                provideScanFeedback('error', 'Scan failed - please try again');
             }
             setIsScanning(false);
         }

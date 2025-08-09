@@ -98,6 +98,12 @@ export default function ReceiptScan() {
                 isPWA: isStandalone,
                 userAgent: navigator.userAgent.substring(0, 100) + '...'
             });
+
+            if (isNative && platform === 'ios') {
+                console.log('🍎 CONFIRMED: iOS Native App Detected!');
+                console.log('🍎 Capacitor platform:', platform);
+                console.log('🍎 isNativePlatform:', isNative);
+            }
         }
     }, []);
 
@@ -1208,180 +1214,208 @@ export default function ReceiptScan() {
     // ===============================================
 
     async function startCamera() {
-        if (!checkUsageLimitsBeforeScan()) {
-            return;
-        }
-
-        // Check camera permissions for native iOS
-        if (platformInfo.isNative && platformInfo.isIOS) {
-            try {
-                const { Camera } = await import('@capacitor/camera');
-
-                // Check if we have camera permissions
-                const permissions = await Camera.checkPermissions();
-                console.log('🍎 iOS Camera permissions status:', permissions);
-
-                if (permissions.camera !== 'granted') {
-                    console.log('🍎 Requesting iOS camera permissions...');
-                    const requestResult = await Camera.requestPermissions();
-                    console.log('🍎 iOS Permission request result:', requestResult);
-
-                    if (requestResult.camera !== 'granted') {
-                        setCameraError('Camera permission is required for receipt scanning. Please enable camera access in iOS Settings > Doc Bear\'s Comfort Kitchen > Camera');
-                        return;
-                    }
-                }
-            } catch (permissionError) {
-                console.error('❌ iOS permission check failed:', permissionError);
-                setCameraError('Unable to check camera permissions. Please try "Upload Image" instead.');
-                return;
-            }
-        }
-
-        // Native app (Android or iOS) - use native camera
-        if (platformInfo.isNative) {
-            console.log(`📱 Starting ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
-
-            try {
-                console.log('🤖 Importing Capacitor Camera...');
-                const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-                console.log('🤖 Camera imported successfully');
-
-                console.log('🤖 Calling Camera.getPhoto...');
-                const photo = await Camera.getPhoto({
-                    resultType: CameraResultType.Uri, // Changed from Blob to Uri
-                    source: CameraSource.Camera,
-                    quality: 90,
-                    allowEditing: false,
-                    saveToGallery: false
-                });
-
-                console.log('🤖 Camera.getPhoto returned:', photo);
-                console.log('🤖 Photo webPath:', photo.webPath);
-
-                if (photo.webPath) {
-                    console.log('🤖 Converting photo to blob...');
-                    const response = await fetch(photo.webPath);
-                    const imageBlob = await response.blob();
-                    console.log('🤖 Blob created:', imageBlob.size, 'bytes');
-
-                    if (imageBlob && imageBlob.size > 0) {
-                        console.log('🤖 Setting receipt type and captured image...');
-                        setReceiptType('paper');
-                        setCapturedImage(URL.createObjectURL(imageBlob));
-
-                        console.log('🤖 Calling processImage...');
-                        await processImage(imageBlob);
-                        console.log('🤖 processImage completed');
-                    } else {
-                        console.error('🤖 Invalid or empty image blob');
-                        alert('Failed to capture image: Empty or invalid image');
-                    }
-                } else {
-                    console.error('🤖 No webPath in photo result');
-                    alert('Failed to capture image: No file path returned');
-                }
-                return;
-            } catch (error) {
-                console.error('❌ Android camera failed:', error);
-                console.error('❌ Error details:', error.message, error.stack);
-                setCameraError('Android camera access failed. Please try "Upload Image" instead.');
-                return;
-            }
-        }
-
-        // iOS native app - use native camera
-        if (platformInfo.isIOS) {
-            console.log('🍎 Starting iOS native camera...');
-
-            try {
-                console.log('🍎 Importing Capacitor Camera for iOS...');
-                const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-                console.log('🍎 Camera imported successfully');
-
-                console.log('🍎 Calling Camera.getPhoto for iOS...');
-                const photo = await Camera.getPhoto({
-                    resultType: CameraResultType.Uri,
-                    source: CameraSource.Camera,
-                    quality: 90,
-                    allowEditing: false,
-                    saveToGallery: false,
-                    width: 1920,
-                    height: 1080
-                });
-
-                console.log('🍎 iOS Camera.getPhoto returned:', photo);
-
-                if (photo.webPath) {
-                    console.log('🍎 Converting iOS photo to blob...');
-                    const response = await fetch(photo.webPath);
-                    const imageBlob = await response.blob();
-                    console.log('🍎 iOS blob created:', imageBlob.size, 'bytes');
-
-                    if (imageBlob && imageBlob.size > 0) {
-                        console.log('🍎 Setting receipt type and captured image for iOS...');
-                        setReceiptType('paper');
-                        setCapturedImage(URL.createObjectURL(imageBlob));
-
-                        console.log('🍎 Calling processImage for iOS...');
-                        await processImage(imageBlob);
-                        console.log('🍎 processImage completed for iOS');
-                    } else {
-                        console.error('🍎 Invalid or empty image blob on iOS');
-                        alert('Failed to capture image: Empty or invalid image');
-                    }
-                } else {
-                    console.error('🍎 No webPath in photo result on iOS');
-                    alert('Failed to capture image: No file path returned');
-                }
-                return;
-            } catch (error) {
-                console.error('❌ iOS camera failed:', error);
-                console.error('❌ iOS Error details:', error.message, error.stack);
-                setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
-                return;
-            }
-        }
-
-        // Web/PWA camera implementation (iOS PWA, Web browsers)
-        setCameraError(null);
-
         try {
-            const stream = await initializeOptimizedCamera(platformInfo);
-            streamRef.current = stream;
+            console.log('🔥 startCamera called - platformInfo:', platformInfo);
+            console.log('🔥 isNative:', platformInfo.isNative);
+            console.log('🔥 isIOS:', platformInfo.isIOS);
+            console.log('🔥 isAndroid:', platformInfo.isAndroid);
 
-            if (!videoRef.current) {
-                console.warn('Video ref is null, waiting for DOM to be ready...');
-                setShowCamera(true);
+            if (!checkUsageLimitsBeforeScan()) {
+                console.log('🔥 Usage limits check failed, returning early');
+                return;
+            }
 
-                setTimeout(async () => {
-                    if (videoRef.current) {
-                        await setupOptimizedVideo(videoRef.current, stream, platformInfo);
-                        scrollToCameraView();
-                    } else {
-                        throw new Error('Video element not available after timeout');
+            console.log('🔥 Usage limits check passed, continuing...');
+
+            // TEMPORARY DEBUG ALERT FOR iOS
+            if (platformInfo.isNative && platformInfo.isIOS) {
+                alert('🍎 iOS Native detected, about to check camera permissions...');
+            }
+
+            // Check camera permissions for native iOS
+            if (platformInfo.isNative && platformInfo.isIOS) {
+                try {
+                    const {Camera} = await import('@capacitor/camera');
+
+                    // Check if we have camera permissions
+                    const permissions = await Camera.checkPermissions();
+                    console.log('🍎 iOS Camera permissions status:', permissions);
+
+                    if (permissions.camera !== 'granted') {
+                        console.log('🍎 Requesting iOS camera permissions...');
+                        const requestResult = await Camera.requestPermissions();
+                        console.log('🍎 iOS Permission request result:', requestResult);
+
+                        if (requestResult.camera !== 'granted') {
+                            setCameraError('Camera permission is required for receipt scanning. Please enable camera access in iOS Settings > Doc Bear\'s Comfort Kitchen > Camera');
+                            return;
+                        }
                     }
-                }, 200);
-            } else {
-                await setupOptimizedVideo(videoRef.current, stream, platformInfo);
-                setShowCamera(true);
-                scrollToCameraView();
+                } catch (permissionError) {
+                    console.error('❌ iOS permission check failed:', permissionError);
+                    setCameraError('Unable to check camera permissions. Please try "Upload Image" instead.');
+                    return;
+                }
             }
 
-            console.log('🎉 Camera setup completed successfully!');
+            // Native app (Android or iOS) - use native camera
+            if (platformInfo.isNative) {
+                console.log(`📱 Starting ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
 
-        } catch (error) {
-            console.error('❌ Camera setup failed:', error);
+                try {
+                    console.log('🤖 Importing Capacitor Camera...');
+                    const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                    console.log('🤖 Camera imported successfully');
 
-            if (platformInfo.isIOSPWA) {
-                setCameraError('iOS PWA camera permissions needed. Try "Upload Image" for reliable scanning.');
-            } else if (platformInfo.isNative) {
-                setCameraError(`Native camera access failed: ${error.message}. Please check app permissions in Settings.`);
-            } else {
-                setCameraError(`Camera access failed: ${error.message}. Please try "Upload Image" instead.`);
+                    console.log('🤖 Calling Camera.getPhoto...');
+                    const photo = await Camera.getPhoto({
+                        resultType: CameraResultType.Uri, // Changed from Blob to Uri
+                        source: CameraSource.Camera,
+                        quality: 90,
+                        allowEditing: false,
+                        saveToGallery: false
+                    });
+
+                    console.log('🤖 Camera.getPhoto returned:', photo);
+                    console.log('🤖 Photo webPath:', photo.webPath);
+
+                    if (photo.webPath) {
+                        console.log('🤖 Converting photo to blob...');
+                        const response = await fetch(photo.webPath);
+                        const imageBlob = await response.blob();
+                        console.log('🤖 Blob created:', imageBlob.size, 'bytes');
+
+                        if (imageBlob && imageBlob.size > 0) {
+                            console.log('🤖 Setting receipt type and captured image...');
+                            setReceiptType('paper');
+                            setCapturedImage(URL.createObjectURL(imageBlob));
+
+                            console.log('🤖 Calling processImage...');
+                            await processImage(imageBlob);
+                            console.log('🤖 processImage completed');
+                        } else {
+                            console.error('🤖 Invalid or empty image blob');
+                            alert('Failed to capture image: Empty or invalid image');
+                        }
+                    } else {
+                        console.error('🤖 No webPath in photo result');
+                        alert('Failed to capture image: No file path returned');
+                    }
+                    return;
+                } catch (error) {
+                    console.error('❌ Android camera failed:', error);
+                    console.error('❌ Error details:', error.message, error.stack);
+                    setCameraError('Android camera access failed. Please try "Upload Image" instead.');
+                    return;
+                }
             }
+
+            // iOS native app - use native camera
+            if (platformInfo.isIOS) {
+                console.log('🍎 Starting iOS native camera...');
+
+                try {
+                    console.log('🍎 Importing Capacitor Camera for iOS...');
+                    const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                    console.log('🍎 Camera imported successfully');
+
+                    console.log('🍎 Calling Camera.getPhoto for iOS...');
+                    const photo = await Camera.getPhoto({
+                        resultType: CameraResultType.Uri,
+                        source: CameraSource.Camera,
+                        quality: 90,
+                        allowEditing: false,
+                        saveToGallery: false,
+                        width: 1920,
+                        height: 1080
+                    });
+
+                    console.log('🍎 iOS Camera.getPhoto returned:', photo);
+
+                    if (photo.webPath) {
+                        console.log('🍎 Converting iOS photo to blob...');
+                        const response = await fetch(photo.webPath);
+                        const imageBlob = await response.blob();
+                        console.log('🍎 iOS blob created:', imageBlob.size, 'bytes');
+
+                        if (imageBlob && imageBlob.size > 0) {
+                            console.log('🍎 Setting receipt type and captured image for iOS...');
+                            setReceiptType('paper');
+                            setCapturedImage(URL.createObjectURL(imageBlob));
+
+                            console.log('🍎 Calling processImage for iOS...');
+                            await processImage(imageBlob);
+                            console.log('🍎 processImage completed for iOS');
+                        } else {
+                            console.error('🍎 Invalid or empty image blob on iOS');
+                            alert('Failed to capture image: Empty or invalid image');
+                        }
+                    } else {
+                        console.error('🍎 No webPath in photo result on iOS');
+                        alert('Failed to capture image: No file path returned');
+                    }
+                    return;
+                } catch (error) {
+                    console.error('❌ iOS camera failed:', error);
+                    console.error('❌ iOS Error details:', error.message, error.stack);
+                    setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
+                    return;
+                }
+            }
+
+            // SAFETY CHECK: If we reach here on native iOS, something went wrong
+            if (platformInfo.isNative && platformInfo.isIOS) {
+                console.error('🔥 ERROR: iOS native app should not reach web camera code!');
+                setCameraError('iOS native app incorrectly trying to use web camera. Please try "Upload Image" instead.');
+                return;
+            }
+
+            // Web/PWA camera implementation (iOS PWA, Web browsers)
+            setCameraError(null);
+
+            try {
+                const stream = await initializeOptimizedCamera(platformInfo);
+                streamRef.current = stream;
+
+                if (!videoRef.current) {
+                    console.warn('Video ref is null, waiting for DOM to be ready...');
+                    setShowCamera(true);
+
+                    setTimeout(async () => {
+                        if (videoRef.current) {
+                            await setupOptimizedVideo(videoRef.current, stream, platformInfo);
+                            scrollToCameraView();
+                        } else {
+                            throw new Error('Video element not available after timeout');
+                        }
+                    }, 200);
+                } else {
+                    await setupOptimizedVideo(videoRef.current, stream, platformInfo);
+                    setShowCamera(true);
+                    scrollToCameraView();
+                }
+
+                console.log('🎉 Camera setup completed successfully!');
+
+            } catch (error) {
+                console.error('❌ Camera setup failed:', error);
+
+                if (platformInfo.isIOSPWA) {
+                    setCameraError('iOS PWA camera permissions needed. Try "Upload Image" for reliable scanning.');
+                } else if (platformInfo.isNative) {
+                    setCameraError(`Native camera access failed: ${error.message}. Please check app permissions in Settings.`);
+                } else {
+                    setCameraError(`Camera access failed: ${error.message}. Please try "Upload Image" instead.`);
+                }
+            }
+        } catch (globalError) {
+            console.error('🔥 CRITICAL ERROR in startCamera:', globalError);
+            console.error('🔥 Error stack:', globalError.stack);
+            setCameraError(`Critical camera error: ${globalError.message}. Please try "Upload Image" instead.`);
         }
     }
+
+
 
     function stopCamera() {
         if (streamRef.current) {
