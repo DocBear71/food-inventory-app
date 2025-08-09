@@ -1349,9 +1349,30 @@ export default function ReceiptScan() {
 
                         if (photo.webPath) {
                             console.log('🍎 Converting iOS photo to blob...');
-                            const response = await fetch(photo.webPath);
-                            const imageBlob = await response.blob();
-                            console.log('🍎 iOS blob created:', imageBlob.size, 'bytes');
+
+                            // Try multiple methods to get the blob
+                            let imageBlob;
+
+                            try {
+                                // Method 1: Direct fetch (original)
+                                const response = await fetch(photo.webPath);
+                                imageBlob = await response.blob();
+                                console.log('🍎 Method 1 (fetch) succeeded:', imageBlob.size, 'bytes');
+                            } catch (fetchError) {
+                                console.log('🍎 Method 1 failed, trying Method 2:', fetchError);
+
+                                try {
+                                    // Method 2: Use Capacitor's convertFileSrc
+                                    const { Capacitor } = await import('@capacitor/core');
+                                    const convertedUrl = Capacitor.convertFileSrc(photo.webPath);
+                                    const response = await fetch(convertedUrl);
+                                    imageBlob = await response.blob();
+                                    console.log('🍎 Method 2 (convertFileSrc) succeeded:', imageBlob.size, 'bytes');
+                                } catch (convertError) {
+                                    console.log('🍎 Method 2 failed:', convertError);
+                                    throw new Error('Both iOS file access methods failed');
+                                }
+                            }
 
                             if (imageBlob && imageBlob.size > 0) {
                                 console.log('🍎 Setting receipt type and captured image for iOS...');
