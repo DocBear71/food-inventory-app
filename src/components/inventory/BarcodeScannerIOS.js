@@ -8,6 +8,30 @@ import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureG
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
 
+// Add these imports after your existing imports
+let BarcodeScanner;
+let Permissions;
+
+// Dynamic import function
+const initializeCapacitor = async () => {
+    try {
+        if (typeof window !== 'undefined' && window.Capacitor) {
+            const { BarcodeScanner: BS } = await import('@capacitor-mlkit/barcode-scanning');
+            const { Permissions: Perms } = await import('@gachlab/capacitor-permissions');
+
+            BarcodeScanner = BS;
+            Permissions = Perms;
+
+            console.log('📱 Native MLKit modules loaded successfully');
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('Failed to load Capacitor modules:', error);
+        return false;
+    }
+};
+
 export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}) {
     const videoRef = useRef(null);
     const scannerContainerRef = useRef(null);
@@ -18,6 +42,9 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const [isScanning, setIsScanning] = useState(true);
     const [permissionState, setPermissionState] = useState('unknown');
     const [scanFeedback, setScanFeedback] = useState('');
+    // Add these to your existing useState declarations
+    const [isCapacitor, setIsCapacitor] = useState(false);
+    const [isCapacitorReady, setIsCapacitorReady] = useState(false);
 
     // Enhanced barcode analysis state
     const [barcodeAnalysis, setBarcodeAnalysis] = useState(null);
@@ -547,7 +574,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }
     }, [handleBarcodeDetection, handleScanError]);
 
-    // Main scanner initialization
+    // Update your existing useEffect to detect Capacitor
     useEffect(() => {
         const initializeScanner = async () => {
             if (!isActive || isInitialized || !mountedRef.current) {
@@ -564,14 +591,24 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
                 console.log(`🍎 Starting iOS scanner session: ${sessionIdRef.current}`);
 
-                const hasPermission = await requestCameraPermission();
-                if (!hasPermission) {
-                    setIsLoading(false);
-                    return;
-                }
+                // Check if Capacitor is available
+                const capacitorReady = await initializeCapacitor();
+                setIsCapacitor(capacitorReady);
+                setIsCapacitorReady(capacitorReady);
 
-                console.log('🍎 iOS using web-based ZXing');
-                await initializeZXingScanner();
+                if (capacitorReady) {
+                    console.log('📱 Using native MLKit scanner');
+                    // We'll handle native scanning in the button click
+                } else {
+                    console.log('🍎 Using web-based ZXing scanner');
+                    const hasPermission = await requestCameraPermission();
+                    if (!hasPermission) {
+                        setIsLoading(false);
+                        return;
+                    }
+
+                    await initializeZXingScanner();
+                }
 
                 if (mountedRef.current) {
                     setIsInitialized(true);
@@ -590,7 +627,93 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         if (isActive && mountedRef.current) {
             initializeScanner();
         }
-    }, [isActive, isInitialized, requestCameraPermission, initializeZXingScanner]);
+    }, [isActive, isInitialized]);
+
+    // Add this new function
+    const startNativeMLKitScan = useCallback(async () => {
+        try {
+            if (!BarcodeScanner) {
+                throw new Error('MLKit BarcodeScanner not available');
+            }
+
+            console.log('📱 Starting native MLKit scan...');
+            setIsScanning(true);
+            setError(null);
+            setScanFeedback('Starting native scan...');
+
+            // Request permissions first
+            if (Permissions) {
+                const permResult = await Permissions.requestPermissions(['camera']);
+                if (permResult.camera !== 'granted') {
+                    throw new Error('Camera permission denied');
+                }
+            }
+
+            // Start the native scan
+            const result = await BarcodeScanner.scan({
+                formats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39'],
+                lensFacing: 'back'
+            });
+
+            console.log('📱 Native scan result:', result);
+
+            if (result.barcodes && result.barcodes.length > 0) {
+                const barcode = result.barcodes[0];
+                const rawValue = barcode.rawValue || barcode.displayValue;
+
+                console.log('📱 Native barcode detected:', rawValue);
+
+                // Use your existing validation
+                const validation = analyzeAndValidateBarcode(rawValue);
+                if (!validation.valid) {
+                    provideScanFeedback('error', validation.message);
+                    setIsScanning(false);
+                    return;
+                }
+
+                const cleanCode = validation.cleanCode;
+
+                // Check for duplicates (using existing logic)
+                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
+                if (processedCodesRef.current.has(sessionKey)) {
+                    provideScanFeedback('warning', 'Barcode already scanned in this session');
+                    setIsScanning(false);
+                    return;
+                }
+
+                processedCodesRef.current.add(sessionKey);
+                provideScanFeedback('success', 'Native scan successful!', validation);
+
+                // Process the result
+                setTimeout(() => {
+                    if (mountedRef.current) {
+                        handleBarcodeDetection(cleanCode);
+                        setTimeout(() => {
+                            if (mountedRef.current && onClose) {
+                                onClose();
+                            }
+                        }, 500);
+                    }
+                }, 300);
+
+            } else {
+                provideScanFeedback('error', 'No barcode detected in native scan');
+                setIsScanning(false);
+            }
+
+        } catch (error) {
+            console.error('📱 Native scanning failed:', error);
+
+            if (error.message && error.message.includes('cancelled')) {
+                console.log('📱 Native scan cancelled by user');
+                setIsScanning(false);
+                return;
+            }
+
+            provideScanFeedback('error', `Native scan failed: ${error.message}`);
+            setIsScanning(false);
+        }
+    }, [analyzeAndValidateBarcode, handleBarcodeDetection, onClose, provideScanFeedback]);
 
     // Cleanup function
     const cleanupScanner = useCallback(async () => {
@@ -832,111 +955,136 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                             </div>
                         )}
 
-                        {/* iOS ZXing Scanner Interface */}
-                        <div className="flex-1 relative bg-black overflow-hidden" ref={scannerContainerRef}>
-                            <video
-                                ref={videoRef}
-                                className="absolute inset-0 w-full h-full object-cover"
-                                autoPlay
-                                playsInline
-                                muted
-                            />
-
-                            {/* Enhanced iOS Scanner Overlay */}
-                            {!isLoading && (
-                                <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                        {/* Enhanced iOS Scanner Interface */}
+                        {!isLoading && (
+                            <div className="absolute inset-0 pointer-events-none" style={{ zIndex: 10 }}>
+                                {isCapacitor ? (
+                                    // Native scanner UI
                                     <div className="absolute inset-0 flex items-center justify-center">
-                                        <div className="relative w-80 h-48 border-2 border-transparent">
-                                            {/* Enhanced corner brackets with iOS styling */}
-                                            <div
-                                                className="absolute top-0 left-0 w-12 h-12 rounded-tl-lg"
-                                                style={{
-                                                    borderTop: '4px solid #ffffff',
-                                                    borderLeft: '4px solid #ffffff',
-                                                    boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
-                                                }}
-                                            ></div>
-                                            <div
-                                                className="absolute top-0 right-0 w-12 h-12 rounded-tr-lg"
-                                                style={{
-                                                    borderTop: '4px solid #ffffff',
-                                                    borderRight: '4px solid #ffffff',
-                                                    boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
-                                                }}
-                                            ></div>
-                                            <div
-                                                className="absolute bottom-0 left-0 w-12 h-12 rounded-bl-lg"
-                                                style={{
-                                                    borderBottom: '4px solid #ffffff',
-                                                    borderLeft: '4px solid #ffffff',
-                                                    boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
-                                                }}
-                                            ></div>
-                                            <div
-                                                className="absolute bottom-0 right-0 w-12 h-12 rounded-br-lg"
-                                                style={{
-                                                    borderBottom: '4px solid #ffffff',
-                                                    borderRight: '4px solid #ffffff',
-                                                    boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
-                                                }}
-                                            ></div>
+                                        <div className="bg-black bg-opacity-75 text-white p-6 rounded-lg text-center max-w-sm mx-4">
+                                            <div className="text-blue-400 mb-4 text-2xl">📱</div>
+                                            <h3 className="text-lg font-medium mb-4">Native iOS Scanner Ready</h3>
+                                            <p className="text-sm mb-6">
+                                                Tap the scan button below to open your device's native camera for barcode scanning.
+                                            </p>
+                                            <TouchEnhancedButton
+                                                onClick={startNativeMLKitScan}
+                                                disabled={isScanning}
+                                                className="w-full bg-blue-600 text-white py-3 px-4 rounded-md font-medium hover:bg-blue-700 disabled:bg-gray-400"
+                                            >
+                                                {isScanning ? 'Scanning...' : '📷 Start Native Scan'}
+                                            </TouchEnhancedButton>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    // ZXing scanner UI
+                                    <div className="absolute inset-0">
+                                        <div className="absolute inset-0 bg-black overflow-hidden" ref={scannerContainerRef}>
+                                            <video
+                                                ref={videoRef}
+                                                className="absolute inset-0 w-full h-full object-cover"
+                                                autoPlay
+                                                playsInline
+                                                muted
+                                            />
 
-                                            {/* Enhanced scanning indicator for iOS */}
-                                            {isScanning && (
-                                                <div className="absolute inset-0 flex items-center justify-center">
+                                            {/* Enhanced iOS Scanner Overlay */}
+                                            <div className="absolute inset-0 flex items-center justify-center">
+                                                <div className="relative w-80 h-48 border-2 border-transparent">
+                                                    {/* Enhanced corner brackets with iOS styling */}
                                                     <div
-                                                        className="w-5 h-5 rounded-full animate-ping"
+                                                        className="absolute top-0 left-0 w-12 h-12 rounded-tl-lg"
                                                         style={{
-                                                            backgroundColor: '#007AFF', // iOS blue
-                                                            boxShadow: '0 0 20px rgba(0, 122, 255, 1)'
+                                                            borderTop: '4px solid #ffffff',
+                                                            borderLeft: '4px solid #ffffff',
+                                                            boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
                                                         }}
                                                     ></div>
-                                                </div>
-                                            )}
+                                                    <div
+                                                        className="absolute top-0 right-0 w-12 h-12 rounded-tr-lg"
+                                                        style={{
+                                                            borderTop: '4px solid #ffffff',
+                                                            borderRight: '4px solid #ffffff',
+                                                            boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute bottom-0 left-0 w-12 h-12 rounded-bl-lg"
+                                                        style={{
+                                                            borderBottom: '4px solid #ffffff',
+                                                            borderLeft: '4px solid #ffffff',
+                                                            boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
+                                                        }}
+                                                    ></div>
+                                                    <div
+                                                        className="absolute bottom-0 right-0 w-12 h-12 rounded-br-lg"
+                                                        style={{
+                                                            borderBottom: '4px solid #ffffff',
+                                                            borderRight: '4px solid #ffffff',
+                                                            boxShadow: '0 0 15px rgba(255, 255, 255, 0.9)'
+                                                        }}
+                                                    ></div>
 
-                                            {/* Enhanced iOS scanning line animation */}
-                                            {isScanning && (
-                                                <div
-                                                    className="absolute left-4 right-4 h-1 ios-scan-line"
-                                                    style={{
-                                                        background: 'linear-gradient(90deg, transparent, #007AFF, transparent)',
-                                                        opacity: 0.9,
-                                                        boxShadow: '0 0 20px rgba(0, 122, 255, 0.8)',
-                                                        top: '50%',
-                                                        transform: 'translateY(-50%)',
-                                                        animation: 'ios-scanline 2.5s ease-in-out infinite'
-                                                    }}
-                                                />
-                                            )}
-                                        </div>
-                                    </div>
-
-                                    {/* Enhanced instruction overlay with iOS context */}
-                                    <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-95 text-white p-4 rounded-lg border border-white border-opacity-40">
-                                        <div className="text-center">
-                                            <div className="text-lg font-medium mb-2">
-                                                {scanFeedback || (isScanning ? 'Position barcode in white frame' : 'Processing...')}
-                                            </div>
-                                            {barcodeAnalysis && barcodeAnalysis.regionalHints && (
-                                                <div className="text-sm mb-2">
-                                                    {barcodeAnalysis.regionalHints.map((hint, i) => (
-                                                        <div key={i} className={`${
-                                                            hint.type === 'warning' ? 'text-orange-300' :
-                                                                hint.type === 'error' ? 'text-red-300' : 'text-blue-300'
-                                                        }`}>
-                                                            {hint.message}
+                                                    {/* Enhanced scanning indicator for iOS */}
+                                                    {isScanning && (
+                                                        <div className="absolute inset-0 flex items-center justify-center">
+                                                            <div
+                                                                className="w-5 h-5 rounded-full animate-ping"
+                                                                style={{
+                                                                    backgroundColor: '#007AFF',
+                                                                    boxShadow: '0 0 20px rgba(0, 122, 255, 1)'
+                                                                }}
+                                                            ></div>
                                                         </div>
-                                                    ))}
+                                                    )}
+
+                                                    {/* Enhanced iOS scanning line animation */}
+                                                    {isScanning && (
+                                                        <div
+                                                            className="absolute left-4 right-4 h-1"
+                                                            style={{
+                                                                background: 'linear-gradient(90deg, transparent, #007AFF, transparent)',
+                                                                opacity: 0.9,
+                                                                boxShadow: '0 0 20px rgba(0, 122, 255, 0.8)',
+                                                                top: '50%',
+                                                                transform: 'translateY(-50%)',
+                                                                animation: 'scanline 2.5s ease-in-out infinite'
+                                                            }}
+                                                        />
+                                                    )}
                                                 </div>
-                                            )}
-                                            <div className="text-sm opacity-75">
-                                                🍎 iOS ZXing scanner • {userRegion} optimized • Enhanced for mobile
+                                            </div>
+
+                                            {/* Enhanced instruction overlay with iOS context */}
+                                            <div className="absolute bottom-4 left-4 right-4 bg-black bg-opacity-95 text-white p-4 rounded-lg border border-white border-opacity-40">
+                                                <div className="text-center">
+                                                    <div className="text-lg font-medium mb-2">
+                                                        {scanFeedback || (isScanning ? 'Position barcode in white frame' : 'Processing...')}
+                                                    </div>
+                                                    {barcodeAnalysis && barcodeAnalysis.regionalHints && (
+                                                        <div className="text-sm mb-2">
+                                                            {barcodeAnalysis.regionalHints.map((hint, i) => (
+                                                                <div key={i} className={`${
+                                                                    hint.type === 'warning' ? 'text-orange-300' :
+                                                                        hint.type === 'error' ? 'text-red-300' : 'text-blue-300'
+                                                                }`}>
+                                                                    {hint.message}
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    )}
+                                                    <div className="text-sm opacity-75">
+                                                        🍎 iOS ZXing scanner • {userRegion} optimized • Enhanced for mobile
+                                                    </div>
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
-                                </div>
-                            )}
-                        </div>
+                                )}
+                            </div>
+                        )}
+
+
 
                         {/* Footer */}
                         <div className="flex-shrink-0 bg-black px-4 py-3">
