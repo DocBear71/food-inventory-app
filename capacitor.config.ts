@@ -1,24 +1,21 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-    appId: 'kitchen.docbearscomfort',
-    appName: "Doc Bear's Comfort Kitchen",
+    appId: 'com.edward.docbearscomfort2025',
+    appName: "Doc Bear\'s Comfort Kitchen",
     webDir: 'out',
     
     // ENHANCED: Better server config for iOS routing
     server: {
-        url: 'https://food-inventory-app-git-ios-fixes-edward-mckeowns-projects.vercel.app?_vercel_share=vGtAPUpvHm2Y1SsK2T0X2ML6RYdaakFl', 
+        url: 'https://www.docbearscomfort.kitchen',
         cleartext: true,
         androidScheme: 'https',
         iosScheme: 'https',
         allowNavigation: [
             'https://www.docbearscomfort.kitchen',
             'https://docbearscomfort.kitchen',
-            'https://*.docbearscomfort.kitchen',
-            'https://food-inventory-app-git-ios-fixes-edward-mckeowns-projects.vercel.app', // ADD THIS TOO
-            'https://*.vercel.app' // ADD THIS FOR ALL VERCEL PREVIEWS
+            'https://*.docbearscomfort.kitchen'
         ],
-        // CRITICAL: Handle 404s for dynamic routes
         errorPath: 'index.html',
     },
     
@@ -47,6 +44,23 @@ const config: CapacitorConfig = {
         Camera: {
             permissions: ['camera']
         },
+        
+        // NEW: Official Capacitor Barcode Scanner (iOS optimized)
+        BarcodeScanner: {
+            targetedFormats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39', 'QR_CODE'],
+            cameraDirection: 'back',
+            scanButton: false,
+            scanText: 'Position barcode in the center',
+            maxZoom: 3,
+            showTorchButton: true,
+            enableTorch: false
+        },
+        
+        // KEEP: MLKit barcode scanner for fallback compatibility
+        CapacitorMlkitBarcodeScanning: {
+            // Keep this for potential fallback scenarios
+        },
+        
         Microphone: {
             permissions: ['microphone']
         },
@@ -62,10 +76,10 @@ const config: CapacitorConfig = {
             iconColor: "#4f46e5"
         },
         CapacitorHttp: {
-            enabled: true
+            enabled: false
         },
         CapacitorCookies: {
-            enabled: true
+            enabled: false
         },
         ImageToText: {
             language: 'en'

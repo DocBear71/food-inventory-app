@@ -1,12 +1,15 @@
+// file: /src/components/inventory/UPCLookup.js - v16 - Added iOS-specific barcode scanner support
+
 'use client';
-// file: /src/components/inventory/UPCLookup.js - v15 FIXED - Restored US domestic functionality with international support
 
 import {useState, useCallback, useRef, useEffect} from 'react';
 import BarcodeScanner from './BarcodeScanner';
+import BarcodeScannerIOS from './BarcodeScannerIOS';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {apiGet, apiPost} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -63,7 +66,7 @@ function standardizeNutritionData(nutrition) {
     };
 }
 
-// 🔧 FIXED: Enhanced UPC validation for US domestic use
+// Enhanced UPC validation for US domestic use
 function validateAndCleanUPC(upc) {
     if (!upc || typeof upc !== 'string') {
         return { valid: false, reason: 'empty', cleanCode: '' };
@@ -81,7 +84,7 @@ function validateAndCleanUPC(upc) {
         return { valid: false, reason: 'too_long', cleanCode };
     }
 
-    // 🔧 FIXED: Enhanced US domestic UPC handling
+    // Enhanced US domestic UPC handling
     if (cleanCode.length === 11) {
         // Common case: 11-digit code that should be UPC-A
         cleanCode = '0' + cleanCode;
@@ -101,7 +104,7 @@ function validateAndCleanUPC(upc) {
     return { valid: true, cleanCode };
 }
 
-// 🆕 NEW: International currency formatting helper (keeping this for completeness)
+// International currency formatting helper
 function formatPrice(amount, currencyInfo) {
     if (!amount || !currencyInfo) return '';
 
@@ -126,7 +129,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [aiClassification, setAiClassification] = useState(null);
     const [isAiClassifying, setIsAiClassifying] = useState(false);
 
-    // FIXED: Add local UPC state to ensure input works properly
+    // Platform detection
+    const [isIOS, setIsIOS] = useState(false);
+
+    // Add local UPC state to ensure input works properly
     const [localUPC, setLocalUPC] = useState(currentUPC);
     const [optimisticUsage, setOptimisticUsage] = useState(null);
     const [isUpdatingUsage, setIsUpdatingUsage] = useState(false);
@@ -153,11 +159,22 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [usageInfo, setUsageInfo] = useState(null);
     const [isLoadingUsage, setIsLoadingUsage] = useState(true);
 
-    // 🆕 International context state (keeping for enhanced features)
+    // International context state
     const [userCurrencyInfo, setUserCurrencyInfo] = useState(null);
     const [isLoadingCurrency, setIsLoadingCurrency] = useState(true);
 
-    // FIXED: Sync local UPC state with prop changes
+    // Platform detection on mount
+    useEffect(() => {
+        const detectPlatform = () => {
+            const iosDetected = PlatformDetection.isIOS();
+            setIsIOS(iosDetected);
+            console.log('🔍 Platform detected:', iosDetected ? 'iOS' : 'Other', 'Platform info:', PlatformDetection.getPlatformInfo());
+        };
+
+        detectPlatform();
+    }, []);
+
+    // Sync local UPC state with prop changes
     useEffect(() => {
         setLocalUPC(currentUPC);
     }, [currentUPC]);
@@ -258,14 +275,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         return true;
     };
 
-    // 🔧 FIXED: UPC lookup with correct endpoint and validation
+    // UPC lookup with correct endpoint and validation
     const handleUPCLookupWithImmediateUpdate = async (upc) => {
         if (!upc || upc.length < 6) {
             console.log('❌ UPC too short or empty');
             return;
         }
 
-        // 🔧 FIXED: Use enhanced US-focused validation
+        // Use enhanced US-focused validation
         const validation = validateAndCleanUPC(upc);
         if (!validation.valid) {
             console.log(`❌ Invalid UPC: ${validation.reason}`);
@@ -291,7 +308,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         setLookupResult(null);
 
         try {
-            // 🔧 FIXED: Use the correct endpoint that matches your route structure
+            // Use the correct endpoint that matches your route structure
             console.log('🔍 Starting UPC lookup with correct endpoint...');
             const response = await apiGet(`/api/upc?upc=${encodeURIComponent(cleanUpc)}`);
             const data = await response.json();
@@ -398,7 +415,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // Text search with usage tracking (keeping existing logic)
+    // Text search with usage tracking
     const performTextSearchWithImmediateUpdate = async (query, page = 1) => {
         if (!query.trim()) {
             setSearchResults([]);
@@ -504,9 +521,9 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // 🔧 FIXED: Barcode detected handler with enhanced validation
+    // Barcode detected handler with enhanced validation
     const handleBarcodeDetectedWithImmediateUpdate = async (barcode) => {
-        console.log('📱 Barcode scanned:', barcode);
+        console.log(`📱 Barcode scanned (${isIOS ? 'iOS' : 'Standard'}):`, barcode);
 
         // Prevent multiple rapid calls
         if (processingBarcodeRef.current) {
@@ -526,7 +543,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         lastProcessedBarcodeRef.current = barcode;
         lastProcessedTimeRef.current = now;
 
-        // 🔧 FIXED: Validate barcode before processing
+        // Validate barcode before processing
         const validation = validateAndCleanUPC(barcode);
         if (!validation.valid) {
             console.log(`❌ Invalid scanned barcode: ${validation.reason}`);
@@ -536,7 +553,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
 
         const cleanBarcode = validation.cleanCode;
-        console.log(`✅ Valid barcode detected: ${cleanBarcode} (original: ${barcode})`);
+        console.log(`✅ Valid barcode detected (${isIOS ? 'iOS' : 'Standard'}): ${cleanBarcode} (original: ${barcode})`);
 
         // Update both local and parent state
         setLocalUPC(cleanBarcode);
@@ -578,7 +595,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // Keep all the other functions unchanged (AI classification, usage display, etc.)
+    // AI classification function
     const performAiClassification = async (productName, existingData = {}) => {
         if (!productName || !process.env.NEXT_PUBLIC_ENABLE_AI_RECEIPTS) {
             return null;
@@ -657,6 +674,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                         {userCurrencyInfo && !isLoadingCurrency && (
                             <p className="text-xs text-blue-600 mt-1">
                                 🌍 Enhanced for {userCurrencyInfo.currency} region
+                                {isIOS && <span className="ml-2">🍎 iOS-optimized scanner</span>}
                             </p>
                         )}
                     </div>
@@ -739,9 +757,6 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         return true;
     };
 
-    // Keep all the existing UI event handlers and effects unchanged...
-    // (I'll include the key ones but truncate for space)
-
     // Check if camera is available
     const checkCameraAvailability = () => {
         console.log('🔍 Checking camera availability...');
@@ -768,7 +783,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             return;
         }
 
-        console.log('🔄 Opening barcode scanner...');
+        console.log(`🔄 Opening ${isIOS ? 'iOS' : 'standard'} barcode scanner...`);
         setShowScanner(true);
     };
 
@@ -791,7 +806,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             onUPCChange(upc);
         }
 
-        // 🔧 FIXED: Auto-lookup when UPC looks complete with better validation
+        // Auto-lookup when UPC looks complete with better validation
         const validation = validateAndCleanUPC(upc);
         if (validation.valid && validation.cleanCode.length >= 8) {
             console.log('🔍 Auto-triggering lookup for complete UPC:', validation.cleanCode);
@@ -818,18 +833,19 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const hasNutrition = lookupResult?.success && lookupResult.product.nutrition &&
         Object.values(lookupResult.product.nutrition).some(n => n.value > 0);
 
-    // Keep all existing search and autocomplete functionality unchanged
+    // Rest of the component (autocomplete and search functions)...
     const debugAPIEndpoint = () => {
         console.log('🔍 UPC API Debug:', {
             currentURL: window.location.href,
             apiEndpoint: '/api/upc',
-            userCurrency: userCurrencyInfo?.currency || 'Loading...'
+            userCurrency: userCurrencyInfo?.currency || 'Loading...',
+            platform: isIOS ? 'iOS' : 'Other'
         });
     };
 
     useEffect(() => {
         debugAPIEndpoint();
-    }, []);
+    }, [isIOS]);
 
     // Handle clicks outside autocomplete to close it
     useEffect(() => {
@@ -880,14 +896,169 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         };
     }, []);
 
-    // Keep all existing search functionality (truncated for space, but include these methods):
-    // - performAutocomplete
-    // - handleSearchInputChange
-    // - handleAutocompleteSelect
-    // - handleSearchResultSelect
-    // - handlePageChange
-    // - handleCloseAutocomplete
-    // - handleSearchInputFocus
+    // Autocomplete functionality with rate limiting protection
+    const performAutocomplete = async (query) => {
+        if (!query.trim() || query.length < 3) {
+            setAutocompleteResults([]);
+            setShowAutocomplete(false);
+            return;
+        }
+
+        try {
+            console.log('🔍 Starting autocomplete for:', query);
+
+            const params = new URLSearchParams({
+                query: query.trim(),
+                page: '1',
+                page_size: '5'
+            });
+
+            const response = await apiGet(`/api/upc/search?${params}`);
+
+            console.log('🔍 Autocomplete response status:', response.status);
+
+            if (response.ok) {
+                const responseText = await response.text();
+                let data;
+
+                try {
+                    data = JSON.parse(responseText);
+                } catch (parseError) {
+                    console.log('❌ Autocomplete JSON parse error:', parseError);
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
+                    return;
+                }
+
+                console.log('🔍 Autocomplete response:', {
+                    success: data.success,
+                    resultsCount: data.results?.length || 0
+                });
+
+                if (data.success && data.results) {
+                    const suggestions = data.results.slice(0, 3).map(product => ({
+                        name: product.name,
+                        brand: product.brand,
+                        image: product.image,
+                    }));
+
+                    setAutocompleteResults(suggestions);
+                    setShowAutocomplete(suggestions.length > 0);
+                    console.log(`✅ Autocomplete: ${suggestions.length} suggestions`);
+                } else {
+                    setAutocompleteResults([]);
+                    setShowAutocomplete(false);
+                }
+            } else {
+                // Silently fail for autocomplete
+                console.log('❌ Autocomplete failed, status:', response.status);
+                setAutocompleteResults([]);
+                setShowAutocomplete(false);
+            }
+
+        } catch (error) {
+            // Silently handle autocomplete errors
+            console.log('❌ Autocomplete error (silent):', error.message);
+            setAutocompleteResults([]);
+            setShowAutocomplete(false);
+        }
+    };
+
+// Handle search input changes with better rate limiting
+    const handleSearchInputChange = (e) => {
+        const query = e.target.value;
+        setSearchQuery(query);
+
+        // Clear existing timeouts
+        if (searchTimeoutRef.current) {
+            clearTimeout(searchTimeoutRef.current);
+        }
+        if (autocompleteTimeoutRef.current) {
+            clearTimeout(autocompleteTimeoutRef.current);
+        }
+
+        // Clear results if query is too short
+        if (query.length < 3) {
+            setSearchResults([]);
+            setTotalPages(0);
+            setShowAutocomplete(false);
+            setAutocompleteResults([]);
+            return;
+        }
+
+        // Debounced autocomplete
+        autocompleteTimeoutRef.current = setTimeout(() => {
+            if (query.length >= 3) {
+                performAutocomplete(query);
+            }
+        }, 500);
+
+        // Debounced search
+        searchTimeoutRef.current = setTimeout(() => {
+            if (query.trim() && query.length >= 3) {
+                console.log('🔍 Triggering search for:', query);
+                setSearchPage(1);
+                performTextSearchWithImmediateUpdate(query, 1);
+            }
+        }, 1000);
+    };
+
+// Handle autocomplete selection
+    const handleAutocompleteSelect = (suggestion) => {
+        setSearchQuery(suggestion.name);
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+        setSearchPage(1);
+        performTextSearchWithImmediateUpdate(suggestion.name, 1);
+    };
+
+// Handle search result selection
+    const handleSearchResultSelect = async (product) => {
+        setLookupResult({success: true, product});
+        onProductFound(product);
+
+        if (product.name && (!product.category || product.category === 'Other' || product.category === 'Unknown')) {
+            console.log('🤖 Enhancing search result with AI classification...');
+            await performAiClassification(product.name, product);
+        }
+
+        // Update UPC field with the selected product's UPC
+        if (product.upc) {
+            setLocalUPC(product.upc);
+            if (onUPCChange) {
+                onUPCChange(product.upc);
+            }
+        }
+
+        // Clear search results to show the selected product
+        setSearchResults([]);
+        setSearchQuery('');
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+
+        // Refresh usage after search result selection
+        console.log('🔄 Refreshing usage info after search result selection...');
+        await loadUsageInfo();
+    };
+
+// Handle pagination
+    const handlePageChange = (newPage) => {
+        setSearchPage(newPage);
+        performTextSearchWithImmediateUpdate(searchQuery, newPage);
+    };
+
+// Manual close function for autocomplete
+    const handleCloseAutocomplete = () => {
+        setShowAutocomplete(false);
+        setAutocompleteResults([]);
+    };
+
+// Handle input focus to show autocomplete again if there are results
+    const handleSearchInputFocus = () => {
+        if (autocompleteResults.length > 0 && searchQuery.length >= 3) {
+            setShowAutocomplete(true);
+        }
+    };
 
     return (
         <div className="space-y-4">
@@ -913,7 +1084,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                     >
-                        📷 UPC/Barcode
+                        📷 UPC/Barcode {isIOS && '(iOS)'}
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
                         type="button"
@@ -934,132 +1105,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 </nav>
             </div>
 
-            {/* Search Tab Content */}
-            {activeTab === 'search' && (
-                <div className="space-y-4">
-                    <div>
-                        <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
-                            🌍 Enhanced Product Search
-                        </label>
-                        <div className="relative">
-                            <KeyboardOptimizedInput
-                                ref={searchInputRef}
-                                type="text"
-                                id="search"
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                placeholder="Type product name (e.g., 'Old El Paso', 'Campbell's Soup')"
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                            />
-                        </div>
-
-                        {/* Help text with US examples */}
-                        <div className="mt-2 text-xs text-gray-500 space-y-1">
-                            <div>💡 <strong>Search Tips:</strong></div>
-                            <div>• Try specific product names for better results</div>
-                            <div>• Include brand names when known (e.g., "Campbell's Soup")</div>
-                            <div>• Enhanced database with US and international products</div>
-                            <div>• Results prioritize products with images for easier identification</div>
-                        </div>
-                    </div>
-
-                    {/* Search loading */}
-                    {isSearching && (
-                        <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
-                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                            <span className="ml-2 text-blue-700">🌍 Searching enhanced database...</span>
-                        </div>
-                    )}
-
-                    {/* Search Results (keeping existing structure but simplified) */}
-                    {searchResults.length > 0 && (
-                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                            <div className="flex items-center justify-between mb-4">
-                                <h4 className="text-lg font-medium text-gray-900">
-                                    🌍 Search Results ({searchResults.length} found)
-                                </h4>
-                                {totalPages > 1 && (
-                                    <div className="text-sm text-gray-500">
-                                        Page {searchPage} of {totalPages}
-                                    </div>
-                                )}
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                                {searchResults.map((product, index) => (
-                                    <TouchEnhancedButton
-                                        key={index}
-                                        type="button"
-                                        onClick={() => {
-                                            setLookupResult({success: true, product});
-                                            onProductFound(product);
-                                            if (product.upc) {
-                                                setLocalUPC(product.upc);
-                                                if (onUPCChange) {
-                                                    onUPCChange(product.upc);
-                                                }
-                                            }
-                                            setSearchResults([]);
-                                            setSearchQuery('');
-                                        }}
-                                        className="text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:shadow-md transition-all"
-                                    >
-                                        <div className="flex items-start space-x-3">
-                                            {product.image ? (
-                                                <img
-                                                    src={product.image}
-                                                    alt={product.name}
-                                                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
-                                                />
-                                            ) : (
-                                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
-                                                    <span className="text-gray-400 text-xs">No Image</span>
-                                                </div>
-                                            )}
-                                            <div className="flex-1 min-w-0">
-                                                <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">
-                                                    {product.name}
-                                                </h5>
-                                                {product.brand && (
-                                                    <p className="text-xs text-gray-600 mb-1">{product.brand}</p>
-                                                )}
-                                                <p className="text-xs text-gray-500">{product.category}</p>
-                                                {product.scores?.nutriscore && (
-                                                    <div className="mt-1">
-                                                        <span
-                                                            className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
-                                                            style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}
-                                                        >
-                                                            {product.scores.nutriscore.toUpperCase()}
-                                                        </span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
-                                    </TouchEnhancedButton>
-                                ))}
-                            </div>
-                        </div>
-                    )}
-
-                    {/* No results message */}
-                    {searchQuery && !isSearching && searchResults.length === 0 && (
-                        <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                            <div className="text-yellow-600 font-medium">No products found for "{searchQuery}"</div>
-                            <div className="text-sm text-yellow-600 mt-1">
-                                Try different search terms or check spelling
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
-
             {/* UPC Tab Content */}
             {activeTab === 'upc' && (
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
-                            🇺🇸 UPC/Barcode Scanner (Enhanced for US Products)
+                            {isIOS ? '🍎 iOS UPC/Barcode Scanner (Enhanced for US Products)' : '🇺🇸 UPC/Barcode Scanner (Enhanced for US Products)'}
                         </label>
 
                         <KeyboardOptimizedInput
@@ -1081,9 +1132,9 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 className={`flex-1 px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
                                     cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
                                 }`}
-                                title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}
+                                title={cameraAvailable ? `Scan barcode with ${isIOS ? 'iOS' : 'standard'} camera` : 'Camera not available on this device'}
                             >
-                                📷 {cameraAvailable ? 'Scan Barcode' : 'No Camera'}
+                                📷 {cameraAvailable ? (isIOS ? 'iOS Scan' : 'Scan Barcode') : 'No Camera'}
                             </TouchEnhancedButton>
 
                             <TouchEnhancedButton
@@ -1110,30 +1161,311 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* Enhanced help text with US focus but international awareness */}
+                        {/* Enhanced help text with platform-specific info */}
                         <div className="mt-2 text-xs text-gray-500 space-y-1">
-                            <div>💡 <strong>Enhanced Barcode Support:</strong></div>
+                            <div>💡 <strong>{isIOS ? 'iOS-Enhanced' : 'Enhanced'} Barcode Support:</strong></div>
                             <div>• UPC-A (12 digits, US standard): 046000861210</div>
                             <div>• Enhanced validation for US domestic products</div>
                             <div>• Auto-detection and cleanup of common UPC formats</div>
                             <div>• International barcode support with regional optimization</div>
+                            {isIOS && <div>• 🍎 iOS-optimized scanner using ZXing technology</div>}
                             {userCurrencyInfo && !isLoadingCurrency && (
                                 <div>• Currently optimized for {userCurrencyInfo.currency} products</div>
                             )}
                         </div>
                     </div>
 
-                    {/* Enhanced Scanner Component */}
-                    <BarcodeScanner
-                        isActive={showScanner}
-                        onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
-                        onClose={() => {
-                            console.log('🔄 Closing barcode scanner...');
-                            setShowScanner(false);
-                        }}
-                    />
+                    {/* Platform-Specific Scanner Component */}
+                    {isIOS ? (
+                        <BarcodeScannerIOS
+                            isActive={showScanner}
+                            onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
+                            onClose={() => {
+                                console.log('🍎 Closing iOS barcode scanner...');
+                                setShowScanner(false);
+                            }}
+                        />
+                    ) : (
+                        <BarcodeScanner
+                            isActive={showScanner}
+                            onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
+                            onClose={() => {
+                                console.log('🔄 Closing standard barcode scanner...');
+                                setShowScanner(false);
+                            }}
+                        />
+                    )}
                 </div>
             )}
+
+            {/* Search Tab Content */}
+            {activeTab === 'search' && (
+                <div className="space-y-4">
+                    <div>
+                        <label htmlFor="search" className="block text-sm font-medium text-gray-700 mb-2">
+                            🌍 Enhanced Product Search
+                        </label>
+                        <div className="relative">
+                            <KeyboardOptimizedInput
+                                ref={searchInputRef}
+                                type="text"
+                                id="search"
+                                value={searchQuery}
+                                onChange={handleSearchInputChange}
+                                onFocus={handleSearchInputFocus}
+                                placeholder="Type product name (e.g., 'Old El Paso', 'Campbell's Soup')"
+                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            />
+
+                            {/* Autocomplete dropdown */}
+                            {showAutocomplete && autocompleteResults.length > 0 && (
+                                <div
+                                    ref={autocompleteRef}
+                                    className="absolute z-50 w-full bg-white border border-gray-300 rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto"
+                                >
+                                    {/* Header with close button */}
+                                    <div
+                                        className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+                            <span
+                                className="text-xs font-medium text-gray-600">🌍 Enhanced suggestions</span>
+                                        <TouchEnhancedButton
+                                            type="button"
+                                            onClick={handleCloseAutocomplete}
+                                            className="text-gray-400 hover:text-gray-600 focus:outline-none"
+                                            title="Close suggestions"
+                                        >
+                                            <span className="text-sm">✕</span>
+                                        </TouchEnhancedButton>
+                                    </div>
+
+                                    {/* Autocomplete results */}
+                                    {autocompleteResults.map((suggestion, index) => (
+                                        <TouchEnhancedButton
+                                            key={index}
+                                            type="button"
+                                            onClick={() => handleAutocompleteSelect(suggestion)}
+                                            className="w-full text-left px-3 py-2 hover:bg-gray-50 flex items-center space-x-2 border-b border-gray-100 last:border-b-0"
+                                        >
+                                            {suggestion.image && (
+                                                <img
+                                                    src={suggestion.image}
+                                                    alt=""
+                                                    className="w-8 h-8 object-cover rounded flex-shrink-0"
+                                                />
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <div className="text-sm font-medium text-gray-900 truncate">
+                                                    {suggestion.name}
+                                                </div>
+                                                {suggestion.brand && (
+                                                    <div className="text-xs text-gray-500 truncate">
+                                                        {suggestion.brand}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </TouchEnhancedButton>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+
+                        {/* Help text with US examples */}
+                        <div className="mt-2 text-xs text-gray-500 space-y-1">
+                            <div>💡 <strong>Search Tips:</strong></div>
+                            <div>• Try specific product names for better results</div>
+                            <div>• Include brand names when known (e.g., "Campbell's Soup")</div>
+                            <div>• Enhanced database with US and international products</div>
+                            <div>• Results prioritize products with images for easier identification</div>
+                        </div>
+                    </div>
+
+                    {/* Search loading */}
+                    {isSearching && (
+                        <div className="flex items-center justify-center p-4 bg-blue-50 rounded-lg">
+                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
+                            <span className="ml-2 text-blue-700">🌍 Searching enhanced database...</span>
+                        </div>
+                    )}
+
+                    {/* Search Results */}
+                    {searchResults.length > 0 && (
+                        <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between mb-4">
+                                <h4 className="text-lg font-medium text-gray-900">
+                                    🌍 Search Results ({searchResults.length} found)
+                                </h4>
+                                {totalPages > 1 && (
+                                    <div className="text-sm text-gray-500">
+                                        Page {searchPage} of {totalPages}
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                {searchResults.map((product, index) => (
+                                    <TouchEnhancedButton
+                                        key={index}
+                                        type="button"
+                                        onClick={() => handleSearchResultSelect(product)}
+                                        className="text-left bg-white border border-gray-200 rounded-lg p-3 hover:border-indigo-300 hover:shadow-md transition-all"
+                                    >
+                                        <div className="flex items-start space-x-3">
+                                            {product.image ? (
+                                                <img
+                                                    src={product.image}
+                                                    alt={product.name}
+                                                    className="w-16 h-16 object-cover rounded-lg flex-shrink-0"
+                                                />
+                                            ) : (
+                                                <div className="w-16 h-16 bg-gray-200 rounded-lg flex items-center justify-center flex-shrink-0">
+                                                    <span className="text-gray-400 text-xs">No Image</span>
+                                                </div>
+                                            )}
+                                            <div className="flex-1 min-w-0">
+                                                <h5 className="font-medium text-gray-900 text-sm leading-tight mb-1">
+                                                    {product.name}
+                                                </h5>
+                                                {product.brand && (
+                                                    <p className="text-xs text-gray-600 mb-1">{product.brand}</p>
+                                                )}
+                                                <p className="text-xs text-gray-500">{product.category}</p>
+                                                {product.scores?.nutriscore && (
+                                                    <div className="mt-1">
+                                            <span
+                                                className="inline-block px-1 py-0.5 text-xs font-bold text-white rounded"
+                                                style={{backgroundColor: getNutriScoreColor(product.scores.nutriscore)}}
+                                            >
+                                                {product.scores.nutriscore.toUpperCase()}
+                                            </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </TouchEnhancedButton>
+                                ))}
+                            </div>
+
+                            {/* Pagination */}
+                            {totalPages > 1 && (
+                                <div className="flex justify-center items-center space-x-2 mt-4">
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage - 1)}
+                                        disabled={searchPage <= 1}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Previous
+                                    </TouchEnhancedButton>
+
+                                    <span className="text-sm text-gray-600">
+                            Page {searchPage} of {totalPages}
+                        </span>
+
+                                    <TouchEnhancedButton
+                                        type="button"
+                                        onClick={() => handlePageChange(searchPage + 1)}
+                                        disabled={searchPage >= totalPages}
+                                        className="px-3 py-1 text-sm bg-white border border-gray-300 rounded-md hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
+                                    >
+                                        Next
+                                    </TouchEnhancedButton>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    {/* No results message */}
+                    {searchQuery && !isSearching && searchResults.length === 0 && (
+                        <div className="text-center p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                            <div className="text-yellow-600 font-medium">No products found for "{searchQuery}"</div>
+                            <div className="text-sm text-yellow-600 mt-1">
+                                Try different search terms or check spelling
+                            </div>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/*/!* UPC Tab Content *!/*/}
+            {/*{activeTab === 'upc' && (*/}
+            {/*    <div className="space-y-4">*/}
+            {/*        <div>*/}
+            {/*            <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">*/}
+            {/*                🇺🇸 UPC/Barcode Scanner (Enhanced for US Products)*/}
+            {/*            </label>*/}
+
+            {/*            <KeyboardOptimizedInput*/}
+            {/*                type="text"*/}
+            {/*                id="upc"*/}
+            {/*                name="upc"*/}
+            {/*                value={localUPC}*/}
+            {/*                onChange={handleUPCInput}*/}
+            {/*                placeholder="Enter or scan UPC code (e.g., 0046000861210)"*/}
+            {/*                className="w-full mt-1 block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"*/}
+            {/*            />*/}
+
+            {/*            /!* Enhanced buttons *!/*/}
+            {/*            <div className="flex space-x-2 mt-3">*/}
+            {/*                <TouchEnhancedButton*/}
+            {/*                    type="button"*/}
+            {/*                    onClick={handleScannerClick}*/}
+            {/*                    disabled={isLooking}*/}
+            {/*                    className={`flex-1 px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${*/}
+            {/*                        cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'*/}
+            {/*                    }`}*/}
+            {/*                    title={cameraAvailable ? 'Scan barcode with camera' : 'Camera not available on this device'}*/}
+            {/*                >*/}
+            {/*                    📷 {cameraAvailable ? 'Scan Barcode' : 'No Camera'}*/}
+            {/*                </TouchEnhancedButton>*/}
+
+            {/*                <TouchEnhancedButton*/}
+            {/*                    type="button"*/}
+            {/*                    onClick={handleManualLookup}*/}
+            {/*                    disabled={!localUPC || isLooking}*/}
+            {/*                    className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"*/}
+            {/*                >*/}
+            {/*                    {isLooking ? '🔍 Looking up...' : '🔍 Lookup Product'}*/}
+            {/*                </TouchEnhancedButton>*/}
+
+            {/*                <TouchEnhancedButton*/}
+            {/*                    type="button"*/}
+            {/*                    onClick={() => {*/}
+            {/*                        if (localUPC && localUPC.length >= 8) {*/}
+            {/*                            const productName = `Product ${localUPC}`;*/}
+            {/*                            performAiClassification(productName, lookupResult?.product || {});*/}
+            {/*                        }*/}
+            {/*                    }}*/}
+            {/*                    disabled={!localUPC || localUPC.length < 8 || isAiClassifying}*/}
+            {/*                    className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400"*/}
+            {/*                >*/}
+            {/*                    {isAiClassifying ? '🤖 AI Analyzing...' : '🤖 AI Classify'}*/}
+            {/*                </TouchEnhancedButton>*/}
+            {/*            </div>*/}
+
+            {/*            /!* Enhanced help text with US focus but international awareness *!/*/}
+            {/*            <div className="mt-2 text-xs text-gray-500 space-y-1">*/}
+            {/*                <div>💡 <strong>Enhanced Barcode Support:</strong></div>*/}
+            {/*                <div>• UPC-A (12 digits, US standard): 046000861210</div>*/}
+            {/*                <div>• Enhanced validation for US domestic products</div>*/}
+            {/*                <div>• Auto-detection and cleanup of common UPC formats</div>*/}
+            {/*                <div>• International barcode support with regional optimization</div>*/}
+            {/*                {userCurrencyInfo && !isLoadingCurrency && (*/}
+            {/*                    <div>• Currently optimized for {userCurrencyInfo.currency} products</div>*/}
+            {/*                )}*/}
+            {/*            </div>*/}
+            {/*        </div>*/}
+
+            {/*        /!* Enhanced Scanner Component *!/*/}
+            {/*        <BarcodeScanner*/}
+            {/*            isActive={showScanner}*/}
+            {/*            onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}*/}
+            {/*            onClose={() => {*/}
+            {/*                console.log('🔄 Closing barcode scanner...');*/}
+            {/*                setShowScanner(false);*/}
+            {/*            }}*/}
+            {/*        />*/}
+            {/*    </div>*/}
+            {/*)}*/}
 
             {/* Loading State for UPC */}
             {isLooking && (
@@ -1154,13 +1486,13 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 <span className="text-green-600 font-medium">✅ Product Found!</span>
                                 {hasNutrition && (
                                     <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
-                                        🥗 Nutrition Available
-                                    </span>
+                            🥗 Nutrition Available
+                        </span>
                                 )}
                                 {lookupResult.dataSource && (
                                     <span className="ml-2 px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                                        📊 {lookupResult.dataSource}
-                                    </span>
+                            📊 {lookupResult.dataSource}
+                        </span>
                                 )}
                             </div>
 
@@ -1174,12 +1506,41 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                     {lookupResult.product.quantity && (
                                         <div><strong>Size:</strong> {lookupResult.product.quantity}</div>
                                     )}
+
+                                    {/* ENHANCED: International Price Display */}
+                                    {lookupResult.product.price && userCurrencyInfo && !isLoadingCurrency && (
+                                        <div>
+                                            <strong>Price:</strong>
+                                            <span className="ml-1 text-green-600 font-medium">
+                                    {formatPrice(lookupResult.product.price, userCurrencyInfo)}
+                                </span>
+                                            {lookupResult.product.priceSource && (
+                                                <span className="ml-1 text-xs text-gray-500">
+                                        via {lookupResult.product.priceSource}
+                                    </span>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {/* International context pricing */}
+                                    {lookupResult.internationalContext?.pricing && userCurrencyInfo && (
+                                        <div className="mt-2 p-2 bg-blue-50 rounded text-xs">
+                                            <div className="font-medium text-blue-800">💰 Regional Pricing:</div>
+                                            {lookupResult.internationalContext.pricing.map((priceInfo, i) => (
+                                                <div key={i} className="text-blue-700">
+                                                    {priceInfo.region}: {formatPrice(priceInfo.price, userCurrencyInfo)}
+                                                    {priceInfo.store && ` at ${priceInfo.store}`}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     {lookupResult.product.scores && lookupResult.product.scores.nutriscore && (
                                         <div><strong>Nutri-Score:</strong>
                                             <span className="ml-1 px-2 py-1 text-xs font-bold text-white rounded"
                                                   style={{backgroundColor: getNutriScoreColor(lookupResult.product.scores.nutriscore)}}>
-                                                {lookupResult.product.scores.nutriscore.toUpperCase()}
-                                            </span>
+                                    {lookupResult.product.scores.nutriscore.toUpperCase()}
+                                </span>
                                         </div>
                                     )}
                                 </div>
@@ -1386,13 +1747,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
             {/* Enhanced Usage Tips */}
             <div className="text-xs text-gray-500 space-y-1">
-                <div>💡 <strong>Enhanced Scanner Tips:</strong></div>
+                <div>💡 <strong>{isIOS ? 'iOS-Enhanced' : 'Enhanced'} Scanner Tips:</strong></div>
                 {activeTab === 'upc' ? (
                     <>
                         <div>• Optimized for US UPC codes (12 digits) with international support</div>
                         <div>• Auto-validates and cleans barcodes for better accuracy</div>
                         <div>• Camera scanning works best in good lighting</div>
                         <div>• Supports UPC-A, EAN-13, and other international formats</div>
+                        {isIOS && <div>• 🍎 iOS scanner uses web-based ZXing for maximum compatibility</div>}
                         {userCurrencyInfo && !isLoadingCurrency && (
                             <div>• Currently optimized for {userCurrencyInfo.currency} products and pricing</div>
                         )}

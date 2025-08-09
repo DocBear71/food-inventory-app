@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Doc Bear's Comfort Kitchen</string>
+	<string>Doc Bear&apos;s Comfort Kitchen</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,15 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen needs camera access to scan product barcodes and receipt images to help you manage your food inventory and reduce waste.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen needs access to your photo library to upload recipe images and save receipt photos for expense tracking and dietary analysis.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen uses the microphone for voice input to help you quickly add recipes and notes to your meal planning.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen uses speech recognition to convert your voice input into text for easier recipe entry and meal planning.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 </dict>
 </plist>
