@@ -1274,150 +1274,116 @@ export default function ReceiptScan() {
                 console.log(`📱 Starting ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
                 alert(`📱 About to start ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
 
-                try {
-                    console.log('🤖 Importing Capacitor Camera...');
-                    const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-                    console.log('🤖 Camera imported successfully');
+                if (platformInfo.isAndroid) {
+                    alert('🤖 Android path - keeping existing Android code');
+                    try {
+                        console.log('🤖 Importing Capacitor Camera...');
+                        const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                        console.log('🤖 Camera imported successfully');
 
-                    console.log('🤖 Calling Camera.getPhoto...');
-                    const photo = await Camera.getPhoto({
-                        resultType: CameraResultType.Uri, // Changed from Blob to Uri
-                        source: CameraSource.Camera,
-                        quality: 90,
-                        allowEditing: false,
-                        saveToGallery: false
-                    });
+                        console.log('🤖 Calling Camera.getPhoto...');
+                        const photo = await Camera.getPhoto({
+                            resultType: CameraResultType.Uri,
+                            source: CameraSource.Camera,
+                            quality: 90,
+                            allowEditing: false,
+                            saveToGallery: false
+                        });
 
-                    console.log('🤖 Camera.getPhoto returned:', photo);
-                    console.log('🤖 Photo webPath:', photo.webPath);
+                        console.log('🤖 Camera.getPhoto returned:', photo);
+                        console.log('🤖 Photo webPath:', photo.webPath);
 
-                    if (photo.webPath) {
-                        console.log('🤖 Converting photo to blob...');
-                        const response = await fetch(photo.webPath);
-                        const imageBlob = await response.blob();
-                        console.log('🤖 Blob created:', imageBlob.size, 'bytes');
+                        if (photo.webPath) {
+                            console.log('🤖 Converting photo to blob...');
+                            const response = await fetch(photo.webPath);
+                            const imageBlob = await response.blob();
+                            console.log('🤖 Blob created:', imageBlob.size, 'bytes');
 
-                        if (imageBlob && imageBlob.size > 0) {
-                            console.log('🤖 Setting receipt type and captured image...');
-                            setReceiptType('paper');
-                            setCapturedImage(URL.createObjectURL(imageBlob));
+                            if (imageBlob && imageBlob.size > 0) {
+                                console.log('🤖 Setting receipt type and captured image...');
+                                setReceiptType('paper');
+                                setCapturedImage(URL.createObjectURL(imageBlob));
 
-                            console.log('🤖 Calling processImage...');
-                            await processImage(imageBlob);
-                            console.log('🤖 processImage completed');
+                                console.log('🤖 Calling processImage...');
+                                await processImage(imageBlob);
+                                console.log('🤖 processImage completed');
+                            } else {
+                                console.error('🤖 Invalid or empty image blob');
+                                alert('Failed to capture image: Empty or invalid image');
+                            }
                         } else {
-                            console.error('🤖 Invalid or empty image blob');
-                            alert('Failed to capture image: Empty or invalid image');
+                            console.error('🤖 No webPath in photo result');
+                            alert('Failed to capture image: No file path returned');
                         }
-                    } else {
-                        console.error('🤖 No webPath in photo result');
-                        alert('Failed to capture image: No file path returned');
+                        return;
+                    } catch (error) {
+                        console.error('❌ Android camera failed:', error);
+                        console.error('❌ Error details:', error.message, error.stack);
+                        setCameraError('Android camera access failed. Please try "Upload Image" instead.');
+                        return;
                     }
-                    return;
-                } catch (error) {
-                    console.error('❌ Android camera failed:', error);
-                    console.error('❌ Error details:', error.message, error.stack);
-                    setCameraError('Android camera access failed. Please try "Upload Image" instead.');
-                    return;
                 }
-            }
 
-            // iOS native app - use native camera
-            if (platformInfo.isIOS) {
-                console.log('🍎 Starting iOS native camera...');
-                alert('🍎 In iOS camera block');
+                if (platformInfo.isIOS) {
+                    alert('🍎 iOS path - starting iOS camera');
+                    try {
+                        console.log('🍎 Importing Capacitor Camera for iOS...');
+                        alert('🍎 About to import Camera...');
+                        const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                        console.log('🍎 Camera imported successfully');
+                        alert('🍎 Camera imported successfully');
 
-                try {
-                    console.log('🍎 Importing Capacitor Camera for iOS...');
-                    alert('🍎 About to import Camera...');
-                    const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-                    console.log('🍎 Camera imported successfully');
-                    alert('🍎 Camera imported successfully');
+                        console.log('🍎 Calling Camera.getPhoto for iOS...');
+                        alert('🍎 About to call Camera.getPhoto...');
 
-                    console.log('🍎 Calling Camera.getPhoto for iOS...');
-                    alert('🍎 About to call Camera.getPhoto...');
+                        const photo = await Camera.getPhoto({
+                            resultType: CameraResultType.Uri,
+                            source: CameraSource.Camera,
+                            quality: 90,
+                            allowEditing: false,
+                            saveToGallery: false
+                        });
 
-                    const photo = await Camera.getPhoto({
-                        resultType: CameraResultType.Uri,
-                        source: CameraSource.Camera,
-                        quality: 90,
-                        allowEditing: false,
-                        saveToGallery: false,
-                        width: 1920,
-                        height: 1080
-                    });
+                        console.log('🍎 iOS Camera.getPhoto returned:', photo);
+                        alert(`🍎 Camera.getPhoto returned: ${JSON.stringify(photo)}`);
 
-                    console.log('🍎 iOS Camera.getPhoto returned:', photo);
-                    alert(`🍎 Camera.getPhoto returned: ${JSON.stringify(photo)}`);
+                        if (photo.webPath) {
+                            console.log('🍎 Converting iOS photo to blob...');
+                            const response = await fetch(photo.webPath);
+                            const imageBlob = await response.blob();
+                            console.log('🍎 iOS blob created:', imageBlob.size, 'bytes');
 
-                    if (photo.webPath) {
-                        console.log('🍎 Converting iOS photo to blob...');
-                        const response = await fetch(photo.webPath);
-                        const imageBlob = await response.blob();
-                        console.log('🍎 iOS blob created:', imageBlob.size, 'bytes');
+                            if (imageBlob && imageBlob.size > 0) {
+                                console.log('🍎 Setting receipt type and captured image for iOS...');
+                                setReceiptType('paper');
+                                setCapturedImage(URL.createObjectURL(imageBlob));
 
-                        if (imageBlob && imageBlob.size > 0) {
-                            console.log('🍎 Setting receipt type and captured image for iOS...');
-                            setReceiptType('paper');
-                            setCapturedImage(URL.createObjectURL(imageBlob));
-
-                            console.log('🍎 Calling processImage for iOS...');
-                            await processImage(imageBlob);
-                            console.log('🍎 processImage completed for iOS');
+                                console.log('🍎 Calling processImage for iOS...');
+                                await processImage(imageBlob);
+                                console.log('🍎 processImage completed for iOS');
+                            } else {
+                                console.error('🍎 Invalid or empty image blob on iOS');
+                                alert('Failed to capture image: Empty or invalid image');
+                            }
                         } else {
-                            console.error('🍎 Invalid or empty image blob on iOS');
-                            alert('Failed to capture image: Empty or invalid image');
+                            console.error('🍎 No webPath in photo result on iOS');
+                            alert('Failed to capture image: No file path returned');
                         }
-                    } else {
-                        console.error('🍎 No webPath in photo result on iOS');
-                        alert('Failed to capture image: No file path returned');
+                        return;
+                    } catch (error) {
+                        console.error('❌ iOS camera failed:', error);
+                        console.error('❌ iOS Error details:', error.message, error.stack);
+                        alert(`❌ iOS camera error: ${error.message}`);
+                        setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
+                        return;
                     }
-                    return;
-                } catch (error) {
-                    console.error('❌ iOS camera failed:', error);
-                    console.error('❌ iOS Error details:', error.message, error.stack);
-                    alert(`❌ iOS camera error: ${error.message}`);
-                    setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
-                    return;
                 }
             }
 
-            // FALLBACK: Try simplified iOS camera if above failed
-            if (platformInfo.isIOS && platformInfo.isNative) {
-                console.log('🍎 Trying simplified iOS camera...');
-                alert('🍎 Trying simplified camera config...');
-
-                try {
-                    const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-
-                    const photo = await Camera.getPhoto({
-                        resultType: CameraResultType.Uri,
-                        source: CameraSource.Camera,
-                        quality: 80
-                    });
-
-                    alert(`🍎 Simplified camera returned: ${JSON.stringify(photo)}`);
-
-                    if (photo.webPath) {
-                        const response = await fetch(photo.webPath);
-                        const imageBlob = await response.blob();
-
-                        setReceiptType('paper');
-                        setCapturedImage(URL.createObjectURL(imageBlob));
-                        await processImage(imageBlob);
-                    }
-                    return;
-                } catch (simplifiedError) {
-                    alert(`❌ Simplified camera also failed: ${simplifiedError.message}`);
-                    setCameraError('Camera failed with both configurations. Please try "Upload Image" instead.');
-                    return;
-                }
-            }
-
-            // SAFETY CHECK: If we reach here on native iOS, something went wrong
-            if (platformInfo.isNative && platformInfo.isIOS) {
-                console.error('🔥 ERROR: iOS native app should not reach web camera code!');
-                setCameraError('iOS native app incorrectly trying to use web camera. Please try "Upload Image" instead.');
+            // If we reach here, native camera should have handled it
+            if (platformInfo.isNative) {
+                console.error('🔥 ERROR: Native app should not reach web camera code!');
+                setCameraError(`${platformInfo.isIOS ? 'iOS' : 'Android'} native app incorrectly trying to use web camera. Please try "Upload Image" instead.`);
                 return;
             }
 
