@@ -1325,13 +1325,18 @@ export default function ReceiptScan() {
             // iOS native app - use native camera
             if (platformInfo.isIOS) {
                 console.log('🍎 Starting iOS native camera...');
+                alert('🍎 In iOS camera block');
 
                 try {
                     console.log('🍎 Importing Capacitor Camera for iOS...');
+                    alert('🍎 About to import Camera...');
                     const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
                     console.log('🍎 Camera imported successfully');
+                    alert('🍎 Camera imported successfully');
 
                     console.log('🍎 Calling Camera.getPhoto for iOS...');
+                    alert('🍎 About to call Camera.getPhoto...');
+
                     const photo = await Camera.getPhoto({
                         resultType: CameraResultType.Uri,
                         source: CameraSource.Camera,
@@ -1343,6 +1348,7 @@ export default function ReceiptScan() {
                     });
 
                     console.log('🍎 iOS Camera.getPhoto returned:', photo);
+                    alert(`🍎 Camera.getPhoto returned: ${JSON.stringify(photo)}`);
 
                     if (photo.webPath) {
                         console.log('🍎 Converting iOS photo to blob...');
@@ -1370,7 +1376,40 @@ export default function ReceiptScan() {
                 } catch (error) {
                     console.error('❌ iOS camera failed:', error);
                     console.error('❌ iOS Error details:', error.message, error.stack);
+                    alert(`❌ iOS camera error: ${error.message}`);
                     setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
+                    return;
+                }
+            }
+
+            // FALLBACK: Try simplified iOS camera if above failed
+            if (platformInfo.isIOS && platformInfo.isNative) {
+                console.log('🍎 Trying simplified iOS camera...');
+                alert('🍎 Trying simplified camera config...');
+
+                try {
+                    const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+
+                    const photo = await Camera.getPhoto({
+                        resultType: CameraResultType.Uri,
+                        source: CameraSource.Camera,
+                        quality: 80
+                    });
+
+                    alert(`🍎 Simplified camera returned: ${JSON.stringify(photo)}`);
+
+                    if (photo.webPath) {
+                        const response = await fetch(photo.webPath);
+                        const imageBlob = await response.blob();
+
+                        setReceiptType('paper');
+                        setCapturedImage(URL.createObjectURL(imageBlob));
+                        await processImage(imageBlob);
+                    }
+                    return;
+                } catch (simplifiedError) {
+                    alert(`❌ Simplified camera also failed: ${simplifiedError.message}`);
+                    setCameraError('Camera failed with both configurations. Please try "Upload Image" instead.');
                     return;
                 }
             }
