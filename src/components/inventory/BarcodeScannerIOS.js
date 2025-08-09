@@ -357,24 +357,29 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }, 4000);
     }, []);
 
-    // NEW: Official Capacitor barcode scanner function
+    // NEW: Official Capacitor barcode scanner function with debugging
     const startOfficialScan = useCallback(async () => {
         try {
             console.log('🍎 Starting official Capacitor barcode scan...');
             setIsScanning(true);
             setError(null);
-            setScanFeedback('Starting official scan...');
+            setScanFeedback('Checking camera permissions...');
 
-            // Use the correct official plugin API with proper parameters
+            // Step 1: Try to check if plugin is available
+            if (!CapacitorBarcodeScanner) {
+                alert('❌ BarcodeScanner plugin not available');
+                setIsScanning(false);
+                return;
+            }
+
+            setScanFeedback('Plugin found, starting scan...');
+
+            // Step 2: Try minimal scan parameters
             const result = await CapacitorBarcodeScanner.scanBarcode({
-                hint: 'ALL', // Scan all barcode types
-                scanInstructions: 'Position barcode in the center of the screen',
-                scanButton: false, // Hide the default scan button
-                scanText: 'Scanning for barcode...',
-                cameraDirection: 'back'
+                hint: 'ALL'
             });
 
-            console.log('🍎 Official scan result:', result);
+            alert(`🍎 Scan completed! Result: ${JSON.stringify(result)}`);
 
             // Check multiple possible result properties
             let scannedCode = null;
@@ -388,6 +393,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 // Use existing validation logic
                 const validation = analyzeAndValidateBarcode(scannedCode);
                 if (!validation.valid) {
+                    alert(`❌ Invalid barcode: ${validation.message}`);
                     provideScanFeedback('error', validation.message);
                     setIsScanning(false);
                     return;
@@ -398,6 +404,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 // Check for duplicates (using existing logic)
                 const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
                 if (processedCodesRef.current.has(sessionKey)) {
+                    alert('⚠️ Already scanned this barcode');
                     provideScanFeedback('warning', 'Barcode already scanned in this session');
                     setIsScanning(false);
                     return;
@@ -405,6 +412,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
                 processedCodesRef.current.add(sessionKey);
                 provideScanFeedback('success', 'Official scan successful!', validation);
+                alert(`✅ Success! Clean code: ${cleanCode}`);
 
                 // Process the result
                 setTimeout(() => {
@@ -419,6 +427,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 }, 300);
 
             } else {
+                alert(`❌ No barcode found. Full result: ${JSON.stringify(result)}`);
                 console.log('🍎 No barcode found in result:', result);
                 provideScanFeedback('error', 'No barcode detected in official scan');
                 setIsScanning(false);
@@ -426,15 +435,19 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
         } catch (error) {
             console.error('🍎 Official scanning failed:', error);
+            alert(`❌ Scan Error: ${error.message}`);
 
             // More specific error handling
             if (error.message && (error.message.includes('cancelled') || error.message.includes('User cancelled'))) {
                 console.log('🍎 Official scan cancelled by user');
+                provideScanFeedback('info', 'Scan cancelled by user');
                 setIsScanning(false);
                 return;
             }
 
-            if (error.message && error.message.includes('invalid')) {
+            if (error.message && (error.message.includes('permission') || error.message.includes('Permission'))) {
+                provideScanFeedback('error', 'Camera permission denied. Check iOS Settings → Privacy → Camera');
+            } else if (error.message && error.message.includes('invalid')) {
                 provideScanFeedback('error', 'Camera setup failed. Please try again.');
             } else {
                 provideScanFeedback('error', `Scan failed: ${error.message}`);
