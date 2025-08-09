@@ -1235,24 +1235,35 @@ export default function ReceiptScan() {
             // Check camera permissions for native iOS
             if (platformInfo.isNative && platformInfo.isIOS) {
                 try {
-                    const {Camera} = await import('@capacitor/camera');
+                    console.log('🍎 About to import Camera from Capacitor...');
+                    const { Camera } = await import('@capacitor/camera');
+                    console.log('🍎 Camera import successful!');
 
+                    console.log('🍎 About to check camera permissions...');
                     // Check if we have camera permissions
                     const permissions = await Camera.checkPermissions();
                     console.log('🍎 iOS Camera permissions status:', permissions);
+                    alert(`🍎 Permissions result: ${JSON.stringify(permissions)}`);
 
                     if (permissions.camera !== 'granted') {
                         console.log('🍎 Requesting iOS camera permissions...');
+                        alert('🍎 About to request permissions...');
                         const requestResult = await Camera.requestPermissions();
                         console.log('🍎 iOS Permission request result:', requestResult);
+                        alert(`🍎 Request result: ${JSON.stringify(requestResult)}`);
 
                         if (requestResult.camera !== 'granted') {
+                            alert('🍎 Permissions denied, setting error...');
                             setCameraError('Camera permission is required for receipt scanning. Please enable camera access in iOS Settings > Doc Bear\'s Comfort Kitchen > Camera');
                             return;
                         }
                     }
+
+                    console.log('🍎 Permissions check passed, continuing to camera...');
+                    alert('🍎 Permissions OK, about to start camera...');
                 } catch (permissionError) {
                     console.error('❌ iOS permission check failed:', permissionError);
+                    alert(`❌ Permission error: ${permissionError.message}`);
                     setCameraError('Unable to check camera permissions. Please try "Upload Image" instead.');
                     return;
                 }
@@ -1261,6 +1272,7 @@ export default function ReceiptScan() {
             // Native app (Android or iOS) - use native camera
             if (platformInfo.isNative) {
                 console.log(`📱 Starting ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
+                alert(`📱 About to start ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
 
                 try {
                     console.log('🤖 Importing Capacitor Camera...');
