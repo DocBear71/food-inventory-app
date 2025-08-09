@@ -1,6 +1,6 @@
 'use client';
 
-// file: /app/recipe-search/page.js - Enhanced Public Recipe Search with Multi-Part Indicators
+// file: /app/recipe-search/page.js - Enhanced with Hybrid Randomization
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -18,12 +18,119 @@ export default function PublicRecipeSearch() {
         difficulty: '',
         maxTime: '',
         dietary: [],
-        isMultiPart: false // ADDED: Multi-part filter
+        isMultiPart: false
     });
-    const [sortBy, setSortBy] = useState('relevance');
+    const [sortBy, setSortBy] = useState('featured'); // CHANGED: Default to 'featured'
     const [showFilters, setShowFilters] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [recipesPerPage] = useState(20);
+
+    // ADDED: Randomization utilities
+    const getDailySeed = () => {
+        const today = new Date();
+        const dateString = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+        let hash = 0;
+        for (let i = 0; i < dateString.length; i++) {
+            const char = dateString.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
+    };
+
+    const seededRandom = (seed) => {
+        let x = Math.sin(seed) * 10000;
+        return x - Math.floor(x);
+    };
+
+    const shuffleWithSeed = (array, seed) => {
+        const shuffled = [...array];
+        let currentSeed = seed;
+
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            currentSeed = (currentSeed * 9301 + 49297) % 233280;
+            const randomValue = currentSeed / 233280;
+            const j = Math.floor(randomValue * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
+        return shuffled;
+    };
+
+    const randomizeRecipes = (recipesToRandomize, sortType) => {
+        if (sortType === 'featured') {
+            // Daily seeded randomization with quality weighting
+            const seed = getDailySeed();
+
+            // Add quality scores for weighting
+            const scoredRecipes = recipesToRandomize.map(recipe => {
+                let qualityScore = 0;
+
+                // Rating boost
+                if (recipe.ratingStats?.averageRating) {
+                    qualityScore += recipe.ratingStats.averageRating * 2;
+                }
+
+                // Review count boost
+                if (recipe.ratingStats?.totalRatings) {
+                    qualityScore += Math.min(recipe.ratingStats.totalRatings * 0.5, 5);
+                }
+
+                // Multi-part recipe boost (they're more interesting)
+                if (recipe.isMultiPart) {
+                    qualityScore += 3;
+                }
+
+                // Recent recipe slight boost (within last 30 days)
+                const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+                if (daysSinceCreated <= 30) {
+                    qualityScore += 2;
+                }
+
+                // Has image boost
+                if (recipe.imageUrl || recipe.hasPhotos || recipe.uploadedImage?.data) {
+                    qualityScore += 1;
+                }
+
+                return { ...recipe, qualityScore };
+            });
+
+            // Sort by quality score first
+            scoredRecipes.sort((a, b) => b.qualityScore - a.qualityScore);
+
+            // Then apply seeded randomization with weighted distribution
+            const topTier = scoredRecipes.slice(0, Math.ceil(scoredRecipes.length * 0.3));
+            const midTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.3), Math.ceil(scoredRecipes.length * 0.7));
+            const bottomTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.7));
+
+            const shuffledTop = shuffleWithSeed(topTier, seed);
+            const shuffledMid = shuffleWithSeed(midTier, seed + 1);
+            const shuffledBottom = shuffleWithSeed(bottomTier, seed + 2);
+
+            // Interleave tiers for good distribution
+            const result = [];
+            const maxLength = Math.max(shuffledTop.length, shuffledMid.length, shuffledBottom.length);
+
+            for (let i = 0; i < maxLength; i++) {
+                if (i < shuffledTop.length) result.push(shuffledTop[i]);
+                if (i < shuffledMid.length) result.push(shuffledMid[i]);
+                if (i < shuffledBottom.length) result.push(shuffledBottom[i]);
+            }
+
+            return result;
+
+        } else if (sortType === 'random') {
+            // True randomization using Fisher-Yates shuffle
+            const shuffled = [...recipesToRandomize];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        return recipesToRandomize;
+    };
 
     // Fetch real recipes from your API
     useEffect(() => {
@@ -32,7 +139,6 @@ export default function PublicRecipeSearch() {
                 setLoading(true);
                 setError('');
 
-                // Fetch public recipes without authentication
                 const response = await fetch('/api/public-recipes');
 
                 if (!response.ok) {
@@ -47,7 +153,6 @@ export default function PublicRecipeSearch() {
                     setFilteredRecipes(publicRecipes);
                     console.log(`Loaded ${publicRecipes.length} public recipes`);
 
-                    // ADDED: Log multi-part recipe count
                     const multiPartCount = publicRecipes.filter(r => r.isMultiPart).length;
                     console.log(`Found ${multiPartCount} multi-part recipes`);
                 } else {
@@ -90,7 +195,6 @@ export default function PublicRecipeSearch() {
         'vegetarian', 'vegan', 'gluten-free', 'healthy', 'protein-rich', 'low-carb'
     ];
 
-    // ADDED: Helper to get multi-part recipe stats
     const getMultiPartStats = (recipe) => {
         if (!recipe.isMultiPart || !recipe.parts) return null;
 
@@ -104,7 +208,7 @@ export default function PublicRecipeSearch() {
         };
     };
 
-    // Filter and sort recipes
+    // ENHANCED: Filter and sort recipes with randomization
     useEffect(() => {
         let filtered = [...recipes];
 
@@ -150,13 +254,15 @@ export default function PublicRecipeSearch() {
             );
         }
 
-        // ADDED: Apply multi-part filter
+        // Apply multi-part filter
         if (filters.isMultiPart) {
             filtered = filtered.filter(recipe => recipe.isMultiPart);
         }
 
-        // Apply sorting
-        if (sortBy === 'rating') {
+        // ENHANCED: Apply sorting with randomization options
+        if (sortBy === 'featured' || sortBy === 'random') {
+            filtered = randomizeRecipes(filtered, sortBy);
+        } else if (sortBy === 'rating') {
             filtered.sort((a, b) => (b.ratingStats?.averageRating || 0) - (a.ratingStats?.averageRating || 0));
         } else if (sortBy === 'time') {
             filtered.sort((a, b) => {
@@ -168,6 +274,12 @@ export default function PublicRecipeSearch() {
             filtered.sort((a, b) => (b.ratingStats?.totalRatings || 0) - (a.ratingStats?.totalRatings || 0));
         } else if (sortBy === 'newest') {
             filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        } else if (sortBy === 'relevance') {
+            // Default relevance sorting - keep original order or sort by quality
+            if (!searchQuery) {
+                // If no search query, show by creation date
+                filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
         }
 
         setFilteredRecipes(filtered);
@@ -189,9 +301,10 @@ export default function PublicRecipeSearch() {
             difficulty: '',
             maxTime: '',
             dietary: [],
-            isMultiPart: false // ADDED: Reset multi-part filter
+            isMultiPart: false
         });
         setSearchQuery('');
+        setSortBy('featured'); // Reset to featured
     };
 
     const formatTime = (minutes) => {
@@ -238,39 +351,19 @@ export default function PublicRecipeSearch() {
         return stars;
     };
 
-    // FIXED: Enhanced getRecipeImage function with proper photo detection
     const getRecipeImage = (recipe) => {
-        console.log(`🔍 Getting image for "${recipe.title}":`, {
-            hasPrimaryPhoto: !!recipe.primaryPhoto,
-            primaryPhotoType: typeof recipe.primaryPhoto,
-            hasPhotos: recipe.hasPhotos,
-            photosLength: recipe.photos?.length,
-            hasImageUrl: !!recipe.imageUrl,
-            hasUploadedImage: !!recipe.uploadedImage?.data,
-            imagePriority: recipe.imagePriority
-        });
-
         // Priority 1: Primary Photo (populated from RecipePhoto collection)
         if (recipe.primaryPhoto && recipe.hasPhotos) {
-            // Check if primaryPhoto is populated (object) vs just ObjectId (string)
             if (typeof recipe.primaryPhoto === 'object') {
-                // If primaryPhoto is populated as an object with image data
                 if (recipe.primaryPhoto.imageData) {
-                    console.log('✅ Using primaryPhoto.imageData');
                     return `data:${recipe.primaryPhoto.mimeType || 'image/jpeg'};base64,${recipe.primaryPhoto.imageData}`;
                 }
-                // If primaryPhoto has a URL
                 if (recipe.primaryPhoto.url) {
-                    console.log('✅ Using primaryPhoto.url');
                     return recipe.primaryPhoto.url;
                 }
-                // If primaryPhoto has direct data field
                 if (recipe.primaryPhoto.data) {
-                    console.log('✅ Using primaryPhoto.data');
                     return `data:${recipe.primaryPhoto.mimeType || 'image/jpeg'};base64,${recipe.primaryPhoto.data}`;
                 }
-            } else {
-                console.log('⚠️ primaryPhoto is not populated (just ObjectId):', recipe.primaryPhoto);
             }
         }
 
@@ -279,42 +372,33 @@ export default function PublicRecipeSearch() {
             const firstPhoto = recipe.photos[0];
             if (typeof firstPhoto === 'object') {
                 if (firstPhoto.imageData) {
-                    console.log('✅ Using photos[0].imageData');
                     return `data:${firstPhoto.mimeType || 'image/jpeg'};base64,${firstPhoto.imageData}`;
                 }
                 if (firstPhoto.url) {
-                    console.log('✅ Using photos[0].url');
                     return firstPhoto.url;
                 }
                 if (firstPhoto.data) {
-                    console.log('✅ Using photos[0].data');
                     return `data:${firstPhoto.mimeType || 'image/jpeg'};base64,${firstPhoto.data}`;
                 }
-            } else {
-                console.log('⚠️ photos[0] is not populated (just ObjectId):', firstPhoto);
             }
         }
 
         // Priority 3: Uploaded Image (embedded in recipe document)
         if (recipe.uploadedImage?.data) {
-            console.log('✅ Using uploadedImage.data');
             return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
         }
 
         // Priority 4: External Image URL
         if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
-            console.log('✅ Using imageUrl');
             return recipe.imageUrl;
         }
 
         // Priority 5: Extracted Image from video
         if (recipe.extractedImage?.data) {
-            console.log('✅ Using extractedImage.data');
             return `data:${recipe.extractedImage.mimeType || 'image/jpeg'};base64,${recipe.extractedImage.data}`;
         }
 
-        // Fallback: Placeholder (FIXED: Use correct path)
-        console.log('❌ Using placeholder - no images found');
+        // Fallback: Placeholder
         return '/images/recipe-placeholder.jpg';
     };
 
@@ -326,7 +410,6 @@ export default function PublicRecipeSearch() {
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
 
-    // ADDED: Get stats for display
     const multiPartCount = recipes.filter(r => r.isMultiPart).length;
 
     return (
@@ -376,6 +459,17 @@ export default function PublicRecipeSearch() {
                             </span>
                         )}
                     </p>
+                    {/* ADDED: Sort indicator */}
+                    {sortBy === 'featured' && (
+                        <p className="text-sm text-purple-600 mt-2 font-medium">
+                            ✨ Showing featured recipes with daily variety
+                        </p>
+                    )}
+                    {sortBy === 'random' && (
+                        <p className="text-sm text-green-600 mt-2 font-medium">
+                            🎲 Showing recipes in random order
+                        </p>
+                    )}
                 </div>
 
                 {/* Error Message */}
@@ -409,7 +503,7 @@ export default function PublicRecipeSearch() {
                 <div className="flex flex-wrap justify-center gap-2 mb-6 sm:mb-8">
                     {[
                         { label: 'Quick Meals', filter: { maxTime: '30' } },
-                        { label: 'Multi-Part', filter: { isMultiPart: true } }, // ADDED: Multi-part quick filter
+                        { label: 'Multi-Part', filter: { isMultiPart: true } },
                         { label: 'Vegetarian', filter: { dietary: ['vegetarian'] } },
                         { label: 'Desserts', filter: { category: 'desserts' } },
                         { label: 'Healthy', filter: { dietary: ['healthy'] } },
@@ -452,7 +546,7 @@ export default function PublicRecipeSearch() {
                             </div>
 
                             <div className={`space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
-                                {/* ADDED: Multi-Part Filter */}
+                                {/* Multi-Part Filter */}
                                 <div>
                                     <label className="flex items-center">
                                         <input
@@ -562,6 +656,8 @@ export default function PublicRecipeSearch() {
                                     onChange={(e) => setSortBy(e.target.value)}
                                     className="border border-gray-300 rounded-lg px-3 py-1 text-sm"
                                 >
+                                    <option value="featured">✨ Featured</option>
+                                    <option value="random">🎲 Random</option>
                                     <option value="relevance">Relevance</option>
                                     <option value="rating">Highest Rated</option>
                                     <option value="time">Quickest</option>
@@ -589,7 +685,7 @@ export default function PublicRecipeSearch() {
                             <>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                                     {currentRecipes.map((recipe) => {
-                                        const multiPartStats = getMultiPartStats(recipe); // ADDED: Get multi-part stats
+                                        const multiPartStats = getMultiPartStats(recipe);
 
                                         return (
                                             <Link
@@ -597,13 +693,33 @@ export default function PublicRecipeSearch() {
                                                 href={`/recipe-preview/${recipe._id}`}
                                                 className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow group relative"
                                             >
-                                                {/* ADDED: Multi-Part Badge */}
+                                                {/* Multi-Part Badge */}
                                                 {recipe.isMultiPart && (
                                                     <div className="absolute top-2 left-2 z-10">
                                                         <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
                                                             🧩 Multi-Part
                                                         </div>
                                                     </div>
+                                                )}
+
+                                                {/* ADDED: Quality indicators for featured sorting */}
+                                                {sortBy === 'featured' && (
+                                                    <>
+                                                        {recipe.ratingStats?.averageRating >= 4.5 && (
+                                                            <div className="absolute top-2 right-2 z-10">
+                                                                <div className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                                                                    ⭐ Top Rated
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        {recipe.isMultiPart && !recipe.ratingStats?.averageRating && (
+                                                            <div className="absolute top-2 right-2 z-10">
+                                                                <div className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                                                                    🎯 Featured
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
                                                 )}
 
                                                 <div className="relative">
@@ -628,7 +744,7 @@ export default function PublicRecipeSearch() {
                                                         {recipe.title || 'Untitled Recipe'}
                                                     </h3>
 
-                                                    {/* ADDED: Multi-Part Info */}
+                                                    {/* Multi-Part Info */}
                                                     {multiPartStats && (
                                                         <div className="text-xs text-blue-600 mb-2 font-medium">
                                                             {multiPartStats.partCount} parts • {multiPartStats.totalIngredients} ingredients • {multiPartStats.totalInstructions} steps

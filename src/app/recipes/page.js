@@ -26,6 +26,164 @@ import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
+
+const getDailySeed = () => {
+    const today = new Date();
+    const dateString = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+    let hash = 0;
+    for (let i = 0; i < dateString.length; i++) {
+        const char = dateString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+};
+
+const seededRandom = (seed) => {
+    let x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+};
+
+const shuffleWithSeed = (array, seed) => {
+    const shuffled = [...array];
+    let currentSeed = seed;
+
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        currentSeed = (currentSeed * 9301 + 49297) % 233280;
+        const randomValue = currentSeed / 233280;
+        const j = Math.floor(randomValue * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    return shuffled;
+};
+
+const randomizeRecipes = (recipesToRandomize, sortType, userContext = null) => {
+    if (sortType === 'featured') {
+        // Daily seeded randomization with quality weighting
+        const seed = getDailySeed() + (userContext ? userContext.hashCode() : 0);
+
+        // Add quality scores for weighting
+        const scoredRecipes = recipesToRandomize.map(recipe => {
+            let qualityScore = 0;
+
+            // Rating boost
+            if (recipe.ratingStats?.averageRating) {
+                qualityScore += recipe.ratingStats.averageRating * 2;
+            }
+
+            // Review count boost
+            if (recipe.ratingStats?.totalRatings) {
+                qualityScore += Math.min(recipe.ratingStats.totalRatings * 0.5, 5);
+            }
+
+            // Multi-part recipe boost (they're more interesting)
+            if (recipe.isMultiPart) {
+                qualityScore += 3;
+            }
+
+            // Recent recipe slight boost (within last 30 days)
+            const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+            if (daysSinceCreated <= 30) {
+                qualityScore += 2;
+            }
+
+            // Has nutrition data boost
+            if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
+                qualityScore += 1;
+            }
+
+            // Has image boost
+            if (recipe.imageUrl || recipe.hasPhotos || recipe.uploadedImage?.data || recipe.primaryPhoto) {
+                qualityScore += 1;
+            }
+
+            // Personal recipe boost (user's own recipes get slight preference)
+            if (userContext && recipe.createdBy === userContext.userId) {
+                qualityScore += 0.5;
+            }
+
+            return { ...recipe, qualityScore };
+        });
+
+        // Sort by quality score first
+        scoredRecipes.sort((a, b) => b.qualityScore - a.qualityScore);
+
+        // Then apply seeded randomization with weighted distribution
+        const topTier = scoredRecipes.slice(0, Math.ceil(scoredRecipes.length * 0.3));
+        const midTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.3), Math.ceil(scoredRecipes.length * 0.7));
+        const bottomTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.7));
+
+        const shuffledTop = shuffleWithSeed(topTier, seed);
+        const shuffledMid = shuffleWithSeed(midTier, seed + 1);
+        const shuffledBottom = shuffleWithSeed(bottomTier, seed + 2);
+
+        // Interleave tiers for good distribution
+        const result = [];
+        const maxLength = Math.max(shuffledTop.length, shuffledMid.length, shuffledBottom.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            if (i < shuffledTop.length) result.push(shuffledTop[i]);
+            if (i < shuffledMid.length) result.push(shuffledMid[i]);
+            if (i < shuffledBottom.length) result.push(shuffledBottom[i]);
+        }
+
+        return result;
+
+    } else if (sortType === 'random') {
+        // True randomization using Fisher-Yates shuffle
+        const shuffled = [...recipesToRandomize];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
+    return recipesToRandomize;
+};
+
+const getSortIndicator = (recipe, sortBy) => {
+    if (sortBy === 'featured') {
+        // Show quality indicators for featured sorting
+        if (recipe.ratingStats?.averageRating >= 4.5) {
+            return {
+                badge: '⭐ Top Rated',
+                className: 'bg-yellow-500 text-white'
+            };
+        }
+        if (recipe.isMultiPart) {
+            return {
+                badge: '🧩 Featured',
+                className: 'bg-purple-500 text-white'
+            };
+        }
+        if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
+            return {
+                badge: '🥗 Complete',
+                className: 'bg-green-500 text-white'
+            };
+        }
+        // Recent recipes
+        const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+        if (daysSinceCreated <= 7) {
+            return {
+                badge: '🆕 New',
+                className: 'bg-blue-500 text-white'
+            };
+        }
+    }
+
+    if (sortBy === 'random') {
+        return {
+            badge: '🎲 Random',
+            className: 'bg-gray-500 text-white'
+        };
+    }
+
+    return null;
+};
+
 // FINAL: RecipeImage Component with correct layout and styling
 const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const [imageError, setImageError] = useState(false);
@@ -417,8 +575,29 @@ function RecipesContent() {
             tabFiltered = recipesArray.filter(recipe => recipe.isPublic === true);
         }
 
-        // Then apply search filters using the search engine
-        return searchEngine.searchRecipes(tabFiltered, searchFilters);
+        // Apply search filters using the search engine
+        let filtered = searchEngine.searchRecipes(tabFiltered, searchFilters);
+
+        // ENHANCED: Apply randomization for featured and random sorts
+        if (searchFilters.sortBy === 'featured' || searchFilters.sortBy === 'random') {
+            const userContext = session?.user ? {
+                userId: session.user.id,
+                hashCode: () => {
+                    let hash = 0;
+                    const str = session.user.id;
+                    for (let i = 0; i < str.length; i++) {
+                        const char = str.charCodeAt(i);
+                        hash = ((hash << 5) - hash) + char;
+                        hash = hash & hash;
+                    }
+                    return Math.abs(hash);
+                }
+            } : null;
+
+            filtered = randomizeRecipes(filtered, searchFilters.sortBy, userContext);
+        }
+
+        return filtered;
     };
 
     // Pagination logic
@@ -517,6 +696,47 @@ function RecipesContent() {
         }
 
         alert(`🎤 ${userMessage}`);
+    };
+
+    const getSortIndicator = (recipe, sortBy) => {
+        if (sortBy === 'featured') {
+            // Show quality indicators for featured sorting
+            if (recipe.ratingStats?.averageRating >= 4.5) {
+                return {
+                    badge: '⭐ Top Rated',
+                    className: 'bg-yellow-500 text-white'
+                };
+            }
+            if (recipe.isMultiPart) {
+                return {
+                    badge: '🧩 Featured',
+                    className: 'bg-purple-500 text-white'
+                };
+            }
+            if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
+                return {
+                    badge: '🥗 Complete',
+                    className: 'bg-green-500 text-white'
+                };
+            }
+            // Recent recipes
+            const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+            if (daysSinceCreated <= 7) {
+                return {
+                    badge: '🆕 New',
+                    className: 'bg-blue-500 text-white'
+                };
+            }
+        }
+
+        if (sortBy === 'random') {
+            return {
+                badge: '🎲 Random',
+                className: 'bg-gray-500 text-white'
+            };
+        }
+
+        return null;
     };
 
     const parseVoiceSearchCriteria = (transcript) => {
@@ -994,12 +1214,12 @@ function RecipesContent() {
                                 <h3 className="text-lg font-semibold text-gray-900 mb-3">🚀 Quick Browse</h3>
                                 <div className="grid grid-cols-2 gap-2 w-full">
                                     {[
+                                        { label: 'Featured Today', icon: '✨', filter: { sortBy: 'featured' } },
+                                        { label: 'Surprise Me', icon: '🎲', filter: { sortBy: 'random' } },
                                         { label: 'Quick Meals', icon: '⚡', filter: { maxCookTime: '30' } },
+                                        { label: 'Multi-Part', icon: '🧩', filter: { tags: [], category: '', isMultiPart: true } },
                                         { label: 'Vegetarian', icon: '🥗', filter: { tags: ['vegetarian'] } },
-                                        { label: 'Desserts', icon: '🍰', filter: { category: 'desserts' } },
-                                        { label: 'Easy', icon: '👌', filter: { difficulty: 'easy' } },
-                                        { label: 'Popular', icon: '⭐', filter: { sortBy: 'rating' } },
-                                        { label: 'Recent', icon: '🆕', filter: { sortBy: 'newest' } }
+                                        { label: 'Top Rated', icon: '⭐', filter: { sortBy: 'rating', minRating: '4' } }
                                     ].map((category, index) => (
                                         <TouchEnhancedButton
                                             key={index}
@@ -1141,6 +1361,18 @@ function RecipesContent() {
                                                         className="rounded-t-lg"
                                                         priority={index < 6} // Prioritize first 6 images
                                                     />
+
+                                                    {/* ADDED: Sort-based indicators */}
+                                                    {(() => {
+                                                        const indicator = getSortIndicator(recipe, searchFilters.sortBy);
+                                                        return indicator ? (
+                                                            <div className="absolute top-2 left-2 z-10">
+                                                                <div className={`text-xs px-2 py-1 rounded-full font-medium shadow-sm ${indicator.className}`}>
+                                                                    {indicator.badge}
+                                                                </div>
+                                                            </div>
+                                                        ) : null;
+                                                    })()}
 
                                                     {/* Overlay Actions - FIXED positioning to avoid title overlap */}
                                                     <div className="absolute top-1 right-1 flex space-x-1">

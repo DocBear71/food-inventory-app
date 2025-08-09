@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/recipes/AdvancedRecipeFilters.js v1 - Enhanced recipe filtering interface
+// file: /src/components/recipes/AdvancedRecipeFilters.js v2 - UPDATED with randomization options
 
 import React, { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -25,7 +25,7 @@ export default function AdvancedRecipeFilters({
         excludeIngredients: [],
         dietaryRestrictions: [],
         nutrition: {},
-        sortBy: 'relevance',
+        sortBy: 'featured', // CHANGED: Default to 'featured' instead of 'relevance'
         ...initialFilters
     });
 
@@ -71,7 +71,7 @@ export default function AdvancedRecipeFilters({
             excludeIngredients: [],
             dietaryRestrictions: [],
             nutrition: {},
-            sortBy: 'relevance'
+            sortBy: 'featured' // CHANGED: Reset to 'featured' instead of 'relevance'
         });
     };
 
@@ -90,6 +90,22 @@ export default function AdvancedRecipeFilters({
         if (filters.dietaryRestrictions?.length > 0) count++;
         if (Object.keys(filters.nutrition).length > 0) count++;
         return count;
+    };
+
+    // ADDED: Helper to get sort option description
+    const getSortDescription = (sortValue) => {
+        const descriptions = {
+            'featured': 'Quality recipes with daily variety',
+            'random': 'Completely random order',
+            'relevance': 'Most relevant to search',
+            'rating': 'Highest rated first',
+            'popular': 'Most viewed recipes',
+            'newest': 'Recently added recipes',
+            'quickest': 'Shortest cooking time',
+            'easiest': 'Easiest difficulty first',
+            'title': 'Alphabetical order'
+        };
+        return descriptions[sortValue] || '';
     };
 
     return (
@@ -178,12 +194,15 @@ export default function AdvancedRecipeFilters({
                         <option value="2">2+ Stars</option>
                     </select>
 
-                    {/* Sort */}
+                    {/* UPDATED: Sort with new options */}
                     <select
                         value={filters.sortBy}
                         onChange={(e) => updateFilter('sortBy', e.target.value)}
                         className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                        title={getSortDescription(filters.sortBy)}
                     >
+                        <option value="featured">✨ Featured</option>
+                        <option value="random">🎲 Random</option>
                         <option value="relevance">Most Relevant</option>
                         <option value="rating">Highest Rated</option>
                         <option value="popular">Most Popular</option>
@@ -210,6 +229,27 @@ export default function AdvancedRecipeFilters({
                         )}
                     </TouchEnhancedButton>
                 </div>
+
+                {/* ADDED: Sort explanation */}
+                {(filters.sortBy === 'featured' || filters.sortBy === 'random') && (
+                    <div className="mt-3">
+                        {filters.sortBy === 'featured' && (
+                            <div className="p-2 bg-purple-50 border border-purple-200 rounded-md">
+                                <p className="text-xs text-purple-700">
+                                    ✨ <strong>Featured:</strong> {getSortDescription('featured')}. Multi-part recipes, highly rated, and recent additions are prioritized.
+                                </p>
+                            </div>
+                        )}
+
+                        {filters.sortBy === 'random' && (
+                            <div className="p-2 bg-green-50 border border-green-200 rounded-md">
+                                <p className="text-xs text-green-700">
+                                    🎲 <strong>Random:</strong> {getSortDescription('random')}. Refresh or change filters for a new random arrangement.
+                                </p>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Advanced Filters */}

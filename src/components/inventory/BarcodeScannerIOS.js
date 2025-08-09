@@ -172,15 +172,69 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 '050-059': { region: 'US', country: 'United States', type: 'coupons' },
                 '060-139': { region: 'US', country: 'United States' },
 
-                // International regions (abbreviated for brevity)
+                // International regions
                 '200-299': { region: 'RESTRICTED', country: 'Internal use', type: 'internal' },
                 '300-379': { region: 'FR', country: 'France' },
+                '380': { region: 'BG', country: 'Bulgaria' },
+                '383': { region: 'SI', country: 'Slovenia' },
+                '385': { region: 'HR', country: 'Croatia' },
+                '387': { region: 'BA', country: 'Bosnia Herzegovina' },
                 '400-440': { region: 'DE', country: 'Germany' },
                 '450-459': { region: 'JP', country: 'Japan' },
+                '460-469': { region: 'RU', country: 'Russia' },
                 '500-509': { region: 'UK', country: 'United Kingdom' },
+                '520-521': { region: 'GR', country: 'Greece' },
+                '528': { region: 'LB', country: 'Lebanon' },
+                '529': { region: 'CY', country: 'Cyprus' },
+                '530': { region: 'AL', country: 'Albania' },
+                '531': { region: 'MK', country: 'North Macedonia' },
+                '535': { region: 'MT', country: 'Malta' },
+                '539': { region: 'IE', country: 'Ireland' },
+                '540-549': { region: 'BE', country: 'Belgium/Luxembourg' },
+                '560': { region: 'PT', country: 'Portugal' },
+                '569': { region: 'IS', country: 'Iceland' },
+                '570-579': { region: 'DK', country: 'Denmark' },
+                '590': { region: 'PL', country: 'Poland' },
+                '594': { region: 'RO', country: 'Romania' },
+                '599': { region: 'HU', country: 'Hungary' },
+                '600-601': { region: 'ZA', country: 'South Africa' },
+                '640-649': { region: 'FI', country: 'Finland' },
                 '690-695': { region: 'CN', country: 'China' },
+                '700-709': { region: 'NO', country: 'Norway' },
+                '729': { region: 'IL', country: 'Israel' },
+                '730-739': { region: 'SE', country: 'Sweden' },
                 '754-755': { region: 'CA', country: 'Canada' },
-                '930-939': { region: 'AU', country: 'Australia' }
+                '760-769': { region: 'CH', country: 'Switzerland' },
+                '770-771': { region: 'CO', country: 'Colombia' },
+                '773': { region: 'UY', country: 'Uruguay' },
+                '775': { region: 'PE', country: 'Peru' },
+                '777': { region: 'BO', country: 'Bolivia' },
+                '778-779': { region: 'AR', country: 'Argentina' },
+                '780': { region: 'CL', country: 'Chile' },
+                '784': { region: 'PY', country: 'Paraguay' },
+                '786': { region: 'EC', country: 'Ecuador' },
+                '789-790': { region: 'BR', country: 'Brazil' },
+                '800-839': { region: 'IT', country: 'Italy' },
+                '840-849': { region: 'ES', country: 'Spain' },
+                '850': { region: 'CU', country: 'Cuba' },
+                '858': { region: 'SK', country: 'Slovakia' },
+                '859': { region: 'CZ', country: 'Czech Republic' },
+                '860': { region: 'RS', country: 'Serbia' },
+                '867': { region: 'KP', country: 'North Korea' },
+                '868-869': { region: 'TR', country: 'Turkey' },
+                '870-879': { region: 'NL', country: 'Netherlands' },
+                '880': { region: 'KR', country: 'South Korea' },
+                '885': { region: 'TH', country: 'Thailand' },
+                '888': { region: 'SG', country: 'Singapore' },
+                '890': { region: 'IN', country: 'India' },
+                '893': { region: 'VN', country: 'Vietnam' },
+                '896': { region: 'PK', country: 'Pakistan' },
+                '899': { region: 'ID', country: 'Indonesia' },
+                '900-919': { region: 'AT', country: 'Austria' },
+                '930-939': { region: 'AU', country: 'Australia' },
+                '940-949': { region: 'NZ', country: 'New Zealand' },
+                '955': { region: 'MY', country: 'Malaysia' },
+                '958': { region: 'MO', country: 'Macau' }
             };
 
             // Find matching prefix range
@@ -311,7 +365,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             setError(null);
             setScanFeedback('Starting official scan...');
 
-            // Use the new official plugin API
+            // Use the correct official plugin API with proper parameters
             const result = await CapacitorBarcodeScanner.scanBarcode({
                 hint: 'ALL', // Scan all barcode types
                 scanInstructions: 'Position barcode in the center of the screen',
@@ -322,8 +376,13 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
             console.log('🍎 Official scan result:', result);
 
-            if (result && result.ScanResult) {
-                const scannedCode = result.ScanResult;
+            // Check multiple possible result properties
+            let scannedCode = null;
+            if (result) {
+                scannedCode = result.ScanResult || result.scanResult || result.content || result.text || result.value;
+            }
+
+            if (scannedCode) {
                 console.log('🍎 Official barcode detected:', scannedCode);
 
                 // Use existing validation logic
@@ -360,6 +419,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 }, 300);
 
             } else {
+                console.log('🍎 No barcode found in result:', result);
                 provideScanFeedback('error', 'No barcode detected in official scan');
                 setIsScanning(false);
             }
@@ -367,13 +427,18 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         } catch (error) {
             console.error('🍎 Official scanning failed:', error);
 
-            if (error.message && error.message.includes('cancelled')) {
+            // More specific error handling
+            if (error.message && (error.message.includes('cancelled') || error.message.includes('User cancelled'))) {
                 console.log('🍎 Official scan cancelled by user');
                 setIsScanning(false);
                 return;
             }
 
-            provideScanFeedback('error', `Official scan failed: ${error.message}`);
+            if (error.message && error.message.includes('invalid')) {
+                provideScanFeedback('error', 'Camera setup failed. Please try again.');
+            } else {
+                provideScanFeedback('error', `Scan failed: ${error.message}`);
+            }
             setIsScanning(false);
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
