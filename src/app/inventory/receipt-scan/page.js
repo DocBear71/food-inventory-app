@@ -1212,9 +1212,35 @@ export default function ReceiptScan() {
             return;
         }
 
-        // Android native app - use native camera + ML Kit
-        if (platformInfo.isNative && platformInfo.isAndroid) {
-            console.log('🤖 Starting Android native camera...');
+        // Check camera permissions for native iOS
+        if (platformInfo.isNative && platformInfo.isIOS) {
+            try {
+                const { Camera } = await import('@capacitor/camera');
+
+                // Check if we have camera permissions
+                const permissions = await Camera.checkPermissions();
+                console.log('🍎 iOS Camera permissions status:', permissions);
+
+                if (permissions.camera !== 'granted') {
+                    console.log('🍎 Requesting iOS camera permissions...');
+                    const requestResult = await Camera.requestPermissions();
+                    console.log('🍎 iOS Permission request result:', requestResult);
+
+                    if (requestResult.camera !== 'granted') {
+                        setCameraError('Camera permission is required for receipt scanning. Please enable camera access in iOS Settings > Doc Bear\'s Comfort Kitchen > Camera');
+                        return;
+                    }
+                }
+            } catch (permissionError) {
+                console.error('❌ iOS permission check failed:', permissionError);
+                setCameraError('Unable to check camera permissions. Please try "Upload Image" instead.');
+                return;
+            }
+        }
+
+        // Native app (Android or iOS) - use native camera
+        if (platformInfo.isNative) {
+            console.log(`📱 Starting ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
 
             try {
                 console.log('🤖 Importing Capacitor Camera...');
@@ -1264,6 +1290,59 @@ export default function ReceiptScan() {
             }
         }
 
+        // iOS native app - use native camera
+        if (platformInfo.isIOS) {
+            console.log('🍎 Starting iOS native camera...');
+
+            try {
+                console.log('🍎 Importing Capacitor Camera for iOS...');
+                const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                console.log('🍎 Camera imported successfully');
+
+                console.log('🍎 Calling Camera.getPhoto for iOS...');
+                const photo = await Camera.getPhoto({
+                    resultType: CameraResultType.Uri,
+                    source: CameraSource.Camera,
+                    quality: 90,
+                    allowEditing: false,
+                    saveToGallery: false,
+                    width: 1920,
+                    height: 1080
+                });
+
+                console.log('🍎 iOS Camera.getPhoto returned:', photo);
+
+                if (photo.webPath) {
+                    console.log('🍎 Converting iOS photo to blob...');
+                    const response = await fetch(photo.webPath);
+                    const imageBlob = await response.blob();
+                    console.log('🍎 iOS blob created:', imageBlob.size, 'bytes');
+
+                    if (imageBlob && imageBlob.size > 0) {
+                        console.log('🍎 Setting receipt type and captured image for iOS...');
+                        setReceiptType('paper');
+                        setCapturedImage(URL.createObjectURL(imageBlob));
+
+                        console.log('🍎 Calling processImage for iOS...');
+                        await processImage(imageBlob);
+                        console.log('🍎 processImage completed for iOS');
+                    } else {
+                        console.error('🍎 Invalid or empty image blob on iOS');
+                        alert('Failed to capture image: Empty or invalid image');
+                    }
+                } else {
+                    console.error('🍎 No webPath in photo result on iOS');
+                    alert('Failed to capture image: No file path returned');
+                }
+                return;
+            } catch (error) {
+                console.error('❌ iOS camera failed:', error);
+                console.error('❌ iOS Error details:', error.message, error.stack);
+                setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
+                return;
+            }
+        }
+
         // Web/PWA camera implementation (iOS PWA, Web browsers)
         setCameraError(null);
 
@@ -1296,6 +1375,8 @@ export default function ReceiptScan() {
 
             if (platformInfo.isIOSPWA) {
                 setCameraError('iOS PWA camera permissions needed. Try "Upload Image" for reliable scanning.');
+            } else if (platformInfo.isNative) {
+                setCameraError(`Native camera access failed: ${error.message}. Please check app permissions in Settings.`);
             } else {
                 setCameraError(`Camera access failed: ${error.message}. Please try "Upload Image" instead.`);
             }
@@ -3496,8 +3577,9 @@ export default function ReceiptScan() {
                                 {process.env.NODE_ENV === 'development' && (
                                     <div className="text-xs text-gray-400 mt-1">
                                         {platformInfo.isAndroid ? '🤖 Android MLKit' :
-                                            platformInfo.isIOSPWA ? '📱 iOS PWA - Tesseract.js' :
-                                                '💻 Web - Tesseract.js'}
+                                            platformInfo.isIOS ? '🍎 iOS Native Camera + Tesseract.js' :
+                                                platformInfo.isIOSPWA ? '📱 iOS PWA - Tesseract.js' :
+                                                    '💻 Web - Tesseract.js'}
                                     </div>
                                 )}
                             </div>

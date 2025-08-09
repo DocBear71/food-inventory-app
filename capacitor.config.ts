@@ -28,7 +28,7 @@ const config: CapacitorConfig = {
         },
 
         Camera: {
-            permissions: ['camera']
+            permissions: ['camera', 'photos']
         },
 
         Microphone: {
