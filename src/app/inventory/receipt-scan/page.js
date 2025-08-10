@@ -805,10 +805,10 @@ export default function ReceiptScan() {
                 const storeContext = getStoreContextFromReceipt(processedText);
                 console.log('🏪 Store context detected:', storeContext);
 
-                // 🔧 INCREASED TIMEOUT: 45s → 2 minutes for large receipts
+                // Send both OCR text AND parsed items to Modal.com
                 const aiPromise = enhanceReceiptParsingWithAI(
                     processedText,
-                    basicItems,
+                    basicItems,  // Your proven parsing results
                     imageFile,
                     storeContext
                 );
@@ -1227,11 +1227,6 @@ export default function ReceiptScan() {
 
             console.log('🔥 Usage limits check passed, continuing...');
 
-            // TEMPORARY DEBUG ALERT FOR iOS
-            if (platformInfo.isNative && platformInfo.isIOS) {
-                alert('🍎 iOS Native detected, about to check camera permissions...');
-            }
-
             // Check camera permissions for native iOS
             if (platformInfo.isNative && platformInfo.isIOS) {
                 try {
@@ -1243,27 +1238,24 @@ export default function ReceiptScan() {
                     // Check if we have camera permissions
                     const permissions = await Camera.checkPermissions();
                     console.log('🍎 iOS Camera permissions status:', permissions);
-                    alert(`🍎 Permissions result: ${JSON.stringify(permissions)}`);
 
                     if (permissions.camera !== 'granted') {
                         console.log('🍎 Requesting iOS camera permissions...');
-                        alert('🍎 About to request permissions...');
                         const requestResult = await Camera.requestPermissions();
                         console.log('🍎 iOS Permission request result:', requestResult);
-                        alert(`🍎 Request result: ${JSON.stringify(requestResult)}`);
 
                         if (requestResult.camera !== 'granted') {
-                            alert('🍎 Permissions denied, setting error...');
                             setCameraError('Camera permission is required for receipt scanning. Please enable camera access in iOS Settings > Doc Bear\'s Comfort Kitchen > Camera');
                             return;
                         }
                     }
 
                     console.log('🍎 Permissions check passed, continuing to camera...');
+
+                    console.log('🍎 Permissions check passed, continuing to camera...');
                     alert('🍎 Permissions OK, about to start camera...');
                 } catch (permissionError) {
                     console.error('❌ iOS permission check failed:', permissionError);
-                    alert(`❌ Permission error: ${permissionError.message}`);
                     setCameraError('Unable to check camera permissions. Please try "Upload Image" instead.');
                     return;
                 }
@@ -1272,10 +1264,8 @@ export default function ReceiptScan() {
             // Native app (Android or iOS) - use native camera
             if (platformInfo.isNative) {
                 console.log(`📱 Starting ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
-                alert(`📱 About to start ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
 
                 if (platformInfo.isAndroid) {
-                    alert('🤖 Android path - keeping existing Android code');
                     try {
                         console.log('🤖 Importing Capacitor Camera...');
                         const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
@@ -1325,16 +1315,12 @@ export default function ReceiptScan() {
                 }
 
                 if (platformInfo.isIOS) {
-                    alert('🍎 iOS path - starting iOS camera');
                     try {
                         console.log('🍎 Importing Capacitor Camera for iOS...');
-                        alert('🍎 About to import Camera...');
                         const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
                         console.log('🍎 Camera imported successfully');
-                        alert('🍎 Camera imported successfully');
 
                         console.log('🍎 Calling Camera.getPhoto for iOS...');
-                        alert('🍎 About to call Camera.getPhoto...');
 
                         const photo = await Camera.getPhoto({
                             resultType: CameraResultType.Base64,  // Changed to Base64 for iOS reliability
@@ -1345,7 +1331,6 @@ export default function ReceiptScan() {
                         });
 
                         console.log('🍎 iOS Camera.getPhoto returned:', photo);
-                        alert(`🍎 Camera.getPhoto returned base64 length: ${photo.base64String?.length || 0}`);
 
                         if (photo.base64String) {
                             console.log('🍎 Converting iOS base64 to blob...');
@@ -1390,7 +1375,6 @@ export default function ReceiptScan() {
                     } catch (error) {
                         console.error('❌ iOS camera failed:', error);
                         console.error('❌ iOS Error details:', error.message, error.stack);
-                        alert(`❌ iOS camera error: ${error.message}`);
                         setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
                         return;
                     }
@@ -1448,8 +1432,6 @@ export default function ReceiptScan() {
             setCameraError(`Critical camera error: ${globalError.message}. Please try "Upload Image" instead.`);
         }
     }
-
-
 
     function stopCamera() {
         if (streamRef.current) {

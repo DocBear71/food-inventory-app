@@ -75,7 +75,7 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
             user_id: "user123",
             raw_ocr: rawOcrText,
             fallback_items: extractedItems,
-            // 🆕 ADD CURRENCY SUPPORT
+            basic_items: extractedItems,
             user_currency: currencyInfo.currency,
             currency_symbol: currencyInfo.currencySymbol
         };
