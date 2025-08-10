@@ -4285,8 +4285,26 @@ export default function ReceiptScan() {
                                                                         </div>
                                                                     </div>
 
-                                                                    {/* Price and UPC Display - FIXED: Make price editable */}
-                                                                    <div className="grid grid-cols-3 gap-3">
+                                                                    {/* Price, Discount, and UPC Display */}
+                                                                    <div className="grid grid-cols-4 gap-3">
+                                                                        <div>
+                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Unit Price
+                                                                            </label>
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                value={item.unitPrice || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newUnitPrice = parseFloat(e.target.value) || 0;
+                                                                                    updateItem(item.id, 'unitPrice', newUnitPrice);
+                                                                                    updateItem(item.id, 'price', newUnitPrice * (item.quantity || 1));
+                                                                                }}
+                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                                placeholder="0.00"
+                                                                            />
+                                                                        </div>
                                                                         <div>
                                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                                 Total Price
@@ -4307,21 +4325,23 @@ export default function ReceiptScan() {
                                                                         </div>
                                                                         <div>
                                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                                Unit Price
+                                                                                Discount
                                                                             </label>
                                                                             <input
                                                                                 type="number"
                                                                                 step="0.01"
                                                                                 min="0"
-                                                                                value={item.unitPrice || ''}
+                                                                                value={item.discountAmount || ''}
                                                                                 onChange={(e) => {
-                                                                                    const newUnitPrice = parseFloat(e.target.value) || 0;
-                                                                                    updateItem(item.id, 'unitPrice', newUnitPrice);
-                                                                                    updateItem(item.id, 'price', newUnitPrice * (item.quantity || 1));
+                                                                                    const discount = parseFloat(e.target.value) || 0;
+                                                                                    updateItem(item.id, 'discountAmount', discount);
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
                                                                             />
+                                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                                {item.discountAmount && item.discountAmount > 0 ? `Saved $${item.discountAmount.toFixed(2)}` : 'No discount'}
+                                                                            </div>
                                                                         </div>
                                                                         <div>
                                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
