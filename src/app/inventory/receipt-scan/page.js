@@ -3884,6 +3884,7 @@ export default function ReceiptScan() {
                                                     <li>• <strong>Flat surface</strong> - place receipt flat if possible</li>
                                                     <li>• <strong>Full lines</strong> - include complete item lines</li>
                                                     <li>• <strong>Retake if blurry</strong> - clarity is key for accuracy</li>
+                                                    <li>• <strong>Edit results if needed</strong> - you can edit results if needed</li>
                                                 </ul>
                                             </div>
                                             <div>
@@ -4071,7 +4072,16 @@ export default function ReceiptScan() {
                                         </div>
                                         <div className="flex space-x-2">
                                             <TouchEnhancedButton
-                                                onClick={resetScan}
+                                                onClick={() => {
+                                                    const confirmed = window.confirm(
+                                                        "⚠️ Are you sure you want to start over?\n\n" +
+                                                        "This will delete all extracted items and you'll need to scan the receipt again.\n\n" +
+                                                        "Any edits you've made will be lost."
+                                                    );
+                                                    if (confirmed) {
+                                                        resetScan();
+                                                    }
+                                                }}
                                                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                                             >
                                                 Start Over
@@ -4270,7 +4280,7 @@ export default function ReceiptScan() {
                                                                                     const newTotalPrice = (unitPrice * newQuantity) - discount;
 
                                                                                     updateItem(item.id, 'quantity', newQuantity);
-                                                                                    updateItem(item.id, 'price', newTotalPrice);
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
                                                                                 }}
                                                                                 onFocus={(e) => {
                                                                                     // Select all text when focused for easier editing
@@ -4326,8 +4336,8 @@ export default function ReceiptScan() {
                                                                                     const discount = item.discountAmount || 0;
                                                                                     const newTotalPrice = (newUnitPrice * quantity) - discount;
 
-                                                                                    updateItem(item.id, 'unitPrice', newUnitPrice);
-                                                                                    updateItem(item.id, 'price', newTotalPrice);
+                                                                                    updateItem(item.id, 'unitPrice', parseFloat(newUnitPrice.toFixed(2)));
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
@@ -4348,8 +4358,8 @@ export default function ReceiptScan() {
                                                                                     const discount = item.discountAmount || 0;
                                                                                     const newUnitPrice = (newTotalPrice + discount) / quantity;
 
-                                                                                    updateItem(item.id, 'price', newTotalPrice);
-                                                                                    updateItem(item.id, 'unitPrice', newUnitPrice);
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
+                                                                                    updateItem(item.id, 'unitPrice', parseFloat(newUnitPrice.toFixed(2)));
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
@@ -4374,8 +4384,8 @@ export default function ReceiptScan() {
                                                                                     const quantity = item.quantity || 1;
                                                                                     const newTotalPrice = (unitPrice * quantity) - newDiscount;
 
-                                                                                    updateItem(item.id, 'discountAmount', newDiscount);
-                                                                                    updateItem(item.id, 'price', newTotalPrice);
+                                                                                    updateItem(item.id, 'discountAmount', parseFloat(newDiscount.toFixed(2)));
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
