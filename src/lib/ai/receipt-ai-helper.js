@@ -69,8 +69,13 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
             }
         }
 
+        // 🔥 DEBUG: Check if we have image data
+        console.log('🔍 DEBUG: base64ImageString length:', base64ImageString.length);
+        console.log('🔍 DEBUG: imageFile:', imageFile);
+        console.log('🔍 DEBUG: rawOcrText length:', rawOcrText.length);
+
         const requestPayload = {
-            image_data: base64ImageString,
+            image_data: base64ImageString,  // This might be empty!
             store_context: storeContext,
             user_id: "user123",
             raw_ocr: rawOcrText,
@@ -79,6 +84,8 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
             user_currency: currencyInfo.currency,
             currency_symbol: currencyInfo.currencySymbol
         };
+
+        console.log('📤 DEBUG: Payload image_data length:', requestPayload.image_data.length);
 
         console.log('📤 Sending request to Modal with currency support:', currencyInfo);
 
