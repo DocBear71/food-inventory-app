@@ -1271,6 +1271,9 @@ export default function ReceiptScan() {
                         const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
                         console.log('🤖 Camera imported successfully');
 
+                        // Show quick instruction for native camera
+                        alert('📸 Photo Tips:\n• Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines');
+
                         console.log('🤖 Calling Camera.getPhoto...');
                         const photo = await Camera.getPhoto({
                             resultType: CameraResultType.Uri,
@@ -1320,8 +1323,10 @@ export default function ReceiptScan() {
                         const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
                         console.log('🍎 Camera imported successfully');
 
-                        console.log('🍎 Calling Camera.getPhoto for iOS...');
+                        // Show quick instruction for native camera
+                        alert('📸 Photo Tips:\n• Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines');
 
+                        console.log('🍎 Calling Camera.getPhoto for iOS...');
                         const photo = await Camera.getPhoto({
                             resultType: CameraResultType.Base64,  // Changed to Base64 for iOS reliability
                             source: CameraSource.Camera,
@@ -3868,15 +3873,17 @@ export default function ReceiptScan() {
 
                                     {/* Universal Tips */}
                                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">📝 Tips for Best
-                                            Results:</h4>
+                                        <h4 className="text-sm font-medium text-gray-900 mb-2">📝 Tips for Best Results:</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
                                             <div>
                                                 <strong>📷 Paper Receipts:</strong>
                                                 <ul className="mt-1 space-y-1">
-                                                    <li>• Ensure receipt is flat and well-lit</li>
-                                                    <li>• Avoid shadows and glare</li>
-                                                    <li>• Include entire receipt in frame</li>
+                                                    <li>• <strong>Hold steady</strong> - keep phone still when capturing</li>
+                                                    <li>• <strong>Get close</strong> - fill frame with receipt text</li>
+                                                    <li>• <strong>Good lighting</strong> - avoid shadows and glare</li>
+                                                    <li>• <strong>Flat surface</strong> - place receipt flat if possible</li>
+                                                    <li>• <strong>Full lines</strong> - include complete item lines</li>
+                                                    <li>• <strong>Retake if blurry</strong> - clarity is key for accuracy</li>
                                                 </ul>
                                             </div>
                                             <div>
@@ -3938,6 +3945,20 @@ export default function ReceiptScan() {
                                                 iOS PWA detected - using optimized camera settings
                                             </p>
                                         )}
+                                    </div>
+
+                                    {/* Photo Taking Instructions */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📸 Photo Instructions</h4>
+                                        <ul className="text-sm text-blue-800 space-y-1">
+                                            <li>• <strong>Hold steady:</strong> Keep your phone as still as possible when taking the photo</li>
+                                            <li>• <strong>Get close:</strong> Fill the frame with the receipt for better text recognition</li>
+                                            <li>• <strong>Include all items:</strong> Make sure full lines of items are visible</li>
+                                            <li>• <strong>Good lighting:</strong> Avoid shadows and glare on the receipt</li>
+                                            <li>• <strong>Flat surface:</strong> Place receipt on a flat surface if possible</li>
+                                            <li>• <strong>Retake if needed:</strong> You can retake the photo if it's not clear enough</li>
+                                            <li>• <strong>Edit Items if needed:</strong> You can edit quantity, prices, and discounts if needed.</li>
+                                        </ul>
                                     </div>
 
                                     <div className="relative bg-black rounded-lg overflow-hidden">
@@ -4244,9 +4265,12 @@ export default function ReceiptScan() {
                                                                                 value={item.quantity || ''}
                                                                                 onChange={(e) => {
                                                                                     const newQuantity = parseInt(e.target.value) || 1;
+                                                                                    const unitPrice = item.unitPrice || 0;
+                                                                                    const discount = item.discountAmount || 0;
+                                                                                    const newTotalPrice = (unitPrice * newQuantity) - discount;
+
                                                                                     updateItem(item.id, 'quantity', newQuantity);
-                                                                                    // Auto-update unit price when quantity changes
-                                                                                    updateItem(item.id, 'unitPrice', (item.price || 0) / newQuantity);
+                                                                                    updateItem(item.id, 'price', newTotalPrice);
                                                                                 }}
                                                                                 onFocus={(e) => {
                                                                                     // Select all text when focused for easier editing
@@ -4298,8 +4322,12 @@ export default function ReceiptScan() {
                                                                                 value={item.unitPrice || ''}
                                                                                 onChange={(e) => {
                                                                                     const newUnitPrice = parseFloat(e.target.value) || 0;
+                                                                                    const quantity = item.quantity || 1;
+                                                                                    const discount = item.discountAmount || 0;
+                                                                                    const newTotalPrice = (newUnitPrice * quantity) - discount;
+
                                                                                     updateItem(item.id, 'unitPrice', newUnitPrice);
-                                                                                    updateItem(item.id, 'price', newUnitPrice * (item.quantity || 1));
+                                                                                    updateItem(item.id, 'price', newTotalPrice);
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
@@ -4315,9 +4343,13 @@ export default function ReceiptScan() {
                                                                                 min="0"
                                                                                 value={item.price || ''}
                                                                                 onChange={(e) => {
-                                                                                    const newPrice = parseFloat(e.target.value) || 0;
-                                                                                    updateItem(item.id, 'price', newPrice);
-                                                                                    updateItem(item.id, 'unitPrice', newPrice / (item.quantity || 1));
+                                                                                    const newTotalPrice = parseFloat(e.target.value) || 0;
+                                                                                    const quantity = item.quantity || 1;
+                                                                                    const discount = item.discountAmount || 0;
+                                                                                    const newUnitPrice = (newTotalPrice + discount) / quantity;
+
+                                                                                    updateItem(item.id, 'price', newTotalPrice);
+                                                                                    updateItem(item.id, 'unitPrice', newUnitPrice);
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
@@ -4337,8 +4369,13 @@ export default function ReceiptScan() {
                                                                                 min="0"
                                                                                 value={item.discountAmount || ''}
                                                                                 onChange={(e) => {
-                                                                                    const discount = parseFloat(e.target.value) || 0;
-                                                                                    updateItem(item.id, 'discountAmount', discount);
+                                                                                    const newDiscount = parseFloat(e.target.value) || 0;
+                                                                                    const unitPrice = item.unitPrice || 0;
+                                                                                    const quantity = item.quantity || 1;
+                                                                                    const newTotalPrice = (unitPrice * quantity) - newDiscount;
+
+                                                                                    updateItem(item.id, 'discountAmount', newDiscount);
+                                                                                    updateItem(item.id, 'price', newTotalPrice);
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
