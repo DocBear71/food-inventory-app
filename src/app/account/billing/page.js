@@ -51,6 +51,25 @@ function BillingContent() {
         );
     }
 
+    // Error boundary for debugging
+    useEffect(() => {
+        const handleError = (error) => {
+            console.error('🚨 Global error caught:', error);
+            setError(`App Error: ${error.message}`);
+        };
+
+        window.addEventListener('error', handleError);
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('🚨 Unhandled promise rejection:', event.reason);
+            setError(`Promise Error: ${event.reason?.message || 'Unknown error'}`);
+        });
+
+        return () => {
+            window.removeEventListener('error', handleError);
+            window.removeEventListener('unhandledrejection', handleError);
+        };
+    }, []);
+
     if (!session) {
         return null;
     }
@@ -500,6 +519,20 @@ function BillingContent() {
                 {success && (
                     <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
                         {success}
+                    </div>
+                )}
+
+                {/* TEMPORARY DEBUG INFO - Remove before App Store submission */}
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="bg-yellow-100 border border-yellow-400 p-4 rounded mb-4">
+                        <h3 className="font-bold text-yellow-800">Debug Info:</h3>
+                        <pre className="text-xs text-yellow-700 mt-2">
+                            {JSON.stringify({
+                                platform: platform,
+                                isIOS: platform?.isIOS,
+                                userAgent: typeof window !== 'undefined' ? window.navigator.userAgent.substring(0, 100) : 'server'
+                            }, null, 2)}
+                        </pre>
                     </div>
                 )}
 
