@@ -926,15 +926,3 @@ export async function processEmailQueue() {
         throw error;
     }
 }
-
-// Export all functions for use in webhooks and other parts of the app
-export {
-    sendWelcomeEmail,
-    sendPaymentConfirmationEmail,
-    sendPaymentFailedEmail,
-    sendTrialEndingEmail,
-    sendCancellationConfirmationEmail,
-    trackEmailEvent,
-    handleWebhookEmailNotifications,
-    processEmailQueue
-};
