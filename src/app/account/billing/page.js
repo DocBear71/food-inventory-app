@@ -31,6 +31,25 @@ function BillingContent() {
     const [success, setSuccess] = useState('');
     const [isRestoring, setIsRestoring] = useState(false);
 
+    // Error boundary for debugging
+    useEffect(() => {
+        const handleError = (error) => {
+            console.error('🚨 Global error caught:', error);
+            setError(`App Error: ${error.message}`);
+        };
+
+        window.addEventListener('error', handleError);
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('🚨 Unhandled promise rejection:', event.reason);
+            setError(`Promise Error: ${event.reason?.message || 'Unknown error'}`);
+        });
+
+        return () => {
+            window.removeEventListener('error', handleError);
+            window.removeEventListener('unhandledrejection', handleError);
+        };
+    }, []);
+
     // Early returns for auth
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -50,25 +69,6 @@ function BillingContent() {
             </MobileOptimizedLayout>
         );
     }
-
-    // Error boundary for debugging
-    useEffect(() => {
-        const handleError = (error) => {
-            console.error('🚨 Global error caught:', error);
-            setError(`App Error: ${error.message}`);
-        };
-
-        window.addEventListener('error', handleError);
-        window.addEventListener('unhandledrejection', (event) => {
-            console.error('🚨 Unhandled promise rejection:', event.reason);
-            setError(`Promise Error: ${event.reason?.message || 'Unknown error'}`);
-        });
-
-        return () => {
-            window.removeEventListener('error', handleError);
-            window.removeEventListener('unhandledrejection', handleError);
-        };
-    }, []);
 
     if (!session) {
         return null;
