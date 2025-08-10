@@ -1337,7 +1337,7 @@ export default function ReceiptScan() {
                         alert('🍎 About to call Camera.getPhoto...');
 
                         const photo = await Camera.getPhoto({
-                            resultType: CameraResultType.Uri,
+                            resultType: CameraResultType.Base64,  // Changed to Base64 for iOS reliability
                             source: CameraSource.Camera,
                             quality: 90,
                             allowEditing: false,
@@ -1345,50 +1345,46 @@ export default function ReceiptScan() {
                         });
 
                         console.log('🍎 iOS Camera.getPhoto returned:', photo);
-                        alert(`🍎 Camera.getPhoto returned: ${JSON.stringify(photo)}`);
+                        alert(`🍎 Camera.getPhoto returned base64 length: ${photo.base64String?.length || 0}`);
 
-                        if (photo.webPath) {
-                            console.log('🍎 Converting iOS photo to blob...');
-
-                            // Try multiple methods to get the blob
-                            let imageBlob;
+                        if (photo.base64String) {
+                            console.log('🍎 Converting iOS base64 to blob...');
 
                             try {
-                                // Method 1: Direct fetch (original)
-                                const response = await fetch(photo.webPath);
-                                imageBlob = await response.blob();
-                                console.log('🍎 Method 1 (fetch) succeeded:', imageBlob.size, 'bytes');
-                            } catch (fetchError) {
-                                console.log('🍎 Method 1 failed, trying Method 2:', fetchError);
+                                // Convert base64 to blob directly
+                                const base64Data = photo.base64String;
+                                const byteCharacters = atob(base64Data);
+                                const byteNumbers = new Array(byteCharacters.length);
 
-                                try {
-                                    // Method 2: Use Capacitor's convertFileSrc
-                                    const { Capacitor } = await import('@capacitor/core');
-                                    const convertedUrl = Capacitor.convertFileSrc(photo.webPath);
-                                    const response = await fetch(convertedUrl);
-                                    imageBlob = await response.blob();
-                                    console.log('🍎 Method 2 (convertFileSrc) succeeded:', imageBlob.size, 'bytes');
-                                } catch (convertError) {
-                                    console.log('🍎 Method 2 failed:', convertError);
-                                    throw new Error('Both iOS file access methods failed');
+                                for (let i = 0; i < byteCharacters.length; i++) {
+                                    byteNumbers[i] = byteCharacters.charCodeAt(i);
                                 }
-                            }
 
-                            if (imageBlob && imageBlob.size > 0) {
-                                console.log('🍎 Setting receipt type and captured image for iOS...');
-                                setReceiptType('paper');
-                                setCapturedImage(URL.createObjectURL(imageBlob));
+                                const byteArray = new Uint8Array(byteNumbers);
+                                const imageBlob = new Blob([byteArray], { type: 'image/jpeg' });
 
-                                console.log('🍎 Calling processImage for iOS...');
-                                await processImage(imageBlob);
-                                console.log('🍎 processImage completed for iOS');
-                            } else {
-                                console.error('🍎 Invalid or empty image blob on iOS');
-                                alert('Failed to capture image: Empty or invalid image');
+                                console.log('🍎 iOS blob created from base64:', imageBlob.size, 'bytes');
+
+                                if (imageBlob && imageBlob.size > 0) {
+                                    console.log('🍎 Setting receipt type and captured image for iOS...');
+                                    setReceiptType('paper');
+                                    setCapturedImage(URL.createObjectURL(imageBlob));
+
+                                    console.log('🍎 Calling processImage for iOS...');
+                                    await processImage(imageBlob);
+                                    console.log('🍎 processImage completed for iOS');
+                                } else {
+                                    console.error('🍎 Invalid or empty image blob on iOS');
+                                    alert('Failed to capture image: Empty or invalid image');
+                                }
+
+                            } catch (base64Error) {
+                                console.error('🍎 Base64 conversion failed:', base64Error);
+                                alert(`Failed to convert image: ${base64Error.message}`);
                             }
                         } else {
-                            console.error('🍎 No webPath in photo result on iOS');
-                            alert('Failed to capture image: No file path returned');
+                            console.error('🍎 No base64String in photo result on iOS');
+                            alert('Failed to capture image: No base64 data returned');
                         }
                         return;
                     } catch (error) {
