@@ -4285,8 +4285,8 @@ export default function ReceiptScan() {
                                                                         </div>
                                                                     </div>
 
-                                                                    {/* Price, Discount, and UPC Display */}
-                                                                    <div className="grid grid-cols-4 gap-3">
+                                                                    {/* Price Display - Top Row */}
+                                                                    <div className="grid grid-cols-2 gap-3 mb-4">
                                                                         <div>
                                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                                 Unit Price
@@ -4323,6 +4323,10 @@ export default function ReceiptScan() {
                                                                                 placeholder="0.00"
                                                                             />
                                                                         </div>
+                                                                    </div>
+
+                                                                    {/* Discount and UPC - Bottom Row */}
+                                                                    <div className="grid grid-cols-2 gap-3">
                                                                         <div>
                                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                                 Discount
