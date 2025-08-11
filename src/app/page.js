@@ -1,7 +1,7 @@
 'use client';
 
 // Modern Landing Page for Doc Bear's Comfort Kitchen
-// file: /app/page.js - Updated for v1.6.1 - FIXED: Hooks order to prevent conditional rendering error
+// file: /app/page.js - Updated for v1.7.0 - FIXED: Hooks order to prevent conditional rendering error
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -318,7 +318,7 @@ export default function LandingPage() {
 
                             <div className="inline-flex items-center bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
                                 <span className="mr-2">🆕</span>
-                                Version 1.6.0 - Multi-Part Recipes & Superior UX
+                                Version 1.7.0 - enhanced recipe discovery with advanced sorting options
                             </div>
 
                             <h2 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
@@ -427,7 +427,7 @@ export default function LandingPage() {
                                                 <div className="text-center">
                                                     <div className="text-4xl mb-2">🍳</div>
                                                     <div className="text-sm font-medium">Doc Bear's App</div>
-                                                    <div className="text-xs opacity-75">v1.6.0</div>
+                                                    <div className="text-xs opacity-75">v1.7.0</div>
                                                 </div>
                                             </div>
                                         </div>
@@ -744,7 +744,7 @@ export default function LandingPage() {
                             Trusted by Food Enthusiasts Worldwide
                         </h2>
                         <p className="text-xl text-purple-100">
-                            Join thousands who are already managing their kitchens smarter with v1.6.0
+                            Join thousands who are already managing their kitchens smarter with v1.7.0
                         </p>
                     </div>
 

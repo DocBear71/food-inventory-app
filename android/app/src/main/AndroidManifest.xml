@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Your existing permissions -->
+    <!-- Clean permissions - no duplicates -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
@@ -10,20 +10,11 @@
                      android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
-    <!-- ADDED: Missing audio permission that Android Studio warned about -->
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
-    <!-- ADDED: Additional permissions for better voice input handling -->
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
-    <!-- Speech Recognition specific permissions -->
-    <uses-permission android:name="android.permission.INTERNET" /> <!-- Already have this -->
-    <uses-permission android:name="android.permission.RECORD_AUDIO" /> <!-- Already have this -->
-    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" /> <!-- Already have this -->
-
-    <!-- NEW: Additional permissions for native speech recognition -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
 
 
