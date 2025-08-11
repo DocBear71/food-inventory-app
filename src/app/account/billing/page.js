@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/account/billing/page.js v1 - Account billing and subscription management
+// file: /src/app/account/billing/page.js v2 - Enhanced iOS billing with App Store compliance
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -10,6 +10,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import { usePlatform } from '@/hooks/usePlatform';
+import { trackEmailEvent } from '@/lib/email-todo-implementations';
 
 // Separate component for search params to wrap in Suspense
 function BillingContent() {
@@ -28,6 +29,26 @@ function BillingContent() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [isRestoring, setIsRestoring] = useState(false);
+
+    // Error boundary for debugging
+    useEffect(() => {
+        const handleError = (error) => {
+            console.error('🚨 Global error caught:', error);
+            setError(`App Error: ${error.message}`);
+        };
+
+        window.addEventListener('error', handleError);
+        window.addEventListener('unhandledrejection', (event) => {
+            console.error('🚨 Unhandled promise rejection:', event.reason);
+            setError(`Promise Error: ${event.reason?.message || 'Unknown error'}`);
+        });
+
+        return () => {
+            window.removeEventListener('error', handleError);
+            window.removeEventListener('unhandledrejection', handleError);
+        };
+    }, []);
 
     // Early returns for auth
     useEffect(() => {
@@ -99,6 +120,25 @@ function BillingContent() {
                 const data = await response.json();
 
                 if (response.ok && data.url) {
+                    // Track Stripe checkout initiation
+                    try {
+                        const { trackEmailEvent } = await import('@/lib/email-todo-implementations');
+                        await trackEmailEvent({
+                            eventType: 'checkout_initiated',
+                            userEmail: session.user.email,
+                            userId: session.user.id,
+                            emailType: 'stripe_checkout',
+                            metadata: {
+                                tier: newTier,
+                                billingCycle: newBilling,
+                                platform: 'web',
+                                source: urlSource || 'billing-page'
+                            }
+                        });
+                    } catch (trackingError) {
+                        console.error('Failed to track checkout event:', trackingError);
+                    }
+
                     window.location.href = data.url;
                 } else {
                     setError(data.error || 'Failed to create checkout session');
@@ -117,7 +157,7 @@ function BillingContent() {
         }
     };
 
-    // NEW FUNCTION: Handle RevenueCat purchases
+    // ENHANCED: Handle RevenueCat purchases with better error handling
     const handleRevenueCatPurchase = async (tier, billingCycle) => {
         try {
             console.log('1. Starting RevenueCat purchase...');
@@ -174,40 +214,163 @@ function BillingContent() {
                         });
                     });
 
-                    // MOVE PURCHASE LOGIC HERE - INSIDE THE OFFERINGS SUCCESS BLOCK
+                    // ENHANCED: Better package matching logic
                     const packageId = `${tier}_${billingCycle}_package`;
                     console.log('12. Looking for package:', packageId);
 
-                    const packageToPurchase = offerings.current.availablePackages.find(
+                    let packageToPurchase = offerings.current.availablePackages.find(
                         pkg => pkg.identifier === packageId
                     );
 
                     if (!packageToPurchase) {
-                        throw new Error(`Package ${packageId} not found`);
+                        // Try alternative package naming patterns
+                        const alternativePackageId = `${tier}_${billingCycle}`;
+                        const alternativePackage = offerings.current.availablePackages.find(
+                            pkg => pkg.identifier === alternativePackageId ||
+                                pkg.product?.identifier === `${tier}_${billingCycle}`
+                        );
+
+                        if (alternativePackage) {
+                            console.log('12b. Found alternative package:', alternativePackage.identifier);
+                            packageToPurchase = alternativePackage;
+                        } else {
+                            throw new Error(`Package ${packageId} not found. Available packages: ${offerings.current.availablePackages.map(p => p.identifier).join(', ')}`);
+                        }
                     }
 
                     console.log('13. Found package, attempting purchase...', packageToPurchase.identifier);
 
+                    // Make the purchase
                     // Make the purchase
                     const purchaseResult = await Purchases.purchasePackage({
                         aPackage: packageToPurchase
                     });
 
                     console.log('14. Purchase successful!', purchaseResult);
-                    setSuccess(`Successfully purchased ${tier} ${billingCycle}!`);
+
+                    // Track successful purchase
+                    try {
+                        const { trackEmailEvent } = await import('@/lib/email-todo-implementations');
+                        await trackEmailEvent({
+                            eventType: 'purchase_completed',
+                            userEmail: session.user.email,
+                            userId: session.user.id,
+                            emailType: 'revenuecat_purchase',
+                            metadata: {
+                                tier,
+                                billingCycle,
+                                platform: platform.type,
+                                packageId: packageToPurchase.identifier
+                            }
+                        });
+                    } catch (trackingError) {
+                        console.error('Failed to track purchase event:', trackingError);
+                    }
+
+                    // ENHANCED: Verify purchase with backend
+                    await handlePurchaseVerification(purchaseResult, tier, billingCycle);
 
                 } else {
                     console.log('11. No packages found in current offering');
-                    setError('No packages available for purchase');
+                    setError('No subscription packages available. Please try again later.');
                 }
             } else {
                 console.log('9. No current offering available');
-                setError('No offerings available');
+                setError('Subscription service temporarily unavailable. Please try again later.');
             }
 
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
-            setError(`Purchase error: ${error.message}`);
+
+            // Enhanced error messages
+            if (error.message?.includes('ITEM_ALREADY_OWNED')) {
+                setError('You already own this subscription. Try restoring your purchases.');
+            } else if (error.message?.includes('USER_CANCELLED')) {
+                setError('Purchase was cancelled.');
+            } else if (error.message?.includes('PAYMENT_PENDING')) {
+                setError('Payment is pending. Please check back in a few minutes.');
+            } else if (error.message?.includes('ITEM_UNAVAILABLE')) {
+                setError('This subscription is temporarily unavailable. Please try again later.');
+            } else {
+                setError(`Purchase error: ${error.message}`);
+            }
+        }
+    };
+
+    // NEW: Handle purchase verification with backend
+    const handlePurchaseVerification = async (purchaseResult, tier, billingCycle) => {
+        try {
+            console.log('15. Verifying purchase with backend...');
+
+            const response = await apiPost('/api/payments/revenuecat/verify', {
+                purchaseResult: purchaseResult,
+                tier: tier,
+                billingCycle: billingCycle,
+                userId: session.user.id
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
+                // Refresh subscription data
+                subscription.refetch();
+            } else {
+                console.error('Backend verification failed:', data);
+                setError('Purchase completed but verification failed. Please contact support.');
+            }
+        } catch (error) {
+            console.error('Verification error:', error);
+            setError('Purchase completed but verification failed. Please contact support.');
+        }
+    };
+
+    // NEW: iOS Restore Purchases functionality (App Store requirement)
+    const handleRestorePurchases = async () => {
+        if (!platform.isIOS) {
+            setError('Restore purchases is only available on iOS devices.');
+            return;
+        }
+
+        setIsRestoring(true);
+        setError('');
+        setSuccess('');
+
+        try {
+            console.log('Starting restore purchases...');
+
+            const { Purchases } = await import('@revenuecat/purchases-capacitor');
+
+            // Configure RevenueCat if not already configured
+            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
+            if (!apiKey) {
+                throw new Error('RevenueCat iOS API key not configured');
+            }
+
+            await Purchases.configure({
+                apiKey: apiKey,
+                appUserID: session.user.id
+            });
+
+            // Restore purchases
+            const customerInfo = await Purchases.restorePurchases();
+            console.log('Restore completed:', customerInfo);
+
+            // Check if any active subscriptions were restored
+            const activeEntitlements = Object.values(customerInfo.entitlements?.active || {});
+
+            if (activeEntitlements.length > 0) {
+                setSuccess('Successfully restored your purchases! Your subscription is now active.');
+                subscription.refetch();
+            } else {
+                setError('No active subscriptions found to restore.');
+            }
+
+        } catch (error) {
+            console.error('Restore purchases error:', error);
+            setError(`Failed to restore purchases: ${error.message}`);
+        } finally {
+            setIsRestoring(false);
         }
     };
 
@@ -242,9 +405,17 @@ function BillingContent() {
         }
     };
 
-    // Handle cancellation
+    // ENHANCED: Handle cancellation with platform-specific instructions
     const handleCancelSubscription = async () => {
-        if (!confirm('Are you sure you want to cancel your subscription? You\'ll lose access to premium features at the end of your billing period.')) {
+        let cancelMessage = 'Are you sure you want to cancel your subscription? You\'ll lose access to premium features at the end of your billing period.';
+
+        if (platform.isIOS) {
+            cancelMessage += '\n\nNote: For iOS subscriptions, you may also need to cancel through your Apple ID settings.';
+        } else if (platform.isAndroid) {
+            cancelMessage += '\n\nNote: For Android subscriptions, you may also need to cancel through Google Play Store.';
+        }
+
+        if (!confirm(cancelMessage)) {
             return;
         }
 
@@ -257,7 +428,15 @@ function BillingContent() {
             const data = await response.json();
 
             if (response.ok) {
-                setSuccess('Subscription cancelled. You\'ll retain access until the end of your current billing period.');
+                let successMessage = 'Subscription cancelled. You\'ll retain access until the end of your current billing period.';
+
+                if (platform.isIOS) {
+                    successMessage += '\n\nTo ensure complete cancellation, also check your Apple ID subscription settings.';
+                } else if (platform.isAndroid) {
+                    successMessage += '\n\nTo ensure complete cancellation, also check your Google Play subscription settings.';
+                }
+
+                setSuccess(successMessage);
                 subscription.refetch();
             } else {
                 setError(data.error || 'Failed to cancel subscription');
@@ -343,17 +522,40 @@ function BillingContent() {
                     </div>
                 )}
 
-                {/* TEMPORARY: Platform Debug Info - REMOVE THIS LATER
-                <div className="bg-blue-50 border border-blue-200 rounded p-3 mb-4">
-                    <h4 className="font-medium">Platform Debug Info:</h4>
-                    <div className="text-sm space-y-1">
-                        <div>Platform Type: {platform.type}</div>
-                        <div>Is Web: {platform.isWeb.toString()}</div>
-                        <div>Is Android: {platform.isAndroid.toString()}</div>
-                        <div>Is iOS: {platform.isIOS.toString()}</div>
-                        <div>Billing Provider: {platform.billingProvider}</div>
+                {/* TEMPORARY DEBUG INFO - Remove before App Store submission */}
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="bg-yellow-100 border border-yellow-400 p-4 rounded mb-4">
+                        <h3 className="font-bold text-yellow-800">Debug Info:</h3>
+                        <pre className="text-xs text-yellow-700 mt-2">
+                            {JSON.stringify({
+                                platform: platform,
+                                isIOS: platform?.isIOS,
+                                userAgent: typeof window !== 'undefined' ? window.navigator.userAgent.substring(0, 100) : 'server'
+                            }, null, 2)}
+                        </pre>
                     </div>
-                </div>*/}
+                )}
+
+                {/* NEW: iOS Restore Purchases Button (App Store Requirement) */}
+                {platform.isIOS && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-blue-900 font-medium">Already purchased?</h3>
+                                <p className="text-blue-700 text-sm">
+                                    Restore your previous purchases from the App Store
+                                </p>
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={handleRestorePurchases}
+                                disabled={isRestoring}
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+                            >
+                                {isRestoring ? 'Restoring...' : 'Restore Purchases'}
+                            </TouchEnhancedButton>
+                        </div>
+                    </div>
+                )}
 
                 {/* Current Subscription Status */}
                 <div className="bg-white shadow rounded-lg p-6">
@@ -383,14 +585,14 @@ function BillingContent() {
                                 <span className="text-2xl font-bold text-gray-900">Free</span>
                             ) : (
                                 <div>
-        <span className="text-2xl font-bold text-gray-900">
-            ${subscription.billingCycle === 'annual'
-            ? currentPlan.price.annual
-            : currentPlan.price.monthly}
-        </span>
+                                    <span className="text-2xl font-bold text-gray-900">
+                                        ${subscription.billingCycle === 'annual'
+                                        ? currentPlan.price.annual
+                                        : currentPlan.price.monthly}
+                                    </span>
                                     <span className="text-gray-600 text-sm">
-            /{subscription.billingCycle === 'annual' ? 'year' : 'month'}
-        </span>
+                                        /{subscription.billingCycle === 'annual' ? 'year' : 'month'}
+                                    </span>
                                     {subscription.isAdmin && (
                                         <div className="text-xs text-purple-600 font-medium">Admin Access</div>
                                     )}
@@ -400,21 +602,6 @@ function BillingContent() {
                     </div>
 
                     <p className="text-gray-600 mb-4">{currentPlan.description}</p>
-
-                    {/* DEBUG: Add this temporarily
-                    <div className="bg-yellow-50 border border-yellow-200 rounded p-3 mb-4">
-                        <h4 className="font-medium">Debug Info:</h4>
-                        <div className="text-sm space-y-1">
-                            <div>Tier: {subscription.tier}</div>
-                            <div>isOnTrial: {isOnTrial.toString()}</div>
-                            <div>Condition result: {(subscription.tier !== 'free' && !isOnTrial).toString()}</div>
-                            <div>Start Date: {subscription.startDate}</div>
-                            <div>End Date: {subscription.endDate}</div>
-                            <div>Formatted Start: {formatDate(subscription.startDate)}</div>
-                            <div>Formatted End: {formatDate(subscription.endDate)}</div>
-                            <div>Full subscription object: {JSON.stringify(subscription, null, 2)}</div>
-                        </div>
-                    </div>*/}
 
                     {/* Trial Information */}
                     {isOnTrial && (
@@ -579,6 +766,27 @@ function BillingContent() {
                             );
                         })}
                     </div>
+
+                    {/* NEW: iOS Subscription Management Link */}
+                    {platform.isIOS && subscription.tier !== 'free' && (
+                        <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                            <h3 className="text-blue-900 font-medium mb-2">Manage Your Subscription</h3>
+                            <p className="text-blue-700 text-sm mb-3">
+                                To manage your subscription, change billing information, or cancel, you can also use your device settings.
+                            </p>
+                            <TouchEnhancedButton
+                                onClick={() => {
+                                    // Open iOS Settings app to subscription management
+                                    if (platform.isIOS) {
+                                        window.location.href = 'https://apps.apple.com/account/subscriptions';
+                                    }
+                                }}
+                                className="text-blue-600 hover:text-blue-700 font-medium text-sm"
+                            >
+                                Open iOS Subscription Settings →
+                            </TouchEnhancedButton>
+                        </div>
+                    )}
                 </div>
 
                 {/* Cancel Subscription */}
@@ -588,6 +796,26 @@ function BillingContent() {
                         <p className="text-gray-600 mb-4">
                             You can cancel your subscription at any time. You'll retain access to premium features until the end of your current billing period.
                         </p>
+
+                        {/* Platform-specific cancellation instructions */}
+                        {platform.isIOS && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                <h4 className="text-yellow-800 font-medium mb-2">iOS Subscription Notice</h4>
+                                <p className="text-yellow-700 text-sm">
+                                    For subscriptions purchased through the App Store, you may also need to cancel directly through your Apple ID settings to ensure complete cancellation.
+                                </p>
+                            </div>
+                        )}
+
+                        {platform.isAndroid && (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                                <h4 className="text-yellow-800 font-medium mb-2">Android Subscription Notice</h4>
+                                <p className="text-yellow-700 text-sm">
+                                    For subscriptions purchased through Google Play, you may also need to cancel directly through the Google Play Store to ensure complete cancellation.
+                                </p>
+                            </div>
+                        )}
+
                         <TouchEnhancedButton
                             onClick={handleCancelSubscription}
                             disabled={loading}
@@ -597,6 +825,52 @@ function BillingContent() {
                         </TouchEnhancedButton>
                     </div>
                 )}
+
+                {/* NEW: Terms of Service and Privacy Policy Links (App Store Requirement) */}
+                <div className="bg-gray-50 rounded-lg p-6">
+                    <h3 className="text-gray-900 font-medium mb-4">Terms & Privacy</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <TouchEnhancedButton
+                                onClick={() => router.push('/legal/terms')}
+                                className="text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                Terms of Service →
+                            </TouchEnhancedButton>
+                            <p className="text-gray-600 mt-1">
+                                View our terms and conditions for subscription services.
+                            </p>
+                        </div>
+                        <div>
+                            <TouchEnhancedButton
+                                onClick={() => router.push('/legal/privacy')}
+                                className="text-blue-600 hover:text-blue-700 font-medium"
+                            >
+                                Privacy Policy →
+                            </TouchEnhancedButton>
+                            <p className="text-gray-600 mt-1">
+                                Learn how we protect and use your data.
+                            </p>
+                        </div>
+                    </div>
+
+                    {/* Subscription-specific legal notices */}
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                        <h4 className="text-gray-900 font-medium text-sm mb-2">Subscription Terms</h4>
+                        <ul className="text-xs text-gray-600 space-y-1">
+                            <li>• Subscriptions automatically renew unless cancelled</li>
+                            <li>• You can cancel anytime through your account settings</li>
+                            <li>• Refunds are subject to our Terms of Service</li>
+                            <li>• Pricing may vary by region and platform</li>
+                            {platform.isIOS && (
+                                <li>• iOS subscriptions are managed through your Apple ID</li>
+                            )}
+                            {platform.isAndroid && (
+                                <li>• Android subscriptions are managed through Google Play</li>
+                            )}
+                        </ul>
+                    </div>
+                </div>
 
                 <Footer />
             </div>

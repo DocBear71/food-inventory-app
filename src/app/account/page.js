@@ -1,8 +1,8 @@
 'use client';
 
-// file: /src/app/account/page.js v2 - Updated with Contact Support Modal
+// file: /src/app/account/page.js - FIXED version with stable hook execution
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSubscription } from '@/hooks/useSubscription';
@@ -12,20 +12,235 @@ import Footer from '@/components/legal/Footer';
 import ContactSupportModal from '@/components/support/ContactSupportModal';
 import { apiPost } from '@/lib/api-config';
 
+console.log('🔍 Usage debug:', {
+        subscriptionUsage: subscription.usage,
+        sessionUsage: session?.user?.usage,
+        subscriptionInventory: subscription.usage?.inventoryItems,
+        sessionInventory: session?.user?.usage?.totalInventoryItems
+    });
+
 export default function AccountPage() {
+    // FIXED: All hooks at the top level - NEVER conditional
     const { data: session, status } = useSafeSession();
     const router = useRouter();
     const subscription = useSubscription();
+    
+    // All state hooks - always in the same order
     const [loading, setLoading] = useState(false);
     const [showContactModal, setShowContactModal] = useState(false);
+    const [showPreRegModal, setShowPreRegModal] = useState(false);
+    const [preRegRewardStatus, setPreRegRewardStatus] = useState(null);
+    const [success, setSuccess] = useState('');
+    const [error, setError] = useState('');
 
-    // Redirect if not authenticated
+    // FIXED: Memoize the pre-registration check to prevent re-creation on every render
+    const checkForPreRegistrationReward = useCallback(async () => {
+        if (typeof window === 'undefined') return;
+
+        try {
+            // Check if already claimed
+            const alreadyClaimed = localStorage.getItem('preregRewardClaimed');
+            if (alreadyClaimed) {
+                console.log('Pre-registration reward already claimed');
+                setPreRegRewardStatus('already_claimed');
+                return;
+            }
+
+            // Only check for Android users
+            const isAndroid = /Android/i.test(navigator.userAgent);
+            if (!isAndroid) {
+                console.log('Not Android device, skipping pre-reg check');
+                setPreRegRewardStatus('not_android');
+                return;
+            }
+
+            // FIXED: Use dynamic import with proper error handling
+            let Purchases;
+            try {
+                const purchasesModule = await import('@revenuecat/purchases-capacitor');
+                Purchases = purchasesModule.Purchases;
+            } catch (importError) {
+                console.log('RevenueCat not available:', importError.message);
+                setPreRegRewardStatus('not_available');
+                return;
+            }
+
+            // Configure RevenueCat if not already done
+            if (!window.revenueCatConfigured) {
+                await Purchases.configure({
+                    apiKey: process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY,
+                    appUserID: session?.user?.id
+                });
+                window.revenueCatConfigured = true;
+            }
+
+            const customerInfo = await Purchases.getCustomerInfo();
+            console.log('Checking for pre-registration reward...', customerInfo);
+
+            // Check for the pre-registration product in non-subscription transactions
+            const hasPreRegReward = customerInfo.nonSubscriptionTransactions?.some(
+                transaction => transaction.productIdentifier === 'preregistration_premium_30day'
+            );
+
+            if (hasPreRegReward) {
+                console.log('🎉 Pre-registration reward found!');
+                setShowPreRegModal(true);
+                setPreRegRewardStatus('available');
+            } else {
+                console.log('No pre-registration reward found');
+                setPreRegRewardStatus('not_available');
+            }
+
+        } catch (error) {
+            console.error('Pre-registration reward check failed:', error);
+            setPreRegRewardStatus('error');
+        }
+    }, [session?.user?.id]); // Only depend on user ID
+
+    // Helper to get usage data with mobile fallback
+    const getUsageData = useCallback((field) => {
+        // Try subscription usage first (works on web)
+        const subscriptionValue = subscription.usage?.[field];
+        if (subscriptionValue !== undefined && subscriptionValue !== null) {
+            return subscriptionValue;
+        }
+        
+        // Fallback to session usage (works on mobile)
+        const sessionValue = session?.user?.usage?.[field];
+        if (sessionValue !== undefined && sessionValue !== null) {
+            return sessionValue;
+        }
+        
+        // Default fallback
+        return 0;
+    }, [subscription.usage, session?.user?.usage]);
+
+    // FIXED: Use effect with proper cleanup and stable dependencies
     useEffect(() => {
+        let mounted = true;
+
         if (status === 'unauthenticated') {
             router.push('/auth/signin');
+            return;
         }
-    }, [status, router]);
 
+        // Only run pre-reg check if authenticated and mounted
+        if (status === 'authenticated' && session?.user?.id && mounted) {
+            // Use a longer delay to ensure everything is loaded
+            const timeoutId = setTimeout(() => {
+                if (mounted) {
+                    checkForPreRegistrationReward();
+                }
+            }, 3000);
+
+            return () => {
+                clearTimeout(timeoutId);
+            };
+        }
+
+        return () => {
+            mounted = false;
+        };
+    }, [status, session?.user?.id, router, checkForPreRegistrationReward]);
+
+    // FIXED: Memoize the claim function
+    const claimPreRegistrationReward = useCallback(async () => {
+        try {
+            setLoading(true);
+            setError('');
+
+            // Call your backend to activate the reward
+            const response = await apiPost('/api/subscription/claim-prereg-reward', {
+                source: 'google-play-prereg'
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                // Mark as claimed
+                localStorage.setItem('preregRewardClaimed', 'true');
+                localStorage.setItem('preregRewardClaimedDate', new Date().toISOString());
+
+                setSuccess('🎉 Pre-registration reward activated! You now have 30 days of premium access!');
+                setShowPreRegModal(false);
+
+                // Refresh subscription data
+                subscription.refetch();
+            } else {
+                setError(data.error || 'Failed to claim pre-registration reward');
+            }
+        } catch (error) {
+            console.error('Error claiming pre-registration reward:', error);
+            setError('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    }, [subscription]);
+
+    // FIXED: Memoize helper functions to prevent re-creation
+    const formatDate = useCallback((date) => {
+        if (!date) return 'N/A';
+        try {
+            const dateObj = typeof date === 'string' ? new Date(date) : date;
+            if (isNaN(dateObj.getTime())) return 'N/A';
+            const month = dateObj.getMonth() + 1;
+            const day = dateObj.getDate();
+            const year = dateObj.getFullYear();
+            return `${month}/${day}/${year}`;
+        } catch (error) {
+            return 'N/A';
+        }
+    }, []);
+
+    const getTierColor = useCallback((tier) => {
+        switch (tier) {
+            case 'platinum': return 'bg-purple-100 text-purple-800 border-purple-300';
+            case 'gold': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+            case 'admin': return 'bg-red-100 text-red-800 border-red-300';
+            default: return 'bg-gray-100 text-gray-800 border-gray-300';
+        }
+    }, []);
+
+    const getUsagePercentage = useCallback((current, limit) => {
+        if (limit === 'unlimited' || limit === -1) return 0;
+        if (typeof limit !== 'number') return 0;
+        return Math.min(100, (current / limit) * 100);
+    }, []);
+
+    const getUsageColor = useCallback((percentage) => {
+        if (percentage >= 90) return 'bg-red-500';
+        if (percentage >= 75) return 'bg-orange-500';
+        if (percentage >= 50) return 'bg-yellow-500';
+        return 'bg-green-500';
+    }, []);
+
+    const handleResendVerification = useCallback(async () => {
+        if (loading) return;
+
+        setLoading(true);
+        setError('');
+
+        try {
+            const response = await apiPost('/api/auth/resend-verification', {
+                email: session.user.email
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                setSuccess('Verification email sent! Please check your inbox and spam folder.');
+            } else {
+                setError(data.error || 'Failed to resend verification email');
+            }
+        } catch (error) {
+            console.error('Resend verification error:', error);
+            setError('Network error. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    }, [loading, session?.user?.email]);
+
+    // FIXED: Early returns AFTER all hooks
     if (status === 'loading') {
         return (
             <MobileOptimizedLayout>
@@ -40,47 +255,18 @@ export default function AccountPage() {
     }
 
     if (!session) {
-        return null;
+        return (
+            <MobileOptimizedLayout>
+                <div className="min-h-screen flex items-center justify-center">
+                    <div className="text-center">
+                        <div className="text-lg text-gray-600">Redirecting...</div>
+                    </div>
+                </div>
+            </MobileOptimizedLayout>
+        );
     }
 
-    // Helper functions
-    const formatDate = (date) => {
-        if (!date) return 'N/A';
-        try {
-            const dateObj = typeof date === 'string' ? new Date(date) : date;
-            if (isNaN(dateObj.getTime())) return 'N/A';
-            const month = dateObj.getMonth() + 1;
-            const day = dateObj.getDate();
-            const year = dateObj.getFullYear();
-            return `${month}/${day}/${year}`;
-        } catch (error) {
-            return 'N/A';
-        }
-    };
-
-    const getTierColor = (tier) => {
-        switch (tier) {
-            case 'platinum': return 'bg-purple-100 text-purple-800 border-purple-300';
-            case 'gold': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
-            case 'admin': return 'bg-red-100 text-red-800 border-red-300';
-            default: return 'bg-gray-100 text-gray-800 border-gray-300';
-        }
-    };
-
-    const getUsagePercentage = (current, limit) => {
-        if (limit === 'unlimited' || limit === -1) return 0;
-        if (typeof limit !== 'number') return 0;
-        return Math.min(100, (current / limit) * 100);
-    };
-
-    const getUsageColor = (percentage) => {
-        if (percentage >= 90) return 'bg-red-500';
-        if (percentage >= 75) return 'bg-orange-500';
-        if (percentage >= 50) return 'bg-yellow-500';
-        return 'bg-green-500';
-    };
-
-    // Quick actions
+    // Quick actions array - memoized to prevent re-creation
     const quickActions = [
         {
             title: 'Manage Billing',
@@ -112,39 +298,34 @@ export default function AccountPage() {
         }
     ];
 
-    // Add this function to your account page
-    const handleResendVerification = async () => {
-        if (loading) return;
-
-        setLoading(true);
-
-        try {
-            const response = await apiPost('/api/auth/resend-verification', {
-                email: session.user.email
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                alert('Verification email sent! Please check your inbox and spam folder.');
-            } else {
-                alert(data.error || 'Failed to resend verification email');
-            }
-        } catch (error) {
-            console.error('Resend verification error:', error);
-            alert('Network error. Please try again.');
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    console.log('Session user:', session.user);
-    console.log('Subscription object:', subscription);
-    console.log('User usage tracking:', session.user?.usageTracking);
-
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
+                {/* Success/Error Messages */}
+                {success && (
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                        <div className="text-green-800">{success}</div>
+                        <button
+                            onClick={() => setSuccess('')}
+                            className="text-green-600 hover:text-green-800 text-sm mt-2"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                )}
+
+                {error && (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="text-red-800">{error}</div>
+                        <button
+                            onClick={() => setError('')}
+                            className="text-red-600 hover:text-red-800 text-sm mt-2"
+                        >
+                            Dismiss
+                        </button>
+                    </div>
+                )}
+
                 {/* Header */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <div className="flex items-center justify-between">
@@ -277,14 +458,14 @@ export default function AccountPage() {
                         {/* Total Inventory Items */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-indigo-600 mb-1">
-                                {subscription.usage?.inventoryItems || 0}
+                                {getUsageData('inventoryItems') || getUsageData('totalInventoryItems')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Total Inventory Items</div>
                             {subscription.remainingInventoryItems !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.inventoryItems || 0, subscription.remainingInventoryItems + (subscription.usage?.inventoryItems || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.inventoryItems || 0, subscription.remainingInventoryItems + (subscription.usage?.inventoryItems || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('inventoryItems') || getUsageData('totalInventoryItems'), subscription.remainingInventoryItems + (getUsageData('inventoryItems') || getUsageData('totalInventoryItems'))))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('inventoryItems') || getUsageData('totalInventoryItems'), subscription.remainingInventoryItems + (getUsageData('inventoryItems') || getUsageData('totalInventoryItems')))}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -296,14 +477,14 @@ export default function AccountPage() {
                         {/* Monthly Receipt Scans */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-green-600 mb-1">
-                                {subscription.usage?.monthlyReceiptScans || 0}
+                                {getUsageData('monthlyReceiptScans')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Receipt Scans This Month</div>
                             {subscription.remainingReceiptScans !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.monthlyReceiptScans || 0, subscription.remainingReceiptScans + (subscription.usage?.monthlyReceiptScans || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.monthlyReceiptScans || 0, subscription.remainingReceiptScans + (subscription.usage?.monthlyReceiptScans || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('monthlyReceiptScans'), subscription.remainingReceiptScans + getUsageData('monthlyReceiptScans')))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('monthlyReceiptScans'), subscription.remainingReceiptScans + getUsageData('monthlyReceiptScans'))}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -315,14 +496,14 @@ export default function AccountPage() {
                         {/* Total Recipe Collections */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-blue-600 mb-1">
-                                {subscription.usage?.recipeCollections || 0}
+                                {getUsageData('recipeCollections') || getUsageData('totalRecipeCollections')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Total Recipe Collections</div>
                             {subscription.remainingRecipeCollections !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.recipeCollections || 0, subscription.remainingRecipeCollections + (subscription.usage?.recipeCollections || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.recipeCollections || 0, subscription.remainingRecipeCollections + (subscription.usage?.recipeCollections || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('recipeCollections') || getUsageData('totalRecipeCollections'), subscription.remainingRecipeCollections + (getUsageData('recipeCollections') || getUsageData('totalRecipeCollections'))))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('recipeCollections') || getUsageData('totalRecipeCollections'), subscription.remainingRecipeCollections + (getUsageData('recipeCollections') || getUsageData('totalRecipeCollections')))}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -334,14 +515,14 @@ export default function AccountPage() {
                         {/* Total Saved Recipes */}
                         <div className="text-center">
                             <div className="text-3xl font-bold text-purple-600 mb-1">
-                                {subscription.usage?.savedRecipes || 0}
+                                {getUsageData('savedRecipes') || getUsageData('totalSavedRecipes')}
                             </div>
                             <div className="text-sm text-gray-600 mb-2">Total Saved Recipes</div>
                             {subscription.remainingSavedRecipes !== 'Unlimited' && (
                                 <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(subscription.usage?.savedRecipes || 0, subscription.remainingSavedRecipes + (subscription.usage?.savedRecipes || 0)))}`}
-                                        style={{ width: `${getUsagePercentage(subscription.usage?.savedRecipes || 0, subscription.remainingSavedRecipes + (subscription.usage?.savedRecipes || 0))}%` }}
+                                        className={`h-2 rounded-full ${getUsageColor(getUsagePercentage(getUsageData('savedRecipes') || getUsageData('totalSavedRecipes'), subscription.remainingSavedRecipes + (getUsageData('savedRecipes') || getUsageData('totalSavedRecipes'))))}`}
+                                        style={{ width: `${getUsagePercentage(getUsageData('savedRecipes') || getUsageData('totalSavedRecipes'), subscription.remainingSavedRecipes + (getUsageData('savedRecipes') || getUsageData('totalSavedRecipes')))}%` }}
                                     ></div>
                                 </div>
                             )}
@@ -455,7 +636,7 @@ export default function AccountPage() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={() => router.push('/help')}
+						onClick={() => router.push('/help')}
                             className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 text-center transition-colors"
                         >
                             <div className="text-2xl mb-2">📚</div>
@@ -483,6 +664,54 @@ export default function AccountPage() {
                 onClose={() => setShowContactModal(false)}
                 userSubscription={subscription}
             />
+
+            {/* Pre-Registration Reward Modal */}
+            {showPreRegModal && (
+                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+                        <div className="text-center">
+                            <div className="text-6xl mb-4">🎉</div>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                                Congratulations!
+                            </h2>
+                            <p className="text-gray-600 mb-6">
+                                Thank you for pre-registering for Doc Bear's Comfort Kitchen!
+                                As a special reward, you get <strong>30 days of premium access</strong> completely free!
+                            </p>
+
+                            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
+                                <h3 className="font-semibold text-green-800 mb-2">Your Premium Benefits Include:</h3>
+                                <ul className="text-sm text-green-700 text-left space-y-1">
+                                    <li>✅ Unlimited inventory items</li>
+                                    <li>✅ Unlimited receipt scanning</li>
+                                    <li>✅ Advanced meal planning</li>
+                                    <li>✅ Nutrition goal tracking</li>
+                                    <li>✅ Priority support</li>
+                                    <li>✅ All premium features</li>
+                                </ul>
+                            </div>
+
+                            <div className="flex space-x-3">
+                                <TouchEnhancedButton
+                                    onClick={() => setShowPreRegModal(false)}
+                                    className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium"
+                                >
+                                    Claim Later
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={claimPreRegistrationReward}
+                                    disabled={loading}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg font-medium"
+                                >
+                                    {loading ? 'Activating...' : 'Claim Reward!'}
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </MobileOptimizedLayout>
     );
 }
+                            

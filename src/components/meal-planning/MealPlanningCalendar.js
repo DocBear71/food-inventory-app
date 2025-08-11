@@ -31,6 +31,7 @@ export default function MealPlanningCalendar() {
     const [userMealTypes, setUserMealTypes] = useState(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
     const [showWeekSettings, setShowWeekSettings] = useState(false);
     const [showWeekNotification, setShowWeekNotification] = useState(true);
+    const [preferencesLoaded, setPreferencesLoaded] = useState(false);
 
     // User dietary preferences
     const [userDietaryRestrictions, setUserDietaryRestrictions] = useState([]);
@@ -1021,17 +1022,27 @@ export default function MealPlanningCalendar() {
 
     const loadUserPreferences = async () => {
         try {
+            console.log('🔄 Loading user preferences...');
             const response = await apiGet('/api/user/preferences');
             const data = await response.json();
+
             if (data.success && data.preferences) {
+                console.log('✅ User preferences loaded:', data.preferences);
+
                 if (data.preferences.weekStartDay) {
+                    console.log('📅 Setting week start day:', data.preferences.weekStartDay);
                     setWeekStartDay(data.preferences.weekStartDay);
+                } else {
+                    console.log('📅 No week start preference found, using default: sunday');
+                    setWeekStartDay('sunday');
                 }
 
                 if (data.preferences.defaultMealTypes && data.preferences.defaultMealTypes.length > 0) {
                     const migratedMealTypes = migrateOldMealTypes(data.preferences.defaultMealTypes);
+                    console.log('🍽️ Setting meal types:', migratedMealTypes);
                     setUserMealTypes(migratedMealTypes);
                 } else {
+                    console.log('🍽️ No meal types found, using defaults');
                     setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
                 }
 
@@ -1043,7 +1054,6 @@ export default function MealPlanningCalendar() {
                     setUserAvoidIngredients(data.preferences.avoidIngredients);
                 }
 
-                // NEW: Load price intelligence preferences
                 if (data.preferences.priceIntelligence) {
                     setPriceIntelligence(prev => ({
                         ...prev,
@@ -1051,9 +1061,21 @@ export default function MealPlanningCalendar() {
                         showInsights: data.preferences.priceIntelligence.showInsights || false
                     }));
                 }
+            } else {
+                console.log('⚠️ No preferences found, using defaults');
+                setWeekStartDay('sunday');
+                setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
             }
+
+            // IMPORTANT: Set this flag AFTER all state updates
+            console.log('✅ Preferences fully loaded and applied');
+            setPreferencesLoaded(true);
+
         } catch (error) {
-            console.error('Error loading user preferences:', error);
+            console.error('❌ Error loading user preferences:', error);
+            setWeekStartDay('sunday');
+            setUserMealTypes(['Breakfast', 'AM Snack', 'Lunch', 'Afternoon Snack', 'Dinner', 'PM Snack']);
+            setPreferencesLoaded(true);
         }
     };
 
@@ -1403,7 +1425,31 @@ export default function MealPlanningCalendar() {
             const data = await response.json();
 
             if (data.success && data.mealPlans.length > 0) {
-                setMealPlan(data.mealPlans[0]);
+                // FIXED: Find the meal plan with actual meals, not just the first one
+                let selectedPlan = null;
+
+                // First, try to find a plan that has meals
+                for (const plan of data.mealPlans) {
+                    const hasMeals = Object.values(plan.meals || {}).some(dayMeals =>
+                        Array.isArray(dayMeals) && dayMeals.length > 0
+                    );
+                    if (hasMeals) {
+                        selectedPlan = plan;
+                        break;
+                    }
+                }
+
+                // If no plan has meals, take the most recent one (first in array)
+                if (!selectedPlan) {
+                    selectedPlan = data.mealPlans[0];
+                }
+
+                console.log('📅 Selected meal plan:', selectedPlan.name, 'with',
+                    Object.values(selectedPlan.meals || {}).reduce((total, dayMeals) =>
+                        total + (Array.isArray(dayMeals) ? dayMeals.length : 0), 0
+                    ), 'total meals');
+
+                setMealPlan(selectedPlan);
             } else {
                 await createMealPlan();
             }
@@ -1638,11 +1684,13 @@ export default function MealPlanningCalendar() {
     }, []);
 
     useEffect(() => {
-        if (session?.user) {
+        if (session?.user && !preferencesLoaded) {
+            console.log('👤 Session loaded, loading preferences...');
             loadUserPreferences();
             loadPriceIntelligence();
+            fetchInventory();
         }
-    }, [session]);
+    }, [session?.user, preferencesLoaded]);
 
     useEffect(() => {
         const dismissed = localStorage.getItem('weekSettingsNotificationDismissed');
@@ -1719,11 +1767,25 @@ export default function MealPlanningCalendar() {
 
     // MOVE THIS useEffect HERE - before any early returns
     useEffect(() => {
-        if (session?.user && weekStartDay && userMealTypes.length > 0) {
+        // Only fetch when session exists AND preferences are loaded
+        if (session?.user && preferencesLoaded && weekStartDay && userMealTypes.length > 0) {
+            console.log('🚀 All conditions met - fetching meal plan:', {
+                weekStartDay,
+                userMealTypes: userMealTypes.length,
+                currentWeek: currentWeek.toDateString(),
+                preferencesLoaded
+            });
             fetchMealPlan();
             fetchRecipes();
+        } else {
+            console.log('⏳ Waiting for conditions to be met:', {
+                hasSession: !!session?.user,
+                preferencesLoaded,
+                weekStartDay,
+                mealTypesCount: userMealTypes.length
+            });
         }
-    }, [session, currentWeek, weekStartDay, userMealTypes]);
+    }, [session?.user, currentWeek, preferencesLoaded]);
 
     if (showShoppingList && mealPlan) {
         console.log('🔍 MODAL DATA CHECK:', {

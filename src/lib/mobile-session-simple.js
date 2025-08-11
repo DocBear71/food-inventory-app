@@ -1,7 +1,9 @@
-// Enhanced mobile-session-simple.js with complete debugging
+// Enhanced mobile-session-simple.js with chunking support to fix truncation
 
 const MOBILE_SESSION_KEY = 'mobile_session';
 const MOBILE_SESSION_EXPIRY_KEY = 'mobile_session_expiry';
+const MOBILE_SESSION_CHUNKS_KEY = 'mobile_session_chunks';
+const CHUNK_SIZE = 700; // Safe chunk size for mobile storage
 
 // Simple wrapper that handles both Capacitor and localStorage
 class SimpleStorage {
@@ -131,6 +133,32 @@ export const MobileSession = {
         try {
             console.log('🔍 === MOBILE SESSION DEBUG START ===');
 
+            // Check for chunked data first
+            const chunkCount = await storage.get(MOBILE_SESSION_CHUNKS_KEY);
+            console.log('📊 Chunk count:', chunkCount);
+
+            if (chunkCount) {
+                const chunks = [];
+                for (let i = 0; i < parseInt(chunkCount); i++) {
+                    const chunk = await storage.get(`${MOBILE_SESSION_KEY}_${i}`);
+                    if (chunk) {
+                        chunks.push(chunk);
+                        console.log(`📦 Chunk ${i}: ${chunk.length} chars`);
+                    }
+                }
+                const fullData = chunks.join('');
+                console.log('📦 Reconstructed from chunks:', fullData.length, 'chars');
+                
+                try {
+                    const parsed = JSON.parse(fullData);
+                    console.log('📋 Chunked session user:', parsed.user?.email);
+                    console.log('📋 Full chunked data:', JSON.stringify(parsed.user, null, 2));
+                } catch (e) {
+                    console.error('❌ Failed to parse chunked data:', e);
+                }
+            }
+
+            // Check regular storage
             const sessionData = await storage.get(MOBILE_SESSION_KEY);
             const expiryTime = await storage.get(MOBILE_SESSION_EXPIRY_KEY);
 
@@ -158,19 +186,20 @@ export const MobileSession = {
                     console.log('- Full user object:', JSON.stringify(parsed.user, null, 2));
                 } catch (parseError) {
                     console.error('💥 Failed to parse session data:', parseError);
-                    console.log('Raw session data:', sessionData.substring(0, 500));
+                    console.log('Raw session data (first 500 chars):', sessionData.substring(0, 500));
+                    console.log('Raw session data (last 100 chars):', sessionData.substring(sessionData.length - 100));
                 }
             }
 
             console.log('🔍 === MOBILE SESSION DEBUG END ===');
-            return { sessionData, expiryTime };
+            return { sessionData, expiryTime, chunkCount };
         } catch (error) {
             console.error('💥 Debug session error:', error);
             return null;
         }
     },
 
-    // Enhanced setSession with complete logging
+    // FIXED: Enhanced setSession with automatic chunking
     async setSession(sessionData) {
         try {
             if (!sessionData) {
@@ -187,29 +216,65 @@ export const MobileSession = {
             console.log('- Effective tier:', sessionData.user?.effectiveTier);
             console.log('- Is admin:', sessionData.user?.isAdmin);
             console.log('- All user keys:', Object.keys(sessionData.user || {}));
-            console.log('- Full user object to store:', JSON.stringify(sessionData.user, null, 2));
 
-            // Set expiry to 24 hours from now (matching NextAuth)
-            const expiryTime = new Date();
-            expiryTime.setHours(expiryTime.getHours() + 24);
-
-            const sessionWithExpiry = {
-                ...sessionData,
-                expires: expiryTime.toISOString()
+            // Create minimal version to reduce size
+            const minimalSession = {
+                user: {
+                    id: sessionData.user?.id,
+                    name: sessionData.user?.name,
+                    email: sessionData.user?.email,
+                    emailVerified: sessionData.user?.emailVerified,
+                    avatar: sessionData.user?.avatar,
+                    subscriptionTier: sessionData.user?.subscriptionTier,
+                    subscriptionStatus: sessionData.user?.subscriptionStatus,
+                    effectiveTier: sessionData.user?.effectiveTier,
+                    isAdmin: sessionData.user?.isAdmin,
+                    // Only essential subscription info
+                    subscription: {
+                        status: sessionData.user?.subscription?.status,
+                        tier: sessionData.user?.subscription?.tier,
+                        startDate: sessionData.user?.subscription?.startDate
+                    }
+                },
+                expires: sessionData.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
             };
 
-            const sessionString = JSON.stringify(sessionWithExpiry);
-            console.log('📦 Serialized session length:', sessionString.length);
+            const sessionString = JSON.stringify(minimalSession);
+            console.log('📦 Minimal session length:', sessionString.length);
 
-            // Store both pieces of data
-            await storage.set(MOBILE_SESSION_KEY, sessionString);
-            await storage.set(MOBILE_SESSION_EXPIRY_KEY, expiryTime.toISOString());
+            // Clear any existing chunks first
+            await this.clearChunks();
 
-            console.log('✅ Mobile session stored successfully');
+            // If too large, use chunking
+            if (sessionString.length > CHUNK_SIZE) {
+                console.log('📦 Session too large, using chunking');
+                
+                const chunks = [];
+                for (let i = 0; i < sessionString.length; i += CHUNK_SIZE) {
+                    chunks.push(sessionString.slice(i, i + CHUNK_SIZE));
+                }
 
-            // VERIFY what was actually stored
+                // Store each chunk
+                for (let i = 0; i < chunks.length; i++) {
+                    await storage.set(`${MOBILE_SESSION_KEY}_${i}`, chunks[i]);
+                    console.log(`📦 Stored chunk ${i}: ${chunks[i].length} chars`);
+                }
+
+                // Store metadata
+                await storage.set(MOBILE_SESSION_CHUNKS_KEY, chunks.length.toString());
+                await storage.set(MOBILE_SESSION_EXPIRY_KEY, minimalSession.expires);
+
+                console.log(`✅ Session stored in ${chunks.length} chunks`);
+            } else {
+                // Store normally
+                await storage.set(MOBILE_SESSION_KEY, sessionString);
+                await storage.set(MOBILE_SESSION_EXPIRY_KEY, minimalSession.expires);
+                console.log('✅ Session stored normally');
+            }
+
+            // Verify storage worked
             console.log('🔍 Verifying stored data...');
-            const verification = await this.debugSession();
+            await this.debugSession();
 
             return true;
         } catch (error) {
@@ -218,11 +283,53 @@ export const MobileSession = {
         }
     },
 
-    // Enhanced getSession with complete logging
+    // FIXED: Enhanced getSession with chunking support
     async getSession() {
         try {
             console.log('📖 === RETRIEVING MOBILE SESSION ===');
 
+            // Check for chunked data first
+            const chunkCountStr = await storage.get(MOBILE_SESSION_CHUNKS_KEY);
+            
+            if (chunkCountStr) {
+                console.log('📦 Found chunked session data');
+                const chunkCount = parseInt(chunkCountStr);
+                const chunks = [];
+
+                for (let i = 0; i < chunkCount; i++) {
+                    const chunk = await storage.get(`${MOBILE_SESSION_KEY}_${i}`);
+                    if (!chunk) {
+                        console.error(`❌ Missing chunk ${i} of ${chunkCount}`);
+                        // Clear corrupted chunked data
+                        await this.clearChunks();
+                        return null;
+                    }
+                    chunks.push(chunk);
+                }
+
+                const fullSessionString = chunks.join('');
+                console.log(`📦 Reconstructed session: ${fullSessionString.length} chars from ${chunkCount} chunks`);
+
+                // Check expiry
+                const expiryTime = await storage.get(MOBILE_SESSION_EXPIRY_KEY);
+                if (expiryTime && new Date() >= new Date(expiryTime)) {
+                    console.log('⏰ Chunked session expired');
+                    await this.clearSession();
+                    return null;
+                }
+
+                try {
+                    const parsed = JSON.parse(fullSessionString);
+                    console.log('✅ Successfully parsed chunked session for:', parsed.user?.email);
+                    return parsed;
+                } catch (parseError) {
+                    console.error('❌ Failed to parse chunked session:', parseError);
+                    await this.clearChunks();
+                    return null;
+                }
+            }
+
+            // Fallback to regular storage
             const sessionData = await storage.get(MOBILE_SESSION_KEY);
             const expiryTime = await storage.get(MOBILE_SESSION_EXPIRY_KEY);
 
@@ -231,23 +338,19 @@ export const MobileSession = {
                 return null;
             }
 
-            // Check if session has expired
-            const now = new Date();
-            const expiry = new Date(expiryTime);
-
-            if (now >= expiry) {
+            // Check expiry
+            if (new Date() >= new Date(expiryTime)) {
                 console.log('⏰ Mobile session expired, clearing...');
                 await this.clearSession();
                 return null;
             }
 
             const parsed = JSON.parse(sessionData);
-            console.log('📋 Retrieved session data:');
+            console.log('📋 Retrieved regular session data:');
             console.log('- User email:', parsed.user?.email);
             console.log('- Subscription tier:', parsed.user?.subscriptionTier);
             console.log('- Effective tier:', parsed.user?.effectiveTier);
             console.log('- Is admin:', parsed.user?.isAdmin);
-            console.log('- All user keys in retrieved session:', Object.keys(parsed.user || {}));
 
             console.log('✅ Valid mobile session retrieved');
             return parsed;
@@ -257,11 +360,31 @@ export const MobileSession = {
         }
     },
 
-    // Rest of your methods stay the same...
+    // Helper to clear chunked data
+    async clearChunks() {
+        try {
+            const chunkCountStr = await storage.get(MOBILE_SESSION_CHUNKS_KEY);
+            if (chunkCountStr) {
+                const chunkCount = parseInt(chunkCountStr);
+                for (let i = 0; i < chunkCount; i++) {
+                    await storage.remove(`${MOBILE_SESSION_KEY}_${i}`);
+                }
+                await storage.remove(MOBILE_SESSION_CHUNKS_KEY);
+                console.log(`🗑️ Cleared ${chunkCount} chunks`);
+            }
+        } catch (error) {
+            console.error('💥 Error clearing chunks:', error);
+        }
+    },
+
     async clearSession() {
         try {
             console.log('🗑️ Clearing mobile session...');
 
+            // Clear chunked data
+            await this.clearChunks();
+
+            // Clear regular data
             await storage.remove(MOBILE_SESSION_KEY);
             await storage.remove(MOBILE_SESSION_EXPIRY_KEY);
 

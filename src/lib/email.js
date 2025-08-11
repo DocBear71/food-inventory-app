@@ -2,7 +2,7 @@
 
 import { Resend } from 'resend';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
 
 // Normalize different shopping list formats
 const normalizeShoppingListForEmail = (shoppingList) => {
@@ -907,6 +907,14 @@ class EmailService {
 
     async sendEmail(to, subject, htmlContent, textContent = null, userSubscription = null, userId = null) {
         try {
+            if (typeof window !== 'undefined') {
+                throw new Error('Email service cannot be used on client side');
+            }
+
+            if (!resend) {
+                throw new Error('Resend API key not configured');
+            }
+
             // SUBSCRIPTION VALIDATION for general email sending
             if (userSubscription && userId) {
                 try {

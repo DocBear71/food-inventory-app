@@ -1,10 +1,14 @@
-// file: /src/app/api/payments/revenuecat/webhook/route.js - RevenueCat webhook handler
+// file: /src/app/api/payments/revenuecat/webhook/route.js - Enhanced with email notifications
 
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
+import {
+    sendWelcomeEmail,
+    sendPaymentConfirmationEmail,
+    sendCancellationConfirmationEmail
+} from '@/lib/email-todo-implementations';
 
-// RevenueCat webhook secret (you'll get this from RevenueCat dashboard)
 const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET;
 
 export async function POST(request) {
@@ -12,10 +16,7 @@ export async function POST(request) {
         const body = await request.text();
         const signature = request.headers.get('authorization');
 
-        // Verify webhook signature (if you set up webhook authentication)
         if (REVENUECAT_WEBHOOK_SECRET && signature) {
-            // TODO: Implement signature verification
-            // RevenueCat uses Authorization header for webhook authentication
             if (signature !== `Bearer ${REVENUECAT_WEBHOOK_SECRET}`) {
                 console.error('❌ Invalid webhook signature');
                 return NextResponse.json(
@@ -30,7 +31,6 @@ export async function POST(request) {
 
         await connectDB();
 
-        // Handle different event types
         switch (event.type) {
             case 'INITIAL_PURCHASE':
                 await handleInitialPurchase(event);
@@ -92,14 +92,12 @@ async function handleInitialPurchase(event) {
         const productId = event.event.product_id;
         const eventTimestamp = new Date(event.event.event_timestamp_ms);
 
-        // Find user by RevenueCat customer ID or create mapping
         const user = await findUserByRevenueCatId(appUserId);
         if (!user) {
             console.error('❌ User not found for RevenueCat ID:', appUserId);
             return;
         }
 
-        // Determine tier from product ID
         const tier = extractTierFromProductId(productId);
         const billingCycle = extractBillingCycleFromProductId(productId);
 
@@ -108,8 +106,8 @@ async function handleInitialPurchase(event) {
             return;
         }
 
-        // Update subscription
         const subscriptionEndDate = calculateEndDate(eventTimestamp, billingCycle);
+        const isNewCustomer = !user.subscription || user.subscription.tier === 'free';
 
         user.subscription = {
             ...user.subscription,
@@ -121,7 +119,9 @@ async function handleInitialPurchase(event) {
             revenueCatCustomerId: appUserId,
             platform: 'revenuecat',
             lastPaymentDate: eventTimestamp,
-            nextBillingDate: subscriptionEndDate
+            nextBillingDate: subscriptionEndDate,
+            trialStartDate: null,
+            trialEndDate: null
         };
 
         await user.save();
@@ -131,6 +131,38 @@ async function handleInitialPurchase(event) {
             tier: tier,
             productId: productId
         });
+
+        // ✅ IMPLEMENTED: Send welcome email for new RevenueCat subscription
+        try {
+            await sendWelcomeEmail({
+                userEmail: user.email,
+                userName: user.name || 'there',
+                tier: tier,
+                billingCycle: billingCycle,
+                isNewUser: isNewCustomer,
+                previousTier: user.subscription?.tier || 'free',
+                endDate: subscriptionEndDate.toISOString()
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send welcome email:', emailError);
+        }
+
+        // Send payment confirmation
+        try {
+            await sendPaymentConfirmationEmail({
+                userEmail: user.email,
+                userName: user.name || 'there',
+                amount: getPriceForTier(tier, billingCycle),
+                currency: 'USD',
+                invoiceId: event.event.transaction_id || 'RevenueCat Transaction',
+                tier: tier,
+                billingCycle: billingCycle,
+                nextBillingDate: subscriptionEndDate.toISOString(),
+                paymentMethod: 'App Store'
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send payment confirmation email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling initial purchase:', error);
@@ -151,7 +183,6 @@ async function handleRenewal(event) {
             return;
         }
 
-        // Update renewal date and extend subscription
         const billingCycle = user.subscription?.billingCycle || 'monthly';
         const newEndDate = calculateEndDate(eventTimestamp, billingCycle);
 
@@ -169,6 +200,23 @@ async function handleRenewal(event) {
             userId: user._id,
             newEndDate: newEndDate.toISOString()
         });
+
+        // ✅ IMPLEMENTED: Send renewal payment confirmation
+        try {
+            await sendPaymentConfirmationEmail({
+                userEmail: user.email,
+                userName: user.name || 'there',
+                amount: getPriceForTier(user.subscription.tier, billingCycle),
+                currency: 'USD',
+                invoiceId: event.event.transaction_id || 'RevenueCat Renewal',
+                tier: user.subscription.tier,
+                billingCycle: billingCycle,
+                nextBillingDate: newEndDate.toISOString(),
+                paymentMethod: 'App Store'
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send renewal confirmation email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling renewal:', error);
@@ -188,11 +236,9 @@ async function handleCancellation(event) {
             return;
         }
 
-        // Mark as cancelled but keep access until end of period
         user.subscription = {
             ...user.subscription,
             status: 'cancelled'
-            // Keep endDate - user retains access until then
         };
 
         await user.save();
@@ -201,6 +247,20 @@ async function handleCancellation(event) {
             userId: user._id,
             accessUntil: user.subscription.endDate
         });
+
+        // ✅ IMPLEMENTED: Send cancellation confirmation
+        try {
+            await sendCancellationConfirmationEmail({
+                userEmail: user.email,
+                userName: user.name || 'there',
+                tier: user.subscription.tier,
+                billingCycle: user.subscription.billingCycle,
+                accessUntilDate: user.subscription.endDate,
+                cancellationReason: 'Cancelled via App Store'
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send cancellation email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling cancellation:', error);
@@ -220,7 +280,6 @@ async function handleUncancellation(event) {
             return;
         }
 
-        // Reactivate subscription
         user.subscription = {
             ...user.subscription,
             status: 'active'
@@ -231,6 +290,21 @@ async function handleUncancellation(event) {
         console.log('✅ Uncancellation processed:', {
             userId: user._id
         });
+
+        // Send reactivation notification (using welcome email template)
+        try {
+            await sendWelcomeEmail({
+                userEmail: user.email,
+                userName: user.name || 'there',
+                tier: user.subscription.tier,
+                billingCycle: user.subscription.billingCycle,
+                isNewUser: false,
+                previousTier: 'cancelled',
+                endDate: user.subscription.endDate
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send reactivation email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling uncancellation:', error);
@@ -250,7 +324,6 @@ async function handleExpiration(event) {
             return;
         }
 
-        // Downgrade to free tier
         user.subscription = {
             ...user.subscription,
             tier: 'free',
@@ -263,6 +336,8 @@ async function handleExpiration(event) {
         console.log('✅ Expiration processed - downgraded to free:', {
             userId: user._id
         });
+
+        // Note: No email needed for expiration as it's expected
 
     } catch (error) {
         console.error('❌ Error handling expiration:', error);
@@ -282,7 +357,6 @@ async function handleBillingIssue(event) {
             return;
         }
 
-        // Mark subscription as having billing issues
         user.subscription = {
             ...user.subscription,
             status: 'past_due'
@@ -294,7 +368,23 @@ async function handleBillingIssue(event) {
             userId: user._id
         });
 
-        // TODO: Send billing issue notification email
+        // ✅ IMPLEMENTED: Send billing issue notification
+        try {
+            const { sendPaymentFailedEmail } = await import('@/lib/email-todo-implementations');
+            await sendPaymentFailedEmail({
+                userEmail: user.email,
+                userName: user.name || 'there',
+                amount: getPriceForTier(user.subscription.tier, user.subscription.billingCycle),
+                currency: 'USD',
+                attemptCount: 1,
+                nextRetryDate: null,
+                tier: user.subscription.tier,
+                billingCycle: user.subscription.billingCycle,
+                reason: 'Billing issue detected via App Store'
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send billing issue email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling billing issue:', error);
@@ -316,7 +406,6 @@ async function handleProductChange(event) {
             return;
         }
 
-        // Determine new tier from product ID
         const newTier = extractTierFromProductId(newProductId);
         const newBillingCycle = extractBillingCycleFromProductId(newProductId);
 
@@ -325,7 +414,7 @@ async function handleProductChange(event) {
             return;
         }
 
-        // Update subscription with new tier
+        const oldTier = user.subscription?.tier;
         const newEndDate = calculateEndDate(eventTimestamp, newBillingCycle);
 
         user.subscription = {
@@ -341,8 +430,24 @@ async function handleProductChange(event) {
         console.log('✅ Product change processed:', {
             userId: user._id,
             newTier: newTier,
-            oldTier: user.subscription?.tier
+            oldTier: oldTier
         });
+
+        // Send tier change notification (using upgrade email)
+        try {
+            const { sendSubscriptionUpgradeEmail } = await import('@/lib/email');
+            await sendSubscriptionUpgradeEmail({
+                userEmail: user.email,
+                userName: user.name || 'there',
+                newTier: newTier,
+                previousTier: oldTier,
+                endDate: newEndDate.toISOString(),
+                upgradeReason: 'Plan changed via App Store',
+                isUpgrade: getTierValue(newTier) > getTierValue(oldTier)
+            });
+        } catch (emailError) {
+            console.error('❌ Failed to send tier change email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling product change:', error);
@@ -383,39 +488,81 @@ async function handleSubscriptionPaused(event) {
     }
 }
 
-// Helper functions
+// ENHANCED: Helper functions with better user matching
 
 async function findUserByRevenueCatId(revenueCatId) {
+    console.log('🔍 Looking for user with RevenueCat ID:', revenueCatId);
+
     // Try to find user by RevenueCat customer ID
     let user = await User.findOne({
         'subscription.revenueCatCustomerId': revenueCatId
     });
 
-    // If not found, try to find by email or other identifier
-    // This might happen on first purchase before the ID is stored
-    if (!user) {
-        // RevenueCat sometimes uses the user's email or your app's user ID
-        // Adjust this logic based on how you set up App User IDs in RevenueCat
-        user = await User.findOne({
-            $or: [
-                { email: revenueCatId },
-                { _id: revenueCatId }
-            ]
-        });
+    if (user) {
+        console.log('✅ Found user by RevenueCat customer ID:', user.email);
+        return user;
     }
 
-    return user;
+    // ENHANCED: Try multiple fallback strategies
+
+    // Strategy 1: If RevenueCat ID looks like our user ID (MongoDB ObjectId)
+    if (revenueCatId.match(/^[0-9a-fA-F]{24}$/)) {
+        console.log('🔍 Trying user ID lookup...');
+        user = await User.findById(revenueCatId);
+        if (user) {
+            console.log('✅ Found user by ID match:', user.email);
+            // Update their subscription with the RevenueCat customer ID for future lookups
+            if (!user.subscription) {
+                user.subscription = {};
+            }
+            user.subscription.revenueCatCustomerId = revenueCatId;
+            await user.save();
+            return user;
+        }
+    }
+
+    // Strategy 2: If RevenueCat ID looks like an email
+    if (revenueCatId.includes('@')) {
+        console.log('🔍 Trying email lookup...');
+        user = await User.findOne({ email: revenueCatId });
+        if (user) {
+            console.log('✅ Found user by email match:', user.email);
+            // Update their subscription with the RevenueCat customer ID
+            if (!user.subscription) {
+                user.subscription = {};
+            }
+            user.subscription.revenueCatCustomerId = revenueCatId;
+            await user.save();
+            return user;
+        }
+    }
+
+    // Strategy 3: Look for any recent user who made a purchase but doesn't have RevenueCat ID stored yet
+    console.log('🔍 Trying recent purchase lookup...');
+    const recentUsers = await User.find({
+        'subscription.platform': 'revenuecat',
+        'subscription.revenueCatCustomerId': { $exists: false },
+        'subscription.startDate': {
+            $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) // Last 24 hours
+        }
+    }).sort({ 'subscription.startDate': -1 }).limit(5);
+
+    if (recentUsers.length > 0) {
+        console.log(`🔍 Found ${recentUsers.length} recent RevenueCat users without customer ID`);
+        console.log('Recent users:', recentUsers.map(u => ({ id: u._id, email: u.email })));
+    }
+
+    console.log('❌ No user found for RevenueCat ID:', revenueCatId);
+    return null;
 }
 
 function extractTierFromProductId(productId) {
-    // Extract tier from product IDs like 'gold_monthly', 'platinum_annual'
     if (productId.includes('gold')) return 'gold';
     if (productId.includes('platinum')) return 'platinum';
     return null;
 }
 
 function extractBillingCycleFromProductId(productId) {
-    // Extract billing cycle from product IDs
     if (productId.includes('monthly')) return 'monthly';
     if (productId.includes('annual')) return 'annual';
     return null;
@@ -428,4 +575,17 @@ function calculateEndDate(startDate, billingCycle) {
     } else {
         return new Date(start.getTime() + (30 * 24 * 60 * 60 * 1000));
     }
+}
+
+function getPriceForTier(tier, billingCycle) {
+    const prices = {
+        gold: { monthly: '4.99', annual: '49.99' },
+        platinum: { monthly: '9.99', annual: '99.99' }
+    };
+    return prices[tier]?.[billingCycle] || '0.00';
+}
+
+function getTierValue(tier) {
+    const values = { free: 0, gold: 1, platinum: 2, admin: 3 };
+    return values[tier] || 0;
 }

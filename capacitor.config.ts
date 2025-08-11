@@ -42,7 +42,7 @@ const config: CapacitorConfig = {
         },
         
         Camera: {
-            permissions: ['camera']
+            permissions: ['camera', 'photos']
         },
         
         // NEW: Official Capacitor Barcode Scanner (iOS optimized)

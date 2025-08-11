@@ -98,6 +98,12 @@ export default function ReceiptScan() {
                 isPWA: isStandalone,
                 userAgent: navigator.userAgent.substring(0, 100) + '...'
             });
+
+            if (isNative && platform === 'ios') {
+                console.log('🍎 CONFIRMED: iOS Native App Detected!');
+                console.log('🍎 Capacitor platform:', platform);
+                console.log('🍎 isNativePlatform:', isNative);
+            }
         }
     }, []);
 
@@ -799,10 +805,10 @@ export default function ReceiptScan() {
                 const storeContext = getStoreContextFromReceipt(processedText);
                 console.log('🏪 Store context detected:', storeContext);
 
-                // 🔧 INCREASED TIMEOUT: 45s → 2 minutes for large receipts
+                // Send both OCR text AND parsed items to Modal.com
                 const aiPromise = enhanceReceiptParsingWithAI(
                     processedText,
-                    basicItems,
+                    basicItems,  // Your proven parsing results
                     imageFile,
                     storeContext
                 );
@@ -1208,97 +1214,227 @@ export default function ReceiptScan() {
     // ===============================================
 
     async function startCamera() {
-        if (!checkUsageLimitsBeforeScan()) {
-            return;
-        }
+        try {
+            console.log('🔥 startCamera called - platformInfo:', platformInfo);
+            console.log('🔥 isNative:', platformInfo.isNative);
+            console.log('🔥 isIOS:', platformInfo.isIOS);
+            console.log('🔥 isAndroid:', platformInfo.isAndroid);
 
-        // Android native app - use native camera + ML Kit
-        if (platformInfo.isNative && platformInfo.isAndroid) {
-            console.log('🤖 Starting Android native camera...');
+            if (!checkUsageLimitsBeforeScan()) {
+                console.log('🔥 Usage limits check failed, returning early');
+                return;
+            }
+
+            console.log('🔥 Usage limits check passed, continuing...');
+
+            // Check camera permissions for native iOS
+            if (platformInfo.isNative && platformInfo.isIOS) {
+                try {
+                    console.log('🍎 About to import Camera from Capacitor...');
+                    const { Camera } = await import('@capacitor/camera');
+                    console.log('🍎 Camera import successful!');
+
+                    console.log('🍎 About to check camera permissions...');
+                    // Check if we have camera permissions
+                    const permissions = await Camera.checkPermissions();
+                    console.log('🍎 iOS Camera permissions status:', permissions);
+
+                    if (permissions.camera !== 'granted') {
+                        console.log('🍎 Requesting iOS camera permissions...');
+                        const requestResult = await Camera.requestPermissions();
+                        console.log('🍎 iOS Permission request result:', requestResult);
+
+                        if (requestResult.camera !== 'granted') {
+                            setCameraError('Camera permission is required for receipt scanning. Please enable camera access in iOS Settings > Doc Bear\'s Comfort Kitchen > Camera');
+                            return;
+                        }
+                    }
+
+                    console.log('🍎 Permissions check passed, continuing to camera...');
+
+                    console.log('🍎 Permissions check passed, continuing to camera...');
+                    alert('🍎 Permissions OK, about to start camera...');
+                } catch (permissionError) {
+                    console.error('❌ iOS permission check failed:', permissionError);
+                    setCameraError('Unable to check camera permissions. Please try "Upload Image" instead.');
+                    return;
+                }
+            }
+
+            // Native app (Android or iOS) - use native camera
+            if (platformInfo.isNative) {
+                console.log(`📱 Starting ${platformInfo.isAndroid ? 'Android' : 'iOS'} native camera...`);
+
+                if (platformInfo.isAndroid) {
+                    try {
+                        console.log('🤖 Importing Capacitor Camera...');
+                        const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                        console.log('🤖 Camera imported successfully');
+
+                        // Show quick instruction for native camera
+                        alert('📸 Photo Tips:\n• Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines');
+
+                        console.log('🤖 Calling Camera.getPhoto...');
+                        const photo = await Camera.getPhoto({
+                            resultType: CameraResultType.Uri,
+                            source: CameraSource.Camera,
+                            quality: 90,
+                            allowEditing: false,
+                            saveToGallery: false
+                        });
+
+                        console.log('🤖 Camera.getPhoto returned:', photo);
+                        console.log('🤖 Photo webPath:', photo.webPath);
+
+                        if (photo.webPath) {
+                            console.log('🤖 Converting photo to blob...');
+                            const response = await fetch(photo.webPath);
+                            const imageBlob = await response.blob();
+                            console.log('🤖 Blob created:', imageBlob.size, 'bytes');
+
+                            if (imageBlob && imageBlob.size > 0) {
+                                console.log('🤖 Setting receipt type and captured image...');
+                                setReceiptType('paper');
+                                setCapturedImage(URL.createObjectURL(imageBlob));
+
+                                console.log('🤖 Calling processImage...');
+                                await processImage(imageBlob);
+                                console.log('🤖 processImage completed');
+                            } else {
+                                console.error('🤖 Invalid or empty image blob');
+                                alert('Failed to capture image: Empty or invalid image');
+                            }
+                        } else {
+                            console.error('🤖 No webPath in photo result');
+                            alert('Failed to capture image: No file path returned');
+                        }
+                        return;
+                    } catch (error) {
+                        console.error('❌ Android camera failed:', error);
+                        console.error('❌ Error details:', error.message, error.stack);
+                        setCameraError('Android camera access failed. Please try "Upload Image" instead.');
+                        return;
+                    }
+                }
+
+                if (platformInfo.isIOS) {
+                    try {
+                        console.log('🍎 Importing Capacitor Camera for iOS...');
+                        const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
+                        console.log('🍎 Camera imported successfully');
+
+                        // Show quick instruction for native camera
+                        alert('📸 Photo Tips:\n• Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines');
+
+                        console.log('🍎 Calling Camera.getPhoto for iOS...');
+                        const photo = await Camera.getPhoto({
+                            resultType: CameraResultType.Base64,  // Changed to Base64 for iOS reliability
+                            source: CameraSource.Camera,
+                            quality: 90,
+                            allowEditing: false,
+                            saveToGallery: false
+                        });
+
+                        console.log('🍎 iOS Camera.getPhoto returned:', photo);
+
+                        if (photo.base64String) {
+                            console.log('🍎 Converting iOS base64 to blob...');
+
+                            try {
+                                // Convert base64 to blob directly
+                                const base64Data = photo.base64String;
+                                const byteCharacters = atob(base64Data);
+                                const byteNumbers = new Array(byteCharacters.length);
+
+                                for (let i = 0; i < byteCharacters.length; i++) {
+                                    byteNumbers[i] = byteCharacters.charCodeAt(i);
+                                }
+
+                                const byteArray = new Uint8Array(byteNumbers);
+                                const imageBlob = new Blob([byteArray], { type: 'image/jpeg' });
+
+                                console.log('🍎 iOS blob created from base64:', imageBlob.size, 'bytes');
+
+                                if (imageBlob && imageBlob.size > 0) {
+                                    console.log('🍎 Setting receipt type and captured image for iOS...');
+                                    setReceiptType('paper');
+                                    setCapturedImage(URL.createObjectURL(imageBlob));
+
+                                    console.log('🍎 Calling processImage for iOS...');
+                                    await processImage(imageBlob);
+                                    console.log('🍎 processImage completed for iOS');
+                                } else {
+                                    console.error('🍎 Invalid or empty image blob on iOS');
+                                    alert('Failed to capture image: Empty or invalid image');
+                                }
+
+                            } catch (base64Error) {
+                                console.error('🍎 Base64 conversion failed:', base64Error);
+                                alert(`Failed to convert image: ${base64Error.message}`);
+                            }
+                        } else {
+                            console.error('🍎 No base64String in photo result on iOS');
+                            alert('Failed to capture image: No base64 data returned');
+                        }
+                        return;
+                    } catch (error) {
+                        console.error('❌ iOS camera failed:', error);
+                        console.error('❌ iOS Error details:', error.message, error.stack);
+                        setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
+                        return;
+                    }
+                }
+            }
+
+            // If we reach here, native camera should have handled it
+            if (platformInfo.isNative) {
+                console.error('🔥 ERROR: Native app should not reach web camera code!');
+                setCameraError(`${platformInfo.isIOS ? 'iOS' : 'Android'} native app incorrectly trying to use web camera. Please try "Upload Image" instead.`);
+                return;
+            }
+
+            // Web/PWA camera implementation (iOS PWA, Web browsers)
+            setCameraError(null);
 
             try {
-                console.log('🤖 Importing Capacitor Camera...');
-                const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-                console.log('🤖 Camera imported successfully');
+                const stream = await initializeOptimizedCamera(platformInfo);
+                streamRef.current = stream;
 
-                console.log('🤖 Calling Camera.getPhoto...');
-                const photo = await Camera.getPhoto({
-                    resultType: CameraResultType.Uri, // Changed from Blob to Uri
-                    source: CameraSource.Camera,
-                    quality: 90,
-                    allowEditing: false,
-                    saveToGallery: false
-                });
+                if (!videoRef.current) {
+                    console.warn('Video ref is null, waiting for DOM to be ready...');
+                    setShowCamera(true);
 
-                console.log('🤖 Camera.getPhoto returned:', photo);
-                console.log('🤖 Photo webPath:', photo.webPath);
-
-                if (photo.webPath) {
-                    console.log('🤖 Converting photo to blob...');
-                    const response = await fetch(photo.webPath);
-                    const imageBlob = await response.blob();
-                    console.log('🤖 Blob created:', imageBlob.size, 'bytes');
-
-                    if (imageBlob && imageBlob.size > 0) {
-                        console.log('🤖 Setting receipt type and captured image...');
-                        setReceiptType('paper');
-                        setCapturedImage(URL.createObjectURL(imageBlob));
-
-                        console.log('🤖 Calling processImage...');
-                        await processImage(imageBlob);
-                        console.log('🤖 processImage completed');
-                    } else {
-                        console.error('🤖 Invalid or empty image blob');
-                        alert('Failed to capture image: Empty or invalid image');
-                    }
+                    setTimeout(async () => {
+                        if (videoRef.current) {
+                            await setupOptimizedVideo(videoRef.current, stream, platformInfo);
+                            scrollToCameraView();
+                        } else {
+                            throw new Error('Video element not available after timeout');
+                        }
+                    }, 200);
                 } else {
-                    console.error('🤖 No webPath in photo result');
-                    alert('Failed to capture image: No file path returned');
+                    await setupOptimizedVideo(videoRef.current, stream, platformInfo);
+                    setShowCamera(true);
+                    scrollToCameraView();
                 }
-                return;
+
+                console.log('🎉 Camera setup completed successfully!');
+
             } catch (error) {
-                console.error('❌ Android camera failed:', error);
-                console.error('❌ Error details:', error.message, error.stack);
-                setCameraError('Android camera access failed. Please try "Upload Image" instead.');
-                return;
+                console.error('❌ Camera setup failed:', error);
+
+                if (platformInfo.isIOSPWA) {
+                    setCameraError('iOS PWA camera permissions needed. Try "Upload Image" for reliable scanning.');
+                } else if (platformInfo.isNative) {
+                    setCameraError(`Native camera access failed: ${error.message}. Please check app permissions in Settings.`);
+                } else {
+                    setCameraError(`Camera access failed: ${error.message}. Please try "Upload Image" instead.`);
+                }
             }
-        }
-
-        // Web/PWA camera implementation (iOS PWA, Web browsers)
-        setCameraError(null);
-
-        try {
-            const stream = await initializeOptimizedCamera(platformInfo);
-            streamRef.current = stream;
-
-            if (!videoRef.current) {
-                console.warn('Video ref is null, waiting for DOM to be ready...');
-                setShowCamera(true);
-
-                setTimeout(async () => {
-                    if (videoRef.current) {
-                        await setupOptimizedVideo(videoRef.current, stream, platformInfo);
-                        scrollToCameraView();
-                    } else {
-                        throw new Error('Video element not available after timeout');
-                    }
-                }, 200);
-            } else {
-                await setupOptimizedVideo(videoRef.current, stream, platformInfo);
-                setShowCamera(true);
-                scrollToCameraView();
-            }
-
-            console.log('🎉 Camera setup completed successfully!');
-
-        } catch (error) {
-            console.error('❌ Camera setup failed:', error);
-
-            if (platformInfo.isIOSPWA) {
-                setCameraError('iOS PWA camera permissions needed. Try "Upload Image" for reliable scanning.');
-            } else {
-                setCameraError(`Camera access failed: ${error.message}. Please try "Upload Image" instead.`);
-            }
+        } catch (globalError) {
+            console.error('🔥 CRITICAL ERROR in startCamera:', globalError);
+            console.error('🔥 Error stack:', globalError.stack);
+            setCameraError(`Critical camera error: ${globalError.message}. Please try "Upload Image" instead.`);
         }
     }
 
@@ -3496,8 +3632,9 @@ export default function ReceiptScan() {
                                 {process.env.NODE_ENV === 'development' && (
                                     <div className="text-xs text-gray-400 mt-1">
                                         {platformInfo.isAndroid ? '🤖 Android MLKit' :
-                                            platformInfo.isIOSPWA ? '📱 iOS PWA - Tesseract.js' :
-                                                '💻 Web - Tesseract.js'}
+                                            platformInfo.isIOS ? '🍎 iOS Native Camera + Tesseract.js' :
+                                                platformInfo.isIOSPWA ? '📱 iOS PWA - Tesseract.js' :
+                                                    '💻 Web - Tesseract.js'}
                                     </div>
                                 )}
                             </div>
@@ -3736,15 +3873,18 @@ export default function ReceiptScan() {
 
                                     {/* Universal Tips */}
                                     <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-gray-900 mb-2">📝 Tips for Best
-                                            Results:</h4>
+                                        <h4 className="text-sm font-medium text-gray-900 mb-2">📝 Tips for Best Results:</h4>
                                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-gray-700">
                                             <div>
                                                 <strong>📷 Paper Receipts:</strong>
                                                 <ul className="mt-1 space-y-1">
-                                                    <li>• Ensure receipt is flat and well-lit</li>
-                                                    <li>• Avoid shadows and glare</li>
-                                                    <li>• Include entire receipt in frame</li>
+                                                    <li>• <strong>Hold steady</strong> - keep phone still when capturing</li>
+                                                    <li>• <strong>Get close</strong> - fill frame with receipt text</li>
+                                                    <li>• <strong>Good lighting</strong> - avoid shadows and glare</li>
+                                                    <li>• <strong>Flat surface</strong> - place receipt flat if possible</li>
+                                                    <li>• <strong>Full lines</strong> - include complete item lines</li>
+                                                    <li>• <strong>Retake if blurry</strong> - clarity is key for accuracy</li>
+                                                    <li>• <strong>Edit results if needed</strong> - you can edit results if needed</li>
                                                 </ul>
                                             </div>
                                             <div>
@@ -3806,6 +3946,20 @@ export default function ReceiptScan() {
                                                 iOS PWA detected - using optimized camera settings
                                             </p>
                                         )}
+                                    </div>
+
+                                    {/* Photo Taking Instructions */}
+                                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
+                                        <h4 className="text-sm font-medium text-blue-900 mb-2">📸 Photo Instructions</h4>
+                                        <ul className="text-sm text-blue-800 space-y-1">
+                                            <li>• <strong>Hold steady:</strong> Keep your phone as still as possible when taking the photo</li>
+                                            <li>• <strong>Get close:</strong> Fill the frame with the receipt for better text recognition</li>
+                                            <li>• <strong>Include all items:</strong> Make sure full lines of items are visible</li>
+                                            <li>• <strong>Good lighting:</strong> Avoid shadows and glare on the receipt</li>
+                                            <li>• <strong>Flat surface:</strong> Place receipt on a flat surface if possible</li>
+                                            <li>• <strong>Retake if needed:</strong> You can retake the photo if it's not clear enough</li>
+                                            <li>• <strong>Edit Items if needed:</strong> You can edit quantity, prices, and discounts if needed.</li>
+                                        </ul>
                                     </div>
 
                                     <div className="relative bg-black rounded-lg overflow-hidden">
@@ -3918,7 +4072,16 @@ export default function ReceiptScan() {
                                         </div>
                                         <div className="flex space-x-2">
                                             <TouchEnhancedButton
-                                                onClick={resetScan}
+                                                onClick={() => {
+                                                    const confirmed = window.confirm(
+                                                        "⚠️ Are you sure you want to start over?\n\n" +
+                                                        "This will delete all extracted items and you'll need to scan the receipt again.\n\n" +
+                                                        "Any edits you've made will be lost."
+                                                    );
+                                                    if (confirmed) {
+                                                        resetScan();
+                                                    }
+                                                }}
                                                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                                             >
                                                 Start Over
@@ -4112,9 +4275,12 @@ export default function ReceiptScan() {
                                                                                 value={item.quantity || ''}
                                                                                 onChange={(e) => {
                                                                                     const newQuantity = parseInt(e.target.value) || 1;
+                                                                                    const unitPrice = item.unitPrice || 0;
+                                                                                    const discount = item.discountAmount || 0;
+                                                                                    const newTotalPrice = (unitPrice * newQuantity) - discount;
+
                                                                                     updateItem(item.id, 'quantity', newQuantity);
-                                                                                    // Auto-update unit price when quantity changes
-                                                                                    updateItem(item.id, 'unitPrice', (item.price || 0) / newQuantity);
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
                                                                                 }}
                                                                                 onFocus={(e) => {
                                                                                     // Select all text when focused for easier editing
@@ -4153,26 +4319,8 @@ export default function ReceiptScan() {
                                                                         </div>
                                                                     </div>
 
-                                                                    {/* Price and UPC Display - FIXED: Make price editable */}
-                                                                    <div className="grid grid-cols-3 gap-3">
-                                                                        <div>
-                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
-                                                                                Total Price
-                                                                            </label>
-                                                                            <input
-                                                                                type="number"
-                                                                                step="0.01"
-                                                                                min="0"
-                                                                                value={item.price || ''}
-                                                                                onChange={(e) => {
-                                                                                    const newPrice = parseFloat(e.target.value) || 0;
-                                                                                    updateItem(item.id, 'price', newPrice);
-                                                                                    updateItem(item.id, 'unitPrice', newPrice / (item.quantity || 1));
-                                                                                }}
-                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                                                                placeholder="0.00"
-                                                                            />
-                                                                        </div>
+                                                                    {/* Price Display - Top Row */}
+                                                                    <div className="grid grid-cols-2 gap-3 mb-4">
                                                                         <div>
                                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                                 Unit Price
@@ -4184,12 +4332,67 @@ export default function ReceiptScan() {
                                                                                 value={item.unitPrice || ''}
                                                                                 onChange={(e) => {
                                                                                     const newUnitPrice = parseFloat(e.target.value) || 0;
-                                                                                    updateItem(item.id, 'unitPrice', newUnitPrice);
-                                                                                    updateItem(item.id, 'price', newUnitPrice * (item.quantity || 1));
+                                                                                    const quantity = item.quantity || 1;
+                                                                                    const discount = item.discountAmount || 0;
+                                                                                    const newTotalPrice = (newUnitPrice * quantity) - discount;
+
+                                                                                    updateItem(item.id, 'unitPrice', parseFloat(newUnitPrice.toFixed(2)));
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
                                                                                 }}
                                                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                                                                 placeholder="0.00"
                                                                             />
+                                                                        </div>
+                                                                        <div>
+                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Total Price
+                                                                            </label>
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                value={item.price || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newTotalPrice = parseFloat(e.target.value) || 0;
+                                                                                    const quantity = item.quantity || 1;
+                                                                                    const discount = item.discountAmount || 0;
+                                                                                    const newUnitPrice = (newTotalPrice + discount) / quantity;
+
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
+                                                                                    updateItem(item.id, 'unitPrice', parseFloat(newUnitPrice.toFixed(2)));
+                                                                                }}
+                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                                placeholder="0.00"
+                                                                            />
+                                                                        </div>
+                                                                    </div>
+
+                                                                    {/* Discount and UPC - Bottom Row */}
+                                                                    <div className="grid grid-cols-2 gap-3">
+                                                                        <div>
+                                                                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                                                                                Discount
+                                                                            </label>
+                                                                            <input
+                                                                                type="number"
+                                                                                step="0.01"
+                                                                                min="0"
+                                                                                value={item.discountAmount || ''}
+                                                                                onChange={(e) => {
+                                                                                    const newDiscount = parseFloat(e.target.value) || 0;
+                                                                                    const unitPrice = item.unitPrice || 0;
+                                                                                    const quantity = item.quantity || 1;
+                                                                                    const newTotalPrice = (unitPrice * quantity) - newDiscount;
+
+                                                                                    updateItem(item.id, 'discountAmount', parseFloat(newDiscount.toFixed(2)));
+                                                                                    updateItem(item.id, 'price', parseFloat(newTotalPrice.toFixed(2)));
+                                                                                }}
+                                                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                                                                placeholder="0.00"
+                                                                            />
+                                                                            <div className="text-xs text-gray-500 mt-1">
+                                                                                {item.discountAmount && item.discountAmount > 0 ? `Saved $${item.discountAmount.toFixed(2)}` : 'No discount'}
+                                                                            </div>
                                                                         </div>
                                                                         <div>
                                                                             <label className="block text-sm font-medium text-gray-700 mb-1">

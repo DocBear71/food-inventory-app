@@ -1,6 +1,6 @@
 'use client';
 
-// file: /app/recipe-search/page.js - Public Recipe Search (Enhanced with Real Data)
+// file: /app/recipe-search/page.js - Enhanced with Hybrid Randomization
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -17,12 +17,120 @@ export default function PublicRecipeSearch() {
         category: '',
         difficulty: '',
         maxTime: '',
-        dietary: []
+        dietary: [],
+        isMultiPart: false
     });
-    const [sortBy, setSortBy] = useState('relevance');
+    const [sortBy, setSortBy] = useState('featured'); // CHANGED: Default to 'featured'
     const [showFilters, setShowFilters] = useState(false);
     const [currentPage, setCurrentPage] = useState(1);
     const [recipesPerPage] = useState(20);
+
+    // ADDED: Randomization utilities
+    const getDailySeed = () => {
+        const today = new Date();
+        const dateString = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+        let hash = 0;
+        for (let i = 0; i < dateString.length; i++) {
+            const char = dateString.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32bit integer
+        }
+        return Math.abs(hash);
+    };
+
+    const seededRandom = (seed) => {
+        let x = Math.sin(seed) * 10000;
+        return x - Math.floor(x);
+    };
+
+    const shuffleWithSeed = (array, seed) => {
+        const shuffled = [...array];
+        let currentSeed = seed;
+
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            currentSeed = (currentSeed * 9301 + 49297) % 233280;
+            const randomValue = currentSeed / 233280;
+            const j = Math.floor(randomValue * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+
+        return shuffled;
+    };
+
+    const randomizeRecipes = (recipesToRandomize, sortType) => {
+        if (sortType === 'featured') {
+            // Daily seeded randomization with quality weighting
+            const seed = getDailySeed();
+
+            // Add quality scores for weighting
+            const scoredRecipes = recipesToRandomize.map(recipe => {
+                let qualityScore = 0;
+
+                // Rating boost
+                if (recipe.ratingStats?.averageRating) {
+                    qualityScore += recipe.ratingStats.averageRating * 2;
+                }
+
+                // Review count boost
+                if (recipe.ratingStats?.totalRatings) {
+                    qualityScore += Math.min(recipe.ratingStats.totalRatings * 0.5, 5);
+                }
+
+                // Multi-part recipe boost (they're more interesting)
+                if (recipe.isMultiPart) {
+                    qualityScore += 3;
+                }
+
+                // Recent recipe slight boost (within last 30 days)
+                const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+                if (daysSinceCreated <= 30) {
+                    qualityScore += 2;
+                }
+
+                // Has image boost
+                if (recipe.imageUrl || recipe.hasPhotos || recipe.uploadedImage?.data) {
+                    qualityScore += 1;
+                }
+
+                return { ...recipe, qualityScore };
+            });
+
+            // Sort by quality score first
+            scoredRecipes.sort((a, b) => b.qualityScore - a.qualityScore);
+
+            // Then apply seeded randomization with weighted distribution
+            const topTier = scoredRecipes.slice(0, Math.ceil(scoredRecipes.length * 0.3));
+            const midTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.3), Math.ceil(scoredRecipes.length * 0.7));
+            const bottomTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.7));
+
+            const shuffledTop = shuffleWithSeed(topTier, seed);
+            const shuffledMid = shuffleWithSeed(midTier, seed + 1);
+            const shuffledBottom = shuffleWithSeed(bottomTier, seed + 2);
+
+            // Interleave tiers for good distribution
+            const result = [];
+            const maxLength = Math.max(shuffledTop.length, shuffledMid.length, shuffledBottom.length);
+
+            for (let i = 0; i < maxLength; i++) {
+                if (i < shuffledTop.length) result.push(shuffledTop[i]);
+                if (i < shuffledMid.length) result.push(shuffledMid[i]);
+                if (i < shuffledBottom.length) result.push(shuffledBottom[i]);
+            }
+
+            return result;
+
+        } else if (sortType === 'random') {
+            // True randomization using Fisher-Yates shuffle
+            const shuffled = [...recipesToRandomize];
+            for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+            }
+            return shuffled;
+        }
+
+        return recipesToRandomize;
+    };
 
     // Fetch real recipes from your API
     useEffect(() => {
@@ -31,7 +139,6 @@ export default function PublicRecipeSearch() {
                 setLoading(true);
                 setError('');
 
-                // Fetch public recipes without authentication
                 const response = await fetch('/api/public-recipes');
 
                 if (!response.ok) {
@@ -45,6 +152,9 @@ export default function PublicRecipeSearch() {
                     setRecipes(publicRecipes);
                     setFilteredRecipes(publicRecipes);
                     console.log(`Loaded ${publicRecipes.length} public recipes`);
+
+                    const multiPartCount = publicRecipes.filter(r => r.isMultiPart).length;
+                    console.log(`Found ${multiPartCount} multi-part recipes`);
                 } else {
                     throw new Error(data.error || 'Failed to load recipes');
                 }
@@ -85,7 +195,20 @@ export default function PublicRecipeSearch() {
         'vegetarian', 'vegan', 'gluten-free', 'healthy', 'protein-rich', 'low-carb'
     ];
 
-    // Filter and sort recipes
+    const getMultiPartStats = (recipe) => {
+        if (!recipe.isMultiPart || !recipe.parts) return null;
+
+        const totalIngredients = recipe.parts.reduce((total, part) => total + (part.ingredients?.length || 0), 0);
+        const totalInstructions = recipe.parts.reduce((total, part) => total + (part.instructions?.length || 0), 0);
+
+        return {
+            partCount: recipe.parts.length,
+            totalIngredients,
+            totalInstructions
+        };
+    };
+
+    // ENHANCED: Filter and sort recipes with randomization
     useEffect(() => {
         let filtered = [...recipes];
 
@@ -131,8 +254,15 @@ export default function PublicRecipeSearch() {
             );
         }
 
-        // Apply sorting
-        if (sortBy === 'rating') {
+        // Apply multi-part filter
+        if (filters.isMultiPart) {
+            filtered = filtered.filter(recipe => recipe.isMultiPart);
+        }
+
+        // ENHANCED: Apply sorting with randomization options
+        if (sortBy === 'featured' || sortBy === 'random') {
+            filtered = randomizeRecipes(filtered, sortBy);
+        } else if (sortBy === 'rating') {
             filtered.sort((a, b) => (b.ratingStats?.averageRating || 0) - (a.ratingStats?.averageRating || 0));
         } else if (sortBy === 'time') {
             filtered.sort((a, b) => {
@@ -144,6 +274,12 @@ export default function PublicRecipeSearch() {
             filtered.sort((a, b) => (b.ratingStats?.totalRatings || 0) - (a.ratingStats?.totalRatings || 0));
         } else if (sortBy === 'newest') {
             filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+        } else if (sortBy === 'relevance') {
+            // Default relevance sorting - keep original order or sort by quality
+            if (!searchQuery) {
+                // If no search query, show by creation date
+                filtered.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+            }
         }
 
         setFilteredRecipes(filtered);
@@ -164,9 +300,11 @@ export default function PublicRecipeSearch() {
             category: '',
             difficulty: '',
             maxTime: '',
-            dietary: []
+            dietary: [],
+            isMultiPart: false
         });
         setSearchQuery('');
+        setSortBy('featured'); // Reset to featured
     };
 
     const formatTime = (minutes) => {
@@ -213,39 +351,19 @@ export default function PublicRecipeSearch() {
         return stars;
     };
 
-    // FIXED: Enhanced getRecipeImage function with proper photo detection
     const getRecipeImage = (recipe) => {
-        console.log(`🔍 Getting image for "${recipe.title}":`, {
-            hasPrimaryPhoto: !!recipe.primaryPhoto,
-            primaryPhotoType: typeof recipe.primaryPhoto,
-            hasPhotos: recipe.hasPhotos,
-            photosLength: recipe.photos?.length,
-            hasImageUrl: !!recipe.imageUrl,
-            hasUploadedImage: !!recipe.uploadedImage?.data,
-            imagePriority: recipe.imagePriority
-        });
-
         // Priority 1: Primary Photo (populated from RecipePhoto collection)
         if (recipe.primaryPhoto && recipe.hasPhotos) {
-            // Check if primaryPhoto is populated (object) vs just ObjectId (string)
             if (typeof recipe.primaryPhoto === 'object') {
-                // If primaryPhoto is populated as an object with image data
                 if (recipe.primaryPhoto.imageData) {
-                    console.log('✅ Using primaryPhoto.imageData');
                     return `data:${recipe.primaryPhoto.mimeType || 'image/jpeg'};base64,${recipe.primaryPhoto.imageData}`;
                 }
-                // If primaryPhoto has a URL
                 if (recipe.primaryPhoto.url) {
-                    console.log('✅ Using primaryPhoto.url');
                     return recipe.primaryPhoto.url;
                 }
-                // If primaryPhoto has direct data field
                 if (recipe.primaryPhoto.data) {
-                    console.log('✅ Using primaryPhoto.data');
                     return `data:${recipe.primaryPhoto.mimeType || 'image/jpeg'};base64,${recipe.primaryPhoto.data}`;
                 }
-            } else {
-                console.log('⚠️ primaryPhoto is not populated (just ObjectId):', recipe.primaryPhoto);
             }
         }
 
@@ -254,42 +372,33 @@ export default function PublicRecipeSearch() {
             const firstPhoto = recipe.photos[0];
             if (typeof firstPhoto === 'object') {
                 if (firstPhoto.imageData) {
-                    console.log('✅ Using photos[0].imageData');
                     return `data:${firstPhoto.mimeType || 'image/jpeg'};base64,${firstPhoto.imageData}`;
                 }
                 if (firstPhoto.url) {
-                    console.log('✅ Using photos[0].url');
                     return firstPhoto.url;
                 }
                 if (firstPhoto.data) {
-                    console.log('✅ Using photos[0].data');
                     return `data:${firstPhoto.mimeType || 'image/jpeg'};base64,${firstPhoto.data}`;
                 }
-            } else {
-                console.log('⚠️ photos[0] is not populated (just ObjectId):', firstPhoto);
             }
         }
 
         // Priority 3: Uploaded Image (embedded in recipe document)
         if (recipe.uploadedImage?.data) {
-            console.log('✅ Using uploadedImage.data');
             return `data:${recipe.uploadedImage.mimeType || 'image/jpeg'};base64,${recipe.uploadedImage.data}`;
         }
 
         // Priority 4: External Image URL
         if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
-            console.log('✅ Using imageUrl');
             return recipe.imageUrl;
         }
 
         // Priority 5: Extracted Image from video
         if (recipe.extractedImage?.data) {
-            console.log('✅ Using extractedImage.data');
             return `data:${recipe.extractedImage.mimeType || 'image/jpeg'};base64,${recipe.extractedImage.data}`;
         }
 
-        // Fallback: Placeholder (FIXED: Use correct path)
-        console.log('❌ Using placeholder - no images found');
+        // Fallback: Placeholder
         return '/images/recipe-placeholder.jpg';
     };
 
@@ -300,6 +409,8 @@ export default function PublicRecipeSearch() {
     const totalPages = Math.ceil(filteredRecipes.length / recipesPerPage);
 
     const paginate = (pageNumber) => setCurrentPage(pageNumber);
+
+    const multiPartCount = recipes.filter(r => r.isMultiPart).length;
 
     return (
         <div className="min-h-screen bg-gray-50">
@@ -339,7 +450,26 @@ export default function PublicRecipeSearch() {
                     </h1>
                     <p className="text-base sm:text-lg text-gray-600 max-w-2xl mx-auto">
                         Search through our collection of {recipes.length}+ professional recipes from Dr. Edward McKeown's cookbook series
+                        {multiPartCount > 0 && (
+                            <span className="block mt-2 text-sm">
+                                <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800 mr-1">
+                                    🧩 {multiPartCount} Multi-Part Recipes
+                                </span>
+                                available with organized sections
+                            </span>
+                        )}
                     </p>
+                    {/* ADDED: Sort indicator */}
+                    {sortBy === 'featured' && (
+                        <p className="text-sm text-purple-600 mt-2 font-medium">
+                            ✨ Showing featured recipes with daily variety
+                        </p>
+                    )}
+                    {sortBy === 'random' && (
+                        <p className="text-sm text-green-600 mt-2 font-medium">
+                            🎲 Showing recipes in random order
+                        </p>
+                    )}
                 </div>
 
                 {/* Error Message */}
@@ -373,6 +503,7 @@ export default function PublicRecipeSearch() {
                 <div className="flex flex-wrap justify-center gap-2 mb-6 sm:mb-8">
                     {[
                         { label: 'Quick Meals', filter: { maxTime: '30' } },
+                        { label: 'Multi-Part', filter: { isMultiPart: true } },
                         { label: 'Vegetarian', filter: { dietary: ['vegetarian'] } },
                         { label: 'Desserts', filter: { category: 'desserts' } },
                         { label: 'Healthy', filter: { dietary: ['healthy'] } },
@@ -387,8 +518,13 @@ export default function PublicRecipeSearch() {
                                     setSearchQuery(category.search);
                                 }
                             }}
-                            className="px-3 sm:px-4 py-2 bg-white border border-gray-300 rounded-full text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                            className={`px-3 sm:px-4 py-2 border rounded-full text-sm font-medium transition-colors ${
+                                (category.filter?.isMultiPart && filters.isMultiPart) ?
+                                    'bg-blue-600 text-white border-blue-600' :
+                                    'bg-white border-gray-300 text-gray-700 hover:bg-gray-50'
+                            }`}
                         >
+                            {category.label === 'Multi-Part' && '🧩 '}
                             {category.label}
                         </button>
                     ))}
@@ -410,6 +546,24 @@ export default function PublicRecipeSearch() {
                             </div>
 
                             <div className={`space-y-6 ${showFilters ? 'block' : 'hidden lg:block'}`}>
+                                {/* Multi-Part Filter */}
+                                <div>
+                                    <label className="flex items-center">
+                                        <input
+                                            type="checkbox"
+                                            checked={filters.isMultiPart}
+                                            onChange={(e) => setFilters(prev => ({ ...prev, isMultiPart: e.target.checked }))}
+                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                                        />
+                                        <span className="ml-2 text-sm font-medium text-gray-700">
+                                            🧩 Multi-Part Recipes Only
+                                        </span>
+                                    </label>
+                                    <p className="text-xs text-gray-500 mt-1 ml-6">
+                                        Recipes with organized sections like "Filling" and "Topping"
+                                    </p>
+                                </div>
+
                                 {/* Category Filter */}
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
@@ -492,6 +646,7 @@ export default function PublicRecipeSearch() {
                         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6">
                             <p className="text-gray-600 mb-4 sm:mb-0">
                                 {loading ? 'Loading...' : `${filteredRecipes.length} recipe${filteredRecipes.length !== 1 ? 's' : ''} found`}
+                                {filters.isMultiPart && ` (multi-part only)`}
                             </p>
 
                             <div className="flex items-center space-x-2">
@@ -501,6 +656,8 @@ export default function PublicRecipeSearch() {
                                     onChange={(e) => setSortBy(e.target.value)}
                                     className="border border-gray-300 rounded-lg px-3 py-1 text-sm"
                                 >
+                                    <option value="featured">✨ Featured</option>
+                                    <option value="random">🎲 Random</option>
                                     <option value="relevance">Relevance</option>
                                     <option value="rating">Highest Rated</option>
                                     <option value="time">Quickest</option>
@@ -527,103 +684,143 @@ export default function PublicRecipeSearch() {
                         ) : currentRecipes.length > 0 ? (
                             <>
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
-                                    {currentRecipes.map((recipe) => (
-                                        <Link
-                                            key={recipe._id}
-                                            href={`/recipe-preview/${recipe._id}`}
-                                            className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow group"
-                                        >
-                                            <div className="relative">
-                                                <Image
-                                                    src={getRecipeImage(recipe)}
-                                                    alt={recipe.title || 'Recipe'}
-                                                    width={400}
-                                                    height={300}
-                                                    className="w-full h-32 object-cover rounded-t-xl group-hover:opacity-90 transition-opacity"
-                                                />
-                                                <div className="absolute top-3 right-3">
-                                                    {recipe.difficulty && (
-                                                        <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
-                                                            {recipe.difficulty}
-                                                        </span>
-                                                    )}
-                                                </div>
-                                            </div>
+                                    {currentRecipes.map((recipe) => {
+                                        const multiPartStats = getMultiPartStats(recipe);
 
-                                            <div className="p-4 sm:p-6">
-                                                <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2">
-                                                    {recipe.title || 'Untitled Recipe'}
-                                                </h3>
-
-                                                {recipe.description && (
-                                                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">
-                                                        {recipe.description}
-                                                    </p>
-                                                )}
-
-                                                {recipe.ratingStats?.averageRating > 0 && (
-                                                    <div className="flex items-center mb-3">
-                                                        <div className="flex items-center mr-3">
-                                                            {renderStars(recipe.ratingStats.averageRating)}
-                                                            <span className="text-sm text-gray-600 ml-1">
-                                                                {recipe.ratingStats.averageRating.toFixed(1)} ({recipe.ratingStats.totalRatings || 0})
-                                                            </span>
+                                        return (
+                                            <Link
+                                                key={recipe._id}
+                                                href={`/recipe-preview/${recipe._id}`}
+                                                className="bg-white rounded-xl shadow-sm border hover:shadow-md transition-shadow group relative"
+                                            >
+                                                {/* Multi-Part Badge */}
+                                                {recipe.isMultiPart && (
+                                                    <div className="absolute top-2 left-2 z-10">
+                                                        <div className="bg-blue-600 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                                                            🧩 Multi-Part
                                                         </div>
                                                     </div>
                                                 )}
 
-                                                <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
-                                                    <div className="flex items-center space-x-3">
-                                                        {((recipe.cookTime || 0) + (recipe.prepTime || 0)) > 0 && (
-                                                            <span className="flex items-center">
-                                                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                                                                </svg>
-                                                                {formatTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}
-                                                            </span>
+                                                {/* ADDED: Quality indicators for featured sorting */}
+                                                {sortBy === 'featured' && (
+                                                    <>
+                                                        {recipe.ratingStats?.averageRating >= 4.5 && (
+                                                            <div className="absolute top-2 right-2 z-10">
+                                                                <div className="bg-yellow-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                                                                    ⭐ Top Rated
+                                                                </div>
+                                                            </div>
                                                         )}
-                                                        {recipe.servings && (
-                                                            <span className="flex items-center">
-                                                                <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
-                                                                </svg>
-                                                                {recipe.servings}
+                                                        {recipe.isMultiPart && !recipe.ratingStats?.averageRating && (
+                                                            <div className="absolute top-2 right-2 z-10">
+                                                                <div className="bg-purple-500 text-white text-xs px-2 py-1 rounded-full font-medium shadow-sm">
+                                                                    🎯 Featured
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                    </>
+                                                )}
+
+                                                <div className="relative">
+                                                    <Image
+                                                        src={getRecipeImage(recipe)}
+                                                        alt={recipe.title || 'Recipe'}
+                                                        width={400}
+                                                        height={300}
+                                                        className="w-full h-32 object-cover rounded-t-xl group-hover:opacity-90 transition-opacity"
+                                                    />
+                                                    <div className="absolute top-3 right-3">
+                                                        {recipe.difficulty && (
+                                                            <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getDifficultyColor(recipe.difficulty)}`}>
+                                                                {recipe.difficulty}
                                                             </span>
                                                         )}
                                                     </div>
                                                 </div>
 
-                                                {/* Tags */}
-                                                {Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
-                                                    <div className="flex flex-wrap gap-1 mb-2">
-                                                        {recipe.tags.slice(0, 3).map((tag, index) => (
-                                                            <span
-                                                                key={index}
-                                                                className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800"
-                                                            >
-                                                                {tag}
-                                                            </span>
-                                                        ))}
-                                                        {recipe.tags.length > 3 && (
-                                                            <span className="text-xs text-gray-500">
-                                                                +{recipe.tags.length - 3} more
-                                                            </span>
-                                                        )}
-                                                    </div>
-                                                )}
+                                                <div className="p-4 sm:p-6">
+                                                    <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-purple-600 transition-colors line-clamp-2">
+                                                        {recipe.title || 'Untitled Recipe'}
+                                                    </h3>
 
-                                                {/* Author */}
-                                                {recipe.createdBy && (
-                                                    <div className="text-xs text-gray-500">
-                                                        by {recipe.createdBy.name || recipe.createdBy.email}
-                                                        {recipe.importedFrom && (
-                                                            <span className="ml-1">(from {recipe.importedFrom})</span>
-                                                        )}
+                                                    {/* Multi-Part Info */}
+                                                    {multiPartStats && (
+                                                        <div className="text-xs text-blue-600 mb-2 font-medium">
+                                                            {multiPartStats.partCount} parts • {multiPartStats.totalIngredients} ingredients • {multiPartStats.totalInstructions} steps
+                                                        </div>
+                                                    )}
+
+                                                    {recipe.description && (
+                                                        <p className="text-gray-600 text-sm mb-3 line-clamp-2">
+                                                            {recipe.description}
+                                                        </p>
+                                                    )}
+
+                                                    {recipe.ratingStats?.averageRating > 0 && (
+                                                        <div className="flex items-center mb-3">
+                                                            <div className="flex items-center mr-3">
+                                                                {renderStars(recipe.ratingStats.averageRating)}
+                                                                <span className="text-sm text-gray-600 ml-1">
+                                                                    {recipe.ratingStats.averageRating.toFixed(1)} ({recipe.ratingStats.totalRatings || 0})
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex items-center justify-between text-sm text-gray-500 mb-3">
+                                                        <div className="flex items-center space-x-3">
+                                                            {((recipe.cookTime || 0) + (recipe.prepTime || 0)) > 0 && (
+                                                                <span className="flex items-center">
+                                                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                                                    </svg>
+                                                                    {formatTime((recipe.cookTime || 0) + (recipe.prepTime || 0))}
+                                                                </span>
+                                                            )}
+                                                            {recipe.servings && (
+                                                                <span className="flex items-center">
+                                                                    <svg className="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/>
+                                                                    </svg>
+                                                                    {recipe.servings}
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                     </div>
-                                                )}
-                                            </div>
-                                        </Link>
-                                    ))}
+
+                                                    {/* Tags */}
+                                                    {Array.isArray(recipe.tags) && recipe.tags.length > 0 && (
+                                                        <div className="flex flex-wrap gap-1 mb-2">
+                                                            {recipe.tags.slice(0, 3).map((tag, index) => (
+                                                                <span
+                                                                    key={index}
+                                                                    className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-purple-100 text-purple-800"
+                                                                >
+                                                                    {tag}
+                                                                </span>
+                                                            ))}
+                                                            {recipe.tags.length > 3 && (
+                                                                <span className="text-xs text-gray-500">
+                                                                    +{recipe.tags.length - 3} more
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Author */}
+                                                    {recipe.createdBy && (
+                                                        <div className="text-xs text-gray-500">
+                                                            by {recipe.createdBy.name || recipe.createdBy.email}
+                                                            {recipe.importedFrom && (
+                                                                <span className="ml-1">(from {recipe.importedFrom})</span>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </Link>
+                                        );
+                                    })}
                                 </div>
 
                                 {/* Pagination */}
@@ -704,6 +901,11 @@ export default function PublicRecipeSearch() {
                     <h2 className="text-xl sm:text-2xl font-bold mb-4">Ready to Cook?</h2>
                     <p className="text-base sm:text-lg mb-6 opacity-90">
                         Create your free account to save recipes, plan meals, and access our full collection
+                        {multiPartCount > 0 && (
+                            <span className="block mt-2">
+                                Including {multiPartCount} multi-part recipes with organized sections!
+                            </span>
+                        )}
                     </p>
                     <div className="flex flex-col sm:flex-row gap-4 justify-center">
                         <Link

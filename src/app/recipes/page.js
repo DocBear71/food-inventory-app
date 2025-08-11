@@ -25,7 +25,164 @@ import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
-import RecipeNavigationLink from '@/components/recipes/RecipeNavigationLink';
+
+
+const getDailySeed = () => {
+    const today = new Date();
+    const dateString = `${today.getFullYear()}-${today.getMonth()}-${today.getDate()}`;
+    let hash = 0;
+    for (let i = 0; i < dateString.length; i++) {
+        const char = dateString.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash; // Convert to 32bit integer
+    }
+    return Math.abs(hash);
+};
+
+const seededRandom = (seed) => {
+    let x = Math.sin(seed) * 10000;
+    return x - Math.floor(x);
+};
+
+const shuffleWithSeed = (array, seed) => {
+    const shuffled = [...array];
+    let currentSeed = seed;
+
+    for (let i = shuffled.length - 1; i > 0; i--) {
+        currentSeed = (currentSeed * 9301 + 49297) % 233280;
+        const randomValue = currentSeed / 233280;
+        const j = Math.floor(randomValue * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    }
+
+    return shuffled;
+};
+
+const randomizeRecipes = (recipesToRandomize, sortType, userContext = null) => {
+    if (sortType === 'featured') {
+        // Daily seeded randomization with quality weighting
+        const seed = getDailySeed() + (userContext ? userContext.hashCode() : 0);
+
+        // Add quality scores for weighting
+        const scoredRecipes = recipesToRandomize.map(recipe => {
+            let qualityScore = 0;
+
+            // Rating boost
+            if (recipe.ratingStats?.averageRating) {
+                qualityScore += recipe.ratingStats.averageRating * 2;
+            }
+
+            // Review count boost
+            if (recipe.ratingStats?.totalRatings) {
+                qualityScore += Math.min(recipe.ratingStats.totalRatings * 0.5, 5);
+            }
+
+            // Multi-part recipe boost (they're more interesting)
+            if (recipe.isMultiPart) {
+                qualityScore += 3;
+            }
+
+            // Recent recipe slight boost (within last 30 days)
+            const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+            if (daysSinceCreated <= 30) {
+                qualityScore += 2;
+            }
+
+            // Has nutrition data boost
+            if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
+                qualityScore += 1;
+            }
+
+            // Has image boost
+            if (recipe.imageUrl || recipe.hasPhotos || recipe.uploadedImage?.data || recipe.primaryPhoto) {
+                qualityScore += 1;
+            }
+
+            // Personal recipe boost (user's own recipes get slight preference)
+            if (userContext && recipe.createdBy === userContext.userId) {
+                qualityScore += 0.5;
+            }
+
+            return { ...recipe, qualityScore };
+        });
+
+        // Sort by quality score first
+        scoredRecipes.sort((a, b) => b.qualityScore - a.qualityScore);
+
+        // Then apply seeded randomization with weighted distribution
+        const topTier = scoredRecipes.slice(0, Math.ceil(scoredRecipes.length * 0.3));
+        const midTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.3), Math.ceil(scoredRecipes.length * 0.7));
+        const bottomTier = scoredRecipes.slice(Math.ceil(scoredRecipes.length * 0.7));
+
+        const shuffledTop = shuffleWithSeed(topTier, seed);
+        const shuffledMid = shuffleWithSeed(midTier, seed + 1);
+        const shuffledBottom = shuffleWithSeed(bottomTier, seed + 2);
+
+        // Interleave tiers for good distribution
+        const result = [];
+        const maxLength = Math.max(shuffledTop.length, shuffledMid.length, shuffledBottom.length);
+
+        for (let i = 0; i < maxLength; i++) {
+            if (i < shuffledTop.length) result.push(shuffledTop[i]);
+            if (i < shuffledMid.length) result.push(shuffledMid[i]);
+            if (i < shuffledBottom.length) result.push(shuffledBottom[i]);
+        }
+
+        return result;
+
+    } else if (sortType === 'random') {
+        // True randomization using Fisher-Yates shuffle
+        const shuffled = [...recipesToRandomize];
+        for (let i = shuffled.length - 1; i > 0; i--) {
+            const j = Math.floor(Math.random() * (i + 1));
+            [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+        }
+        return shuffled;
+    }
+
+    return recipesToRandomize;
+};
+
+const getSortIndicator = (recipe, sortBy) => {
+    if (sortBy === 'featured') {
+        // Show quality indicators for featured sorting
+        if (recipe.ratingStats?.averageRating >= 4.5) {
+            return {
+                badge: '⭐ Top Rated',
+                className: 'bg-yellow-500 text-white'
+            };
+        }
+        if (recipe.isMultiPart) {
+            return {
+                badge: '🧩 Featured',
+                className: 'bg-purple-500 text-white'
+            };
+        }
+        if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
+            return {
+                badge: '🥗 Complete',
+                className: 'bg-green-500 text-white'
+            };
+        }
+        // Recent recipes
+        const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+        if (daysSinceCreated <= 7) {
+            return {
+                badge: '🆕 New',
+                className: 'bg-blue-500 text-white'
+            };
+        }
+    }
+
+    if (sortBy === 'random') {
+        return {
+            badge: '🎲 Random',
+            className: 'bg-gray-500 text-white'
+        };
+    }
+
+    return null;
+};
 
 // FINAL: RecipeImage Component with correct layout and styling
 const RecipeImage = ({ recipe, className = "", priority = false }) => {
@@ -33,87 +190,34 @@ const RecipeImage = ({ recipe, className = "", priority = false }) => {
     const [imageLoaded, setImageLoaded] = useState(false);
     const [currentImageSrc, setCurrentImageSrc] = useState('');
 
-    // Add this to your RecipeImage component's getImageSrc function
+    // Simple and reliable image source detection
     const getImageSrc = () => {
-        console.log('🖼️ iOS Image Debug for recipe:', recipe._id, {
-            imageUrl: recipe.imageUrl,
-            primaryPhoto: recipe.primaryPhoto,
-            hasPhotos: recipe.hasPhotos,
-            uploadedImage: !!recipe.uploadedImage?.data,
-            extractedImage: !!recipe.extractedImage?.data,
-            imagePriority: recipe.imagePriority
-        });
-
-        // IMMEDIATE FIX: If we have primaryPhoto but wrong priority, use it anyway
-        if (recipe.primaryPhoto && recipe.primaryPhoto._id) {
-            const photoUrl = `/api/recipes/photos/${recipe.primaryPhoto._id}`;
-            console.log('🖼️ iOS FORCE: Using primary photo despite wrong priority:', photoUrl);
-            return photoUrl;
-        }
-
-        // FIXED: Enhanced fallback logic for iOS
-        console.log('🖼️ Available sources:', {
-            primaryPhoto: !!recipe.primaryPhoto,
-            uploadedImage: !!recipe.uploadedImage?.data,
-            extractedImage: !!recipe.extractedImage?.data,
-            imageUrl: !!recipe.imageUrl,
-            imageError: imageError
-        });
-
-        // Use imagePriority to determine which image to show (existing logic)
-        switch (recipe.imagePriority) {
-            case 'primary_photo':
-                if (recipe.primaryPhoto && !imageError) {
-                    const photoUrl = `/api/recipes/photos/${recipe.primaryPhoto._id}`;
-                    console.log('🖼️ Using primary photo from priority:', photoUrl);
-                    return photoUrl;
-                }
-                break;
-
-            case 'uploaded_image':
-                if (recipe.uploadedImage?.data && !imageError) {
-                    console.log('🖼️ Using uploadedImage (embedded base64)');
-                    return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
-                }
-                break;
-
-            case 'extracted_image':
-                if (recipe.extractedImage?.data && !imageError) {
-                    console.log('🖼️ Using extractedImage (embedded base64)');
-                    return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
-                }
-                break;
-
-            case 'external_url':
-                if (recipe.imageUrl && !imageError) {
-                    console.log('🖼️ Using external imageUrl:', recipe.imageUrl);
-                    return recipe.imageUrl;
-                }
-                break;
-        }
-
-        // ENHANCED fallback logic - try all available sources
-        console.log('🖼️ Priority-based selection failed, trying fallback logic...');
-
-        // First try uploaded image
-        if (recipe.uploadedImage?.data && !imageError) {
-            console.log('🖼️ Fallback: Using uploadedImage');
-            return `data:${recipe.uploadedImage.mimeType};base64,${recipe.uploadedImage.data}`;
-        }
-
-        // Then try extracted image
-        if (recipe.extractedImage?.data && !imageError) {
-            console.log('🖼️ Fallback: Using extractedImage');
-            return `data:image/jpeg;base64,${recipe.extractedImage.data}`;
-        }
-
-        // Try external URL even if priority is undefined
-        if (recipe.imageUrl && !imageError) {
-            console.log('🖼️ Fallback: Using external imageUrl:', recipe.imageUrl);
+        // 1. Check external URL first (Unsplash, Pexels, Google)
+        if (recipe.imageUrl && recipe.imageUrl !== '/images/recipe-placeholder.jpg') {
             return recipe.imageUrl;
         }
 
-        console.log('🖼️ No image sources found, using placeholder');
+        // 2. Check primary photo (user uploaded via photo system)
+        if (recipe.primaryPhoto && recipe.primaryPhoto._id) {
+            return `/api/recipes/photos/${recipe.primaryPhoto._id}`;
+        }
+
+        // 3. Check first photo in array
+        if (recipe.photos && recipe.photos.length > 0 && recipe.photos[0]._id) {
+            return `/api/recipes/photos/${recipe.photos[0]._id}`;
+        }
+
+        // 4. Check uploaded image (embedded in recipe)
+        if (recipe.uploadedImage?.data) {
+            return `/api/recipes/photos/upload?recipeId=${recipe._id}`;
+        }
+
+        // 5. Check extracted image (AI generated)
+        if (recipe.extractedImage?.data) {
+            return `/api/recipes/photos/upload?recipeId=${recipe._id}`;
+        }
+
+        // 6. Fallback to placeholder
         return '/images/recipe-placeholder.jpg';
     };
 
@@ -471,8 +575,29 @@ function RecipesContent() {
             tabFiltered = recipesArray.filter(recipe => recipe.isPublic === true);
         }
 
-        // Then apply search filters using the search engine
-        return searchEngine.searchRecipes(tabFiltered, searchFilters);
+        // Apply search filters using the search engine
+        let filtered = searchEngine.searchRecipes(tabFiltered, searchFilters);
+
+        // ENHANCED: Apply randomization for featured and random sorts
+        if (searchFilters.sortBy === 'featured' || searchFilters.sortBy === 'random') {
+            const userContext = session?.user ? {
+                userId: session.user.id,
+                hashCode: () => {
+                    let hash = 0;
+                    const str = session.user.id;
+                    for (let i = 0; i < str.length; i++) {
+                        const char = str.charCodeAt(i);
+                        hash = ((hash << 5) - hash) + char;
+                        hash = hash & hash;
+                    }
+                    return Math.abs(hash);
+                }
+            } : null;
+
+            filtered = randomizeRecipes(filtered, searchFilters.sortBy, userContext);
+        }
+
+        return filtered;
     };
 
     // Pagination logic
@@ -571,6 +696,47 @@ function RecipesContent() {
         }
 
         alert(`🎤 ${userMessage}`);
+    };
+
+    const getSortIndicator = (recipe, sortBy) => {
+        if (sortBy === 'featured') {
+            // Show quality indicators for featured sorting
+            if (recipe.ratingStats?.averageRating >= 4.5) {
+                return {
+                    badge: '⭐ Top Rated',
+                    className: 'bg-yellow-500 text-white'
+                };
+            }
+            if (recipe.isMultiPart) {
+                return {
+                    badge: '🧩 Featured',
+                    className: 'bg-purple-500 text-white'
+                };
+            }
+            if (recipe.nutrition && Object.keys(recipe.nutrition).length > 0) {
+                return {
+                    badge: '🥗 Complete',
+                    className: 'bg-green-500 text-white'
+                };
+            }
+            // Recent recipes
+            const daysSinceCreated = (new Date() - new Date(recipe.createdAt)) / (1000 * 60 * 60 * 24);
+            if (daysSinceCreated <= 7) {
+                return {
+                    badge: '🆕 New',
+                    className: 'bg-blue-500 text-white'
+                };
+            }
+        }
+
+        if (sortBy === 'random') {
+            return {
+                badge: '🎲 Random',
+                className: 'bg-gray-500 text-white'
+            };
+        }
+
+        return null;
     };
 
     const parseVoiceSearchCriteria = (transcript) => {
@@ -1048,12 +1214,12 @@ function RecipesContent() {
                                 <h3 className="text-lg font-semibold text-gray-900 mb-3">🚀 Quick Browse</h3>
                                 <div className="grid grid-cols-2 gap-2 w-full">
                                     {[
+                                        { label: 'Featured Today', icon: '✨', filter: { sortBy: 'featured' } },
+                                        { label: 'Surprise Me', icon: '🎲', filter: { sortBy: 'random' } },
                                         { label: 'Quick Meals', icon: '⚡', filter: { maxCookTime: '30' } },
+                                        { label: 'Multi-Part', icon: '🧩', filter: { tags: [], category: '', isMultiPart: true } },
                                         { label: 'Vegetarian', icon: '🥗', filter: { tags: ['vegetarian'] } },
-                                        { label: 'Desserts', icon: '🍰', filter: { category: 'desserts' } },
-                                        { label: 'Easy', icon: '👌', filter: { difficulty: 'easy' } },
-                                        { label: 'Popular', icon: '⭐', filter: { sortBy: 'rating' } },
-                                        { label: 'Recent', icon: '🆕', filter: { sortBy: 'newest' } }
+                                        { label: 'Top Rated', icon: '⭐', filter: { sortBy: 'rating', minRating: '4' } }
                                     ].map((category, index) => (
                                         <TouchEnhancedButton
                                             key={index}
@@ -1196,6 +1362,18 @@ function RecipesContent() {
                                                         priority={index < 6} // Prioritize first 6 images
                                                     />
 
+                                                    {/* ADDED: Sort-based indicators */}
+                                                    {(() => {
+                                                        const indicator = getSortIndicator(recipe, searchFilters.sortBy);
+                                                        return indicator ? (
+                                                            <div className="absolute top-2 left-2 z-10">
+                                                                <div className={`text-xs px-2 py-1 rounded-full font-medium shadow-sm ${indicator.className}`}>
+                                                                    {indicator.badge}
+                                                                </div>
+                                                            </div>
+                                                        ) : null;
+                                                    })()}
+
                                                     {/* Overlay Actions - FIXED positioning to avoid title overlap */}
                                                     <div className="absolute top-1 right-1 flex space-x-1">
                                                         {activeTab === 'public-recipes' && (
@@ -1286,12 +1464,12 @@ function RecipesContent() {
                                                 <div className="p-4">
                                                     {/* Header - Title */}
                                                     <div className="mb-3">
-                                                        <RecipeNavigationLink
-                                                            recipeId={recipe._id}
+                                                        <Link
+                                                            href={`/recipes/${recipe._id}`}
                                                             className="pyt-8 text-base font-semibold text-gray-900 hover:text-indigo-600 line-clamp-2 block group-hover:text-indigo-600 transition-colors"
                                                         >
                                                             {recipe.title || 'Untitled Recipe'}
-                                                        </RecipeNavigationLink>
+                                                        </Link>
                                                     </div>
 
                                                     {/* Recipe Author Info (for public recipes) */}

@@ -49,6 +49,8 @@
 	<string>Doc Bear's Comfort Kitchen needs camera access to scan product barcodes and receipt images to help you manage your food inventory and reduce waste.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Doc Bear's Comfort Kitchen needs access to your photo library to upload recipe images and save receipt photos for expense tracking and dietary analysis.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen needs permission to save receipt photos to your photo library for record keeping and expense tracking.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Doc Bear's Comfort Kitchen uses the microphone for voice input to help you quickly add recipes and notes to your meal planning.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>

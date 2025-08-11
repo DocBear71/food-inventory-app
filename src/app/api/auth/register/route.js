@@ -441,8 +441,8 @@ export async function POST(request) {
         // Send email verification
         try {
             console.log(`Sending verification email to ${email}...`);
-            await sendEmailVerificationEmail(email, verificationToken, name);
-            console.log(`Verification email sent successfully to ${email}`);
+            const emailResult = await sendEmailVerificationEmail(email, verificationToken, name);
+            console.log(`Verification email sent successfully to ${email}`, emailResult);
 
             // NEW: Send parental consent email if minor
             if (isMinor && parentEmail && parentVerificationToken) {
@@ -457,6 +457,12 @@ export async function POST(request) {
             }
         } catch (emailError) {
             console.error('Failed to send verification email:', emailError);
+            console.error('Email error details:', {
+                message: emailError.message,
+                stack: emailError.stack,
+                email: email,
+                timestamp: new Date().toISOString()
+            });
             // Don't fail the registration, but log the error
         }
 

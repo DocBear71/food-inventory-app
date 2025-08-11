@@ -69,16 +69,23 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
             }
         }
 
+        // 🔥 DEBUG: Check if we have image data
+        console.log('🔍 DEBUG: base64ImageString length:', base64ImageString.length);
+        console.log('🔍 DEBUG: imageFile:', imageFile);
+        console.log('🔍 DEBUG: rawOcrText length:', rawOcrText.length);
+
         const requestPayload = {
-            image_data: base64ImageString,
+            image_data: base64ImageString,  // This might be empty!
             store_context: storeContext,
             user_id: "user123",
             raw_ocr: rawOcrText,
             fallback_items: extractedItems,
-            // 🆕 ADD CURRENCY SUPPORT
+            basic_items: extractedItems,
             user_currency: currencyInfo.currency,
             currency_symbol: currencyInfo.currencySymbol
         };
+
+        console.log('📤 DEBUG: Payload image_data length:', requestPayload.image_data.length);
 
         console.log('📤 Sending request to Modal with currency support:', currencyInfo);
 
@@ -118,34 +125,49 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
         const aiEnhancedItems = result.receipt_data?.items || [];
         console.log(`✅ AI enhancement complete: ${aiEnhancedItems.length} items enhanced`);
 
-        return aiEnhancedItems.map((item, index) => ({
-            id: Date.now() + Math.random() + index,
-            name: item.name || item.resolved_name || `Unknown Item ${index + 1}`,
-            price: parseFloat(item.total_price) || parseFloat(item.unit_price) || 0,
-            quantity: parseInt(item.quantity) || 1,
-            unitPrice: parseFloat(item.unit_price) || parseFloat(item.total_price) || 0,
-            upc: item.upc || '',
-            taxCode: '',
-            category: item.category || guessCategory(item.name),
-            location: item.storage_location || guessLocation(item.name),
-            brand: item.brand || '',
-            rawText: item.original_receipt_text || item.original_text || '',
-            selected: true,
-            needsReview: item.needs_user_review || item.confidence_score < 0.8,
-            confidence: item.confidence_score || 0.7,
+        return aiEnhancedItems.map((item, index) => {
+            const unitPrice = parseFloat(item.unit_price) || 0;
+            const quantity = parseInt(item.quantity) || 1;
+            const discountAmount = parseFloat(item.discount_amount) || 0;
+            const originalPrice = parseFloat(item.original_price) || unitPrice;
 
-            // 🆕 PRICE TRACKING FIELDS
-            priceData: {
-                price: parseFloat(item.total_price) || parseFloat(item.unit_price) || 0,
-                unitPrice: parseFloat(item.unit_price) || 0,
-                quantity: parseInt(item.quantity) || 1,
-                size: item.size_info || '',
-                unit: extractUnit(item.size_info) || 'each',
-                store: extractStoreName(storeContext) || 'Unknown Store',
-                purchaseDate: item.purchase_date || new Date().toISOString().split('T')[0],
-                isFromReceipt: true
-            }
-        }));
+            // Calculate correct total: (unit_price × quantity) - discount
+            const calculatedTotal = (unitPrice * quantity) - discountAmount;
+
+            return {
+                id: Date.now() + Math.random() + index,
+                name: item.name || item.resolved_name || `Unknown Item ${index + 1}`,
+                price: parseFloat(calculatedTotal.toFixed(2)), // Corrected total with rounding
+                quantity: quantity,
+                unitPrice: parseFloat(unitPrice.toFixed(2)), // Rounded unit price
+                discountAmount: parseFloat(discountAmount.toFixed(2)), // Rounded discount
+                originalPrice: parseFloat(originalPrice.toFixed(2)), // Rounded original price
+                discountDescription: item.discount_description || '',
+                upc: item.upc || '',
+                taxCode: '',
+                category: item.category || guessCategory(item.name),
+                location: item.storage_location || guessLocation(item.name),
+                brand: item.brand || '',
+                rawText: item.original_receipt_text || item.original_text || '',
+                selected: true,
+                needsReview: item.needs_user_review || item.confidence_score < 0.8,
+                confidence: item.confidence_score || 0.7,
+
+                // 🆕 PRICE TRACKING FIELDS - Also corrected
+                priceData: {
+                    price: parseFloat(calculatedTotal.toFixed(2)), // Use calculated total here too
+                    unitPrice: parseFloat(unitPrice.toFixed(2)), // Rounded unit price
+                    quantity: quantity,
+                    discountAmount: parseFloat(discountAmount.toFixed(2)), // Add discount to priceData
+                    originalPrice: parseFloat(originalPrice.toFixed(2)), // Add original price to priceData
+                    size: item.size_info || '',
+                    unit: extractUnit(item.size_info) || 'each',
+                    store: extractStoreName(storeContext) || 'Unknown Store',
+                    purchaseDate: item.purchase_date || new Date().toISOString().split('T')[0],
+                    isFromReceipt: true
+                }
+            };
+        });
 
     } catch (error) {
         console.error('❌ AI enhancement via Modal failed:', error);

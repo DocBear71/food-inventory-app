@@ -4,44 +4,44 @@
 import { useEffect } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 
-// Add this right after your imports in IOSRouterHandler.js
-useEffect(() => {
-    const isCapacitor = typeof window !== 'undefined' && window.Capacitor;
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    
-    if (!isCapacitor || !isIOS) return;
-
-    // CRITICAL: Override Next.js router prefetch for iOS
-    const originalPush = router.push;
-    const originalReplace = router.replace;
-    const originalPrefetch = router.prefetch;
-
-    // Override prefetch to do nothing on iOS
-    router.prefetch = () => Promise.resolve();
-
-    // Override push to ensure it works on iOS
-    router.push = (href, options) => {
-        console.log('🍎 iOS Router Override: Pushing to:', href);
-        return originalPush(href, { ...options, scroll: false });
-    };
-
-    // Override replace to ensure it works on iOS  
-    router.replace = (href, options) => {
-        console.log('🍎 iOS Router Override: Replacing to:', href);
-        return originalReplace(href, { ...options, scroll: false });
-    };
-
-    return () => {
-        // Restore original functions
-        router.push = originalPush;
-        router.replace = originalReplace;
-        router.prefetch = originalPrefetch;
-    };
-}, [router]);
-
 export default function IOSRouterHandler({ children }) {
     const router = useRouter();
     const pathname = usePathname();
+
+    // CRITICAL: Override Next.js router prefetch for iOS
+    useEffect(() => {
+        const isCapacitor = typeof window !== 'undefined' && window.Capacitor;
+        const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+        
+        if (!isCapacitor || !isIOS) return;
+
+        // Override Next.js router methods for iOS
+        const originalPush = router.push;
+        const originalReplace = router.replace;
+        const originalPrefetch = router.prefetch;
+
+        // Override prefetch to do nothing on iOS
+        router.prefetch = () => Promise.resolve();
+
+        // Override push to ensure it works on iOS
+        router.push = (href, options) => {
+            console.log('🍎 iOS Router Override: Pushing to:', href);
+            return originalPush(href, { ...options, scroll: false });
+        };
+
+        // Override replace to ensure it works on iOS  
+        router.replace = (href, options) => {
+            console.log('🍎 iOS Router Override: Replacing to:', href);
+            return originalReplace(href, { ...options, scroll: false });
+        };
+
+        return () => {
+            // Restore original functions
+            router.push = originalPush;
+            router.replace = originalReplace;
+            router.prefetch = originalPrefetch;
+        };
+    }, [router]);
 
     useEffect(() => {
         // Only run on iOS/Capacitor
