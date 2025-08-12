@@ -2625,6 +2625,12 @@ export default function EnhancedAIShoppingListModal({
         });
     }, [currentShoppingList]);
 
+    console.log('[SHOPPING MODE DEBUG]', {
+        shoppingMode,
+        config,
+        showPriceFeatures: config.showPriceFeatures
+    });
+
     // Early return if not open or no data
     if (!isOpen) {
         return null;
