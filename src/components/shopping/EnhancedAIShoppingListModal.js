@@ -2345,15 +2345,6 @@ export default function EnhancedAIShoppingListModal({
         const isPurchased = item.purchased;
         const priceInfo = config.showPriceFeatures ? getItemPriceInfo(item.ingredient || item.name) : null;
 
-        // DEBUG: Log what we're working with
-        console.log(`[RENDER ITEM] "${item.ingredient || item.name}" IDs:`, {
-            id: item.id,
-            itemKey: item.itemKey,
-            ingredientKey: item.ingredientKey,
-            computedItemKey: itemKey,
-            category
-        });
-
         return (
             <div
                 key={`${index}-${itemKey}-${updateTrigger}`}
