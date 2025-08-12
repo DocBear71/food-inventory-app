@@ -52,6 +52,48 @@ const NEVER_CROSS_MATCH = {
     'brown sugar': ['sugar'],
     'packed brown sugar': ['sugar'],
 
+    // Prevent inappropriate beef cut cross-matching
+    'cube steaks': ['ground beef', 'steak', 'roast'],
+    'cubed steaks': ['ground beef', 'steak', 'roast'],
+    'ground beef': ['cube steaks', 'cubed steaks', 'steak', 'roast'],
+    'ribeye steak': ['ground beef', 'chuck roast', 'round steak'],
+    'strip steak': ['ground beef', 'chuck roast', 'round steak'],
+    'sirloin steak': ['ground beef', 'chuck roast'],
+    'chuck roast': ['steak', 'ground beef'],
+    'brisket': ['steak', 'ground beef', 'roast'],
+    'short ribs': ['steak', 'ground beef'],
+    'stew meat': ['steak', 'roast'],
+
+    // Prevent inappropriate pork cut cross-matching
+    'pork shoulder': ['pork chops', 'pork tenderloin', 'ground pork', 'bacon'],
+    'boston butt': ['pork chops', 'pork tenderloin', 'ground pork', 'bacon'],
+    'pork chops': ['ground pork', 'pork shoulder', 'pork belly', 'bacon'],
+    'pork tenderloin': ['ground pork', 'pork shoulder', 'pork chops', 'bacon'],
+    'ground pork': ['pork chops', 'pork tenderloin', 'pork shoulder', 'bacon'],
+    'pork belly': ['pork chops', 'pork tenderloin', 'ground pork'],
+    'bacon': ['pork chops', 'pork tenderloin', 'ground pork', 'pork shoulder'],
+    'italian sausage': ['ground pork', 'pork chops', 'pork tenderloin'],
+    'baby back ribs': ['spare ribs', 'pork chops', 'ground pork'],
+    'spare ribs': ['baby back ribs', 'pork chops', 'ground pork'],
+
+// Prevent inappropriate poultry cut cross-matching
+    'chicken breast': ['ground chicken', 'chicken thighs', 'chicken wings', 'chicken legs'],
+    'chicken thighs': ['chicken breast', 'ground chicken', 'chicken wings'],
+    'chicken legs': ['chicken breast', 'chicken thighs', 'ground chicken', 'chicken wings'],
+    'chicken wings': ['chicken breast', 'chicken thighs', 'chicken legs', 'ground chicken'],
+    'ground chicken': ['chicken breast', 'chicken thighs', 'chicken legs', 'chicken wings'],
+    'whole chicken': ['chicken breast', 'chicken thighs', 'ground chicken'],
+    'turkey breast': ['ground turkey', 'turkey thighs', 'turkey legs'],
+    'ground turkey': ['turkey breast', 'turkey thighs', 'turkey legs', 'whole turkey'],
+    'whole turkey': ['turkey breast', 'ground turkey'],
+
+// Prevent cross-species matching
+    'pork': ['chicken', 'turkey', 'beef', 'duck'],
+    'chicken': ['pork', 'beef', 'turkey', 'duck'],
+    'turkey': ['chicken', 'pork', 'beef', 'duck'],
+    'beef': ['pork', 'chicken', 'turkey', 'duck'],
+    'duck': ['chicken', 'turkey', 'pork', 'beef'],
+
     // CRITICAL: Tomato product cross-matching prevention
     'tomato paste': ['tomato', 'tomatoes', 'whole tomatoes', 'fresh tomatoes'],
     'tomato sauce': ['tomato', 'tomatoes', 'whole tomatoes', 'fresh tomatoes'],
@@ -114,18 +156,219 @@ const INGREDIENT_VARIATIONS = {
     'shiitake': ['shiitake mushrooms'],
     'portobello': ['portobello mushrooms'],
 
-    // Chicken variations
+
+    // ========================================
+    // COMPREHENSIVE BEEF CUTS (American/Canadian)
+    // ========================================
+
+    // FOREQUARTER - Chuck
+    'chuck roast': ['chuck pot roast', 'chuck arm roast', 'chuck blade roast', 'shoulder roast', 'chuck shoulder roast', 'pot roast'],
+    'chuck steak': ['chuck blade steak', 'chuck arm steak', 'shoulder steak', 'chuck eye steak', 'chuck steaks'],
+    'chuck eye steak': ['chuck steak', 'chuck eye', 'mock tender steak'],
+    'ground chuck': ['ground beef chuck', 'chuck ground beef', '80/20 ground beef'],
+
+    // FOREQUARTER - Rib
+    'prime rib': ['standing rib roast', 'prime rib roast', 'rib roast'],
+    'rib eye steak': ['ribeye steak', 'ribeye', 'rib eye', 'delmonico steak', 'spencer steak'],
+    'ribeye steak': ['rib eye steak', 'ribeye', 'rib eye', 'delmonico steak'],
+    'ribeye': ['rib eye steak', 'ribeye steak', 'rib eye'],
+    'short ribs': ['beef short ribs', 'braising ribs', 'chuck short ribs', 'plate ribs'],
+
+    // FOREQUARTER - Brisket
+    'brisket': ['beef brisket', 'whole brisket', 'packer brisket', 'bbq brisket', 'smoking brisket'],
+    'brisket flat': ['brisket flat cut', 'first cut brisket'],
+    'brisket point': ['brisket point cut', 'second cut brisket', 'deckle'],
+
+    // FOREQUARTER - Shank & Plate
+    'beef shank': ['shank', 'fore shank', 'front shank', 'soup bones'],
+    'skirt steak': ['outside skirt steak', 'fajita meat', 'skirt', 'fajita steak'],
+    'inside skirt steak': ['inside skirt', 'fajita steak'],
+    'hanger steak': ['hanging tender', 'butchers steak', 'onglet'],
+
+    // HINDQUARTER - Short Loin
+    't-bone steak': ['t bone steak', 'tbone steak', 't-bone', 't bone'],
+    'porterhouse steak': ['porterhouse', 'king steak'],
+    'strip steak': ['new york strip', 'ny strip', 'strip loin', 'kansas city strip', 'top loin steak'],
+    'new york strip': ['ny strip', 'strip steak', 'strip loin', 'new york strip steak'],
+
+    // HINDQUARTER - Sirloin
+    'sirloin steak': ['top sirloin steak', 'sirloin', 'top sirloin'],
+    'top sirloin': ['top sirloin steak', 'sirloin steak', 'sirloin'],
+    'bottom sirloin': ['sirloin tip', 'sirloin tip steak', 'tri tip'],
+    'tri tip': ['tri-tip', 'triangle tip', 'bottom sirloin tip', 'tri tip roast'],
+    'sirloin tip': ['sirloin tip steak', 'sirloin tip roast', 'ball tip'],
+
+    // HINDQUARTER - Tenderloin
+    'tenderloin': ['beef tenderloin', 'whole tenderloin', 'psmo', 'tenderloin roast'],
+    'filet mignon': ['tenderloin steak', 'filet', 'beef filet', 'tournedos'],
+    'beef tenderloin': ['tenderloin', 'whole tenderloin', 'tenderloin roast'],
+
+    // HINDQUARTER - Round (Hip in Canada)
+    'round steak': ['top round steak', 'bottom round steak', 'eye round steak'],
+    'top round': ['top round steak', 'top round roast', 'london broil'],
+    'bottom round': ['bottom round steak', 'bottom round roast', 'rump roast'],
+    'eye of round': ['eye round', 'eye of round steak', 'eye of round roast'],
+    'rump roast': ['bottom round roast', 'rump', 'round tip roast'],
+    'london broil': ['top round steak', 'shoulder london broil', 'flank steak'],
+
+    // HINDQUARTER - Flank
+    'flank steak': ['flank', 'london broil flank', 'jiffy steak'],
+
+    // SPECIALTY CUTS - Cube/Mechanically Tenderized
+    'cube steaks': ['cubed steaks', 'cube steak', 'cubed steak', 'minute steaks', 'swiss steaks', 'minute steak'],
+    'cubed steaks': ['cube steaks', 'cube steak', 'cubed steak', 'minute steaks', 'swiss steaks'],
+    'cube steak': ['cubed steak', 'cube steaks', 'cubed steaks', 'minute steak', 'swiss steak'],
+    'cubed steak': ['cube steak', 'cube steaks', 'cubed steaks', 'minute steak'],
+    'minute steaks': ['cube steaks', 'cubed steaks', 'minute steak', 'swiss steaks'],
+    'minute steak': ['minute steaks', 'cube steak', 'cubed steak'],
+    'swiss steaks': ['cube steaks', 'cubed steaks', 'swiss steak'],
+    'swiss steak': ['swiss steaks', 'cube steaks'],
+
+    // GROUND BEEF VARIATIONS
+    'ground beef': ['ground chuck', 'ground round', 'ground sirloin', 'hamburger', 'lean ground beef', 'extra lean ground beef'],
+    'ground round': ['ground beef', 'lean ground beef', '85/15 ground beef'],
+    'ground sirloin': ['ground beef', 'extra lean ground beef', '90/10 ground beef'],
+    'lean ground beef': ['ground beef', 'ground round', '85/15 ground beef'],
+    'extra lean ground beef': ['ground beef', 'ground sirloin', '90/10 ground beef'],
+
+    // STEW AND SOUP CUTS
+    'stew meat': ['beef stew meat', 'stewing beef', 'stew beef', 'beef for stew'],
+    'beef stew meat': ['stew meat', 'stewing beef', 'chuck stew meat'],
+    'stewing beef': ['stew meat', 'beef stew meat', 'stew beef'],
+    'soup bones': ['beef soup bones', 'marrow bones', 'beef bones'],
+
+    // CANADIAN SPECIFIC (Round = Hip)
+    'hip': ['round', 'hip roast', 'round roast'],
+    'hip steak': ['round steak', 'hip round steak'],
+
+    // PORK SHOULDER/BOSTON BUTT
+    'pork shoulder': ['boston butt', 'pork butt', 'shoulder roast', 'boston shoulder', 'pork shoulder roast', 'pulled pork'],
+    'boston butt': ['pork shoulder', 'pork butt', 'shoulder roast', 'boston shoulder', 'pulled pork'],
+    'pork butt': ['boston butt', 'pork shoulder', 'shoulder roast', 'pulled pork'],
+    'shoulder roast': ['pork shoulder', 'boston butt', 'pork shoulder roast'],
+    'pulled pork': ['pork shoulder', 'boston butt', 'barbecue pork', 'bbq pork'],
+
+// PORK PICNIC SHOULDER
+    'picnic shoulder': ['picnic roast', 'arm roast', 'picnic ham', 'fresh picnic'],
+    'picnic roast': ['picnic shoulder', 'arm roast', 'picnic ham'],
+    'arm roast': ['picnic roast', 'picnic shoulder'],
+
+// PORK LOIN
+    'pork loin': ['center cut loin', 'loin roast', 'pork loin roast', 'whole pork loin'],
+    'pork loin roast': ['pork loin', 'loin roast', 'center cut loin roast'],
+    'loin roast': ['pork loin', 'pork loin roast'],
+
+// PORK TENDERLOIN
+    'pork tenderloin': ['tenderloin', 'pork filet', 'pork tender', 'whole tenderloin'],
+    'pork filet': ['pork tenderloin', 'tenderloin', 'pork tender'],
+
+// PORK CHOPS
+    'pork chops': ['center cut pork chops', 'loin chops', 'center cut chops', 'pork loin chops'],
+    'center cut pork chops': ['pork chops', 'center cut chops', 'loin chops'],
+    'loin chops': ['pork chops', 'center cut chops', 'pork loin chops'],
+    'rib chops': ['rib cut chops', 'rib pork chops', 'ribeye chops'],
+    'sirloin chops': ['sirloin pork chops', 'sirloin cut chops'],
+    'blade chops': ['shoulder chops', 'shoulder end chops'],
+    'boneless pork chops': ['boneless chops', 'pork chops boneless'],
+
+// PORK RIBS
+    'baby back ribs': ['baby ribs', 'back ribs', 'loin ribs', 'top loin ribs'],
+    'spare ribs': ['spareribs', 'side ribs', 'pork spare ribs'],
+    'st louis ribs': ['st. louis ribs', 'saint louis ribs', 'st louis style ribs'],
+    'country style ribs': ['country-style ribs', 'country ribs', 'blade end ribs'],
+    'rib tips': ['pork rib tips', 'spare rib tips'],
+
+// PORK HAM/LEG
+    'fresh ham': ['leg of pork', 'pork leg', 'whole ham', 'uncured ham'],
+    'leg of pork': ['fresh ham', 'pork leg', 'whole ham'],
+    'ham steak': ['fresh ham steak', 'center cut ham', 'ham slice'],
+    'cured ham': ['smoked ham', 'spiral ham', 'honey ham', 'glazed ham'],
+    'spiral ham': ['spiral cut ham', 'cured ham', 'smoked ham'],
+
+// PORK BELLY & BACON
+    'pork belly': ['fresh pork belly', 'uncured pork belly', 'skin-on pork belly'],
+    'bacon': ['pork bacon', 'sliced bacon', 'thick cut bacon', 'regular bacon'],
+    'thick cut bacon': ['thick bacon', 'bacon', 'thick slice bacon'],
+    'salt pork': ['salted pork', 'cured pork belly'],
+
+    // PORK GROUND & SAUSAGES
+    'ground pork': ['pork mince', 'minced pork', 'ground pork meat'],
+    'pork sausage': ['fresh pork sausage', 'breakfast sausage', 'bulk sausage'],
+    'italian sausage': ['italian pork sausage', 'sweet italian sausage', 'hot italian sausage',
+    'italian turkey sausage', 'spicy italian sausage'],
+
+    'sweet italian sausage': ['italian sausage', 'mild italian sausage'],
+    'hot italian sausage': ['spicy italian sausage', 'italian sausage'],
+    'bratwurst': ['brats', 'bratwurst sausage', 'fresh bratwurst'],
+    'chorizo': ['fresh chorizo', 'mexican chorizo', 'pork chorizo'],
+    'kielbasa': ['polish sausage', 'kielbasa sausage', 'polish kielbasa'],
+
+// PORK SPECIALTY
+    'pork hock': ['ham hock', 'hock', 'smoked hock', 'fresh hock'],
+    'pork feet': ['pig feet', 'trotters', 'pigs feet'],
+
+// Chicken variations
     'chicken': ['chicken breast', 'chicken thighs', 'chicken legs', 'chicken wings', 'whole chicken'],
-    'chicken breast': ['chicken breasts', 'boneless chicken breast', 'skinless chicken breast'],
-    'chicken thighs': ['chicken thigh', 'boneless chicken thighs'],
 
-    // Beef variations
-    'ground beef': ['ground chuck', 'ground sirloin', 'lean ground beef', 'extra lean ground beef'],
-    'beef sirloin': ['sirloin steak', 'beef sirloin steak', 'sirloin'],
-    'steak': ['beef steak', 'steaks'],
 
-    // Sausage variations
-    'italian sausage': ['italian turkey sausage', 'sweet italian sausage', 'spicy italian sausage'],
+// WHOLE CHICKEN
+    'whole chicken': ['whole fryer', 'whole roaster', 'whole broiler', 'fryer chicken', 'roaster chicken'],
+    'fryer chicken': ['whole fryer', 'young chicken', 'broiler chicken'],
+    'roaster chicken': ['whole roaster', 'roasting chicken'],
+
+// CHICKEN BREASTS
+    'chicken breast': ['chicken breasts', 'bone-in chicken breast', 'skin-on chicken breast'],
+    'boneless chicken breast': ['boneless chicken breasts', 'boneless skinless chicken breast', 'chicken breast boneless'],
+    'boneless skinless chicken breast': ['boneless skinless chicken breasts', 'boneless chicken breast', 'skinless chicken breast'],
+    'chicken tenderloins': ['chicken tenderloin', 'chicken tenders', 'chicken strips'],
+    'chicken tenders': ['chicken tenderloins', 'chicken tenderloin', 'chicken strips'],
+    'chicken cutlets': ['chicken breast cutlets', 'pounded chicken breast', 'chicken scallopini'],
+
+// CHICKEN THIGHS
+    'chicken thighs': ['chicken thigh', 'bone-in chicken thighs', 'skin-on chicken thighs'],
+    'boneless chicken thighs': ['boneless chicken thigh', 'boneless skinless chicken thighs', 'chicken thighs boneless'],
+    'boneless skinless chicken thighs': ['boneless skinless chicken thigh', 'boneless chicken thighs'],
+
+// CHICKEN LEGS & DRUMSTICKS
+    'chicken leg quarters': ['leg quarters', 'chicken leg quarter', 'leg and thigh'],
+    'chicken drumsticks': ['chicken drumstick', 'drumsticks', 'chicken legs'],
+    'chicken legs': ['chicken leg', 'whole chicken legs', 'chicken drumsticks'],
+
+// CHICKEN WINGS
+    'chicken wings': ['chicken wing', 'whole chicken wings', 'party wings'],
+    'chicken wing flats': ['wing flats', 'chicken flats', 'wing middles'],
+    'chicken drumettes': ['drumettes', 'wing drumettes', 'chicken wing drumettes'],
+    'wing tips': ['chicken wing tips', 'wing tip'],
+
+// CHICKEN GROUND & SPECIALTY
+    'ground chicken': ['chicken mince', 'minced chicken', 'ground chicken meat'],
+    'chicken liver': ['chicken livers', 'poultry liver'],
+    'chicken gizzards': ['chicken gizzard', 'gizzards'],
+
+// TURKEY
+    'whole turkey': ['whole tom turkey', 'whole hen turkey', 'fresh turkey', 'frozen turkey'],
+    'turkey breast': ['turkey breasts', 'bone-in turkey breast', 'whole turkey breast'],
+    'boneless turkey breast': ['boneless turkey breasts', 'turkey breast boneless', 'boneless skinless turkey breast'],
+    'turkey thighs': ['turkey thigh', 'bone-in turkey thighs'],
+    'boneless turkey thighs': ['boneless turkey thigh', 'turkey thighs boneless'],
+    'turkey legs': ['turkey leg', 'whole turkey legs'],
+    'turkey drumsticks': ['turkey drumstick', 'turkey drums'],
+    'turkey wings': ['turkey wing', 'whole turkey wings'],
+    'ground turkey': ['turkey mince', 'minced turkey', 'ground turkey meat'],
+    'lean ground turkey': ['ground turkey', 'extra lean ground turkey'],
+    'ground turkey breast': ['ground turkey', 'lean ground turkey'],
+
+// DUCK & GOOSE
+    'whole duck': ['whole duckling', 'fresh duck', 'roasting duck'],
+    'duck breast': ['duck breasts', 'boneless duck breast', 'duck breast fillet'],
+    'duck legs': ['duck leg', 'duck leg quarters'],
+    'whole goose': ['fresh goose', 'roasting goose'],
+
+// CORNISH HEN & GAME BIRDS
+    'cornish hen': ['cornish game hen', 'rock cornish hen', 'cornish hens'],
+    'cornish game hen': ['cornish hen', 'rock cornish hen', 'game hen'],
+
+
 
     // Cheese variations
     'mozzarella': ['mozzarella cheese', 'fresh mozzarella', 'part skim mozzarella'],
@@ -444,6 +687,67 @@ function createIngredientKey(ingredient) {
     if (cleaned.includes('mozzarella') && !cleaned.includes('shredded')) return 'mozzarella';
     if (cleaned.includes('cheddar')) return 'cheddar';
     if (cleaned.includes('parmesan')) return 'parmesan';
+
+    // ENHANCED BEEF CUT GROUPING
+    if (cleaned.includes('cube steaks') || cleaned.includes('cubed steaks') || cleaned.includes('minute steaks')) return 'cube-steaks';
+    if (cleaned.includes('ground beef') || cleaned.includes('ground chuck') || cleaned.includes('ground round')) return 'ground-beef';
+    if (cleaned.includes('ribeye') || cleaned.includes('rib eye')) return 'ribeye-steak';
+    if (cleaned.includes('strip steak') || cleaned.includes('new york strip') || cleaned.includes('ny strip')) return 'strip-steak';
+    if (cleaned.includes('sirloin steak') || cleaned.includes('top sirloin')) return 'sirloin-steak';
+    if (cleaned.includes('t-bone') || cleaned.includes('t bone')) return 't-bone-steak';
+    if (cleaned.includes('porterhouse')) return 'porterhouse-steak';
+    if (cleaned.includes('filet mignon') || cleaned.includes('tenderloin steak')) return 'filet-mignon';
+    if (cleaned.includes('chuck roast') || cleaned.includes('pot roast')) return 'chuck-roast';
+    if (cleaned.includes('chuck steak')) return 'chuck-steak';
+    if (cleaned.includes('prime rib') || cleaned.includes('rib roast')) return 'prime-rib';
+    if (cleaned.includes('short ribs')) return 'short-ribs';
+    if (cleaned.includes('brisket')) return 'brisket';
+    if (cleaned.includes('flank steak') || cleaned.includes('london broil')) return 'flank-steak';
+    if (cleaned.includes('skirt steak') || cleaned.includes('fajita meat')) return 'skirt-steak';
+    if (cleaned.includes('round steak') || cleaned.includes('top round') || cleaned.includes('bottom round')) return 'round-steak';
+    if (cleaned.includes('rump roast')) return 'rump-roast';
+    if (cleaned.includes('eye of round')) return 'eye-of-round';
+    if (cleaned.includes('tri tip') || cleaned.includes('tri-tip')) return 'tri-tip';
+    if (cleaned.includes('stew meat') || cleaned.includes('beef stew')) return 'stew-meat';
+    if (cleaned.includes('soup bones') || cleaned.includes('marrow bones')) return 'soup-bones';
+
+    // ENHANCED PORK CUT GROUPING
+    if (cleaned.includes('pork shoulder') || cleaned.includes('boston butt') || cleaned.includes('pulled pork')) return 'pork-shoulder';
+    if (cleaned.includes('pork loin') && !cleaned.includes('chop')) return 'pork-loin';
+    if (cleaned.includes('pork tenderloin') || cleaned.includes('pork filet')) return 'pork-tenderloin';
+    if (cleaned.includes('pork chops') || cleaned.includes('loin chops')) return 'pork-chops';
+    if (cleaned.includes('baby back ribs') || cleaned.includes('back ribs')) return 'baby-back-ribs';
+    if (cleaned.includes('spare ribs') || cleaned.includes('spareribs')) return 'spare-ribs';
+    if (cleaned.includes('country style ribs') || cleaned.includes('country ribs')) return 'country-style-ribs';
+    if (cleaned.includes('fresh ham') || cleaned.includes('leg of pork')) return 'fresh-ham';
+    if (cleaned.includes('ham steak')) return 'ham-steak';
+    if (cleaned.includes('pork belly')) return 'pork-belly';
+    if (cleaned.includes('ground pork') || cleaned.includes('pork mince')) return 'ground-pork';
+    if (cleaned.includes('italian sausage') && cleaned.includes('pork')) return 'italian-pork-sausage';
+    if (cleaned.includes('pork sausage') || cleaned.includes('breakfast sausage')) return 'pork-sausage';
+    if (cleaned.includes('bratwurst') || cleaned.includes('brats')) return 'bratwurst';
+    if (cleaned.includes('chorizo') && cleaned.includes('pork')) return 'pork-chorizo';
+    if (cleaned.includes('kielbasa') || cleaned.includes('polish sausage')) return 'kielbasa';
+    if (cleaned.includes('pork hock') || cleaned.includes('ham hock')) return 'pork-hock';
+
+// ENHANCED POULTRY CUT GROUPING
+    if (cleaned.includes('whole chicken') || cleaned.includes('fryer chicken')) return 'whole-chicken';
+    if (cleaned.includes('chicken breast') && !cleaned.includes('ground')) return 'chicken-breast';
+    if (cleaned.includes('chicken thigh')) return 'chicken-thighs';
+    if (cleaned.includes('chicken leg') || cleaned.includes('drumstick')) return 'chicken-legs';
+    if (cleaned.includes('chicken wing')) return 'chicken-wings';
+    if (cleaned.includes('chicken tender') || cleaned.includes('chicken strip')) return 'chicken-tenderloins';
+    if (cleaned.includes('ground chicken') || cleaned.includes('chicken mince')) return 'ground-chicken';
+    if (cleaned.includes('whole turkey')) return 'whole-turkey';
+    if (cleaned.includes('turkey breast') && !cleaned.includes('ground')) return 'turkey-breast';
+    if (cleaned.includes('turkey thigh')) return 'turkey-thighs';
+    if (cleaned.includes('turkey leg') || cleaned.includes('turkey drumstick')) return 'turkey-legs';
+    if (cleaned.includes('ground turkey') || cleaned.includes('turkey mince')) return 'ground-turkey';
+    if (cleaned.includes('whole duck') || cleaned.includes('duckling')) return 'whole-duck';
+    if (cleaned.includes('duck breast')) return 'duck-breast';
+    if (cleaned.includes('duck leg')) return 'duck-legs';
+    if (cleaned.includes('cornish hen') || cleaned.includes('cornish game hen')) return 'cornish-hen';
+
 
     // Oil variations
     if (cleaned.includes('sesame oil')) return 'sesame-oil';

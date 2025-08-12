@@ -2358,7 +2358,7 @@ export default function EnhancedAIShoppingListModal({
                                 />
                             </div>
 
-                            {/* Enhanced price source indicator */}
+                            {/* Price source indicator */}
                             {item.priceSource && item.priceSource !== 'none' && (
                                 <div style={{
                                     fontSize: '0.65rem',
