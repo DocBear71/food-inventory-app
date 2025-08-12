@@ -273,7 +273,7 @@ function transformUniversalDataToSchema(modalData, contentInfo) {
 }
 
 // ENHANCED: Universal Modal API call
-async function callModalForUniversalExtraction(contentInfo, analysisType = 'page_scraping_first', extractImage = false) {
+async function callModalForUniversalExtraction(contentInfo, analysisType = 'page_scraping_first', extractImage = false, userContext = null) {
     console.log(`🚀 [VERCEL] Calling Modal for ${contentInfo.platform} content extraction...`);
     console.log('🔧 [VERCEL] Analysis type:', analysisType);
     console.log('📸 [VERCEL] Extract image:', extractImage);
@@ -283,7 +283,12 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
             video_url: contentInfo.originalUrl,
             platform: contentInfo.platform,
             analysis_type: analysisType,
-            extract_image: extractImage
+            extract_image: extractImage,
+            user_context: userContext || {
+                location: 'US',
+                measurementSystem: 'imperial',
+                currency: 'USD'
+            }
         };
 
         console.log('📦 [VERCEL] Universal Modal payload:', payload);
@@ -387,11 +392,19 @@ export async function POST(request) {
 
         console.log(`📺 [VERCEL] Content info: ${contentInfo.platform} - ${contentInfo.contentId}`);
 
-        // ENHANCED: Use Universal Modal with intelligent processing
+        // ENHANCED: Use Universal Modal with intelligent processing and user context
+        const userContext = {
+            location: session.user.country || 'US',
+            measurementSystem: session.user.internationalPreferences?.unitSystem || 'imperial',
+            currency: session.user.currencyPreferences?.currency || 'USD',
+            extractImage: extractImage || false
+        };
+
         const result = await callModalForUniversalExtraction(
             contentInfo,
             analysisType || 'page_scraping_first',
-            extractImage || false
+            extractImage || false,
+            userContext
         );
 
         console.log('✅ [VERCEL] Universal extraction complete:', {
