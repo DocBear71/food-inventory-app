@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import Image from 'next/image';
 import Footer from '@/components/legal/Footer'
+import {TouchEnhancedButton} from "@/components/mobile/TouchEnhancedButton.js";
 
 // Image Carousel Component
 function ImageCarousel({ images, alt, interval = 2000 }) {
@@ -364,20 +365,21 @@ export default function LandingPage() {
                             <div className="flex flex-col sm:flex-row items-center gap-4">
                                 <div className="text-sm text-gray-600 font-medium">Available on all platforms:</div>
                                 <div className="flex gap-3">
-                                    <button
-                                        onClick={() => alert('Coming soon to Google Play Store!')}
-                                        className="block transition-transform hover:scale-105"
+                                    <TouchEnhancedButton
+                                        onClick={() => window.open('https://play.google.com/store/apps/details?id=kitchen.docbearscomfort', '_blank')}
+                                        className="block transition-transform hover:scale-105 active:scale-95"
+                                        aria-label="Download Doc Bear's Comfort Kitchen from Google Play Store"
                                     >
                                         <Image
-                                            src="/images/playStore-comingsoon.png"
-                                            alt="Coming Soon to Google Play Store"
+                                            src="/images/Google-Play-Store-Button.png"
+                                            alt="Available at the Google Play Store"
                                             width={168}
                                             height={56}
                                             className="h-12 sm:h-14"
                                             style={{ width: 'auto', height: 'auto' }}
                                         />
-                                    </button>
-                                    <button
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
                                         onClick={() => alert('Coming soon to Apple App Store!')}
                                         className="block transition-transform hover:scale-105"
                                     >
@@ -389,7 +391,7 @@ export default function LandingPage() {
                                             className="h-12 sm:h-14"
                                             style={{ width: 'auto', height: 'auto' }}
                                         />
-                                    </button>
+                                    </TouchEnhancedButton>
                                 </div>
                             </div>
                         </div>
@@ -801,20 +803,21 @@ export default function LandingPage() {
                         <div className="flex justify-center items-center gap-4 mt-4">
                             <span className="text-xs">Also coming to:</span>
 
-                            <button
-                                onClick={() => alert('Coming soon to Google Play Store!')}
-                                className="transition-transform hover:scale-105"
+                            <TouchEnhancedButton
+                                onClick={() => window.open('https://play.google.com/store/apps/details?id=kitchen.docbearscomfort', '_blank')}
+                                className="block transition-transform hover:scale-105 active:scale-95"
+                                aria-label="Download Doc Bear's Comfort Kitchen from Google Play Store"
                             >
                                 <Image
-                                    src="/images/playStore-comingsoon.png"
-                                    alt="Coming Soon to Google Play Store"
-                                    width={120}
-                                    height={32}
-                                    className="h-8"
+                                    src="/images/Google-Play-Store-Button.png"
+                                    alt="Available at the Google Play Store"
+                                    width={168}
+                                    height={56}
+                                    className="h-12 sm:h-14"
                                     style={{ width: 'auto', height: 'auto' }}
                                 />
-                            </button>
-                            <button
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
                                 onClick={() => alert('Coming soon to Apple App Store!')}
                                 className="transition-transform hover:scale-105"
                             >
@@ -826,7 +829,7 @@ export default function LandingPage() {
                                     className="h-8"
                                     style={{ width: 'auto', height: 'auto' }}
                                 />
-                            </button>
+                            </TouchEnhancedButton>
                         </div>
                     </div>
                 </div>
