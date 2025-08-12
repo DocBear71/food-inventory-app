@@ -2234,14 +2234,6 @@ export default function EnhancedAIShoppingListModal({
         const isPurchased = item.purchased;
         const priceInfo = config.showPriceFeatures ? getItemPriceInfo(item.ingredient || item.name) : null;
 
-        console.log('[ITEM RENDER DEBUG]', {
-            itemName: item.ingredient || item.name,
-            shoppingMode,
-            showPriceFeatures: config.showPriceFeatures,
-            config,
-            item
-        });
-
         return (
             <div
                 key={`${index}-${item.id || itemKey}-${updateTrigger}`} // Include updateTrigger in key
@@ -2285,17 +2277,6 @@ export default function EnhancedAIShoppingListModal({
                         {item.unit && `${item.unit} `}
                         {item.ingredient || item.name}
 
-                        {/* DEBUG: Price controls visibility */}
-                        {(() => {
-                            console.log('[PRICE CONTROLS DEBUG]', {
-                                showPriceFeatures: config.showPriceFeatures,
-                                mode: shoppingMode,
-                                shouldShow: config.showPriceFeatures
-                            });
-                            return null; // This fixes the void function error
-                        })()}
-
-
                         {/* Smart Price Status Badges */}
                         {config.showPriceFeatures && (
                             <>
@@ -2337,11 +2318,12 @@ export default function EnhancedAIShoppingListModal({
                             gap: '0.75rem',
                             marginBottom: '0.5rem',
                             flexWrap: 'wrap',
-                            padding: '0.5rem',
-                            backgroundColor: '#f8fafc',
-                            borderRadius: '6px',
-                            border: '1px solid #e2e8f0'
+                            backgroundColor: '#ffcccc',  // Light red background to spot it
+                            border: '2px solid red',
+                            padding: '1rem'
                         }}>
+                            <div>🔴 PRICE CONTROLS SHOULD BE HERE FOR: {item.ingredient || item.name}</div>
+
                             {/* Quantity Control */}
                             <div style={{
                                 display: 'flex',
@@ -2643,15 +2625,6 @@ export default function EnhancedAIShoppingListModal({
             } : null
         });
     }, [currentShoppingList]);
-
-    // DEBUG: Check shopping mode and price features
-    console.log('[PRICE DEBUG]', {
-        shoppingMode,
-        config: getModeConfig(),
-        showPriceFeatures: getModeConfig().showPriceFeatures,
-        currentShoppingList: !!currentShoppingList,
-        sampleItem: currentShoppingList?.items ? Object.values(currentShoppingList.items)[0]?.[0] : 'no items'
-    });
 
     // Early return if not open or no data
     if (!isOpen) {
