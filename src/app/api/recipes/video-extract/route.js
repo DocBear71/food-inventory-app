@@ -53,6 +53,51 @@ const VIDEO_PLATFORMS = {
             }
             return null;
         }
+    },
+    twitter: {
+        patterns: [
+            /(twitter\.com|x\.com)\/[^\/]+\/status\/(\d+)/
+        ],
+        extractId: (url) => {
+            const match = url.match(/(twitter\.com|x\.com)\/[^\/]+\/status\/(\d+)/);
+            return match ? match[2] : null;
+        }
+    },
+    youtube: {
+        patterns: [
+            /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,
+            /youtu\.be\/([a-zA-Z0-9_-]+)/,
+            /youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/
+        ],
+        extractId: (url) => {
+            for (const pattern of VIDEO_PLATFORMS.youtube.patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+    },
+    reddit: {
+        patterns: [
+            /reddit\.com\/r\/[^\/]+\/comments\/([a-zA-Z0-9]+)/,
+            /redd\.it\/([a-zA-Z0-9]+)/
+        ],
+        extractId: (url) => {
+            for (const pattern of VIDEO_PLATFORMS.reddit.patterns) {
+                const match = url.match(pattern);
+                if (match) return match[1];
+            }
+            return null;
+        }
+    },
+    bluesky: {
+        patterns: [
+            /bsky\.app\/profile\/[^\/]+\/post\/([a-zA-Z0-9]+)/
+        ],
+        extractId: (url) => {
+            const match = url.match(/bsky\.app\/profile\/[^\/]+\/post\/([a-zA-Z0-9]+)/);
+            return match ? match[1] : null;
+        }
     }
 };
 
@@ -66,7 +111,7 @@ function detectVideoPlatform(url) {
             return { platform, videoId, originalUrl: url };
         }
     }
-    throw new Error('Unsupported video platform. Currently supports TikTok, Instagram, and Facebook. For YouTube videos, please copy the transcript and use the Text Paste option instead.');
+    throw new Error('Unsupported video platform. Currently supports TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, and Bluesky videos.');
 }
 
 // ENHANCED: Transform Modal response with image data
@@ -250,7 +295,8 @@ export async function POST(request) {
             videoInfo = detectVideoPlatform(url);
         } catch (error) {
             // If detection fails but platform hint provided, use hint
-            if (platform && ['tiktok', 'instagram', 'facebook'].includes(platform)) {
+            const supportedPlatforms = ['tiktok', 'instagram', 'facebook', 'twitter', 'youtube', 'reddit', 'bluesky'];
+            if (platform && supportedPlatforms.includes(platform)) {
                 console.log(`🎯 [VERCEL] Using platform hint: ${platform}`);
                 videoInfo = {
                     platform: platform,
@@ -327,8 +373,8 @@ export async function POST(request) {
 
         return NextResponse.json({
             error: enhancedErrorMessage,
-            supportedPlatforms: ['TikTok', 'Instagram', 'Facebook'],
-            note: 'All video processing powered by Modal AI. For YouTube, use Text Paste with transcripts.',
+            supportedPlatforms: ['TikTok', 'Instagram', 'Facebook', 'Twitter/X', 'YouTube', 'Reddit', 'Bluesky'],
+            note: 'All video processing powered by Modal AI with universal platform support.',
             troubleshooting: {
                 tiktok: [
                     'Use share links directly from TikTok app',
@@ -341,11 +387,30 @@ export async function POST(request) {
                     'Try content from popular cooking accounts'
                 ],
                 facebook: [
-                    'Use public Facebook videos - if private, try Text Paste with any recipe text instead',
+                    'Use public Facebook videos',
                     'Try using the share link from Facebook mobile app',
                     'For private videos, copy any recipe text and use Text Paste'
                 ],
-                youtube: ['YouTube not supported - copy transcript and use Text Paste option instead']
+                twitter: [
+                    'Make sure tweets are public',
+                    'Video tweets work best for recipe content',
+                    'Try copying tweet text if video fails'
+                ],
+                youtube: [
+                    'Use public YouTube videos or Shorts',
+                    'Cooking channels work best',
+                    'Try shorter videos for better results'
+                ],
+                reddit: [
+                    'Use posts from public cooking subreddits',
+                    'Video posts work better than GIFs',
+                    'Try copying recipe text from comments if video fails'
+                ],
+                bluesky: [
+                    'Make sure posts are public',
+                    'Cooking content with video works best',
+                    'Try copying post text if video processing fails'
+                ]
             }
         }, { status: 400 });
     }
