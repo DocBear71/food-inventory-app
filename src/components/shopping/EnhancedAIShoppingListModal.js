@@ -1472,12 +1472,6 @@ export default function EnhancedAIShoppingListModal({
         return configs[shoppingMode] || configs['enhanced'];
     }, [shoppingMode]);
 
-    console.log('[SHOPPING MODE DEBUG]', {
-        shoppingMode,
-        config,
-        showPriceFeatures: config.showPriceFeatures
-    });
-
 // NEW: Add these helper functions AFTER normalizedList is defined
     const getEstimatedTotal = useCallback(() => {
         if (!normalizedList?.items) return 0;
