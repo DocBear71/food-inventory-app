@@ -1,7 +1,7 @@
 'use client';
 // file: /src/components/shopping/EnhancedAIShoppingListModal.js v10 - Part 1: Fixed Modal.com integration and API communication
 
-import {useState, useEffect, useCallback, useMemo, useRef} from 'react';
+import {useState, useEffect, useCallback, useMemo, useRef, memo} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
 import EmailSharingModal from '@/components/sharing/EmailSharingModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
@@ -14,6 +14,200 @@ import {ShoppingListTotalsCalculator} from '@/lib/shoppingListTotals';
 import {VoiceInput} from '@/components/mobile/VoiceInput';
 import {apiPost, apiGet} from '@/lib/api-config';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
+
+// STEP 1: Extract the price controls into a separate memoized component
+const PriceControls = memo(({
+                                item,
+                                itemKey,
+                                config,
+                                localPrices,
+                                localQuantities,
+                                handlePriceUpdate,
+                                handleQuantityChange,
+                                updateShoppingListPrice,
+                                priceUpdateTimeouts,
+                                getInventoryPriceTooltip,
+                                getPriceSourceLabel,
+                                isValidPriceInput,
+                                isValidQuantityInput
+                            }) => {
+    console.log(`🎯 PriceControls rendering for: ${itemKey}`);
+
+    return (
+        <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.75rem',
+            marginBottom: '0.5rem',
+            flexWrap: 'wrap',
+            backgroundColor: '#f8fafc',
+            border: '1px solid #e2e8f0',
+            padding: '0.75rem',
+            borderRadius: '6px'
+        }}>
+            {/* Quantity Control */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+            }}>
+                <label style={{
+                    fontSize: '0.75rem',
+                    color: '#6b7280',
+                    fontWeight: '500'
+                }}>
+                    Qty:
+                </label>
+                <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={localQuantities[itemKey] !== undefined ? localQuantities[itemKey] : (item.quantity || 1)}
+                    onChange={(e) => {
+                        const newQuantity = e.target.value;
+
+                        if (isValidQuantityInput(newQuantity)) {
+                            const numericValue = newQuantity === '' ? 0 : parseFloat(newQuantity);
+                            handleQuantityChange(itemKey, numericValue);
+                        } else {
+                            e.preventDefault();
+                        }
+                    }}
+                    style={{
+                        width: '4rem',
+                        padding: '0.375rem 0.25rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px',
+                        fontSize: '0.875rem',
+                        textAlign: 'center',
+                        backgroundColor: 'white'
+                    }}
+                />
+                <span style={{
+                    fontSize: '0.75rem',
+                    color: '#6b7280',
+                    minWidth: '2rem'
+                }}>
+                    {item.unit || 'qty'}
+                </span>
+            </div>
+
+            {/* Price Control */}
+            <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.25rem'
+            }}>
+                <label style={{
+                    fontSize: '0.75rem',
+                    color: '#6b7280',
+                    fontWeight: '500'
+                }}>
+                    Price:
+                </label>
+                <div style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.125rem'
+                }}>
+                    <span style={{
+                        fontSize: '0.875rem',
+                        color: '#374151',
+                        fontWeight: '500'
+                    }}>$</span>
+                    <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={localPrices[itemKey] !== undefined ? localPrices[itemKey] : (item.actualPrice || item.estimatedPrice || '')}
+                        onChange={(e) => {
+                            const newPrice = e.target.value;
+
+                            // Prevent invalid characters but allow typing
+                            if (isValidPriceInput(newPrice)) {
+                                handlePriceUpdate(itemKey, newPrice);
+                            } else {
+                                // Reject invalid input without calling handler
+                                e.preventDefault();
+                            }
+                        }}
+                        onFocus={(e) => {
+                            // Prevent any parent components from interfering
+                            e.stopPropagation();
+                        }}
+                        onBlur={(e) => {
+                            // Force final update when user leaves the field
+                            const value = e.target.value;
+                            if (priceUpdateTimeouts.current[itemKey]) {
+                                clearTimeout(priceUpdateTimeouts.current[itemKey]);
+                                updateShoppingListPrice(itemKey, value);
+                                delete priceUpdateTimeouts.current[itemKey];
+                            }
+                        }}
+                        placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
+                        style={{
+                            width: '5rem',
+                            padding: '0.375rem 0.25rem',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            fontSize: '0.875rem',
+                            textAlign: 'center',
+                            backgroundColor: item.priceSource?.startsWith('inventory') ? '#f0fdf4' :
+                                item.estimatedPrice > 0 ? '#fefce8' : 'white',
+                            borderColor: item.priceSource?.startsWith('inventory') ? '#22c55e' :
+                                item.estimatedPrice > 0 ? '#f59e0b' : '#d1d5db'
+                        }}
+                        title={getInventoryPriceTooltip ? getInventoryPriceTooltip(item) : `Price for ${item.ingredient}`}
+                    />
+                </div>
+            </div>
+
+            {/* Price Source Indicator */}
+            {item.priceSource && item.priceSource !== 'none' && (
+                <div style={{
+                    fontSize: '0.65rem',
+                    color: item.priceSource.startsWith('inventory') ? '#059669' : '#3b82f6',
+                    backgroundColor: item.priceSource.startsWith('inventory') ? '#dcfce7' : '#dbeafe',
+                    padding: '0.125rem 0.375rem',
+                    borderRadius: '8px',
+                    fontWeight: '500',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.25rem'
+                }}>
+                    {item.priceSource.startsWith('inventory') ? '📦' : '💡'}
+                    {getPriceSourceLabel ? getPriceSourceLabel(item.priceSource) : 'Price'}
+                </div>
+            )}
+
+            {/* Item Total */}
+            {(item.estimatedPrice > 0 || item.actualPrice > 0) && (
+                <div style={{
+                    fontSize: '0.75rem',
+                    color: '#374151',
+                    fontWeight: '600',
+                    marginLeft: 'auto',
+                    padding: '0.25rem 0.5rem',
+                    backgroundColor: '#f3f4f6',
+                    borderRadius: '4px'
+                }}>
+                    Total: ${((item.actualPrice || item.estimatedPrice || 0) * (item.quantity || 1)).toFixed(2)}
+                </div>
+            )}
+        </div>
+    );
+});
+PriceControls.displayName = 'PriceControls';
+
+const isValidPriceInput = (value) => {
+    // Allow empty, numbers, and partial decimal inputs like "25."
+    return value === '' || /^\d*\.?\d*$/.test(value);
+};
+
+const isValidQuantityInput = (value) => {
+    // Allow empty, numbers, and partial decimal inputs
+    return value === '' || /^\d*\.?\d*$/.test(value);
+};
 
 export default function EnhancedAIShoppingListModal({
                                                         isOpen,
@@ -979,6 +1173,12 @@ export default function EnhancedAIShoppingListModal({
     }, [currentShoppingList?.items, setBudgetTracking]);
 
     const handlePriceUpdate = useCallback((itemKey, newPriceValue) => {
+        // Validate input before processing
+        if (!isValidPriceInput(newPriceValue)) {
+            console.log(`[PRICE] Invalid input rejected: "${newPriceValue}"`);
+            return;
+        }
+
         // Update local state immediately (no re-render of full list)
         setLocalPrices(prev => ({
             ...prev,
@@ -990,121 +1190,135 @@ export default function EnhancedAIShoppingListModal({
             clearTimeout(priceUpdateTimeouts.current[itemKey]);
         }
 
-        // Set new timeout to update the actual shopping list after user stops typing
-        priceUpdateTimeouts.current[itemKey] = setTimeout(() => {
-            console.log(`[PRICE HANDLER] Debounced update for item: "${itemKey}", Price: $${newPriceValue}`);
+        // Only set timeout if we have a complete number (not ending with decimal)
+        const shouldUpdate = newPriceValue !== '' && !newPriceValue.endsWith('.');
 
-            if (!currentShoppingList?.items) {
-                console.error('[PRICE HANDLER] No shopping list items found');
-                return;
-            }
+        if (shouldUpdate) {
+            // Set timeout for complete numbers
+            priceUpdateTimeouts.current[itemKey] = setTimeout(() => {
+                console.log(`[PRICE HANDLER] Debounced update for: "${itemKey}", Price: $${newPriceValue}`);
+                updateShoppingListPrice(itemKey, newPriceValue);
+                delete priceUpdateTimeouts.current[itemKey];
+            }, 500);
+        } else {
+            // For incomplete inputs (ending with .), set a longer timeout
+            priceUpdateTimeouts.current[itemKey] = setTimeout(() => {
+                console.log(`[PRICE HANDLER] Final update after decimal: "${itemKey}", Price: $${newPriceValue}`);
+                updateShoppingListPrice(itemKey, newPriceValue);
+                delete priceUpdateTimeouts.current[itemKey];
+            }, 1500); // Longer delay for decimal inputs
+        }
+    }, []);
 
-            const updatedShoppingList = {...currentShoppingList};
-            const updatedItems = {...updatedShoppingList.items};
-            let itemFound = false;
+    const updateShoppingListPrice = useCallback((itemKey, newPriceValue) => {
+        if (!currentShoppingList?.items) return;
 
-            Object.keys(updatedItems).forEach(category => {
-                updatedItems[category] = updatedItems[category].map(item => {
-                    const matchByName = (item.ingredient || item.name) === itemKey;
-                    const matchByItemKey = item.itemKey === itemKey;
-                    const matchByIngredientKey = item.ingredientKey === itemKey;
-                    const matchById = item.id === itemKey;
-                    const itemNameKey = `${item.ingredient || item.name}-${category}`;
-                    const matchByComputedKey = itemNameKey === itemKey;
+        const updatedShoppingList = {...currentShoppingList};
+        const updatedItems = {...updatedShoppingList.items};
+        let itemFound = false;
 
-                    const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
+        Object.keys(updatedItems).forEach(category => {
+            updatedItems[category] = updatedItems[category].map(item => {
+                const matchByName = (item.ingredient || item.name) === itemKey;
+                const matchByItemKey = item.itemKey === itemKey;
+                const matchByIngredientKey = item.ingredientKey === itemKey;
+                const matchById = item.id === itemKey;
+                const itemNameKey = `${item.ingredient || item.name}-${category}`;
+                const matchByComputedKey = itemNameKey === itemKey;
 
-                    if (matches && !itemFound) {
-                        itemFound = true;
-                        const newPrice = parseFloat(newPriceValue) || 0;
-                        const updated = {...item, actualPrice: newPrice};
-                        console.log(`[PRICE HANDLER] ✅ Updated "${item.ingredient || item.name}" with price $${newPrice}`);
-                        return updated;
-                    }
-                    return item;
-                });
-            });
+                const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
 
-            if (itemFound) {
-                updatedShoppingList.items = updatedItems;
-                setCurrentShoppingList(updatedShoppingList);
-
-                // Only trigger re-render after debounce
-                setUpdateTrigger(prev => prev + 1);
-
-                if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
-                    MobileHaptics.light();
+                if (matches && !itemFound) {
+                    itemFound = true;
+                    const newPrice = parseFloat(newPriceValue) || 0;
+                    const updated = {...item, actualPrice: newPrice};
+                    return updated;
                 }
-            }
+                return item;
+            });
+        });
 
-            // Clean up the timeout reference
-            delete priceUpdateTimeouts.current[itemKey];
+        if (itemFound) {
+            updatedShoppingList.items = updatedItems;
+            setCurrentShoppingList(updatedShoppingList);
 
-        }, 500); // Wait 500ms after user stops typing
+            // Use a different trigger mechanism to avoid re-rendering all items
+            setTimeout(() => {
+                setUpdateTrigger(prev => prev + 1);
+            }, 0);
+        }
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
+
     const handleQuantityChange = useCallback((itemKey, newQuantity) => {
-        // Update local state immediately (no re-render of full list)
+        const quantityStr = String(newQuantity);
+
+        if (!isValidQuantityInput(quantityStr)) {
+            console.log(`[QUANTITY] Invalid input rejected: "${quantityStr}"`);
+            return;
+        }
+
         setLocalQuantities(prev => ({
             ...prev,
             [itemKey]: newQuantity
         }));
 
-        // Clear existing timeout for this item
         if (quantityUpdateTimeouts.current[itemKey]) {
             clearTimeout(quantityUpdateTimeouts.current[itemKey]);
         }
 
-        // Set new timeout to update the actual shopping list after user stops typing
-        quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
-            console.log(`[QUANTITY HANDLER] Debounced update for item: "${itemKey}", Quantity: ${newQuantity}`);
+        const shouldUpdate = quantityStr !== '' && !quantityStr.endsWith('.');
 
-            if (!currentShoppingList?.items) {
-                console.error('[QUANTITY HANDLER] No shopping list items found');
-                return;
-            }
+        if (shouldUpdate) {
+            quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
+                console.log(`[QUANTITY HANDLER] Debounced update for: "${itemKey}", Quantity: ${newQuantity}`);
+                updateShoppingListQuantity(itemKey, newQuantity);
+                delete quantityUpdateTimeouts.current[itemKey];
+            }, 300);
+        } else {
+            quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
+                console.log(`[QUANTITY HANDLER] Final update after decimal: "${itemKey}", Quantity: ${newQuantity}`);
+                updateShoppingListQuantity(itemKey, newQuantity);
+                delete quantityUpdateTimeouts.current[itemKey];
+            }, 1000);
+        }
+    }, []);
 
-            const updatedShoppingList = {...currentShoppingList};
-            const updatedItems = {...updatedShoppingList.items};
-            let itemFound = false;
+    const updateShoppingListQuantity = useCallback((itemKey, newQuantity) => {
+        if (!currentShoppingList?.items) return;
 
-            Object.keys(updatedItems).forEach(category => {
-                updatedItems[category] = updatedItems[category].map(item => {
-                    const matchByName = (item.ingredient || item.name) === itemKey;
-                    const matchByItemKey = item.itemKey === itemKey;
-                    const matchByIngredientKey = item.ingredientKey === itemKey;
-                    const matchById = item.id === itemKey;
-                    const itemNameKey = `${item.ingredient || item.name}-${category}`;
-                    const matchByComputedKey = itemNameKey === itemKey;
+        const updatedShoppingList = {...currentShoppingList};
+        const updatedItems = {...updatedShoppingList.items};
+        let itemFound = false;
 
-                    const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
+        Object.keys(updatedItems).forEach(category => {
+            updatedItems[category] = updatedItems[category].map(item => {
+                const matchByName = (item.ingredient || item.name) === itemKey;
+                const matchByItemKey = item.itemKey === itemKey;
+                const matchByIngredientKey = item.ingredientKey === itemKey;
+                const matchById = item.id === itemKey;
+                const itemNameKey = `${item.ingredient || item.name}-${category}`;
+                const matchByComputedKey = itemNameKey === itemKey;
 
-                    if (matches && !itemFound) {
-                        itemFound = true;
-                        const updated = {...item, quantity: Math.max(0, newQuantity)};
-                        console.log(`[QUANTITY HANDLER] ✅ Updated "${item.ingredient || item.name}" with quantity ${newQuantity}`);
-                        return updated;
-                    }
-                    return item;
-                });
-            });
+                const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
 
-            if (itemFound) {
-                updatedShoppingList.items = updatedItems;
-                setCurrentShoppingList(updatedShoppingList);
-
-                // Only trigger re-render after debounce
-                setUpdateTrigger(prev => prev + 1);
-
-                if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
-                    MobileHaptics.light();
+                if (matches && !itemFound) {
+                    itemFound = true;
+                    const updated = {...item, quantity: Math.max(0, newQuantity)};
+                    return updated;
                 }
-            }
+                return item;
+            });
+        });
 
-            // Clean up the timeout reference
-            delete quantityUpdateTimeouts.current[itemKey];
+        if (itemFound) {
+            updatedShoppingList.items = updatedItems;
+            setCurrentShoppingList(updatedShoppingList);
 
-        }, 300); // Wait 300ms after user stops typing
+            setTimeout(() => {
+                setUpdateTrigger(prev => prev + 1);
+            }, 0);
+        }
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
     const selectAlternative = useCallback(async (itemId, alternative) => {
@@ -2421,145 +2635,22 @@ export default function EnhancedAIShoppingListModal({
                         )}
                     </div>
 
-                    {/* FIXED: Enhanced Price and Quantity Controls */}
                     {config.showPriceFeatures && (
-                        <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '0.75rem',
-                            marginBottom: '0.5rem',
-                            flexWrap: 'wrap',
-                            backgroundColor: '#f8fafc',
-                            border: '1px solid #e2e8f0',
-                            padding: '0.75rem',
-                            borderRadius: '6px'
-                        }}>
-                            {/* Quantity Control */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.25rem'
-                            }}>
-                                <label style={{
-                                    fontSize: '0.75rem',
-                                    color: '#6b7280',
-                                    fontWeight: '500'
-                                }}>
-                                    Qty:
-                                </label>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.1"
-                                    value={localQuantities[itemKey] !== undefined ? localQuantities[itemKey] : (item.quantity || 1)}
-                                    onChange={(e) => {
-                                        const newQuantity = parseFloat(e.target.value) || 1;
-                                        // FIXED: Use itemKey that matches what the handler expects
-                                        handleQuantityChange(itemKey, newQuantity);
-                                    }}
-                                    style={{
-                                        width: '4rem',
-                                        padding: '0.375rem 0.25rem',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '4px',
-                                        fontSize: '0.875rem',
-                                        textAlign: 'center',
-                                        backgroundColor: 'white'
-                                    }}
-                                />
-                                <span style={{
-                                    fontSize: '0.75rem',
-                                    color: '#6b7280',
-                                    minWidth: '2rem'
-                                }}>
-                                {item.unit || 'qty'}
-                            </span>
-                            </div>
-
-                            {/* Price Control */}
-                            <div style={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '0.25rem'
-                            }}>
-                                <label style={{
-                                    fontSize: '0.75rem',
-                                    color: '#6b7280',
-                                    fontWeight: '500'
-                                }}>
-                                    Price:
-                                </label>
-                                <div style={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.125rem'
-                                }}>
-                                <span style={{
-                                    fontSize: '0.875rem',
-                                    color: '#374151',
-                                    fontWeight: '500'
-                                }}>$</span>
-                                    <input
-                                        type="number"
-                                        min="0"
-                                        step="0.01"
-                                        value={localPrices[itemKey] !== undefined ? localPrices[itemKey] : (item.actualPrice || item.estimatedPrice || '')}
-                                        onChange={(e) => {
-                                            const newPrice = e.target.value;
-                                            // FIXED: Use itemKey that matches what the handler expects
-                                            handlePriceUpdate(itemKey, newPrice);
-                                        }}
-                                        placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
-                                        style={{
-                                            width: '5rem',
-                                            padding: '0.375rem 0.25rem',
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '4px',
-                                            fontSize: '0.875rem',
-                                            textAlign: 'center',
-                                            backgroundColor: item.priceSource?.startsWith('inventory') ? '#f0fdf4' :
-                                                item.estimatedPrice > 0 ? '#fefce8' : 'white',
-                                            borderColor: item.priceSource?.startsWith('inventory') ? '#22c55e' :
-                                                item.estimatedPrice > 0 ? '#f59e0b' : '#d1d5db'
-                                        }}
-                                        title={getInventoryPriceTooltip ? getInventoryPriceTooltip(item) : `Price for ${item.ingredient}`}
-                                    />
-                                </div>
-                            </div>
-
-                            {/* Price Source Indicator */}
-                            {item.priceSource && item.priceSource !== 'none' && (
-                                <div style={{
-                                    fontSize: '0.65rem',
-                                    color: item.priceSource.startsWith('inventory') ? '#059669' : '#3b82f6',
-                                    backgroundColor: item.priceSource.startsWith('inventory') ? '#dcfce7' : '#dbeafe',
-                                    padding: '0.125rem 0.375rem',
-                                    borderRadius: '8px',
-                                    fontWeight: '500',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem'
-                                }}>
-                                    {item.priceSource.startsWith('inventory') ? '📦' : '💡'}
-                                    {getPriceSourceLabel ? getPriceSourceLabel(item.priceSource) : 'Price'}
-                                </div>
-                            )}
-
-                            {/* Item Total */}
-                            {(item.estimatedPrice > 0 || item.actualPrice > 0) && (
-                                <div style={{
-                                    fontSize: '0.75rem',
-                                    color: '#374151',
-                                    fontWeight: '600',
-                                    marginLeft: 'auto',
-                                    padding: '0.25rem 0.5rem',
-                                    backgroundColor: '#f3f4f6',
-                                    borderRadius: '4px'
-                                }}>
-                                    Total: ${((item.actualPrice || item.estimatedPrice || 0) * (item.quantity || 1)).toFixed(2)}
-                                </div>
-                            )}
-                        </div>
+                        <PriceControls
+                            item={item}
+                            itemKey={itemKey}
+                            config={config}
+                            localPrices={localPrices}
+                            localQuantities={localQuantities}
+                            handlePriceUpdate={handlePriceUpdate}
+                            handleQuantityChange={handleQuantityChange}
+                            updateShoppingListPrice={updateShoppingListPrice}
+                            priceUpdateTimeouts={priceUpdateTimeouts}
+                            getInventoryPriceTooltip={getInventoryPriceTooltip}
+                            getPriceSourceLabel={getPriceSourceLabel}
+                            isValidPriceInput={isValidPriceInput}
+                            isValidQuantityInput={isValidQuantityInput}
+                        />
                     )}
 
                     {/* Category Movement Controls OR Delete Button */}
