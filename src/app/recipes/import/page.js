@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/recipes/import/page.js v2 - Enhanced with image extraction
+// file: /src/app/recipes/import/page.js v3 - Universal platform support with enhanced page scraping
 
 import {useEffect, useState} from 'react';
 import { useRouter } from 'next/navigation';
@@ -19,7 +19,8 @@ export default function ImportRecipePage() {
     const [isImporting, setIsImporting] = useState(false);
     const [importError, setImportError] = useState('');
     const [isVideoImporting, setIsVideoImporting] = useState(false);
-    const [extractImages, setExtractImages] = useState(true); // NEW: Image extraction toggle
+    const [extractImages, setExtractImages] = useState(true);
+    const [processingMethod, setProcessingMethod] = useState('page_scraping_first'); // NEW: Processing method preference
     const [videoImportProgress, setVideoImportProgress] = useState({
         stage: '',
         platform: '',
@@ -32,9 +33,9 @@ export default function ImportRecipePage() {
         const source = urlParams.get('source');
         const platform = urlParams.get('platform');
 
-        // Handle auto-import from share buttons
-        if (videoUrl && source === 'share' && ['facebook', 'tiktok', 'instagram'].includes(platform)) {
-            console.log(`📱 Auto-importing ${platform} video from share button:`, videoUrl);
+        // ENHANCED: Handle auto-import from share buttons for ANY platform
+        if (videoUrl && source === 'share') {
+            console.log(`📱 Auto-importing ${platform || 'unknown'} content from share button:`, videoUrl);
 
             // Decode the URL
             const decodedVideoUrl = decodeURIComponent(videoUrl);
@@ -57,25 +58,27 @@ export default function ImportRecipePage() {
 
             return () => clearTimeout(timer);
         }
-    }, []); // Empty dependency array - only run once on mount
+    }, []);
 
-    // Enhanced platform detection
+    // ENHANCED: Universal platform detection
     const detectPlatformFromUrl = (url) => {
         if (!url) return 'unknown';
         const urlLower = url.toLowerCase();
 
-        // Existing social media platforms
+        // Social media platforms with recipe content
         if (urlLower.includes('tiktok.com') || urlLower.includes('vm.tiktok.com')) return 'tiktok';
         if (urlLower.includes('instagram.com')) return 'instagram';
         if (urlLower.includes('facebook.com') || urlLower.includes('fb.com') || urlLower.includes('fb.watch')) return 'facebook';
 
-        // NEW: Additional video platforms
+        // ENHANCED: Additional social platforms
         if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'twitter';
         if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'youtube';
         if (urlLower.includes('reddit.com') || urlLower.includes('redd.it')) return 'reddit';
         if (urlLower.includes('bsky.app') || urlLower.includes('bluesky.app')) return 'bluesky';
         if (urlLower.includes('pinterest.com')) return 'pinterest';
         if (urlLower.includes('snapchat.com')) return 'snapchat';
+        if (urlLower.includes('linkedin.com')) return 'linkedin';
+        if (urlLower.includes('threads.net')) return 'threads';
 
         // Direct video files
         if (urlLower.match(/\.(mp4|mov|avi|mkv|webm)(\?|$)/)) return 'direct_video';
@@ -85,12 +88,10 @@ export default function ImportRecipePage() {
         if (urlLower.includes('foodnetwork.com')) return 'foodnetwork';
         if (urlLower.includes('epicurious.com')) return 'epicurious';
 
-        // Generic video platform detection
+        // Generic patterns
         if (urlLower.includes('video') || urlLower.includes('watch') || urlLower.includes('play')) {
             return 'generic_video';
         }
-
-        // Recipe website patterns
         if (urlLower.includes('recipe') || urlLower.includes('cook') || urlLower.includes('food')) {
             return 'website';
         }
@@ -98,41 +99,44 @@ export default function ImportRecipePage() {
         return 'unknown';
     };
 
-    const isVideoUrl = (url) => {
-        const videoPatterns = [
-            // Existing social media
+    // ENHANCED: Universal content detection (not just videos)
+    const isContentUrl = (url) => {
+        // Social media content patterns (includes text posts with recipe content)
+        const contentPatterns = [
+            // Video patterns (existing)
             /tiktok\.com\/@[^\/]+\/video\/\d+/,
             /tiktok\.com\/t\/[a-zA-Z0-9]+/,
             /vm\.tiktok\.com\/[a-zA-Z0-9]+/,
             /instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
             /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
-            /instagram\.com\/tv\/[a-zA-Z0-9_-]+/,
             /facebook\.com\/watch\?v=\d+/,
-            /facebook\.com\/[^\/]+\/videos\/\d+/,
-            /fb\.watch\/[a-zA-Z0-9_-]+/,
             /facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
-            /facebook\.com\/reel\/\d+/,
 
-            // NEW: Additional video platforms
-            /(twitter\.com|x\.com)\/[^\/]+\/status\/\d+/,  // Twitter/X posts
+            // ENHANCED: Social content patterns (includes text posts)
+            /(twitter\.com|x\.com)\/[^\/]+\/status\/\d+/,  // Twitter/X posts (any content)
             /youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/,       // YouTube videos
             /youtu\.be\/[a-zA-Z0-9_-]+/,                   // YouTube short links
             /youtube\.com\/shorts\/[a-zA-Z0-9_-]+/,        // YouTube Shorts
             /reddit\.com\/r\/[^\/]+\/comments\/[a-zA-Z0-9]+/, // Reddit posts
             /redd\.it\/[a-zA-Z0-9]+/,                      // Reddit short links
             /pinterest\.com\/pin\/\d+/,                    // Pinterest pins
+            /bsky\.app\/profile\/[^\/]+\/post\/[a-zA-Z0-9]+/, // Bluesky posts
+            /linkedin\.com\/posts\/[a-zA-Z0-9_-]+/,        // LinkedIn posts
+            /threads\.net\/@[^\/]+\/post\/[a-zA-Z0-9]+/,   // Threads posts
 
             // Direct video files
             /\.(mp4|mov|avi|mkv|webm)(\?|$)/i,
 
-            // Generic video patterns
+            // Generic content patterns
+            /\/post[\?\/]/,
+            /\/status[\?\/]/,
             /\/watch[\?\/]/,
             /\/video[\?\/]/,
             /\/play[\?\/]/,
             /\/v\/[a-zA-Z0-9_-]+/
         ];
 
-        return videoPatterns.some(pattern => pattern.test(url));
+        return contentPatterns.some(pattern => pattern.test(url));
     };
 
     const handleUrlImport = async () => {
@@ -147,14 +151,20 @@ export default function ImportRecipePage() {
         try {
             const trimmedUrl = urlInput.trim();
             const platform = detectPlatformFromUrl(trimmedUrl);
-            const isVideo = isVideoUrl(trimmedUrl);
+            const isContent = isContentUrl(trimmedUrl);
 
-            console.log('🔍 Enhanced import analysis:', { platform, isVideo, url: trimmedUrl, extractImages });
+            console.log('🔍 Enhanced import analysis:', {
+                platform,
+                isContent,
+                url: trimmedUrl,
+                extractImages,
+                processingMethod
+            });
 
-            if (isVideo) {
-                // Handle ANY video extraction using single endpoint
-                console.log(`🎥 Processing ${platform} video with image extraction: ${extractImages}...`);
-                await handleUniversalVideoImport(trimmedUrl, platform);
+            if (isContent || ['twitter', 'youtube', 'reddit', 'bluesky', 'pinterest', 'linkedin', 'threads'].includes(platform)) {
+                // ENHANCED: Handle ANY content extraction using universal endpoint
+                console.log(`🌟 Processing ${platform} content with universal extraction...`);
+                await handleUniversalContentImport(trimmedUrl, platform);
             } else {
                 // Handle website recipe scraping
                 console.log('🌐 Processing website recipe...');
@@ -168,7 +178,8 @@ export default function ImportRecipePage() {
         }
     };
 
-    const handleUniversalVideoImport = async (url, platform) => {
+    // ENHANCED: Universal content import (replaces video-specific import)
+    const handleUniversalContentImport = async (url, platform) => {
         setIsVideoImporting(true);
         setVideoImportProgress({
             stage: 'connecting',
@@ -179,23 +190,23 @@ export default function ImportRecipePage() {
         try {
             // Update progress with platform-specific messages
             setVideoImportProgress({
-                stage: 'downloading',
+                stage: 'analyzing',
                 platform: platform,
-                message: `📥 Analyzing ${getPlatformName(platform)} content...`
+                message: `📄 Analyzing ${getPlatformName(platform)} content...`
             });
 
-            // SIMPLIFIED: Use single endpoint for ALL platforms
+            // ENHANCED: Use universal endpoint for ALL platforms
             const response = await apiPost('/api/recipes/video-extract', {
                 video_url: url,
                 platform: platform,
-                analysis_type: 'ai_vision_enhanced',
+                analysis_type: processingMethod, // page_scraping_first, ai_vision_enhanced, etc.
                 extract_image: extractImages
             });
 
             setVideoImportProgress({
                 stage: 'processing',
                 platform: platform,
-                message: `🤖 AI analyzing ${getPlatformName(platform)} content${extractImages ? ' and extracting image' : ''}...`
+                message: `🤖 AI processing ${getPlatformName(platform)} content${extractImages ? ' and extracting images' : ''}...`
             });
 
             const data = await response.json();
@@ -207,11 +218,13 @@ export default function ImportRecipePage() {
                     message: `✅ ${getPlatformName(platform)} recipe extraction complete!`
                 });
 
-                // Log image extraction results
-                if (extractImages && data.recipe.extractedImage) {
-                    console.log('📸 Image successfully extracted from video');
-                } else if (extractImages) {
-                    console.log('📸 Image extraction was attempted but no image was extracted');
+                // Log extraction results
+                if (data.extractionInfo) {
+                    console.log('📊 Extraction info:', {
+                        method: data.extractionInfo.method,
+                        hasImage: data.extractionInfo.hasExtractedImage,
+                        hasTimestamps: data.extractionInfo.hasTimestamps
+                    });
                 }
 
                 // Navigate to add page with the extracted recipe data
@@ -222,7 +235,7 @@ export default function ImportRecipePage() {
                 throw new Error(data.error || `Failed to extract recipe from ${getPlatformName(platform)} content`);
             }
         } catch (error) {
-            console.error(`${platform} video import error:`, error);
+            console.error(`${platform} content import error:`, error);
             setImportError(`${getPlatformName(platform)} content extraction failed: ${error.message}`);
         } finally {
             setTimeout(() => {
@@ -273,6 +286,7 @@ export default function ImportRecipePage() {
         router.push('/recipes');
     };
 
+    // ENHANCED: Platform icons with new platforms
     const getPlatformIcon = (platform) => {
         const icons = {
             // Existing platforms
@@ -283,13 +297,15 @@ export default function ImportRecipePage() {
             foodnetwork: '📺',
             epicurious: '⭐',
 
-            // NEW: Additional platforms
+            // ENHANCED: New platforms
             twitter: '🐦',
             bluesky: '🦋',
             youtube: '📺',
             reddit: '🤖',
             pinterest: '📌',
             snapchat: '👻',
+            linkedin: '💼',
+            threads: '🧵',
             direct_video: '🎬',
             generic_video: '🎥',
 
@@ -300,6 +316,7 @@ export default function ImportRecipePage() {
         return icons[platform] || icons.website;
     };
 
+    // ENHANCED: Platform names with new platforms
     const getPlatformName = (platform) => {
         const names = {
             // Existing platforms
@@ -310,13 +327,15 @@ export default function ImportRecipePage() {
             foodnetwork: 'Food Network',
             epicurious: 'Epicurious',
 
-            // NEW: Additional platforms
+            // ENHANCED: New platforms
             twitter: 'Twitter/X',
             bluesky: 'Bluesky',
             youtube: 'YouTube',
             reddit: 'Reddit',
             pinterest: 'Pinterest',
             snapchat: 'Snapchat',
+            linkedin: 'LinkedIn',
+            threads: 'Threads',
             direct_video: 'Direct Video',
             generic_video: 'Video Platform',
 
@@ -327,56 +346,82 @@ export default function ImportRecipePage() {
         return names[platform] || 'Website';
     };
 
+    // ENHANCED: Processing method descriptions
+    const getProcessingMethodInfo = (method) => {
+        const methods = {
+            'page_scraping_first': {
+                name: 'Smart Extraction (Recommended)',
+                description: 'Tries page content first, then video if needed',
+                icon: '🧠',
+                fast: true
+            },
+            'ai_vision_enhanced': {
+                name: 'Video Analysis',
+                description: 'Downloads and analyzes video content with AI',
+                icon: '🤖',
+                fast: false
+            },
+            'page_scraping_only': {
+                name: 'Page Content Only',
+                description: 'Extracts text content from the page only',
+                icon: '📄',
+                fast: true
+            }
+        };
+        return methods[method] || methods['page_scraping_first'];
+    };
+
     const detectedPlatform = detectPlatformFromUrl(urlInput);
-    const isVideo = isVideoUrl(urlInput);
+    const isContent = isContentUrl(urlInput);
+    const processingInfo = getProcessingMethodInfo(processingMethod);
 
     return (
         <MobileOptimizedLayout>
             <VideoImportLoadingModal
                 isVisible={isVideoImporting}
-                platform={videoImportProgress.platform || 'facebook'}
+                platform={videoImportProgress.platform || 'unknown'}
                 stage={videoImportProgress.stage || 'processing'}
-                message={videoImportProgress.message || 'Processing video...'}
+                message={videoImportProgress.message || 'Processing content...'}
                 videoUrl={urlInput}
                 onComplete={() => {}}
                 style={{zIndex: 9999}}
             />
 
             <div className="max-w-6xl mx-auto px-4 py-8">
-                {/* Import-specific header */}
+                {/* ENHANCED: Import-specific header */}
                 <div className="mb-8">
                     <div className="flex items-center gap-3 mb-4">
-                        <div className="text-4xl">🎯</div>
+                        <div className="text-4xl">🌟</div>
                         <div>
                             <h1 className="text-3xl font-bold text-gray-900">
-                                Import Recipe
+                                Universal Recipe Import
                             </h1>
                             <p className="text-gray-600">
-                                Import from social media, websites, or enhance with AI nutrition analysis
+                                Import from ANY social platform, video, or website with AI-powered extraction
                             </p>
                         </div>
                     </div>
 
-                    {/* Enhanced import method highlights */}
-                    <div className="bg-gradient-to-r from-purple-50 to-blue-50 border border-purple-200 rounded-lg p-4">
+                    {/* ENHANCED: Universal import capabilities */}
+                    <div className="bg-gradient-to-r from-purple-50 via-blue-50 to-green-50 border border-purple-200 rounded-lg p-4">
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-center">
                             <div>
-                                <div className="text-2xl mb-2">🎥</div>
-                                <h3 className="font-semibold text-purple-900">Social Media + AI</h3>
-                                <p className="text-sm text-purple-700">TikTok, Instagram, Facebook</p>
-                                <p className="text-xs text-purple-600 mt-1">With automatic image extraction</p>
+                                <div className="text-2xl mb-2">🌐</div>
+                                <h3 className="font-semibold text-purple-900">Universal Platform Support</h3>
+                                <p className="text-sm text-purple-700">TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads</p>
+                                <p className="text-xs text-purple-600 mt-1">Smart page analysis + video fallback</p>
                             </div>
                             <div>
-                                <div className="text-2xl mb-2">🌐</div>
-                                <h3 className="font-semibold text-blue-900">Recipe Websites</h3>
-                                <p className="text-sm text-blue-700">AllRecipes, Food Network, etc.</p>
-                                <p className="text-xs text-blue-600 mt-1">With existing recipe images</p>
+                                <div className="text-2xl mb-2">🧠</div>
+                                <h3 className="font-semibold text-blue-900">Intelligent Processing</h3>
+                                <p className="text-sm text-blue-700">Page scraping first, then video analysis</p>
+                                <p className="text-xs text-blue-600 mt-1">Faster, more reliable extraction</p>
                             </div>
                             <div>
                                 <div className="text-2xl mb-2">🤖</div>
                                 <h3 className="font-semibold text-green-900">AI Enhancement</h3>
-                                <p className="text-sm text-green-700">Comprehensive nutrition analysis</p>
-                                <p className="text-xs text-green-600 mt-1">Smart image processing</p>
+                                <p className="text-sm text-green-700">Complete nutrition analysis + image extraction</p>
+                                <p className="text-xs text-green-600 mt-1">Professional recipe formatting</p>
                             </div>
                         </div>
                     </div>
@@ -394,14 +439,15 @@ export default function ImportRecipePage() {
                                 onClick={() => setImportMethod('url')}
                                 className="p-6 border-2 border-gray-200 rounded-lg text-left hover:border-indigo-300 hover:bg-indigo-50 transition-colors"
                             >
-                                <div className="text-3xl mb-3">🔗</div>
-                                <h3 className="font-semibold text-gray-900 mb-2">Import from URL</h3>
+                                <div className="text-3xl mb-3">🌟</div>
+                                <h3 className="font-semibold text-gray-900 mb-2">Universal URL Import</h3>
                                 <p className="text-sm text-gray-600 mb-3">
-                                    Paste any recipe URL - we'll automatically detect if it's from social media or a recipe website
+                                    Paste ANY recipe URL - we automatically detect the platform and use the best extraction method
                                 </p>
                                 <div className="text-xs text-gray-500">
-                                    <div className="mb-1"><strong>Social Media:</strong> TikTok, Instagram, Facebook (with AI image extraction)</div>
-                                    <div><strong>Websites:</strong> AllRecipes, Food Network, Epicurious, etc.</div>
+                                    <div className="mb-1"><strong>Social Media:</strong> TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads</div>
+                                    <div className="mb-1"><strong>Websites:</strong> AllRecipes, Food Network, Epicurious, recipe blogs</div>
+                                    <div><strong>Smart Processing:</strong> Page content first, video analysis as fallback</div>
                                 </div>
                             </TouchEnhancedButton>
 
@@ -423,12 +469,12 @@ export default function ImportRecipePage() {
                     </div>
                 )}
 
-                {/* URL Import Method */}
+                {/* ENHANCED: Universal URL Import Method */}
                 {importMethod === 'url' && (
                     <div className="bg-white shadow rounded-lg p-6 mb-8">
                         <div className="flex items-center justify-between mb-6">
                             <h2 className="text-xl font-semibold text-gray-900">
-                                🔗 Import from URL
+                                🌟 Universal URL Import
                             </h2>
                             <TouchEnhancedButton
                                 onClick={() => setImportMethod('')}
@@ -444,9 +490,9 @@ export default function ImportRecipePage() {
                                     Recipe URL
                                     {urlInput && detectedPlatform !== 'unknown' && (
                                         <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-        {getPlatformIcon(detectedPlatform)} {getPlatformName(detectedPlatform)} detected
-                                            {isVideo && ' (Video)'}
-    </span>
+                                            {getPlatformIcon(detectedPlatform)} {getPlatformName(detectedPlatform)} detected
+                                            {isContent && ' (Content)'}
+                                        </span>
                                     )}
                                 </label>
                                 <div className="flex gap-3">
@@ -457,7 +503,7 @@ export default function ImportRecipePage() {
                                             setUrlInput(e.target.value);
                                             setImportError('');
                                         }}
-                                        placeholder="Paste TikTok, Instagram, Facebook, or recipe website URL..."
+                                        placeholder="Paste any recipe URL from social media or websites..."
                                         className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         style={{minHeight: '48px'}}
                                         disabled={isImporting}
@@ -470,25 +516,64 @@ export default function ImportRecipePage() {
                                         {isImporting ? (
                                             <>
                                                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                                                {isVideo ? 'Extracting...' : 'Importing...'}
+                                                Extracting...
                                             </>
                                         ) : (
                                             <>
-                                                {isVideo ? '🤖 Extract Recipe' : '🌐 Import Recipe'}
+                                                🌟 Extract Recipe
                                             </>
                                         )}
                                     </TouchEnhancedButton>
                                 </div>
                             </div>
 
-                            {/* NEW: Image Extraction Toggle for Social Media */}
-                            {isVideo && urlInput && (
+                            {/* ENHANCED: Processing Method Selection */}
+                            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div>
+                                        <h4 className="text-sm font-medium text-blue-900">🧠 Processing Method</h4>
+                                        <p className="text-xs text-blue-700 mt-1">
+                                            Choose how you want to extract the recipe content
+                                        </p>
+                                    </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                                    {Object.entries({
+                                        'page_scraping_first': getProcessingMethodInfo('page_scraping_first'),
+                                        'ai_vision_enhanced': getProcessingMethodInfo('ai_vision_enhanced'),
+                                        'page_scraping_only': getProcessingMethodInfo('page_scraping_only')
+                                    }).map(([method, info]) => (
+                                        <label key={method} className="flex items-center p-3 border rounded cursor-pointer hover:bg-blue-50">
+                                            <input
+                                                type="radio"
+                                                name="processingMethod"
+                                                value={method}
+                                                checked={processingMethod === method}
+                                                onChange={(e) => setProcessingMethod(e.target.value)}
+                                                className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"
+                                                disabled={isImporting}
+                                            />
+                                            <div className="ml-3 flex-1">
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-sm">{info.icon}</span>
+                                                    <span className="text-sm font-medium text-blue-900">{info.name}</span>
+                                                    {info.fast && <span className="text-xs bg-green-100 text-green-800 px-1 rounded">Fast</span>}
+                                                </div>
+                                                <p className="text-xs text-blue-700 mt-1">{info.description}</p>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* ENHANCED: Image Extraction Toggle */}
+                            {isContent && urlInput && (
                                 <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <h4 className="text-sm font-medium text-purple-900">📸 AI Image Extraction</h4>
                                             <p className="text-xs text-purple-700 mt-1">
-                                                Automatically extract the best food image from the video using AI
+                                                Automatically extract or generate the best food image using AI
                                             </p>
                                         </div>
                                         <label className="flex items-center">
@@ -506,7 +591,7 @@ export default function ImportRecipePage() {
                                     </div>
                                     {extractImages && (
                                         <div className="mt-3 text-xs text-purple-600">
-                                            ✨ AI will analyze video frames and select the most appetizing image for your recipe
+                                            ✨ AI will analyze available content and create the most appetizing image for your recipe
                                         </div>
                                     )}
                                 </div>
@@ -520,39 +605,42 @@ export default function ImportRecipePage() {
                                 </div>
                             )}
 
-                            {/* Platform-specific help */}
+                            {/* ENHANCED: Universal platform support info */}
                             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                                 <div className="text-sm text-blue-800">
-                                    <strong>✨ Universal Video Support:</strong>
+                                    <strong>🌟 Universal Platform Support:</strong>
                                     <div className="mt-2 text-xs">
                                         <div className="mb-3">
-                                            <strong>🎥 All Video Platforms (Single AI Endpoint):</strong>
-                                            <div className="grid grid-cols-2 md:grid-cols-3 gap-1 mt-1 ml-2">
-                                                <span>• TikTok cooking videos</span>
-                                                <span>• Instagram Reels & posts</span>
-                                                <span>• Facebook cooking videos</span>
-                                                <span>• Twitter/X cooking posts</span>
-                                                <span>• YouTube cooking videos</span>
-                                                <span>• YouTube Shorts</span>
-                                                <span>• Reddit video posts</span>
-                                                <span>• Bluesky cooking posts</span>
+                                            <strong>📱 Social Media Platforms:</strong>
+                                            <div className="grid grid-cols-2 md:grid-cols-4 gap-1 mt-1 ml-2">
+                                                <span>• TikTok (videos + text)</span>
+                                                <span>• Instagram (posts + stories)</span>
+                                                <span>• Facebook (videos + posts)</span>
+                                                <span>• Twitter/X (all content)</span>
+                                                <span>• YouTube (videos + descriptions)</span>
+                                                <span>• Reddit (posts + comments)</span>
+                                                <span>• Pinterest (pins + links)</span>
+                                                <span>• Bluesky (posts)</span>
+                                                <span>• LinkedIn (posts)</span>
+                                                <span>• Threads (posts)</span>
+                                                <span>• Snapchat (content)</span>
                                                 <span>• Direct video files</span>
                                             </div>
                                         </div>
                                         <div>
                                             <strong>🌐 Recipe Websites:</strong>
                                             <div className="ml-2 mt-1">
-                                                AllRecipes, Food Network, Epicurious, recipe blogs, Pinterest pins
+                                                AllRecipes, Food Network, Epicurious, recipe blogs, cooking websites
                                             </div>
                                         </div>
                                     </div>
                                     <div className="mt-2 text-xs bg-green-100 text-green-800 p-2 rounded">
-                                        ✨ <strong>New:</strong> All video platforms now use the same intelligent AI extraction with automatic image processing!
+                                        ✨ <strong>How it works:</strong> We first try to extract recipe content from the page (fast), then fall back to video analysis if needed. This gives you the best of both worlds!
                                     </div>
                                 </div>
                             </div>
 
-                            {/* URL Analysis Preview */}
+                            {/* ENHANCED: URL Analysis Preview */}
                             {urlInput && (
                                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
                                     <div className="flex items-center gap-3">
@@ -564,40 +652,44 @@ export default function ImportRecipePage() {
                                                 {getPlatformName(detectedPlatform)}
                                             </div>
                                             <div className="text-sm text-gray-600">
-                                                {isVideo
-                                                    ? `AI video analysis + ${extractImages ? 'image extraction' : 'recipe extraction'} will be used`
-                                                    : 'Website scraping will be used'
-                                                }
+                                                {processingInfo.name} will be used
+                                                {extractImages && ' with image extraction'}
                                             </div>
-                                            {/* NEW: Show additional platform info */}
+
+                                            {/* ENHANCED: Platform-specific extraction info */}
                                             {detectedPlatform === 'twitter' && (
                                                 <div className="text-xs text-blue-600 mt-1">
-                                                    ⚡ Twitter/X posts with cooking videos will be analyzed for recipe content
-                                                </div>
-                                            )}
-                                            {detectedPlatform === 'bluesky' && (
-                                                <div className="text-xs text-blue-600 mt-1">
-                                                    🦋 Bluesky posts with cooking content will be analyzed for recipe information
+                                                    🐦 Twitter/X posts will be analyzed for recipe content in text, images, and videos
                                                 </div>
                                             )}
                                             {detectedPlatform === 'youtube' && (
                                                 <div className="text-xs text-red-600 mt-1">
-                                                    📺 YouTube cooking videos & Shorts supported (may take longer)
+                                                    📺 YouTube descriptions will be extracted first, video analysis if needed
                                                 </div>
                                             )}
                                             {detectedPlatform === 'reddit' && (
                                                 <div className="text-xs text-orange-600 mt-1">
-                                                    🤖 Reddit cooking posts with videos will be processed
+                                                    🤖 Reddit posts and top comments will be analyzed for recipe information
                                                 </div>
                                             )}
-                                            {detectedPlatform === 'direct_video' && (
-                                                <div className="text-xs text-green-600 mt-1">
-                                                    🎬 Direct video file - will be analyzed for cooking content
+                                            {detectedPlatform === 'pinterest' && (
+                                                <div className="text-xs text-pink-600 mt-1">
+                                                    📌 Pinterest pins and linked recipes will be processed
                                                 </div>
                                             )}
-                                            {detectedPlatform === 'generic_video' && (
+                                            {detectedPlatform === 'bluesky' && (
+                                                <div className="text-xs text-blue-600 mt-1">
+                                                    🦋 Bluesky posts will be analyzed for cooking content and recipes
+                                                </div>
+                                            )}
+                                            {detectedPlatform === 'linkedin' && (
+                                                <div className="text-xs text-blue-600 mt-1">
+                                                    💼 LinkedIn posts will be processed for professional cooking content
+                                                </div>
+                                            )}
+                                            {detectedPlatform === 'threads' && (
                                                 <div className="text-xs text-purple-600 mt-1">
-                                                    🎥 Generic video platform detected - will attempt extraction
+                                                    🧵 Threads posts will be analyzed for recipe discussions and content
                                                 </div>
                                             )}
                                         </div>
