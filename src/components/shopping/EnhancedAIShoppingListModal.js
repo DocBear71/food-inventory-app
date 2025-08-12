@@ -973,39 +973,59 @@ export default function EnhancedAIShoppingListModal({
     }, [currentShoppingList?.items]);
 
     const handleQuantityChange = useCallback((itemId, newQuantity) => {
+        console.log(`[QUANTITY CHANGE] Item: ${itemId}, New Quantity: ${newQuantity}`);
+
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
 
         Object.keys(updatedItems).forEach(category => {
-            updatedItems[category] = updatedItems[category].map(item =>
-                item.id === itemId || (item.ingredient || item.name) === itemId
-                    ? {...item, quantity: Math.max(0, newQuantity)}
-                    : item
-            );
+            updatedItems[category] = updatedItems[category].map(item => {
+                if (item.id === itemId || (item.ingredient || item.name) === itemId) {
+                    const updated = {...item, quantity: Math.max(0, newQuantity)};
+                    console.log(`[QUANTITY CHANGE] Updated item:`, updated);
+                    return updated;
+                }
+                return item;
+            });
         });
 
         updatedShoppingList.items = updatedItems;
         setCurrentShoppingList(updatedShoppingList);
-        calculateBudgetTracking();
+
+        // Trigger re-calculation of totals
+        setUpdateTrigger(prev => prev + 1);
+
+        // Haptic feedback
         MobileHaptics?.light();
-    }, [currentShoppingList, calculateBudgetTracking]);
+    }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
     const handlePriceUpdate = useCallback((itemId, actualPrice) => {
+        console.log(`[PRICE UPDATE] Item: ${itemId}, New Price: $${actualPrice}`);
+
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
 
         Object.keys(updatedItems).forEach(category => {
-            updatedItems[category] = updatedItems[category].map(item =>
-                item.id === itemId || (item.ingredient || item.name) === itemId
-                    ? {...item, actualPrice: parseFloat(actualPrice) || 0}
-                    : item
-            );
+            updatedItems[category] = updatedItems[category].map(item => {
+                if (item.id === itemId || (item.ingredient || item.name) === itemId) {
+                    const newPrice = parseFloat(actualPrice) || 0;
+                    const updated = {...item, actualPrice: newPrice};
+                    console.log(`[PRICE UPDATE] Updated item:`, updated);
+                    return updated;
+                }
+                return item;
+            });
         });
 
         updatedShoppingList.items = updatedItems;
         setCurrentShoppingList(updatedShoppingList);
-        calculateBudgetTracking();
-    }, [currentShoppingList, calculateBudgetTracking]);
+
+        // Trigger re-calculation of totals
+        setUpdateTrigger(prev => prev + 1);
+
+        // Haptic feedback
+        MobileHaptics?.light();
+    }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
     const selectAlternative = useCallback(async (itemId, alternative) => {
         setLoading(true);
@@ -1430,27 +1450,33 @@ export default function EnhancedAIShoppingListModal({
             'enhanced': {
                 title: '🤖 Enhanced AI Shopping',
                 subtitle: 'Full-featured shopping with AI optimization',
-                showPriceFeatures: false,
+                showPriceFeatures: false, // Set to true if you want price features in enhanced mode
                 showAdvancedFeatures: true,
                 primaryColor: '#7c3aed'
             },
             'smart-price': {
                 title: '💰 Smart Price Shopping',
                 subtitle: 'Price-optimized shopping with deals',
-                showPriceFeatures: true,
+                showPriceFeatures: true, // This should be true
                 showAdvancedFeatures: false,
                 primaryColor: '#059669'
             },
             'unified': {
                 title: '🚀 Ultimate Shopping Assistant',
                 subtitle: 'All features: AI optimization + Price intelligence',
-                showPriceFeatures: true,
+                showPriceFeatures: true, // This should be true
                 showAdvancedFeatures: true,
                 primaryColor: '#0ea5e9'
             }
         };
         return configs[shoppingMode] || configs['enhanced'];
     }, [shoppingMode]);
+
+    console.log('[SHOPPING MODE DEBUG]', {
+        shoppingMode,
+        config,
+        showPriceFeatures: config.showPriceFeatures
+    });
 
 // NEW: Add these helper functions AFTER normalizedList is defined
     const getEstimatedTotal = useCallback(() => {
@@ -2290,75 +2316,113 @@ export default function EnhancedAIShoppingListModal({
                         )}
                     </div>
 
-                    {/* Smart Price Quantity and Price Controls */}
+                    {/* Enhanced Price and Quantity Controls */}
                     {config.showPriceFeatures && (
                         <div style={{
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.75rem',
                             marginBottom: '0.5rem',
-                            flexWrap: 'wrap'
+                            flexWrap: 'wrap',
+                            padding: '0.5rem',
+                            backgroundColor: '#f8fafc',
+                            borderRadius: '6px',
+                            border: '1px solid #e2e8f0'
                         }}>
+                            {/* Quantity Control */}
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.25rem'
                             }}>
+                                <label style={{
+                                    fontSize: '0.75rem',
+                                    color: '#6b7280',
+                                    fontWeight: '500'
+                                }}>
+                                    Qty:
+                                </label>
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.1"
                                     value={item.quantity || 1}
-                                    onChange={(e) => handleQuantityChange(item.id || itemKey, parseFloat(e.target.value))}
+                                    onChange={(e) => {
+                                        const newQuantity = parseFloat(e.target.value) || 1;
+                                        console.log(`Updating quantity for ${item.ingredient}: ${newQuantity}`);
+                                        handleQuantityChange(item.id || itemKey, newQuantity);
+                                    }}
                                     style={{
-                                        width: '3rem',
-                                        padding: '0.25rem',
+                                        width: '3.5rem',
+                                        padding: '0.375rem 0.25rem',
                                         border: '1px solid #d1d5db',
                                         borderRadius: '4px',
-                                        fontSize: '0.8rem',
-                                        textAlign: 'center'
+                                        fontSize: '0.875rem',
+                                        textAlign: 'center',
+                                        backgroundColor: 'white'
                                     }}
                                 />
                                 <span style={{
-                                    fontSize: '0.8rem',
-                                    color: '#6b7280'
+                                    fontSize: '0.75rem',
+                                    color: '#6b7280',
+                                    minWidth: '2rem'
                                 }}>
                 {item.unit || 'qty'}
             </span>
                             </div>
 
+                            {/* Price Control */}
                             <div style={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 gap: '0.25rem'
                             }}>
-            <span style={{
-                fontSize: '0.8rem',
-                color: '#6b7280'
-            }}>$</span>
-                                <input
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={item.actualPrice || item.estimatedPrice || ''}
-                                    onChange={(e) => handlePriceUpdate(item.id || itemKey, e.target.value)}
-                                    placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "Price"}
-                                    style={{
-                                        width: '4rem',
-                                        padding: '0.25rem',
-                                        border: '1px solid #d1d5db',
-                                        borderRadius: '4px',
-                                        fontSize: '0.8rem',
-                                        textAlign: 'center',
-                                        backgroundColor: item.priceSource?.startsWith('inventory') ? '#f0fdf4' :
-                                            item.estimatedPrice > 0 ? '#fefce8' : 'white',
-                                        borderColor: item.priceSource?.startsWith('inventory') ? '#22c55e' : '#d1d5db'
-                                    }}
-                                    title={getInventoryPriceTooltip(item)}
-                                />
+                                <label style={{
+                                    fontSize: '0.75rem',
+                                    color: '#6b7280',
+                                    fontWeight: '500'
+                                }}>
+                                    Price:
+                                </label>
+                                <div style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.125rem'
+                                }}>
+                <span style={{
+                    fontSize: '0.875rem',
+                    color: '#374151',
+                    fontWeight: '500'
+                }}>$</span>
+                                    <input
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={item.actualPrice || item.estimatedPrice || ''}
+                                        onChange={(e) => {
+                                            const newPrice = e.target.value;
+                                            console.log(`Updating price for ${item.ingredient}: $${newPrice}`);
+                                            handlePriceUpdate(item.id || itemKey, newPrice);
+                                        }}
+                                        placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
+                                        style={{
+                                            width: '4.5rem',
+                                            padding: '0.375rem 0.25rem',
+                                            border: '1px solid #d1d5db',
+                                            borderRadius: '4px',
+                                            fontSize: '0.875rem',
+                                            textAlign: 'center',
+                                            backgroundColor: item.priceSource?.startsWith('inventory') ? '#f0fdf4' :
+                                                item.estimatedPrice > 0 ? '#fefce8' : 'white',
+                                            borderColor: item.priceSource?.startsWith('inventory') ? '#22c55e' :
+                                                item.estimatedPrice > 0 ? '#f59e0b' : '#d1d5db'
+                                        }}
+                                        title={getInventoryPriceTooltip(item)}
+                                    />
+                                </div>
                             </div>
 
-                            {/* Price source indicator */}
+                            {/* Price Source Indicator */}
                             {item.priceSource && item.priceSource !== 'none' && (
                                 <div style={{
                                     fontSize: '0.65rem',
@@ -2376,14 +2440,18 @@ export default function EnhancedAIShoppingListModal({
                                 </div>
                             )}
 
-                            {/* Total price for this item */}
+                            {/* Item Total */}
                             {(item.estimatedPrice > 0 || item.actualPrice > 0) && (
                                 <div style={{
-                                    fontSize: '0.7rem',
-                                    color: '#6b7280',
-                                    marginLeft: 'auto'
+                                    fontSize: '0.75rem',
+                                    color: '#374151',
+                                    fontWeight: '600',
+                                    marginLeft: 'auto',
+                                    padding: '0.25rem 0.5rem',
+                                    backgroundColor: '#f3f4f6',
+                                    borderRadius: '4px'
                                 }}>
-                                    Total: ${((item.actualPrice || item.estimatedPrice) * (item.quantity || 1)).toFixed(2)}
+                                    Total: ${((item.actualPrice || item.estimatedPrice || 0) * (item.quantity || 1)).toFixed(2)}
                                 </div>
                             )}
                         </div>
