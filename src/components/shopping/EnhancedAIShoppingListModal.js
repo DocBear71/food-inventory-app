@@ -972,8 +972,8 @@ export default function EnhancedAIShoppingListModal({
         }));
     }, [currentShoppingList?.items, setBudgetTracking]);
 
-    const handleQuantityChange = useCallback((itemId, newQuantity) => {
-        console.log(`[QUANTITY HANDLER] Looking for item: "${itemId}", New Quantity: ${newQuantity}`);
+    const handleQuantityChange = useCallback((itemKey, newQuantity) => {
+        console.log(`[QUANTITY HANDLER] Looking for item: "${itemKey}", New Quantity: ${newQuantity}`);
 
         if (!currentShoppingList?.items) {
             console.error('[QUANTITY HANDLER] No shopping list items found');
@@ -983,39 +983,25 @@ export default function EnhancedAIShoppingListModal({
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
         let itemFound = false;
-        let foundItemInfo = null;
 
-        // Enhanced item finding with multiple matching strategies
         Object.keys(updatedItems).forEach(category => {
             updatedItems[category] = updatedItems[category].map(item => {
-                // Try multiple ways to match the item
-                const matchById = item.id === itemId;
-                const matchByName = (item.ingredient || item.name) === itemId;
-                const matchByItemKey = item.itemKey === itemId;
-                const matchByIngredientKey = item.ingredientKey === itemId;
+                // ENHANCED: Match by multiple criteria
+                const matchByName = (item.ingredient || item.name) === itemKey;
+                const matchByItemKey = item.itemKey === itemKey;
+                const matchByIngredientKey = item.ingredientKey === itemKey;
+                const matchById = item.id === itemKey;
 
-                // Debug: Log what we're comparing
-                if (!itemFound) {
-                    console.log(`[QUANTITY HANDLER] Checking item in ${category}:`, {
-                        itemId: item.id,
-                        itemName: item.ingredient || item.name,
-                        itemKey: item.itemKey,
-                        ingredientKey: item.ingredientKey,
-                        searchingFor: itemId,
-                        matchById,
-                        matchByName,
-                        matchByItemKey,
-                        matchByIngredientKey
-                    });
-                }
+                // ALSO try partial matches for generated keys
+                const itemNameKey = `${item.ingredient || item.name}-${category}`;
+                const matchByComputedKey = itemNameKey === itemKey;
 
-                const matches = matchById || matchByName || matchByItemKey || matchByIngredientKey;
+                const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
 
-                if (matches) {
+                if (matches && !itemFound) { // Only update the first match
                     itemFound = true;
-                    foundItemInfo = {category, oldQuantity: item.quantity, newQuantity};
                     const updated = {...item, quantity: Math.max(0, newQuantity)};
-                    console.log(`[QUANTITY HANDLER] ✅ Found and updated item in ${category}:`, updated);
+                    console.log(`[QUANTITY HANDLER] ✅ Found and updated "${item.ingredient || item.name}" in ${category}`);
                     return updated;
                 }
                 return item;
@@ -1023,36 +1009,21 @@ export default function EnhancedAIShoppingListModal({
         });
 
         if (!itemFound) {
-            console.error(`[QUANTITY HANDLER] ❌ Item not found: "${itemId}"`);
-            console.error('[QUANTITY HANDLER] Available items:',
-                Object.entries(updatedItems).map(([cat, items]) =>
-                    items.map(item => ({
-                        category: cat,
-                        id: item.id,
-                        name: item.ingredient || item.name,
-                        itemKey: item.itemKey
-                    }))
-                ).flat()
-            );
+            console.error(`[QUANTITY HANDLER] ❌ Item not found: "${itemKey}"`);
             return;
         }
 
-        console.log(`[QUANTITY HANDLER] ✅ Successfully updated quantity:`, foundItemInfo);
-
         updatedShoppingList.items = updatedItems;
         setCurrentShoppingList(updatedShoppingList);
-
-        // Force re-render and recalculate totals
         setUpdateTrigger(prev => prev + 1);
 
-        // Haptic feedback if available
         if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
             MobileHaptics.light();
         }
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
-    const handlePriceUpdate = useCallback((itemId, newPriceValue) => {
-        console.log(`[PRICE HANDLER] Looking for item: "${itemId}", New Price: $${newPriceValue}`);
+    const handlePriceUpdate = useCallback((itemKey, newPriceValue) => {
+        console.log(`[PRICE HANDLER] Looking for item: "${itemKey}", New Price: $${newPriceValue}`);
 
         if (!currentShoppingList?.items) {
             console.error('[PRICE HANDLER] No shopping list items found');
@@ -1062,44 +1033,26 @@ export default function EnhancedAIShoppingListModal({
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
         let itemFound = false;
-        let foundItemInfo = null;
 
-        // Enhanced item finding with multiple matching strategies
         Object.keys(updatedItems).forEach(category => {
             updatedItems[category] = updatedItems[category].map(item => {
-                // Try multiple ways to match the item
-                const matchById = item.id === itemId;
-                const matchByName = (item.ingredient || item.name) === itemId;
-                const matchByItemKey = item.itemKey === itemId;
-                const matchByIngredientKey = item.ingredientKey === itemId;
+                // ENHANCED: Match by multiple criteria
+                const matchByName = (item.ingredient || item.name) === itemKey;
+                const matchByItemKey = item.itemKey === itemKey;
+                const matchByIngredientKey = item.ingredientKey === itemKey;
+                const matchById = item.id === itemKey;
 
-                // Debug: Log what we're comparing
-                if (!itemFound) {
-                    console.log(`[PRICE HANDLER] Checking item in ${category}:`, {
-                        itemId: item.id,
-                        itemName: item.ingredient || item.name,
-                        itemKey: item.itemKey,
-                        ingredientKey: item.ingredientKey,
-                        searchingFor: itemId,
-                        matchById,
-                        matchByName,
-                        matchByItemKey,
-                        matchByIngredientKey
-                    });
-                }
+                // ALSO try partial matches for generated keys
+                const itemNameKey = `${item.ingredient || item.name}-${category}`;
+                const matchByComputedKey = itemNameKey === itemKey;
 
-                const matches = matchById || matchByName || matchByItemKey || matchByIngredientKey;
+                const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
 
-                if (matches) {
+                if (matches && !itemFound) { // Only update the first match
                     itemFound = true;
                     const newPrice = parseFloat(newPriceValue) || 0;
-                    foundItemInfo = {
-                        category,
-                        oldPrice: item.actualPrice || item.estimatedPrice,
-                        newPrice
-                    };
                     const updated = {...item, actualPrice: newPrice};
-                    console.log(`[PRICE HANDLER] ✅ Found and updated item in ${category}:`, updated);
+                    console.log(`[PRICE HANDLER] ✅ Found and updated "${item.ingredient || item.name}" in ${category} with price $${newPrice}`);
                     return updated;
                 }
                 return item;
@@ -1107,30 +1060,14 @@ export default function EnhancedAIShoppingListModal({
         });
 
         if (!itemFound) {
-            console.error(`[PRICE HANDLER] ❌ Item not found: "${itemId}"`);
-            console.error('[PRICE HANDLER] Available items:',
-                Object.entries(updatedItems).map(([cat, items]) =>
-                    items.map(item => ({
-                        category: cat,
-                        id: item.id,
-                        name: item.ingredient || item.name,
-                        itemKey: item.itemKey,
-                        ingredientKey: item.ingredientKey
-                    }))
-                ).flat()
-            );
+            console.error(`[PRICE HANDLER] ❌ Item not found: "${itemKey}"`);
             return;
         }
 
-        console.log(`[PRICE HANDLER] ✅ Successfully updated price:`, foundItemInfo);
-
         updatedShoppingList.items = updatedItems;
         setCurrentShoppingList(updatedShoppingList);
-
-        // Force re-render and recalculate totals
         setUpdateTrigger(prev => prev + 1);
 
-        // Haptic feedback if available
         if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
             MobileHaptics.light();
         }
@@ -2339,12 +2276,13 @@ export default function EnhancedAIShoppingListModal({
 
     // ENHANCED: Item rendering with delete functionality
     const renderShoppingItem = (item, index, category) => {
-        const itemKey = item.id || item.itemKey || `${item.ingredient || item.name}-${category}`;
+        // ENHANCED: Better itemKey generation that matches what handlers expect
+        const itemKey = item.itemKey || item.ingredientKey || `${item.ingredient || item.name}-${category}`;
         const isPurchased = item.purchased;
         const priceInfo = config.showPriceFeatures ? getItemPriceInfo(item.ingredient || item.name) : null;
 
-        // DEBUG: Log item keys being used
-        console.log(`[RENDER ITEM] Item: "${item.ingredient || item.name}" Keys:`, {
+        // DEBUG: Log what we're working with
+        console.log(`[RENDER ITEM] "${item.ingredient || item.name}" IDs:`, {
             id: item.id,
             itemKey: item.itemKey,
             ingredientKey: item.ingredientKey,
@@ -2354,7 +2292,7 @@ export default function EnhancedAIShoppingListModal({
 
         return (
             <div
-                key={`${index}-${item.id || itemKey}-${updateTrigger}`} // Include updateTrigger in key
+                key={`${index}-${itemKey}-${updateTrigger}`}
                 style={{
                     display: 'flex',
                     alignItems: 'flex-start',
@@ -2408,8 +2346,8 @@ export default function EnhancedAIShoppingListModal({
                                         borderRadius: '12px',
                                         fontWeight: '500'
                                     }}>
-                                        ON SALE 🎉
-                                    </span>
+                                    ON SALE 🎉
+                                </span>
                                 )}
                                 {item.priceOptimized && (
                                     <span style={{
@@ -2421,14 +2359,14 @@ export default function EnhancedAIShoppingListModal({
                                         borderRadius: '12px',
                                         fontWeight: '500'
                                     }}>
-                                        OPTIMIZED 💡
-                                    </span>
+                                    OPTIMIZED 💡
+                                </span>
                                 )}
                             </>
                         )}
                     </div>
 
-                    {/* Enhanced Price and Quantity Controls - FUNCTIONAL VERSION */}
+                    {/* FIXED: Enhanced Price and Quantity Controls */}
                     {config.showPriceFeatures && (
                         <div style={{
                             display: 'flex',
@@ -2437,7 +2375,7 @@ export default function EnhancedAIShoppingListModal({
                             marginBottom: '0.5rem',
                             flexWrap: 'wrap',
                             backgroundColor: '#f8fafc',
-                            border: '1px solid #e2e8f0', // Remove red border when working
+                            border: '1px solid #e2e8f0',
                             padding: '0.75rem',
                             borderRadius: '6px'
                         }}>
@@ -2461,8 +2399,9 @@ export default function EnhancedAIShoppingListModal({
                                     value={item.quantity || 1}
                                     onChange={(e) => {
                                         const newQuantity = parseFloat(e.target.value) || 1;
-                                        console.log(`[QUANTITY CHANGE] ${item.ingredient}: ${item.quantity} -> ${newQuantity}`);
-                                        handleQuantityChange(item.id || itemKey, newQuantity);
+                                        console.log(`[QTY CHANGE UI] Item: "${item.ingredient || item.name}", Key: "${itemKey}", Quantity: ${newQuantity}`);
+                                        // FIXED: Use itemKey that matches what the handler expects
+                                        handleQuantityChange(itemKey, newQuantity);
                                     }}
                                     style={{
                                         width: '4rem',
@@ -2479,8 +2418,8 @@ export default function EnhancedAIShoppingListModal({
                                     color: '#6b7280',
                                     minWidth: '2rem'
                                 }}>
-                {item.unit || 'qty'}
-            </span>
+                                {item.unit || 'qty'}
+                            </span>
                             </div>
 
                             {/* Price Control */}
@@ -2501,11 +2440,11 @@ export default function EnhancedAIShoppingListModal({
                                     alignItems: 'center',
                                     gap: '0.125rem'
                                 }}>
-                <span style={{
-                    fontSize: '0.875rem',
-                    color: '#374151',
-                    fontWeight: '500'
-                }}>$</span>
+                                <span style={{
+                                    fontSize: '0.875rem',
+                                    color: '#374151',
+                                    fontWeight: '500'
+                                }}>$</span>
                                     <input
                                         type="number"
                                         min="0"
@@ -2513,8 +2452,9 @@ export default function EnhancedAIShoppingListModal({
                                         value={item.actualPrice || item.estimatedPrice || ''}
                                         onChange={(e) => {
                                             const newPrice = e.target.value;
-                                            console.log(`[PRICE CHANGE] ${item.ingredient}: $${item.actualPrice || item.estimatedPrice} -> $${newPrice}`);
-                                            handlePriceUpdate(item.id || itemKey, newPrice);
+                                            console.log(`[PRICE CHANGE UI] Item: "${item.ingredient || item.name}", Key: "${itemKey}", Price: $${newPrice}`);
+                                            // FIXED: Use itemKey that matches what the handler expects
+                                            handlePriceUpdate(itemKey, newPrice);
                                         }}
                                         placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
                                         style={{
@@ -2598,7 +2538,6 @@ export default function EnhancedAIShoppingListModal({
                                 📦 Move to...
                             </TouchEnhancedButton>
 
-                            {/* NEW: Delete Item Button - Only in category edit mode */}
                             <TouchEnhancedButton
                                 onClick={() => {
                                     if (window.confirm(`Remove "${item.ingredient || item.name}" from your shopping list?`)) {
@@ -2646,7 +2585,6 @@ export default function EnhancedAIShoppingListModal({
                             })()}
                         </div>
                     ) : (
-                        /* NEW: Quick delete button for normal mode (swipe alternative) */
                         <div style={{
                             marginTop: '0.5rem',
                             display: 'flex',
@@ -2687,7 +2625,7 @@ export default function EnhancedAIShoppingListModal({
                                 )}
                             </div>
 
-                            {/* Quick Delete Button - Always available in normal mode */}
+                            {/* Quick Delete Button */}
                             <TouchEnhancedButton
                                 onClick={() => {
                                     if (window.confirm(`Remove "${item.ingredient || item.name}" from your shopping list?`)) {
