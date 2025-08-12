@@ -996,14 +996,28 @@ export async function POST(request) {
                     unit: inventoryMatch.unit,
                     location: inventoryMatch.location,
                     expirationDate: inventoryMatch.expirationDate,
-                    brand: inventoryMatch.brand
+                    brand: inventoryMatch.brand,
+                    // NEW: Include all price information from inventory
+                    averagePrice: inventoryMatch.averagePrice || 0,
+                    lowestPrice: inventoryMatch.lowestPrice || 0,
+                    highestPrice: inventoryMatch.highestPrice || 0,
+                    lastPurchasePrice: inventoryMatch.lastPurchasePrice || 0,
+                    priceHistory: inventoryMatch.priceHistory || []
                 } : null,
+                // NEW: Extract and use inventory price as estimated price
+                estimatedPrice: inventoryMatch?.averagePrice || inventoryMatch?.lowestPrice || 0,
+                priceSource: inventoryMatch?.averagePrice > 0 ? 'inventory_average' :
+                    inventoryMatch?.lowestPrice > 0 ? 'inventory_lowest' : 'none',
                 needAmount: displayAmount || '1',
                 haveAmount: inventoryMatch ? `${inventoryMatch.quantity} ${inventoryMatch.unit}` : '0',
                 alternatives: ingredient.alternatives,
                 variations: ingredient.variations,
                 normalizedName: ingredient.normalizedName,
-                ingredientKey: ingredient.ingredientKey
+                ingredientKey: ingredient.ingredientKey,
+                // NEW: Price optimization fields
+                priceOptimized: (inventoryMatch?.averagePrice || 0) > 0,
+                dealStatus: 'normal', // Default, can be enhanced later
+                actualPrice: null // Will be filled in during shopping
             };
 
             shoppingListItems.push(item);

@@ -151,6 +151,7 @@ export default function EnhancedAIShoppingListModal({
     // Data conversion and processing functions
     const convertSmartPriceToEnhanced = useCallback((smartPriceItems) => {
         console.log('🔄 Converting smart price items:', smartPriceItems.length);
+        console.log('📦 Available inventory data for price integration...');
 
         const items = {};
 
@@ -185,9 +186,42 @@ export default function EnhancedAIShoppingListModal({
                     priceOptimized: false,
                     dealStatus: 'normal',
                     alternatives: [],
-                    category: getAISuggestedCategory(item)
+                    category: getAISuggestedCategory(item),
+                    priceSource: 'none'
                 };
             } else if (typeof item === 'object') {
+                // NEW: Enhanced price extraction from shopping list data
+                let estimatedPrice = 0;
+                let priceSource = 'none';
+                let priceOptimized = false;
+
+                // Priority 1: Use existing estimated price if available
+                if (item.estimatedPrice && item.estimatedPrice > 0) {
+                    estimatedPrice = item.estimatedPrice;
+                    priceSource = item.priceSource || 'estimated';
+                    priceOptimized = true;
+                    console.log(`💰 Using item estimated price for ${item.name}: $${estimatedPrice} (${priceSource})`);
+                }
+                // Priority 2: Extract from inventory item data
+                else if (item.inventoryItem) {
+                    if (item.inventoryItem.averagePrice && item.inventoryItem.averagePrice > 0) {
+                        estimatedPrice = item.inventoryItem.averagePrice;
+                        priceSource = 'inventory_average';
+                        priceOptimized = true;
+                        console.log(`💰 Using inventory average price for ${item.name}: $${estimatedPrice}`);
+                    } else if (item.inventoryItem.lowestPrice && item.inventoryItem.lowestPrice > 0) {
+                        estimatedPrice = item.inventoryItem.lowestPrice;
+                        priceSource = 'inventory_lowest';
+                        priceOptimized = true;
+                        console.log(`💰 Using inventory lowest price for ${item.name}: $${estimatedPrice}`);
+                    } else if (item.inventoryItem.lastPurchasePrice && item.inventoryItem.lastPurchasePrice > 0) {
+                        estimatedPrice = item.inventoryItem.lastPurchasePrice;
+                        priceSource = 'inventory_last';
+                        priceOptimized = true;
+                        console.log(`💰 Using inventory last purchase price for ${item.name}: $${estimatedPrice}`);
+                    }
+                }
+
                 processedItem = {
                     id: item.id || `item-${index}-${Date.now()}`,
                     name: item.name || item.ingredient || 'Unknown Item',
@@ -196,22 +230,27 @@ export default function EnhancedAIShoppingListModal({
                     selected: item.selected !== false,
                     quantity: item.quantity || item.amount || 1,
                     unit: item.unit || '',
-                    estimatedPrice: item.estimatedPrice || item.priceInfo?.estimatedPrice || 0,
+                    estimatedPrice: estimatedPrice, // NOW PROPERLY EXTRACTS INVENTORY PRICES
                     actualPrice: item.actualPrice || null,
-                    priceOptimized: item.priceOptimized || !!item.priceInfo?.bestPrice,
-                    dealStatus: item.dealStatus || item.priceInfo?.dealStatus || 'normal',
-                    alternatives: item.alternatives || item.priceInfo?.alternatives || [],
+                    priceSource: priceSource, // Track where price came from
+                    priceOptimized: priceOptimized,
+                    dealStatus: item.dealStatus || 'normal',
+                    alternatives: item.alternatives || [],
                     recipes: item.recipes || [],
                     category: item.category || getAISuggestedCategory(item.name || item.ingredient || 'Unknown Item'),
                     inInventory: item.inInventory || false,
-                    inventoryItem: item.inventoryItem || null
+                    inventoryItem: item.inventoryItem || null,
+                    // NEW: Additional price context
+                    needAmount: item.needAmount || item.amount || '',
+                    haveAmount: item.haveAmount || '',
+                    priceHistory: item.inventoryItem?.priceHistory || []
                 };
             } else {
                 console.warn(`⚠️ Skipping invalid item type at index ${index}:`, typeof item);
                 return;
             }
 
-            // Ensure category is valid and not numeric
+            // Ensure category is valid
             let categoryName = processedItem.category;
 
             if (!categoryName ||
@@ -229,14 +268,26 @@ export default function EnhancedAIShoppingListModal({
             items[categoryName].push({...processedItem, category: categoryName});
         });
 
-        console.log('✅ Conversion complete. Categories:', Object.keys(items));
+        // Log pricing statistics
+        const allItems = Object.values(items).flat();
+        const itemsWithPrices = allItems.filter(item => item.estimatedPrice > 0);
+        const totalEstimatedValue = allItems.reduce((sum, item) => sum + (item.estimatedPrice * (item.quantity || 1)), 0);
+
+        console.log(`✅ Price integration complete:`, {
+            totalItems: allItems.length,
+            itemsWithPrices: itemsWithPrices.length,
+            totalEstimatedValue: totalEstimatedValue.toFixed(2),
+            categories: Object.keys(items)
+        });
+
         return {
             items,
             summary: {
                 totalItems: smartPriceItems.length,
                 needToBuy: smartPriceItems.length,
                 inInventory: 0,
-                purchased: 0
+                purchased: 0,
+                totalEstimatedValue: totalEstimatedValue
             },
             generatedAt: new Date().toISOString()
         };
@@ -873,6 +924,85 @@ export default function EnhancedAIShoppingListModal({
             avgPricePerItem: totalCost / (priceData.length || 1)
         };
     }, []);
+
+    // NEW: Helper function for inventory price tooltips
+    const getInventoryPriceTooltip = (item) => {
+        if (!item.priceSource || item.priceSource === 'none') {
+            return 'Enter price manually';
+        }
+
+        switch (item.priceSource) {
+            case 'inventory_average':
+                return `Average price from your inventory: $${item.estimatedPrice.toFixed(2)}`;
+            case 'inventory_lowest':
+                return `Lowest price from your inventory: $${item.estimatedPrice.toFixed(2)}`;
+            case 'inventory_last':
+                return `Last purchase price from inventory: $${item.estimatedPrice.toFixed(2)}`;
+            default:
+                return `Price from ${item.priceSource}: $${item.estimatedPrice.toFixed(2)}`;
+        }
+    };
+
+// NEW: Helper function for price source labels
+    const getPriceSourceLabel = (priceSource) => {
+        switch (priceSource) {
+            case 'inventory_average': return 'Avg';
+            case 'inventory_lowest': return 'Low';
+            case 'inventory_last': return 'Last';
+            case 'estimated': return 'Est';
+            default: return 'Price';
+        }
+    };
+
+    // NEW: Calculate estimated total for selected items
+    const getEstimatedTotal = useCallback(() => {
+        if (!shoppingListData?.items) return 0;
+
+        let total = 0;
+        Object.values(shoppingListData.items).forEach(categoryItems => {
+            categoryItems.forEach(item => {
+                if (item.selected !== false && item.checked !== true) {
+                    const price = item.actualPrice || item.estimatedPrice || 0;
+                    const quantity = item.quantity || 1;
+                    total += price * quantity;
+                }
+            });
+        });
+
+        return total;
+    }, [shoppingListData?.items]);
+
+// NEW: Count items with inventory prices
+    const getItemsWithInventoryPrices = useCallback(() => {
+        if (!shoppingListData?.items) return [];
+
+        const itemsWithPrices = [];
+        Object.values(shoppingListData.items).forEach(categoryItems => {
+            categoryItems.forEach(item => {
+                if (item.priceSource && item.priceSource.startsWith('inventory') && item.estimatedPrice > 0) {
+                    itemsWithPrices.push(item);
+                }
+            });
+        });
+
+        return itemsWithPrices;
+    }, [shoppingListData?.items]);
+
+// NEW: Count items needing price entry
+    const getItemsNeedingPrices = useCallback(() => {
+        if (!shoppingListData?.items) return [];
+
+        const itemsNeedingPrices = [];
+        Object.values(shoppingListData.items).forEach(categoryItems => {
+            categoryItems.forEach(item => {
+                if (item.selected !== false && !item.estimatedPrice && !item.actualPrice) {
+                    itemsNeedingPrices.push(item);
+                }
+            });
+        });
+
+        return itemsNeedingPrices;
+    }, [shoppingListData?.items]);
 
     const calculateBudgetTracking = useCallback(() => {
         if (!currentShoppingList?.items) return;
@@ -2168,7 +2298,8 @@ export default function EnhancedAIShoppingListModal({
                             display: 'flex',
                             alignItems: 'center',
                             gap: '0.75rem',
-                            marginBottom: '0.5rem'
+                            marginBottom: '0.5rem',
+                            flexWrap: 'wrap'
                         }}>
                             <div style={{
                                 display: 'flex',
@@ -2194,8 +2325,8 @@ export default function EnhancedAIShoppingListModal({
                                     fontSize: '0.8rem',
                                     color: '#6b7280'
                                 }}>
-                                    {item.unit || 'qty'}
-                                </span>
+                {item.unit || 'qty'}
+            </span>
                             </div>
 
                             <div style={{
@@ -2203,27 +2334,60 @@ export default function EnhancedAIShoppingListModal({
                                 alignItems: 'center',
                                 gap: '0.25rem'
                             }}>
-                                <span style={{
-                                    fontSize: '0.8rem',
-                                    color: '#6b7280'
-                                }}>$</span>
+            <span style={{
+                fontSize: '0.8rem',
+                color: '#6b7280'
+            }}>$</span>
                                 <input
                                     type="number"
                                     min="0"
                                     step="0.01"
                                     value={item.actualPrice || item.estimatedPrice || ''}
                                     onChange={(e) => handlePriceUpdate(item.id || itemKey, e.target.value)}
-                                    placeholder="Price"
+                                    placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "Price"}
                                     style={{
                                         width: '4rem',
                                         padding: '0.25rem',
                                         border: '1px solid #d1d5db',
                                         borderRadius: '4px',
                                         fontSize: '0.8rem',
-                                        textAlign: 'center'
+                                        textAlign: 'center',
+                                        backgroundColor: item.priceSource?.startsWith('inventory') ? '#f0fdf4' :
+                                            item.estimatedPrice > 0 ? '#fefce8' : 'white',
+                                        borderColor: item.priceSource?.startsWith('inventory') ? '#22c55e' : '#d1d5db'
                                     }}
+                                    title={getInventoryPriceTooltip(item)}
                                 />
                             </div>
+
+                            {/* Enhanced price source indicator */}
+                            {item.priceSource && item.priceSource !== 'none' && (
+                                <div style={{
+                                    fontSize: '0.65rem',
+                                    color: item.priceSource.startsWith('inventory') ? '#059669' : '#3b82f6',
+                                    backgroundColor: item.priceSource.startsWith('inventory') ? '#dcfce7' : '#dbeafe',
+                                    padding: '0.125rem 0.375rem',
+                                    borderRadius: '8px',
+                                    fontWeight: '500',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem'
+                                }}>
+                                    {item.priceSource.startsWith('inventory') ? '📦' : '💡'}
+                                    {getPriceSourceLabel(item.priceSource)}
+                                </div>
+                            )}
+
+                            {/* Total price for this item */}
+                            {(item.estimatedPrice > 0 || item.actualPrice > 0) && (
+                                <div style={{
+                                    fontSize: '0.7rem',
+                                    color: '#6b7280',
+                                    marginLeft: 'auto'
+                                }}>
+                                    Total: ${((item.actualPrice || item.estimatedPrice) * (item.quantity || 1)).toFixed(2)}
+                                </div>
+                            )}
                         </div>
                     )}
 
@@ -2667,14 +2831,60 @@ export default function EnhancedAIShoppingListModal({
                                         fontWeight: '500',
                                         color: '#6b7280',
                                         marginBottom: '0.125rem'
-                                    }}>Deals
+                                    }}>Est. Total
                                     </div>
                                     <div style={{
                                         fontSize: '0.8rem',
                                         fontWeight: '600',
-                                        color: '#7c2d12'
+                                        color: budgetTracking.limit && getEstimatedTotal() > budgetTracking.limit ? '#dc2626' : '#059669'
                                     }}>
-                                        {priceAnalysis.bestDeals?.length || 0}
+                                        {formatPrice(getEstimatedTotal())}
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        fontSize: '0.65rem',
+                                        fontWeight: '500',
+                                        color: '#6b7280',
+                                        marginBottom: '0.125rem'
+                                    }}>Inventory
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.8rem',
+                                        fontWeight: '600',
+                                        color: '#059669'
+                                    }}>
+                                        {getItemsWithInventoryPrices().length}
+                                    </div>
+                                </div>
+
+                                <div style={{
+                                    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                                    border: '1px solid #e5e7eb',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem',
+                                    textAlign: 'center'
+                                }}>
+                                    <div style={{
+                                        fontSize: '0.65rem',
+                                        fontWeight: '500',
+                                        color: '#6b7280',
+                                        marginBottom: '0.125rem'
+                                    }}>Need Price
+                                    </div>
+                                    <div style={{
+                                        fontSize: '0.8rem',
+                                        fontWeight: '600',
+                                        color: '#dc2626'
+                                    }}>
+                                        {getItemsNeedingPrices().length}
                                     </div>
                                 </div>
                             </div>
