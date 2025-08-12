@@ -2234,6 +2234,14 @@ export default function EnhancedAIShoppingListModal({
         const isPurchased = item.purchased;
         const priceInfo = config.showPriceFeatures ? getItemPriceInfo(item.ingredient || item.name) : null;
 
+        console.log('[ITEM RENDER DEBUG]', {
+            itemName: item.ingredient || item.name,
+            shoppingMode,
+            showPriceFeatures: config.showPriceFeatures,
+            config,
+            item
+        });
+
         return (
             <div
                 key={`${index}-${item.id || itemKey}-${updateTrigger}`} // Include updateTrigger in key
@@ -2276,6 +2284,17 @@ export default function EnhancedAIShoppingListModal({
                         {item.quantity && item.quantity !== 1 && `${item.quantity} `}
                         {item.unit && `${item.unit} `}
                         {item.ingredient || item.name}
+
+                        {/* DEBUG: Price controls visibility */}
+                        {(() => {
+                            console.log('[PRICE CONTROLS DEBUG]', {
+                                showPriceFeatures: config.showPriceFeatures,
+                                mode: shoppingMode,
+                                shouldShow: config.showPriceFeatures
+                            });
+                            return null; // This fixes the void function error
+                        })()}
+
 
                         {/* Smart Price Status Badges */}
                         {config.showPriceFeatures && (
@@ -2625,10 +2644,13 @@ export default function EnhancedAIShoppingListModal({
         });
     }, [currentShoppingList]);
 
-    console.log('[SHOPPING MODE DEBUG]', {
+    // DEBUG: Check shopping mode and price features
+    console.log('[PRICE DEBUG]', {
         shoppingMode,
-        config,
-        showPriceFeatures: config.showPriceFeatures
+        config: getModeConfig(),
+        showPriceFeatures: getModeConfig().showPriceFeatures,
+        currentShoppingList: !!currentShoppingList,
+        sampleItem: currentShoppingList?.items ? Object.values(currentShoppingList.items)[0]?.[0] : 'no items'
     });
 
     // Early return if not open or no data
