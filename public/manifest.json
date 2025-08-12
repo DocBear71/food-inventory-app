@@ -91,19 +91,12 @@
   ],
 
   "share_target": {
-    "action": "/import",
-    "method": "POST",
-    "enctype": "multipart/form-data",
+    "action": "/recipes/import",
+    "method": "GET",
     "params": {
-      "title": "name",
-      "text": "description",
-      "url": "link",
-      "files": [
-        {
-          "name": "recipe_data",
-          "accept": ["text/plain", ".txt", ".csv", "image/*", ".json"]
-        }
-      ]
+      "title": "title",
+      "text": "text",
+      "url": "videoUrl"
     }
   },
 

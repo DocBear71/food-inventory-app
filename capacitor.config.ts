@@ -84,6 +84,16 @@ const config: CapacitorConfig = {
 
         Purchases: {
             // Your existing purchases config
+        },
+
+        App: {
+            handleUrl: (url: string) => {
+                // Handle universal links
+                if (url.includes('/recipes/import')) {
+                    return { url };
+                }
+                return null;
+            }
         }
     },
 

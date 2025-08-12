@@ -102,6 +102,87 @@
                 <data android:scheme="https" android:host="m.facebook.com" />
                 <data android:scheme="https" android:host="fb.watch" />
             </intent-filter>
+            <!-- TikTok Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="tiktok.com" />
+                <data android:scheme="https" android:host="www.tiktok.com" />
+                <data android:scheme="https" android:host="vm.tiktok.com" />
+            </intent-filter>
+
+            <!-- Instagram Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="instagram.com" />
+                <data android:scheme="https" android:host="www.instagram.com" />
+            </intent-filter>
+
+            <!-- Twitter/X Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="twitter.com" />
+                <data android:scheme="https" android:host="x.com" />
+            </intent-filter>
+
+            <!-- YouTube Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="youtube.com" />
+                <data android:scheme="https" android:host="www.youtube.com" />
+                <data android:scheme="https" android:host="youtu.be" />
+            </intent-filter>
+
+            <!-- Reddit Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="reddit.com" />
+                <data android:scheme="https" android:host="www.reddit.com" />
+                <data android:scheme="https" android:host="redd.it" />
+            </intent-filter>
+
+            <!-- Pinterest Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pinterest.com" />
+                <data android:scheme="https" android:host="www.pinterest.com" />
+            </intent-filter>
+
+            <!-- Bluesky Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="bsky.app" />
+            </intent-filter>
+
+            <!-- LinkedIn Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="linkedin.com" />
+                <data android:scheme="https" android:host="www.linkedin.com" />
+            </intent-filter>
+
+            <!-- Threads Intent Filter -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="threads.net" />
+            </intent-filter>
 
         </activity>
 
