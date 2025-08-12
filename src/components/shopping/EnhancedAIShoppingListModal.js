@@ -954,56 +954,6 @@ export default function EnhancedAIShoppingListModal({
         }
     };
 
-    // NEW: Calculate estimated total for selected items
-    const getEstimatedTotal = useCallback(() => {
-        if (!normalizedList?.items) return 0;
-
-        let total = 0;
-        Object.values(normalizedList.items).forEach(categoryItems => {
-            categoryItems.forEach(item => {
-                if (item.selected !== false && !item.purchased) {
-                    const price = item.actualPrice || item.estimatedPrice || 0;
-                    const quantity = item.quantity || 1;
-                    total += price * quantity;
-                }
-            });
-        });
-
-        return total;
-    }, [normalizedList?.items]);
-
-// NEW: Count items with inventory prices
-    const getItemsWithInventoryPrices = useCallback(() => {
-        if (!normalizedList?.items) return [];
-
-        const itemsWithPrices = [];
-        Object.values(normalizedList.items).forEach(categoryItems => {
-            categoryItems.forEach(item => {
-                if (item.priceSource && item.priceSource.startsWith('inventory') && item.estimatedPrice > 0) {
-                    itemsWithPrices.push(item);
-                }
-            });
-        });
-
-        return itemsWithPrices;
-    }, [normalizedList?.items]);
-
-// NEW: Count items needing price entry
-    const getItemsNeedingPrices = useCallback(() => {
-        if (!normalizedList?.items) return [];
-
-        const itemsNeedingPrices = [];
-        Object.values(normalizedList.items).forEach(categoryItems => {
-            categoryItems.forEach(item => {
-                if (item.selected !== false && !item.estimatedPrice && !item.actualPrice) {
-                    itemsNeedingPrices.push(item);
-                }
-            });
-        });
-
-        return itemsNeedingPrices;
-    }, [normalizedList?.items]);
-
     const calculateBudgetTracking = useCallback(() => {
         if (!currentShoppingList?.items) return;
 
@@ -1501,6 +1451,54 @@ export default function EnhancedAIShoppingListModal({
         };
         return configs[shoppingMode] || configs['enhanced'];
     }, [shoppingMode]);
+
+// NEW: Add these helper functions AFTER normalizedList is defined
+    const getEstimatedTotal = useCallback(() => {
+        if (!normalizedList?.items) return 0;
+
+        let total = 0;
+        Object.values(normalizedList.items).forEach(categoryItems => {
+            categoryItems.forEach(item => {
+                if (item.selected !== false && !item.purchased) {
+                    const price = item.actualPrice || item.estimatedPrice || 0;
+                    const quantity = item.quantity || 1;
+                    total += price * quantity;
+                }
+            });
+        });
+
+        return total;
+    }, [normalizedList?.items]);
+
+    const getItemsWithInventoryPrices = useCallback(() => {
+        if (!normalizedList?.items) return [];
+
+        const itemsWithPrices = [];
+        Object.values(normalizedList.items).forEach(categoryItems => {
+            categoryItems.forEach(item => {
+                if (item.priceSource && item.priceSource.startsWith('inventory') && item.estimatedPrice > 0) {
+                    itemsWithPrices.push(item);
+                }
+            });
+        });
+
+        return itemsWithPrices;
+    }, [normalizedList?.items]);
+
+    const getItemsNeedingPrices = useCallback(() => {
+        if (!normalizedList?.items) return [];
+
+        const itemsNeedingPrices = [];
+        Object.values(normalizedList.items).forEach(categoryItems => {
+            categoryItems.forEach(item => {
+                if (item.selected !== false && !item.estimatedPrice && !item.actualPrice) {
+                    itemsNeedingPrices.push(item);
+                }
+            });
+        });
+
+        return itemsNeedingPrices;
+    }, [normalizedList?.items]);
 
     const addPurchasedStatus = useCallback((items) => {
         if (!Array.isArray(items)) {
