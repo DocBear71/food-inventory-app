@@ -970,61 +970,97 @@ export default function EnhancedAIShoppingListModal({
             current: totalCost,
             remaining: prev.limit ? prev.limit - totalCost : null
         }));
-    }, [currentShoppingList?.items]);
+    }, [currentShoppingList?.items, setBudgetTracking]);
 
     const handleQuantityChange = useCallback((itemId, newQuantity) => {
-        console.log(`[QUANTITY CHANGE] Item: ${itemId}, New Quantity: ${newQuantity}`);
+        console.log(`[QUANTITY HANDLER] Item: ${itemId}, New Quantity: ${newQuantity}`);
+
+        if (!currentShoppingList?.items) {
+            console.error('[QUANTITY HANDLER] No shopping list items found');
+            return;
+        }
 
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
+        let itemFound = false;
 
         Object.keys(updatedItems).forEach(category => {
             updatedItems[category] = updatedItems[category].map(item => {
-                if (item.id === itemId || (item.ingredient || item.name) === itemId) {
+                const matches = item.id === itemId ||
+                    (item.ingredient || item.name) === itemId ||
+                    item.itemKey === itemId;
+
+                if (matches) {
+                    itemFound = true;
                     const updated = {...item, quantity: Math.max(0, newQuantity)};
-                    console.log(`[QUANTITY CHANGE] Updated item:`, updated);
+                    console.log(`[QUANTITY HANDLER] Updated item in ${category}:`, updated);
                     return updated;
                 }
                 return item;
             });
         });
 
+        if (!itemFound) {
+            console.error(`[QUANTITY HANDLER] Item not found: ${itemId}`);
+            return;
+        }
+
         updatedShoppingList.items = updatedItems;
         setCurrentShoppingList(updatedShoppingList);
 
-        // Trigger re-calculation of totals
+        // Force re-render and recalculate totals
         setUpdateTrigger(prev => prev + 1);
 
-        // Haptic feedback
-        MobileHaptics?.light();
+        // Haptic feedback if available
+        if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
+            MobileHaptics.light();
+        }
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
-    const handlePriceUpdate = useCallback((itemId, actualPrice) => {
-        console.log(`[PRICE UPDATE] Item: ${itemId}, New Price: $${actualPrice}`);
+    const handlePriceUpdate = useCallback((itemId, newPriceValue) => {
+        console.log(`[PRICE HANDLER] Item: ${itemId}, New Price: $${newPriceValue}`);
+
+        if (!currentShoppingList?.items) {
+            console.error('[PRICE HANDLER] No shopping list items found');
+            return;
+        }
 
         const updatedShoppingList = {...currentShoppingList};
         const updatedItems = {...updatedShoppingList.items};
+        let itemFound = false;
 
         Object.keys(updatedItems).forEach(category => {
             updatedItems[category] = updatedItems[category].map(item => {
-                if (item.id === itemId || (item.ingredient || item.name) === itemId) {
-                    const newPrice = parseFloat(actualPrice) || 0;
+                const matches = item.id === itemId ||
+                    (item.ingredient || item.name) === itemId ||
+                    item.itemKey === itemId;
+
+                if (matches) {
+                    itemFound = true;
+                    const newPrice = parseFloat(newPriceValue) || 0;
                     const updated = {...item, actualPrice: newPrice};
-                    console.log(`[PRICE UPDATE] Updated item:`, updated);
+                    console.log(`[PRICE HANDLER] Updated item in ${category}:`, updated);
                     return updated;
                 }
                 return item;
             });
         });
 
+        if (!itemFound) {
+            console.error(`[PRICE HANDLER] Item not found: ${itemId}`);
+            return;
+        }
+
         updatedShoppingList.items = updatedItems;
         setCurrentShoppingList(updatedShoppingList);
 
-        // Trigger re-calculation of totals
+        // Force re-render and recalculate totals
         setUpdateTrigger(prev => prev + 1);
 
-        // Haptic feedback
-        MobileHaptics?.light();
+        // Haptic feedback if available
+        if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
+            MobileHaptics.light();
+        }
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
     const selectAlternative = useCallback(async (itemId, alternative) => {
@@ -2310,7 +2346,7 @@ export default function EnhancedAIShoppingListModal({
                         )}
                     </div>
 
-                    {/* Enhanced Price and Quantity Controls */}
+                    {/* Enhanced Price and Quantity Controls - FUNCTIONAL VERSION */}
                     {config.showPriceFeatures && (
                         <div style={{
                             display: 'flex',
@@ -2318,12 +2354,11 @@ export default function EnhancedAIShoppingListModal({
                             gap: '0.75rem',
                             marginBottom: '0.5rem',
                             flexWrap: 'wrap',
-                            backgroundColor: '#ffcccc',  // Light red background to spot it
-                            border: '2px solid red',
-                            padding: '1rem'
+                            backgroundColor: '#f8fafc',
+                            border: '1px solid #e2e8f0', // Remove red border when working
+                            padding: '0.75rem',
+                            borderRadius: '6px'
                         }}>
-                            <div>🔴 PRICE CONTROLS SHOULD BE HERE FOR: {item.ingredient || item.name}</div>
-
                             {/* Quantity Control */}
                             <div style={{
                                 display: 'flex',
@@ -2344,11 +2379,11 @@ export default function EnhancedAIShoppingListModal({
                                     value={item.quantity || 1}
                                     onChange={(e) => {
                                         const newQuantity = parseFloat(e.target.value) || 1;
-                                        console.log(`Updating quantity for ${item.ingredient}: ${newQuantity}`);
+                                        console.log(`[QUANTITY CHANGE] ${item.ingredient}: ${item.quantity} -> ${newQuantity}`);
                                         handleQuantityChange(item.id || itemKey, newQuantity);
                                     }}
                                     style={{
-                                        width: '3.5rem',
+                                        width: '4rem',
                                         padding: '0.375rem 0.25rem',
                                         border: '1px solid #d1d5db',
                                         borderRadius: '4px',
@@ -2396,12 +2431,12 @@ export default function EnhancedAIShoppingListModal({
                                         value={item.actualPrice || item.estimatedPrice || ''}
                                         onChange={(e) => {
                                             const newPrice = e.target.value;
-                                            console.log(`Updating price for ${item.ingredient}: $${newPrice}`);
+                                            console.log(`[PRICE CHANGE] ${item.ingredient}: $${item.actualPrice || item.estimatedPrice} -> $${newPrice}`);
                                             handlePriceUpdate(item.id || itemKey, newPrice);
                                         }}
                                         placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
                                         style={{
-                                            width: '4.5rem',
+                                            width: '5rem',
                                             padding: '0.375rem 0.25rem',
                                             border: '1px solid #d1d5db',
                                             borderRadius: '4px',
@@ -2412,7 +2447,7 @@ export default function EnhancedAIShoppingListModal({
                                             borderColor: item.priceSource?.startsWith('inventory') ? '#22c55e' :
                                                 item.estimatedPrice > 0 ? '#f59e0b' : '#d1d5db'
                                         }}
-                                        title={getInventoryPriceTooltip(item)}
+                                        title={getInventoryPriceTooltip ? getInventoryPriceTooltip(item) : `Price for ${item.ingredient}`}
                                     />
                                 </div>
                             </div>
@@ -2431,7 +2466,7 @@ export default function EnhancedAIShoppingListModal({
                                     gap: '0.25rem'
                                 }}>
                                     {item.priceSource.startsWith('inventory') ? '📦' : '💡'}
-                                    {getPriceSourceLabel(item.priceSource)}
+                                    {getPriceSourceLabel ? getPriceSourceLabel(item.priceSource) : 'Price'}
                                 </div>
                             )}
 
