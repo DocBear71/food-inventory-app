@@ -1,7 +1,7 @@
 'use client';
 // file: /src/components/shopping/EnhancedAIShoppingListModal.js v10 - Part 1: Fixed Modal.com integration and API communication
 
-import {useState, useEffect, useCallback, useMemo} from 'react';
+import {useState, useEffect, useCallback, useMemo, useRef} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
 import EmailSharingModal from '@/components/sharing/EmailSharingModal';
 import SaveShoppingListModal from '@/components/shared/SaveShoppingListModal';
@@ -119,6 +119,12 @@ export default function EnhancedAIShoppingListModal({
     const [footerCollapsed, setFooterCollapsed] = useState(false);
     const [initialized, setInitialized] = useState(false);
     const [updateTrigger, setUpdateTrigger] = useState(0);
+
+    // Debounced price update state
+    const [localPrices, setLocalPrices] = useState({});
+    const [localQuantities, setLocalQuantities] = useState({});
+    const priceUpdateTimeouts = useRef({});
+    const quantityUpdateTimeouts = useRef({});
 
     // Helper functions - memoized to prevent re-creation
     const getAISuggestedCategory = useCallback((itemName) => {
@@ -972,105 +978,133 @@ export default function EnhancedAIShoppingListModal({
         }));
     }, [currentShoppingList?.items, setBudgetTracking]);
 
-    const handleQuantityChange = useCallback((itemKey, newQuantity) => {
-        console.log(`[QUANTITY HANDLER] Looking for item: "${itemKey}", New Quantity: ${newQuantity}`);
+    const handlePriceUpdate = useCallback((itemKey, newPriceValue) => {
+        // Update local state immediately (no re-render of full list)
+        setLocalPrices(prev => ({
+            ...prev,
+            [itemKey]: newPriceValue
+        }));
 
-        if (!currentShoppingList?.items) {
-            console.error('[QUANTITY HANDLER] No shopping list items found');
-            return;
+        // Clear existing timeout for this item
+        if (priceUpdateTimeouts.current[itemKey]) {
+            clearTimeout(priceUpdateTimeouts.current[itemKey]);
         }
 
-        const updatedShoppingList = {...currentShoppingList};
-        const updatedItems = {...updatedShoppingList.items};
-        let itemFound = false;
+        // Set new timeout to update the actual shopping list after user stops typing
+        priceUpdateTimeouts.current[itemKey] = setTimeout(() => {
+            console.log(`[PRICE HANDLER] Debounced update for item: "${itemKey}", Price: $${newPriceValue}`);
 
-        Object.keys(updatedItems).forEach(category => {
-            updatedItems[category] = updatedItems[category].map(item => {
-                // ENHANCED: Match by multiple criteria
-                const matchByName = (item.ingredient || item.name) === itemKey;
-                const matchByItemKey = item.itemKey === itemKey;
-                const matchByIngredientKey = item.ingredientKey === itemKey;
-                const matchById = item.id === itemKey;
+            if (!currentShoppingList?.items) {
+                console.error('[PRICE HANDLER] No shopping list items found');
+                return;
+            }
 
-                // ALSO try partial matches for generated keys
-                const itemNameKey = `${item.ingredient || item.name}-${category}`;
-                const matchByComputedKey = itemNameKey === itemKey;
+            const updatedShoppingList = {...currentShoppingList};
+            const updatedItems = {...updatedShoppingList.items};
+            let itemFound = false;
 
-                const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
+            Object.keys(updatedItems).forEach(category => {
+                updatedItems[category] = updatedItems[category].map(item => {
+                    const matchByName = (item.ingredient || item.name) === itemKey;
+                    const matchByItemKey = item.itemKey === itemKey;
+                    const matchByIngredientKey = item.ingredientKey === itemKey;
+                    const matchById = item.id === itemKey;
+                    const itemNameKey = `${item.ingredient || item.name}-${category}`;
+                    const matchByComputedKey = itemNameKey === itemKey;
 
-                if (matches && !itemFound) { // Only update the first match
-                    itemFound = true;
-                    const updated = {...item, quantity: Math.max(0, newQuantity)};
-                    console.log(`[QUANTITY HANDLER] ✅ Found and updated "${item.ingredient || item.name}" in ${category}`);
-                    return updated;
-                }
-                return item;
+                    const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
+
+                    if (matches && !itemFound) {
+                        itemFound = true;
+                        const newPrice = parseFloat(newPriceValue) || 0;
+                        const updated = {...item, actualPrice: newPrice};
+                        console.log(`[PRICE HANDLER] ✅ Updated "${item.ingredient || item.name}" with price $${newPrice}`);
+                        return updated;
+                    }
+                    return item;
+                });
             });
-        });
 
-        if (!itemFound) {
-            console.error(`[QUANTITY HANDLER] ❌ Item not found: "${itemKey}"`);
-            return;
-        }
+            if (itemFound) {
+                updatedShoppingList.items = updatedItems;
+                setCurrentShoppingList(updatedShoppingList);
 
-        updatedShoppingList.items = updatedItems;
-        setCurrentShoppingList(updatedShoppingList);
-        setUpdateTrigger(prev => prev + 1);
+                // Only trigger re-render after debounce
+                setUpdateTrigger(prev => prev + 1);
 
-        if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
-            MobileHaptics.light();
-        }
+                if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
+                    MobileHaptics.light();
+                }
+            }
+
+            // Clean up the timeout reference
+            delete priceUpdateTimeouts.current[itemKey];
+
+        }, 500); // Wait 500ms after user stops typing
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
-    const handlePriceUpdate = useCallback((itemKey, newPriceValue) => {
-        console.log(`[PRICE HANDLER] Looking for item: "${itemKey}", New Price: $${newPriceValue}`);
+    const handleQuantityChange = useCallback((itemKey, newQuantity) => {
+        // Update local state immediately (no re-render of full list)
+        setLocalQuantities(prev => ({
+            ...prev,
+            [itemKey]: newQuantity
+        }));
 
-        if (!currentShoppingList?.items) {
-            console.error('[PRICE HANDLER] No shopping list items found');
-            return;
+        // Clear existing timeout for this item
+        if (quantityUpdateTimeouts.current[itemKey]) {
+            clearTimeout(quantityUpdateTimeouts.current[itemKey]);
         }
 
-        const updatedShoppingList = {...currentShoppingList};
-        const updatedItems = {...updatedShoppingList.items};
-        let itemFound = false;
+        // Set new timeout to update the actual shopping list after user stops typing
+        quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
+            console.log(`[QUANTITY HANDLER] Debounced update for item: "${itemKey}", Quantity: ${newQuantity}`);
 
-        Object.keys(updatedItems).forEach(category => {
-            updatedItems[category] = updatedItems[category].map(item => {
-                // ENHANCED: Match by multiple criteria
-                const matchByName = (item.ingredient || item.name) === itemKey;
-                const matchByItemKey = item.itemKey === itemKey;
-                const matchByIngredientKey = item.ingredientKey === itemKey;
-                const matchById = item.id === itemKey;
+            if (!currentShoppingList?.items) {
+                console.error('[QUANTITY HANDLER] No shopping list items found');
+                return;
+            }
 
-                // ALSO try partial matches for generated keys
-                const itemNameKey = `${item.ingredient || item.name}-${category}`;
-                const matchByComputedKey = itemNameKey === itemKey;
+            const updatedShoppingList = {...currentShoppingList};
+            const updatedItems = {...updatedShoppingList.items};
+            let itemFound = false;
 
-                const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
+            Object.keys(updatedItems).forEach(category => {
+                updatedItems[category] = updatedItems[category].map(item => {
+                    const matchByName = (item.ingredient || item.name) === itemKey;
+                    const matchByItemKey = item.itemKey === itemKey;
+                    const matchByIngredientKey = item.ingredientKey === itemKey;
+                    const matchById = item.id === itemKey;
+                    const itemNameKey = `${item.ingredient || item.name}-${category}`;
+                    const matchByComputedKey = itemNameKey === itemKey;
 
-                if (matches && !itemFound) { // Only update the first match
-                    itemFound = true;
-                    const newPrice = parseFloat(newPriceValue) || 0;
-                    const updated = {...item, actualPrice: newPrice};
-                    console.log(`[PRICE HANDLER] ✅ Found and updated "${item.ingredient || item.name}" in ${category} with price $${newPrice}`);
-                    return updated;
-                }
-                return item;
+                    const matches = matchByName || matchByItemKey || matchByIngredientKey || matchById || matchByComputedKey;
+
+                    if (matches && !itemFound) {
+                        itemFound = true;
+                        const updated = {...item, quantity: Math.max(0, newQuantity)};
+                        console.log(`[QUANTITY HANDLER] ✅ Updated "${item.ingredient || item.name}" with quantity ${newQuantity}`);
+                        return updated;
+                    }
+                    return item;
+                });
             });
-        });
 
-        if (!itemFound) {
-            console.error(`[PRICE HANDLER] ❌ Item not found: "${itemKey}"`);
-            return;
-        }
+            if (itemFound) {
+                updatedShoppingList.items = updatedItems;
+                setCurrentShoppingList(updatedShoppingList);
 
-        updatedShoppingList.items = updatedItems;
-        setCurrentShoppingList(updatedShoppingList);
-        setUpdateTrigger(prev => prev + 1);
+                // Only trigger re-render after debounce
+                setUpdateTrigger(prev => prev + 1);
 
-        if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
-            MobileHaptics.light();
-        }
+                if (typeof MobileHaptics !== 'undefined' && MobileHaptics?.light) {
+                    MobileHaptics.light();
+                }
+            }
+
+            // Clean up the timeout reference
+            delete quantityUpdateTimeouts.current[itemKey];
+
+        }, 300); // Wait 300ms after user stops typing
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
     const selectAlternative = useCallback(async (itemId, alternative) => {
@@ -1230,6 +1264,36 @@ export default function EnhancedAIShoppingListModal({
             }, 1000);
         }
     }, [isOpen, initialized, loadPreferences, fetchStores, loadCustomCategories, loadUserPreferences, processInitialData, initializeAISystem]);
+
+    // NEW: Cleanup timeouts on unmount
+    useEffect(() => {
+        return () => {
+            // Clear all timeouts when component unmounts
+            Object.values(priceUpdateTimeouts.current).forEach(timeout => clearTimeout(timeout));
+            Object.values(quantityUpdateTimeouts.current).forEach(timeout => clearTimeout(timeout));
+        };
+    }, []);
+
+// NEW: Clear local state when shopping list changes
+    useEffect(() => {
+        // Clear local state when switching to a new shopping list
+        setLocalPrices({});
+        setLocalQuantities({});
+    }, [currentShoppingList?.generatedAt]);
+
+// NEW: Debug logging effect (existing one)
+    useEffect(() => {
+        console.log('🔄 currentShoppingList changed:', {
+            hasCurrentShoppingList: !!currentShoppingList,
+            type: typeof currentShoppingList,
+            structure: currentShoppingList ? {
+                hasItems: !!currentShoppingList.items,
+                itemsType: typeof currentShoppingList.items,
+                isArray: Array.isArray(currentShoppingList.items),
+                keys: currentShoppingList.items ? Object.keys(currentShoppingList.items) : null
+            } : null
+        });
+    }, [currentShoppingList]);
 
     const autoTriggerAISuggestions = useCallback(async () => {
         console.log('🤖 Auto-triggering AI suggestions...');
@@ -2396,10 +2460,9 @@ export default function EnhancedAIShoppingListModal({
                                     type="number"
                                     min="0"
                                     step="0.1"
-                                    value={item.quantity || 1}
+                                    value={localQuantities[itemKey] !== undefined ? localQuantities[itemKey] : (item.quantity || 1)}
                                     onChange={(e) => {
                                         const newQuantity = parseFloat(e.target.value) || 1;
-                                        console.log(`[QTY CHANGE UI] Item: "${item.ingredient || item.name}", Key: "${itemKey}", Quantity: ${newQuantity}`);
                                         // FIXED: Use itemKey that matches what the handler expects
                                         handleQuantityChange(itemKey, newQuantity);
                                     }}
@@ -2449,10 +2512,9 @@ export default function EnhancedAIShoppingListModal({
                                         type="number"
                                         min="0"
                                         step="0.01"
-                                        value={item.actualPrice || item.estimatedPrice || ''}
+                                        value={localPrices[itemKey] !== undefined ? localPrices[itemKey] : (item.actualPrice || item.estimatedPrice || '')}
                                         onChange={(e) => {
                                             const newPrice = e.target.value;
-                                            console.log(`[PRICE CHANGE UI] Item: "${item.ingredient || item.name}", Key: "${itemKey}", Price: $${newPrice}`);
                                             // FIXED: Use itemKey that matches what the handler expects
                                             handlePriceUpdate(itemKey, newPrice);
                                         }}
@@ -2667,19 +2729,6 @@ export default function EnhancedAIShoppingListModal({
             </div>
         );
     };
-
-    useEffect(() => {
-        console.log('🔄 currentShoppingList changed:', {
-            hasCurrentShoppingList: !!currentShoppingList,
-            type: typeof currentShoppingList,
-            structure: currentShoppingList ? {
-                hasItems: !!currentShoppingList.items,
-                itemsType: typeof currentShoppingList.items,
-                isArray: Array.isArray(currentShoppingList.items),
-                keys: currentShoppingList.items ? Object.keys(currentShoppingList.items) : null
-            } : null
-        });
-    }, [currentShoppingList]);
 
     // Early return if not open or no data
     if (!isOpen) {
