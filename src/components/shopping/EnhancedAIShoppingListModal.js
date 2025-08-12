@@ -956,12 +956,12 @@ export default function EnhancedAIShoppingListModal({
 
     // NEW: Calculate estimated total for selected items
     const getEstimatedTotal = useCallback(() => {
-        if (!shoppingListData?.items) return 0;
+        if (!normalizedList?.items) return 0;
 
         let total = 0;
-        Object.values(shoppingListData.items).forEach(categoryItems => {
+        Object.values(normalizedList.items).forEach(categoryItems => {
             categoryItems.forEach(item => {
-                if (item.selected !== false && item.checked !== true) {
+                if (item.selected !== false && !item.purchased) {
                     const price = item.actualPrice || item.estimatedPrice || 0;
                     const quantity = item.quantity || 1;
                     total += price * quantity;
@@ -970,14 +970,14 @@ export default function EnhancedAIShoppingListModal({
         });
 
         return total;
-    }, [shoppingListData?.items]);
+    }, [normalizedList?.items]);
 
 // NEW: Count items with inventory prices
     const getItemsWithInventoryPrices = useCallback(() => {
-        if (!shoppingListData?.items) return [];
+        if (!normalizedList?.items) return [];
 
         const itemsWithPrices = [];
-        Object.values(shoppingListData.items).forEach(categoryItems => {
+        Object.values(normalizedList.items).forEach(categoryItems => {
             categoryItems.forEach(item => {
                 if (item.priceSource && item.priceSource.startsWith('inventory') && item.estimatedPrice > 0) {
                     itemsWithPrices.push(item);
@@ -986,14 +986,14 @@ export default function EnhancedAIShoppingListModal({
         });
 
         return itemsWithPrices;
-    }, [shoppingListData?.items]);
+    }, [normalizedList?.items]);
 
 // NEW: Count items needing price entry
     const getItemsNeedingPrices = useCallback(() => {
-        if (!shoppingListData?.items) return [];
+        if (!normalizedList?.items) return [];
 
         const itemsNeedingPrices = [];
-        Object.values(shoppingListData.items).forEach(categoryItems => {
+        Object.values(normalizedList.items).forEach(categoryItems => {
             categoryItems.forEach(item => {
                 if (item.selected !== false && !item.estimatedPrice && !item.actualPrice) {
                     itemsNeedingPrices.push(item);
@@ -1002,7 +1002,7 @@ export default function EnhancedAIShoppingListModal({
         });
 
         return itemsNeedingPrices;
-    }, [shoppingListData?.items]);
+    }, [normalizedList?.items]);
 
     const calculateBudgetTracking = useCallback(() => {
         if (!currentShoppingList?.items) return;
