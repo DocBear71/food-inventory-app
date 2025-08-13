@@ -182,13 +182,15 @@ const PriceControls = memo(({
     const prevQuantity = prevProps.localQuantities[prevProps.itemKey];
     const nextQuantity = nextProps.localQuantities[nextProps.itemKey];
 
-    return (
-        prevProps.itemKey === nextProps.itemKey &&
-        prevPrice === nextPrice &&
-        prevQuantity === nextQuantity &&
-        prevProps.item.estimatedPrice === nextProps.item.estimatedPrice &&
-        prevProps.item.actualPrice === nextProps.item.actualPrice
+    // Don't re-render if only local prices/quantities changed (to prevent input focus loss)
+    const shouldUpdate = (
+        prevProps.itemKey !== nextProps.itemKey ||
+        prevProps.item.estimatedPrice !== nextProps.item.estimatedPrice ||
+        prevProps.item.actualPrice !== nextProps.item.actualPrice ||
+        prevProps.item.priceSource !== nextProps.item.priceSource
     );
+
+    return !shouldUpdate; // Return true to prevent re-render, false to allow it
 });
 PriceControls.displayName = 'PriceControls';
 
@@ -1967,7 +1969,7 @@ export default function EnhancedAIShoppingListModal({
     }, [priceComparison, selectedStore]);
 
     const handlePriceChange = useCallback((itemKey, newPriceValue) => {
-        // Update local state immediately
+        // Update local state immediately (this won't trigger PriceControls re-render due to memo fix)
         setLocalPrices(prev => ({
             ...prev,
             [itemKey]: newPriceValue
@@ -1978,12 +1980,18 @@ export default function EnhancedAIShoppingListModal({
             clearTimeout(priceUpdateTimeouts.current[itemKey]);
         }
 
-        // Set debounced update
-        const shouldUpdate = newPriceValue !== '' && !newPriceValue.endsWith('.');
-        const delay = shouldUpdate ? 500 : 1500;
+        // Only update the actual shopping list for complete values
+        // Increased delay for decimal inputs to allow user to finish typing
+        const shouldUpdateImmediately = newPriceValue !== '' &&
+            !newPriceValue.endsWith('.') &&
+            !isNaN(parseFloat(newPriceValue));
+
+        const delay = shouldUpdateImmediately ? 800 : 2000; // Longer delays to reduce interruptions
 
         priceUpdateTimeouts.current[itemKey] = setTimeout(() => {
-            updateShoppingListPrice(itemKey, newPriceValue);
+            if (newPriceValue !== '' && !isNaN(parseFloat(newPriceValue))) {
+                updateShoppingListPrice(itemKey, newPriceValue);
+            }
             delete priceUpdateTimeouts.current[itemKey];
         }, delay);
     }, [updateShoppingListPrice]);
@@ -1998,10 +2006,11 @@ export default function EnhancedAIShoppingListModal({
             clearTimeout(quantityUpdateTimeouts.current[itemKey]);
         }
 
+        // Longer delay for quantity changes to prevent focus loss
         quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
             updateShoppingListQuantity(itemKey, newQuantity);
             delete quantityUpdateTimeouts.current[itemKey];
-        }, 300);
+        }, 600); // Increased from 300ms to 600ms
     }, [updateShoppingListQuantity]);
 
     const handlePriceBlur = useCallback((itemKey, value) => {
