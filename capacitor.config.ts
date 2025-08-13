@@ -39,8 +39,12 @@ const config: CapacitorConfig = {
         // CRITICAL: Add App plugin configuration for routing
         App: {
             launchUrl: 'index.html',
+            handleUrl: (url: string) => {
+                console.log('📱 iOS handling shared URL:', url);
+                return { url };
+            }
         },
-        
+                
         Camera: {
             permissions: ['camera', 'photos']
         },
