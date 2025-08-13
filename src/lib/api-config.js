@@ -3,7 +3,7 @@
 import { Capacitor } from '@capacitor/core';
 
 // Your Vercel deployment URL
-const PRODUCTION_API_URL = 'https://www.docbearscomfort.kitchen';
+const PRODUCTION_API_URL = 'https://docbearscomfort.kitchen';
 
 // Function to get the correct API base URL
 export function getApiBaseUrl() {

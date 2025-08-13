@@ -7,12 +7,12 @@ const config: CapacitorConfig = {
     
     // ENHANCED: Better server config for iOS routing
     server: {
-        url: 'https://www.docbearscomfort.kitchen',
+        url: 'https://docbearscomfort.kitchen',
         cleartext: true,
         androidScheme: 'https',
         iosScheme: 'https',
         allowNavigation: [
-            'https://www.docbearscomfort.kitchen',
+            'https://docbearscomfort.kitchen',
             'https://docbearscomfort.kitchen',
             'https://*.docbearscomfort.kitchen'
         ],

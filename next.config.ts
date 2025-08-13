@@ -18,7 +18,7 @@ const nextConfig: NextConfig = {
         remotePatterns: [
             {
                 protocol: 'https',
-                hostname: 'www.docbearscomfort.kitchen',
+                hostname: 'docbearscomfort.kitchen',
                 pathname: '/api/recipes/photos/**',
             },
             // ADD LOCALHOST FOR DEVELOPMENT

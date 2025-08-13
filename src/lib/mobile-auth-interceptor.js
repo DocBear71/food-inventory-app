@@ -4,7 +4,7 @@ import { CapacitorHttp } from '@capacitor/core';
 
 class MobileAuthInterceptor {
     constructor() {
-        this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://www.docbearscomfort.kitchen';
+        this.baseURL = process.env.NEXT_PUBLIC_API_URL || 'https://docbearscomfort.kitchen';
         this.sessionData = null;
     }
 

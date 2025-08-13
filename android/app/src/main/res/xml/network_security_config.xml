@@ -10,7 +10,7 @@
     <!-- Production domains -->
     <domain-config>
         <domain includeSubdomains="true">docbearscomfort.kitchen</domain>
-        <domain includeSubdomains="true">www.docbearscomfort.kitchen</domain>
+        <domain includeSubdomains="true">docbearscomfort.kitchen</domain>
         <trust-anchors>
             <certificates src="system"/>
         </trust-anchors>

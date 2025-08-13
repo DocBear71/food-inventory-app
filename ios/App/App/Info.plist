@@ -74,7 +74,7 @@
 	<!-- Associated Domains for Deep Linking -->
 	<key>com.apple.developer.associated-domains</key>
 	<array>
-		<string>applinks:www.docbearscomfort.kitchen</string>
+		<string>applinks:docbearscomfort.kitchen</string>
 		<string>applinks:docbearscomfort.kitchen</string>
 	</array>
 
