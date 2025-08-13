@@ -210,6 +210,11 @@ export default function RootLayout({children}) {
             <meta name="description" content="Smart food inventory management with AI-powered recipe discovery, multi-part recipes, international barcode scanning, and social media recipe extraction. Free app for iOS, Android & Web." />
             <meta name="keywords" content="recipe app, food inventory, meal planning, barcode scanner, AI recipes, multi-part recipes, social media recipe extraction, TikTok recipes, food management, cooking app, grocery list, nutrition tracker, recipe discovery, voice nutrition, international barcode, recipe scaling" />
 
+            {/* CRITICAL: Search Engine Verification Tags */}
+            <meta name="google-site-verification" content="jMxjOqCxZwYkjcIXLpc6rIIBLeeyCT78dX196T8At0U" />
+            <meta name="msvalidate.01" content="2B3DAD655CB93EEB509AB574BEA9A845" />
+            <meta name="p:domain_verify" content="41876bc30a1ee0330ab8aed8b2b64497" />
+
             {/* Base URL for relative paths */}
             <base href={process.env.NODE_ENV === 'production' ? 'https://docbearscomfort.kitchen/' : 'http://localhost:3000/'} />
 
@@ -277,9 +282,9 @@ export default function RootLayout({children}) {
 
             {/* Icons and Favicons */}
             <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-            <link rel="icon" type="image/png" sizes="16x16" href="/icons/favicon-16x16.png" />
-            <link rel="icon" type="image/png" sizes="32x32" href="/icons/favicon-32x32.png" />
-            <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-touch-icon.png" />
+            <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
+            <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
+            <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png" />
             <link rel="manifest" href="/manifest.json" />
 
             {/* Structured Data */}
