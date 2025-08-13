@@ -265,6 +265,7 @@ export default function EnhancedAIShoppingListModal({
     const [availableCategories, setAvailableCategories] = useState([]);
     const [customCategories, setCustomCategories] = useState({});
     const [editingCategories, setEditingCategories] = useState(false);
+    const [expandedItems, setExpandedItems] = useState(new Set());
 
     // Store Layout State
     const [selectedStore, setSelectedStore] = useState(storePreference);
@@ -2568,7 +2569,19 @@ export default function EnhancedAIShoppingListModal({
     const renderShoppingItem = (item, index, category) => {
         const itemKey = item.itemKey || item.ingredientKey || `${item.ingredient || item.name}-${category}`;
         const isPurchased = item.purchased;
-        const [isExpanded, setIsExpanded] = useState(false);
+        const isExpanded = expandedItems.has(itemKey); // ✅ Use component state instead
+
+        const toggleExpanded = () => {
+            setExpandedItems(prev => {
+                const newSet = new Set(prev);
+                if (newSet.has(itemKey)) {
+                    newSet.delete(itemKey);
+                } else {
+                    newSet.add(itemKey);
+                }
+                return newSet;
+            });
+        };
 
         // Get category icon from GROCERY_CATEGORIES
         const categoryInfo = GROCERY_CATEGORIES[category];
@@ -2589,7 +2602,7 @@ export default function EnhancedAIShoppingListModal({
             >
                 {/* Compact Item Row */}
                 <div
-                    onClick={() => setIsExpanded(!isExpanded)}
+                    onClick={toggleExpanded} // ✅ Use the new toggle function
                     style={{
                         display: 'flex',
                         alignItems: 'center',
