@@ -15,23 +15,40 @@ import {VoiceInput} from '@/components/mobile/VoiceInput';
 import {apiPost, apiGet} from '@/lib/api-config';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 
-// STEP 1: Extract the price controls into a separate memoized component
 const PriceControls = memo(({
                                 item,
                                 itemKey,
-                                config,
                                 localPrices,
                                 localQuantities,
-                                handlePriceUpdate,
-                                handleQuantityChange,
-                                updateShoppingListPrice,
-                                priceUpdateTimeouts,
-                                getInventoryPriceTooltip,
-                                getPriceSourceLabel,
-                                isValidPriceInput,
-                                isValidQuantityInput
+                                onPriceChange,
+                                onQuantityChange,
+                                onPriceBlur
                             }) => {
     console.log(`🎯 PriceControls rendering for: ${itemKey}`);
+
+    // Create stable handlers within this component
+    const handlePriceChange = useCallback((e) => {
+        const newPrice = e.target.value;
+        if (/^\d*\.?\d*$/.test(newPrice) || newPrice === '') {
+            onPriceChange(itemKey, newPrice);
+        } else {
+            e.preventDefault();
+        }
+    }, [itemKey, onPriceChange]);
+
+    const handleQuantityChange = useCallback((e) => {
+        const newQuantity = e.target.value;
+        if (/^\d*\.?\d*$/.test(newQuantity) || newQuantity === '') {
+            const numericValue = newQuantity === '' ? 0 : parseFloat(newQuantity);
+            onQuantityChange(itemKey, numericValue);
+        } else {
+            e.preventDefault();
+        }
+    }, [itemKey, onQuantityChange]);
+
+    const handleBlur = useCallback((e) => {
+        onPriceBlur(itemKey, e.target.value);
+    }, [itemKey, onPriceBlur]);
 
     return (
         <div style={{
@@ -63,16 +80,7 @@ const PriceControls = memo(({
                     min="0"
                     step="0.1"
                     value={localQuantities[itemKey] !== undefined ? localQuantities[itemKey] : (item.quantity || 1)}
-                    onChange={(e) => {
-                        const newQuantity = e.target.value;
-
-                        if (isValidQuantityInput(newQuantity)) {
-                            const numericValue = newQuantity === '' ? 0 : parseFloat(newQuantity);
-                            handleQuantityChange(itemKey, numericValue);
-                        } else {
-                            e.preventDefault();
-                        }
-                    }}
+                    onChange={handleQuantityChange}
                     style={{
                         width: '4rem',
                         padding: '0.375rem 0.25rem',
@@ -120,30 +128,9 @@ const PriceControls = memo(({
                         min="0"
                         step="0.01"
                         value={localPrices[itemKey] !== undefined ? localPrices[itemKey] : (item.actualPrice || item.estimatedPrice || '')}
-                        onChange={(e) => {
-                            const newPrice = e.target.value;
-
-                            // Prevent invalid characters but allow typing
-                            if (isValidPriceInput(newPrice)) {
-                                handlePriceUpdate(itemKey, newPrice);
-                            } else {
-                                // Reject invalid input without calling handler
-                                e.preventDefault();
-                            }
-                        }}
-                        onFocus={(e) => {
-                            // Prevent any parent components from interfering
-                            e.stopPropagation();
-                        }}
-                        onBlur={(e) => {
-                            // Force final update when user leaves the field
-                            const value = e.target.value;
-                            if (priceUpdateTimeouts.current[itemKey]) {
-                                clearTimeout(priceUpdateTimeouts.current[itemKey]);
-                                updateShoppingListPrice(itemKey, value);
-                                delete priceUpdateTimeouts.current[itemKey];
-                            }
-                        }}
+                        onChange={handlePriceChange}
+                        onFocus={(e) => e.stopPropagation()}
+                        onBlur={handleBlur}
                         placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
                         style={{
                             width: '5rem',
@@ -157,7 +144,7 @@ const PriceControls = memo(({
                             borderColor: item.priceSource?.startsWith('inventory') ? '#22c55e' :
                                 item.estimatedPrice > 0 ? '#f59e0b' : '#d1d5db'
                         }}
-                        title={getInventoryPriceTooltip ? getInventoryPriceTooltip(item) : `Price for ${item.ingredient}`}
+                        title={`Price for ${item.ingredient || item.name}`}
                     />
                 </div>
             </div>
@@ -176,7 +163,7 @@ const PriceControls = memo(({
                     gap: '0.25rem'
                 }}>
                     {item.priceSource.startsWith('inventory') ? '📦' : '💡'}
-                    {getPriceSourceLabel ? getPriceSourceLabel(item.priceSource) : 'Price'}
+                    {item.priceSource.replace('inventory_', '').replace('_', ' ')}
                 </div>
             )}
 
@@ -1249,41 +1236,6 @@ export default function EnhancedAIShoppingListModal({
         }
     }, [currentShoppingList, setCurrentShoppingList, setUpdateTrigger]);
 
-
-    const handleQuantityChange = useCallback((itemKey, newQuantity) => {
-        const quantityStr = String(newQuantity);
-
-        if (!isValidQuantityInput(quantityStr)) {
-            console.log(`[QUANTITY] Invalid input rejected: "${quantityStr}"`);
-            return;
-        }
-
-        setLocalQuantities(prev => ({
-            ...prev,
-            [itemKey]: newQuantity
-        }));
-
-        if (quantityUpdateTimeouts.current[itemKey]) {
-            clearTimeout(quantityUpdateTimeouts.current[itemKey]);
-        }
-
-        const shouldUpdate = quantityStr !== '' && !quantityStr.endsWith('.');
-
-        if (shouldUpdate) {
-            quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
-                console.log(`[QUANTITY HANDLER] Debounced update for: "${itemKey}", Quantity: ${newQuantity}`);
-                updateShoppingListQuantity(itemKey, newQuantity);
-                delete quantityUpdateTimeouts.current[itemKey];
-            }, 300);
-        } else {
-            quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
-                console.log(`[QUANTITY HANDLER] Final update after decimal: "${itemKey}", Quantity: ${newQuantity}`);
-                updateShoppingListQuantity(itemKey, newQuantity);
-                delete quantityUpdateTimeouts.current[itemKey];
-            }, 1000);
-        }
-    }, []);
-
     const updateShoppingListQuantity = useCallback((itemKey, newQuantity) => {
         if (!currentShoppingList?.items) return;
 
@@ -2008,6 +1960,52 @@ export default function EnhancedAIShoppingListModal({
         return {price, store, status, avgPrice};
     }, [priceComparison, selectedStore]);
 
+    const handlePriceChange = useCallback((itemKey, newPriceValue) => {
+        // Update local state immediately
+        setLocalPrices(prev => ({
+            ...prev,
+            [itemKey]: newPriceValue
+        }));
+
+        // Clear existing timeout
+        if (priceUpdateTimeouts.current[itemKey]) {
+            clearTimeout(priceUpdateTimeouts.current[itemKey]);
+        }
+
+        // Set debounced update
+        const shouldUpdate = newPriceValue !== '' && !newPriceValue.endsWith('.');
+        const delay = shouldUpdate ? 500 : 1500;
+
+        priceUpdateTimeouts.current[itemKey] = setTimeout(() => {
+            updateShoppingListPrice(itemKey, newPriceValue);
+            delete priceUpdateTimeouts.current[itemKey];
+        }, delay);
+    }, [updateShoppingListPrice]);
+
+    const handleQuantityChange = useCallback((itemKey, newQuantity) => {
+        setLocalQuantities(prev => ({
+            ...prev,
+            [itemKey]: newQuantity
+        }));
+
+        if (quantityUpdateTimeouts.current[itemKey]) {
+            clearTimeout(quantityUpdateTimeouts.current[itemKey]);
+        }
+
+        quantityUpdateTimeouts.current[itemKey] = setTimeout(() => {
+            updateShoppingListQuantity(itemKey, newQuantity);
+            delete quantityUpdateTimeouts.current[itemKey];
+        }, 300);
+    }, [updateShoppingListQuantity]);
+
+    const handlePriceBlur = useCallback((itemKey, value) => {
+        if (priceUpdateTimeouts.current[itemKey]) {
+            clearTimeout(priceUpdateTimeouts.current[itemKey]);
+            updateShoppingListPrice(itemKey, value);
+            delete priceUpdateTimeouts.current[itemKey];
+        }
+    }, [updateShoppingListPrice]);
+
     const getItemStatusColor = useCallback((item) => {
         if (item.dealStatus === 'deal') return 'border-green-300 bg-green-50';
         if (item.priceOptimized) return 'border-blue-300 bg-blue-50';
@@ -2639,17 +2637,11 @@ export default function EnhancedAIShoppingListModal({
                         <PriceControls
                             item={item}
                             itemKey={itemKey}
-                            config={config}
                             localPrices={localPrices}
                             localQuantities={localQuantities}
-                            handlePriceUpdate={handlePriceUpdate}
-                            handleQuantityChange={handleQuantityChange}
-                            updateShoppingListPrice={updateShoppingListPrice}
-                            priceUpdateTimeouts={priceUpdateTimeouts}
-                            getInventoryPriceTooltip={getInventoryPriceTooltip}
-                            getPriceSourceLabel={getPriceSourceLabel}
-                            isValidPriceInput={isValidPriceInput}
-                            isValidQuantityInput={isValidQuantityInput}
+                            onPriceChange={handlePriceChange}
+                            onQuantityChange={handleQuantityChange}
+                            onPriceBlur={handlePriceBlur}
                         />
                     )}
 
