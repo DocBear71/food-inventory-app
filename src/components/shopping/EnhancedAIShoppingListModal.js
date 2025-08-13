@@ -26,30 +26,7 @@ const PriceControls = memo(({
                             }) => {
     console.log(`🎯 PriceControls rendering for: ${itemKey}`);
 
-    // Create stable handlers within this component
-    const handlePriceChange = useCallback((e) => {
-        const newPrice = e.target.value;
-        if (/^\d*\.?\d*$/.test(newPrice) || newPrice === '') {
-            onPriceChange(itemKey, newPrice);
-        } else {
-            e.preventDefault();
-        }
-    }, [itemKey, onPriceChange]);
-
-    const handleQuantityChange = useCallback((e) => {
-        const newQuantity = e.target.value;
-        if (/^\d*\.?\d*$/.test(newQuantity) || newQuantity === '') {
-            const numericValue = newQuantity === '' ? 0 : parseFloat(newQuantity);
-            onQuantityChange(itemKey, numericValue);
-        } else {
-            e.preventDefault();
-        }
-    }, [itemKey, onQuantityChange]);
-
-    const handleBlur = useCallback((e) => {
-        onPriceBlur(itemKey, e.target.value);
-    }, [itemKey, onPriceBlur]);
-
+    // Use direct inline functions since memo will prevent re-renders anyway
     return (
         <div style={{
             display: 'flex',
@@ -80,7 +57,15 @@ const PriceControls = memo(({
                     min="0"
                     step="0.1"
                     value={localQuantities[itemKey] !== undefined ? localQuantities[itemKey] : (item.quantity || 1)}
-                    onChange={handleQuantityChange}
+                    onChange={(e) => {
+                        const newQuantity = e.target.value;
+                        if (/^\d*\.?\d*$/.test(newQuantity) || newQuantity === '') {
+                            const numericValue = newQuantity === '' ? 0 : parseFloat(newQuantity);
+                            onQuantityChange(itemKey, numericValue);
+                        } else {
+                            e.preventDefault();
+                        }
+                    }}
                     style={{
                         width: '4rem',
                         padding: '0.375rem 0.25rem',
@@ -128,9 +113,16 @@ const PriceControls = memo(({
                         min="0"
                         step="0.01"
                         value={localPrices[itemKey] !== undefined ? localPrices[itemKey] : (item.actualPrice || item.estimatedPrice || '')}
-                        onChange={handlePriceChange}
+                        onChange={(e) => {
+                            const newPrice = e.target.value;
+                            if (/^\d*\.?\d*$/.test(newPrice) || newPrice === '') {
+                                onPriceChange(itemKey, newPrice);
+                            } else {
+                                e.preventDefault();
+                            }
+                        }}
                         onFocus={(e) => e.stopPropagation()}
-                        onBlur={handleBlur}
+                        onBlur={(e) => onPriceBlur(itemKey, e.target.value)}
                         placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
                         style={{
                             width: '5rem',
