@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
         optimizeCss: true,
         esmExternals: true,
     },
-    assetPrefix: process.env.NODE_ENV === 'production' ? 'https://www.docbearscomfort.kitchen' : undefined,
+    assetPrefix: process.env.NODE_ENV === 'production' ? 'https://docbearscomfort.kitchen' : undefined,
 
     // ENHANCED IMAGES CONFIGURATION WITH RECIPE DOMAINS ↓
     images: {
@@ -19,7 +19,7 @@ const nextConfig: NextConfig = {
             // Your existing domains
             {
                 protocol: 'https',
-                hostname: 'www.docbearscomfort.kitchen',
+                hostname: 'docbearscomfort.kitchen',
                 pathname: '/api/recipes/photos/**',
             },
             {
