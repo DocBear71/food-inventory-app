@@ -2566,256 +2566,272 @@ export default function EnhancedAIShoppingListModal({
 
     // ENHANCED: Item rendering with delete functionality
     const renderShoppingItem = (item, index, category) => {
-        // ENHANCED: Better itemKey generation that matches what handlers expect
         const itemKey = item.itemKey || item.ingredientKey || `${item.ingredient || item.name}-${category}`;
         const isPurchased = item.purchased;
-        const priceInfo = config.showPriceFeatures ? getItemPriceInfo(item.ingredient || item.name) : null;
+        const [isExpanded, setIsExpanded] = useState(false);
+
+        // Get category icon from GROCERY_CATEGORIES
+        const categoryInfo = GROCERY_CATEGORIES[category];
+        const categoryIcon = categoryInfo?.icon || '📦';
 
         return (
             <div
                 key={`${index}-${itemKey}-${updateTrigger}`}
                 style={{
-                    display: 'flex',
-                    alignItems: 'flex-start',
-                    gap: '0.75rem',
-                    padding: '0.75rem',
-                    backgroundColor: isPurchased ? '#f0fdf4' :
-                        config.showPriceFeatures ? getItemStatusColor(item) : '#fafafa',
+                    backgroundColor: isPurchased ? '#f0fdf4' : 'white',
                     borderRadius: '8px',
                     border: '1px solid #e5e7eb',
                     opacity: isPurchased ? 0.7 : 1,
-                    textDecoration: isPurchased ? 'line-through' : 'none'
+                    marginBottom: '0.5rem',
+                    overflow: 'hidden',
+                    transition: 'all 0.2s ease'
                 }}
             >
-                {/* Checkbox (hidden in edit mode) */}
-                {!editingCategories && (
-                    <input
-                        type="checkbox"
-                        checked={isPurchased}
-                        onChange={() => safeHandleItemToggle(itemKey)}
-                        style={{
-                            marginTop: '0.125rem',
-                            cursor: 'pointer',
-                            transform: 'scale(1.3)',
-                            accentColor: config.primaryColor
-                        }}
-                    />
-                )}
+                {/* Compact Item Row */}
+                <div
+                    onClick={() => setIsExpanded(!isExpanded)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem',
+                        padding: '0.75rem',
+                        cursor: 'pointer',
+                        minHeight: '60px'
+                    }}
+                >
+                    {/* Checkbox */}
+                    {!editingCategories && (
+                        <input
+                            type="checkbox"
+                            checked={isPurchased}
+                            onChange={(e) => {
+                                e.stopPropagation();
+                                safeHandleItemToggle(itemKey);
+                            }}
+                            style={{
+                                cursor: 'pointer',
+                                transform: 'scale(1.2)',
+                                accentColor: config.primaryColor,
+                                flexShrink: 0
+                            }}
+                        />
+                    )}
 
-                <div style={{flex: 1, minWidth: 0}}>
+                    {/* Category Icon */}
                     <div style={{
-                        fontWeight: '500',
-                        color: '#374151',
-                        fontSize: '0.95rem',
-                        lineHeight: '1.4',
-                        marginBottom: '0.25rem'
+                        fontSize: '1.2rem',
+                        flexShrink: 0,
+                        width: '24px',
+                        textAlign: 'center'
                     }}>
-                        {item.quantity && item.quantity !== 1 && `${item.quantity} `}
-                        {item.unit && `${item.unit} `}
-                        {item.ingredient || item.name}
-
-                        {/* Smart Price Status Badges */}
-                        {config.showPriceFeatures && (
-                            <>
-                                {item.dealStatus === 'deal' && (
-                                    <span style={{
-                                        marginLeft: '0.5rem',
-                                        padding: '0.125rem 0.375rem',
-                                        backgroundColor: '#dcfce7',
-                                        color: '#166534',
-                                        fontSize: '0.7rem',
-                                        borderRadius: '12px',
-                                        fontWeight: '500'
-                                    }}>
-                                    ON SALE 🎉
-                                </span>
-                                )}
-                                {item.priceOptimized && (
-                                    <span style={{
-                                        marginLeft: '0.5rem',
-                                        padding: '0.125rem 0.375rem',
-                                        backgroundColor: '#dbeafe',
-                                        color: '#1e40af',
-                                        fontSize: '0.7rem',
-                                        borderRadius: '12px',
-                                        fontWeight: '500'
-                                    }}>
-                                    OPTIMIZED 💡
-                                </span>
-                                )}
-                            </>
-                        )}
+                        {categoryIcon}
                     </div>
 
-                    {config.showPriceFeatures && (
-                        <div key={`price-controls-${itemKey}`}>
-                            <PriceControls
-                                item={item}
-                                itemKey={itemKey}
-                                localPrices={localPrices}
-                                localQuantities={localQuantities}
-                                onPriceChange={handlePriceChange}
-                                onQuantityChange={handleQuantityChange}
-                                onPriceBlur={handlePriceBlur}
-                            />
-                        </div>
-                    )}
-
-                    {/* Category Movement Controls OR Delete Button */}
-                    {editingCategories ? (
+                    {/* Item Info */}
+                    <div style={{flex: 1, minWidth: 0}}>
                         <div style={{
-                            marginTop: '0.5rem',
+                            fontWeight: '500',
+                            color: '#374151',
+                            fontSize: '0.95rem',
+                            lineHeight: '1.4',
+                            textDecoration: isPurchased ? 'line-through' : 'none',
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap'
+                        }}>
+                            {item.quantity && item.quantity !== 1 && `${item.quantity} `}
+                            {item.unit && `${item.unit} `}
+                            {item.ingredient || item.name}
+                        </div>
+
+                        {/* Compact status indicators */}
+                        <div style={{
                             display: 'flex',
                             gap: '0.5rem',
-                            alignItems: 'center',
-                            flexWrap: 'wrap'
+                            marginTop: '0.25rem',
+                            fontSize: '0.7rem'
                         }}>
-                            <TouchEnhancedButton
-                                onClick={() => setMovingItem({
-                                    item,
-                                    fromCategory: category,
-                                    currentCategories: Object.keys(normalizedList.items)
-                                })}
-                                style={{
-                                    backgroundColor: '#3b82f6',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.5rem',
-                                    fontSize: '0.7rem',
-                                    cursor: 'pointer',
+                            {item.inInventory && (
+                                <span style={{
+                                    color: '#16a34a',
+                                    backgroundColor: '#dcfce7',
+                                    padding: '0.125rem 0.375rem',
+                                    borderRadius: '8px',
                                     fontWeight: '500'
-                                }}
-                            >
-                                📦 Move to...
-                            </TouchEnhancedButton>
+                                }}>
+                                ✅ In Stock
+                            </span>
+                            )}
 
-                            <TouchEnhancedButton
-                                onClick={() => {
-                                    if (window.confirm(`Remove "${item.ingredient || item.name}" from your shopping list?`)) {
-                                        handleRemoveItem(item, category);
-                                    }
-                                }}
-                                style={{
-                                    backgroundColor: '#dc2626',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.5rem',
-                                    fontSize: '0.7rem',
-                                    cursor: 'pointer',
-                                    fontWeight: '500'
-                                }}
-                                title={`Remove ${item.ingredient || item.name} from list`}
-                            >
-                                🗑️ Remove
-                            </TouchEnhancedButton>
+                            {config.showPriceFeatures && item.estimatedPrice > 0 && (
+                                <span style={{
+                                    color: '#374151',
+                                    fontWeight: '600'
+                                }}>
+                                {formatPrice(item.estimatedPrice * (item.quantity || 1))}
+                            </span>
+                            )}
 
-                            {(() => {
-                                const suggested = getAISuggestedCategory(item.ingredient || item.name);
-                                if (suggested !== category && CategoryUtils.isValidCategory(suggested)) {
-                                    return (
-                                        <TouchEnhancedButton
-                                            onClick={() => handleMoveItemToCategory(item, category, suggested)}
-                                            style={{
-                                                backgroundColor: '#10b981',
-                                                color: 'white',
-                                                border: 'none',
-                                                borderRadius: '4px',
-                                                padding: '0.25rem 0.5rem',
-                                                fontSize: '0.7rem',
-                                                cursor: 'pointer',
-                                                fontWeight: '500'
-                                            }}
-                                            title={`AI suggests moving to ${suggested}`}
-                                        >
-                                            🤖 → {GROCERY_CATEGORIES[suggested]?.icon || '📦'} {suggested}
-                                        </TouchEnhancedButton>
-                                    );
-                                }
-                                return null;
-                            })()}
+                            {item.recipes && item.recipes.length > 0 && (
+                                <span style={{
+                                    color: '#6b7280',
+                                    overflow: 'hidden',
+                                    textOverflow: 'ellipsis',
+                                    whiteSpace: 'nowrap',
+                                    flex: 1,
+                                    minWidth: 0
+                                }}>
+                                {item.recipes.slice(0, 2).join(', ')}
+                                    {item.recipes.length > 2 && ` +${item.recipes.length - 2}`}
+                            </span>
+                            )}
                         </div>
-                    ) : (
-                        <div style={{
-                            marginTop: '0.5rem',
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center'
-                        }}>
-                            <div style={{flex: 1}}>
-                                {/* Inventory Status */}
-                                {item.inInventory && (
-                                    <div style={{
-                                        fontSize: '0.8rem',
-                                        color: '#16a34a',
-                                        backgroundColor: '#f0fdf4',
-                                        padding: '0.25rem 0.5rem',
-                                        borderRadius: '4px',
-                                        border: '1px solid #bbf7d0',
-                                        marginBottom: '0.5rem'
-                                    }}>
-                                        ✅ In inventory: {item.haveAmount || 'Available'}
-                                        {item.inventoryItem?.location &&
-                                            ` (${item.inventoryItem.location})`
-                                        }
-                                    </div>
-                                )}
+                    </div>
 
-                                {/* Recipe References */}
-                                {item.recipes && item.recipes.length > 0 && (
-                                    <div style={{
-                                        fontSize: '0.7rem',
-                                        color: '#6b7280',
-                                        backgroundColor: '#f8fafc',
-                                        padding: '0.25rem 0.5rem',
-                                        borderRadius: '4px',
-                                        border: '1px solid #e2e8f0'
-                                    }}>
-                                        Used in: {item.recipes.join(', ')}
-                                    </div>
+                    {/* Expand/Collapse Indicator */}
+                    <div style={{
+                        fontSize: '0.875rem',
+                        color: '#9ca3af',
+                        transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                        transition: 'transform 0.2s ease',
+                        flexShrink: 0
+                    }}>
+                        ▼
+                    </div>
+                </div>
+
+                {/* Expanded Details */}
+                {isExpanded && (
+                    <div style={{
+                        borderTop: '1px solid #f3f4f6',
+                        padding: '0.75rem',
+                        backgroundColor: '#f8fafc'
+                    }}>
+                        {/* Price Controls - Only in price modes */}
+                        {config.showPriceFeatures && (
+                            <div style={{marginBottom: '0.75rem'}}>
+                                <PriceControls
+                                    item={item}
+                                    itemKey={itemKey}
+                                    localPrices={localPrices}
+                                    localQuantities={localQuantities}
+                                    onPriceChange={handlePriceChange}
+                                    onQuantityChange={handleQuantityChange}
+                                    onPriceBlur={handlePriceBlur}
+                                />
+                            </div>
+                        )}
+
+                        {/* Inventory Details */}
+                        {item.inInventory && item.inventoryItem && (
+                            <div style={{
+                                fontSize: '0.8rem',
+                                color: '#16a34a',
+                                backgroundColor: '#f0fdf4',
+                                padding: '0.5rem',
+                                borderRadius: '4px',
+                                border: '1px solid #bbf7d0',
+                                marginBottom: '0.75rem'
+                            }}>
+                                📦 <strong>In inventory:</strong> {item.haveAmount || 'Available'}
+                                {item.inventoryItem?.location && (
+                                    <span> ({item.inventoryItem.location})</span>
                                 )}
                             </div>
+                        )}
 
-                            {/* Quick Delete Button */}
-                            <TouchEnhancedButton
-                                onClick={() => {
-                                    if (window.confirm(`Remove "${item.ingredient || item.name}" from your shopping list?`)) {
-                                        handleRemoveItem(item, category);
-                                    }
-                                }}
-                                style={{
-                                    backgroundColor: '#f87171',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '50%',
-                                    width: '2rem',
-                                    height: '2rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    fontSize: '0.8rem',
-                                    marginLeft: '0.5rem',
-                                    flexShrink: 0,
-                                    opacity: 0.8,
-                                    transition: 'all 0.2s'
-                                }}
-                                title={`Remove ${item.ingredient || item.name}`}
-                                onMouseEnter={(e) => {
-                                    e.target.style.opacity = '1';
-                                    e.target.style.backgroundColor = '#dc2626';
-                                }}
-                                onMouseLeave={(e) => {
-                                    e.target.style.opacity = '0.8';
-                                    e.target.style.backgroundColor = '#f87171';
-                                }}
-                            >
-                                ×
-                            </TouchEnhancedButton>
+                        {/* Recipe References */}
+                        {item.recipes && item.recipes.length > 0 && (
+                            <div style={{
+                                fontSize: '0.8rem',
+                                color: '#6b7280',
+                                backgroundColor: '#f8fafc',
+                                padding: '0.5rem',
+                                borderRadius: '4px',
+                                border: '1px solid #e2e8f0',
+                                marginBottom: '0.75rem'
+                            }}>
+                                <strong>Used in:</strong> {item.recipes.join(', ')}
+                            </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        <div style={{
+                            display: 'flex',
+                            gap: '0.5rem',
+                            flexWrap: 'wrap'
+                        }}>
+                            {editingCategories ? (
+                                <>
+                                    <TouchEnhancedButton
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setMovingItem({
+                                                item,
+                                                fromCategory: category,
+                                                currentCategories: Object.keys(normalizedList.items)
+                                            });
+                                        }}
+                                        style={{
+                                            backgroundColor: '#3b82f6',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '0.375rem 0.75rem',
+                                            fontSize: '0.75rem',
+                                            cursor: 'pointer',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        📦 Move
+                                    </TouchEnhancedButton>
+
+                                    <TouchEnhancedButton
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (window.confirm(`Remove "${item.ingredient || item.name}"?`)) {
+                                                handleRemoveItem(item, category);
+                                            }
+                                        }}
+                                        style={{
+                                            backgroundColor: '#dc2626',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            padding: '0.375rem 0.75rem',
+                                            fontSize: '0.75rem',
+                                            cursor: 'pointer',
+                                            fontWeight: '500'
+                                        }}
+                                    >
+                                        🗑️ Remove
+                                    </TouchEnhancedButton>
+                                </>
+                            ) : (
+                                <TouchEnhancedButton
+                                    onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (window.confirm(`Remove "${item.ingredient || item.name}"?`)) {
+                                            handleRemoveItem(item, category);
+                                        }
+                                    }}
+                                    style={{
+                                        backgroundColor: '#ef4444',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.375rem 0.75rem',
+                                        fontSize: '0.75rem',
+                                        cursor: 'pointer',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    Remove
+                                </TouchEnhancedButton>
+                            )}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
             </div>
         );
     };
@@ -2890,135 +2906,70 @@ export default function EnhancedAIShoppingListModal({
                     overflow: 'hidden',
                     paddingBottom: 'max(env(safe-area-inset-bottom, 48px), 48px)'
                 }}>
-                    {/* Enhanced Header with Mode Indicator */}
+                    {/* Minimalist Header */}
                     <div style={{
-                        padding: '0.75rem 1rem',
+                        padding: '0.5rem 1rem',
                         borderBottom: '1px solid #e5e7eb',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        backgroundColor: (() => {
-                            if (aiMode === 'ai-optimized') return '#f0f9ff';
-                            if (editingCategories) return '#fef3c7';
-                            if (shoppingMode === 'smart-price') return '#f0fdf4';
-                            if (shoppingMode === 'unified') return '#eff6ff';
-                            return '#f8fafc';
-                        })(),
-                        flexShrink: 0
+                        backgroundColor: 'white',
+                        flexShrink: 0,
+                        minHeight: '60px'
                     }}>
                         <div style={{flex: 1, minWidth: 0}}>
                             <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                                 <h2 style={{
                                     margin: 0,
-                                    fontSize: '1rem',
+                                    fontSize: '1.1rem',
                                     fontWeight: '600',
                                     color: '#111827',
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap'
                                 }}>
-                                    {config.title}
+                                    🛒 Shopping List
                                 </h2>
 
-                                {/* Mode Switcher Button */}
+                                {/* Expandable Header Toggle */}
                                 <TouchEnhancedButton
-                                    onClick={() => setShowModeSelector(true)}
+                                    onClick={() => setHeaderCollapsed(!headerCollapsed)}
                                     style={{
-                                        backgroundColor: config.primaryColor,
-                                        color: 'white',
+                                        backgroundColor: headerCollapsed ? '#3b82f6' : '#e5e7eb',
+                                        color: headerCollapsed ? 'white' : '#6b7280',
                                         border: 'none',
-                                        borderRadius: '12px',
-                                        padding: '0.25rem 0.5rem',
-                                        fontSize: '0.7rem',
+                                        borderRadius: '50%',
+                                        width: '32px',
+                                        height: '32px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
                                         cursor: 'pointer',
-                                        fontWeight: '500'
+                                        fontSize: '0.875rem',
+                                        flexShrink: 0
                                     }}
-                                    title="Switch shopping mode"
+                                    title={headerCollapsed ? 'Show details' : 'Hide details'}
                                 >
-                                    🔄 Mode
+                                    {headerCollapsed ? '▼' : '▲'}
                                 </TouchEnhancedButton>
                             </div>
 
-                            <p style={{
-                                margin: '0.125rem 0 0 0',
+                            {/* Compact Stats Row */}
+                            <div style={{
+                                display: 'flex',
+                                gap: '1rem',
                                 fontSize: '0.75rem',
                                 color: '#6b7280',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
+                                marginTop: '0.25rem'
                             }}>
-                                {config.subtitle}
-                            </p>
-
-                            {/* Mode Indicators */}
-                            <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap'}}>
-                                {aiLoading && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#d97706',
-                                        backgroundColor: '#fef3c7',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        🤖 AI Processing...
-                                    </span>
-                                )}
-                                {aiMode === 'ai-optimized' && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#0369a1',
-                                        backgroundColor: '#e0f2fe',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        🎯 AI Optimized
-                                    </span>
-                                )}
-                                {smartSuggestions && smartSuggestions.length > 0 && (
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowAiPanel(!showAiPanel)}
-                                        style={{
-                                            fontSize: '0.65rem',
-                                            color: '#059669',
-                                            backgroundColor: '#d1fae5',
-                                            padding: '0.125rem 0.375rem',
-                                            borderRadius: '8px',
-                                            fontWeight: '500',
-                                            border: 'none',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        🧠 AI Enhanced ({smartSuggestions.length}) {showAiPanel ? '▼' : '▶'}
-                                    </TouchEnhancedButton>
-                                )}
-                                {editingCategories && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#d97706',
-                                        backgroundColor: '#fef3c7',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        📂 Category Mode
-                                    </span>
-                                )}
-                                {config.showPriceFeatures && priceAnalysis.totalSavings > 0 && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#059669',
-                                        backgroundColor: '#d1fae5',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        💰 {formatPrice(priceAnalysis.totalSavings)} saved
-                                    </span>
+                                <span>{stats.totalItems} items</span>
+                                <span>{stats.purchased} done</span>
+                                {config.showPriceFeatures && (
+                                    <span>{formatPrice(getEstimatedTotal())}</span>
                                 )}
                             </div>
                         </div>
+
                         <TouchEnhancedButton
                             onClick={onClose}
                             style={{
@@ -3037,6 +2988,121 @@ export default function EnhancedAIShoppingListModal({
                             ×
                         </TouchEnhancedButton>
                     </div>
+
+                    {/* Expandable Header Details */}
+                    {!headerCollapsed && (
+                        <div style={{
+                            padding: '0.75rem 1rem',
+                            backgroundColor: '#f8fafc',
+                            borderBottom: '1px solid #e5e7eb',
+                            flexShrink: 0
+                        }}>
+                            {/* Mode Indicators */}
+                            <div style={{display: 'flex', gap: '0.5rem', marginBottom: '0.75rem', flexWrap: 'wrap'}}>
+                                {aiLoading && (
+                                    <span style={{
+                                        fontSize: '0.65rem',
+                                        color: '#d97706',
+                                        backgroundColor: '#fef3c7',
+                                        padding: '0.125rem 0.375rem',
+                                        borderRadius: '8px',
+                                        fontWeight: '500'
+                                    }}>
+                    🤖 AI Processing...
+                </span>
+                                )}
+
+                                <TouchEnhancedButton
+                                    onClick={() => setShowModeSelector(true)}
+                                    style={{
+                                        fontSize: '0.65rem',
+                                        color: 'white',
+                                        backgroundColor: config.primaryColor,
+                                        padding: '0.125rem 0.375rem',
+                                        borderRadius: '8px',
+                                        fontWeight: '500',
+                                        border: 'none',
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    🔄 {shoppingMode}
+                                </TouchEnhancedButton>
+
+                                {smartSuggestions && smartSuggestions.length > 0 && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowAiPanel(!showAiPanel)}
+                                        style={{
+                                            fontSize: '0.65rem',
+                                            color: '#059669',
+                                            backgroundColor: '#d1fae5',
+                                            padding: '0.125rem 0.375rem',
+                                            borderRadius: '8px',
+                                            fontWeight: '500',
+                                            border: 'none',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🧠 AI ({smartSuggestions.length})
+                                    </TouchEnhancedButton>
+                                )}
+                            </div>
+
+                            {/* Compact Controls */}
+                            <div style={{
+                                display: 'grid',
+                                gridTemplateColumns: 'repeat(auto-fit, minmax(80px, 1fr))',
+                                gap: '0.5rem'
+                            }}>
+                                <select
+                                    value={filter}
+                                    onChange={(e) => setFilter(e.target.value)}
+                                    style={{
+                                        padding: '0.375rem 0.5rem',
+                                        border: '1px solid #d1d5db',
+                                        borderRadius: '4px',
+                                        fontSize: '0.75rem',
+                                        backgroundColor: 'white'
+                                    }}
+                                >
+                                    <option value="all">All ({stats.totalItems})</option>
+                                    <option value="needToBuy">Need ({stats.needToBuy})</option>
+                                    <option value="purchased">Done ({stats.purchased})</option>
+                                </select>
+
+                                <TouchEnhancedButton
+                                    onClick={() => setShowStoreSelector(true)}
+                                    style={{
+                                        backgroundColor: selectedStore ? '#059669' : '#6b7280',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.375rem',
+                                        fontSize: '0.7rem',
+                                        cursor: 'pointer',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    🏪 {selectedStore || 'Store'}
+                                </TouchEnhancedButton>
+
+                                <TouchEnhancedButton
+                                    onClick={() => setEditingCategories(!editingCategories)}
+                                    style={{
+                                        backgroundColor: editingCategories ? '#dc2626' : '#f59e0b',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        padding: '0.375rem',
+                                        fontSize: '0.7rem',
+                                        cursor: 'pointer',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    📂 Edit
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                    )}
 
                     {/* Enhanced Smart Price Summary Cards - Only show in price modes */}
                     {config.showPriceFeatures && (
