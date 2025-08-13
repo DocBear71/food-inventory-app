@@ -85,10 +85,10 @@ export default function SignOutPage() {
 
                     // With domain variations
                     { path: '/', secure: true, sameSite: 'lax', domain: '.docbearscomfort.kitchen' },
-                    { path: '/', secure: true, sameSite: 'lax', domain: 'www.docbearscomfort.kitchen' },
+                    { path: '/', secure: true, sameSite: 'lax', domain: 'docbearscomfort.kitchen' },
                     { path: '/', secure: true, sameSite: 'lax', domain: 'docbearscomfort.kitchen' },
                     { path: '/', secure: false, sameSite: 'lax', domain: '.docbearscomfort.kitchen' },
-                    { path: '/', secure: false, sameSite: 'lax', domain: 'www.docbearscomfort.kitchen' },
+                    { path: '/', secure: false, sameSite: 'lax', domain: 'docbearscomfort.kitchen' },
                     { path: '/', secure: false, sameSite: 'lax', domain: 'docbearscomfort.kitchen' },
                 ];
 

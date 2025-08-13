@@ -233,7 +233,7 @@ export function parseShareParams(searchParams) {
  * @returns {object} Share data for Web Share API
  */
 export function generateRecipeShareData(recipe) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.docbearscomfort.kitchen';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://docbearscomfort.kitchen';
     const recipeUrl = `${baseUrl}/recipes/${recipe._id}`;
 
     return {
@@ -633,7 +633,7 @@ export function validateAndNormalizeUrl(rawUrl) {
  * @returns {string} Import URL
  */
 export function generateImportUrl(contentUrl, platform = null) {
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://www.docbearscomfort.kitchen';
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://docbearscomfort.kitchen';
 
     // Validate URL first
     const validation = validateAndNormalizeUrl(contentUrl);

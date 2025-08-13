@@ -186,7 +186,7 @@ async function clearAllAuthCookies() {
     const cookieConfigs = [
         { path: '/', domain: '' },
         { path: '/', domain: '.docbearscomfort.kitchen' },
-        { path: '/', domain: 'www.docbearscomfort.kitchen' },
+        { path: '/', domain: 'docbearscomfort.kitchen' },
         { path: '/', domain: 'docbearscomfort.kitchen' }
     ];
 

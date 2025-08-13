@@ -215,7 +215,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                     const urlObj = new URL(urlString);
                     // Normalize to your preferred domain (choose one)
                     if (urlObj.hostname === 'docbearscomfort.kitchen') {
-                        urlObj.hostname = 'www.docbearscomfort.kitchen';
+                        urlObj.hostname = 'docbearscomfort.kitchen';
                     }
                     return urlObj.toString();
                 } catch {
