@@ -1,6 +1,6 @@
 // file: /src/app/sitemap.js v1 - Dynamic sitemap generation with recipe URLs
 
-import { connectToDatabase } from '@/lib/mongodb';
+import connectDB from '@/lib/mongodb';
 
 export default async function sitemap() {
     const baseUrl = 'https://docbearscomfort.kitchen';
@@ -61,7 +61,7 @@ export default async function sitemap() {
 
     try {
         // Get public recipes for dynamic URLs
-        const { db } = await connectToDatabase();
+        const { db } = await connectDB();
 
         // Fetch public recipes with basic info
         const publicRecipes = await db.collection('recipes')
