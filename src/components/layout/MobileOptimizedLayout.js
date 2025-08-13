@@ -13,23 +13,43 @@ export default function MobileOptimizedLayout({ children }) {
     useEffect(() => {
         const checkMobile = () => {
             const width = window.innerWidth;
+            const height = window.innerHeight;
             const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             const isNativePlatform = Capacitor.isNativePlatform();
 
+            // Detect iPad specifically
+            const isIPad = /iPad/.test(navigator.userAgent) ||
+                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
+                (navigator.userAgent.includes('Macintosh') && 'ontouchend' in document);
+
             // Consider it mobile if:
-            // - Width is less than 1024px AND it's a touch device
-            // - OR it's running as a native app (PWA/Capacitor)
+            // - It's running as a native app (PWA/Capacitor) - always mobile
+            // - OR it's an iPad (regardless of orientation/screen size)
+            // - OR width is less than 1200px AND it's a touch device
             // - OR width is less than 768px (phones)
             const shouldUseMobileLayout =
                 isNativePlatform ||
+                isIPad ||
                 width < 768 ||
-                (width < 1024 && isTouchDevice);
+                (width < 1200 && isTouchDevice);
 
             setIsMobile(shouldUseMobileLayout);
+
+            // Debug logging
+            console.log('📱 Layout Detection:', {
+                width,
+                height,
+                isTouchDevice,
+                isNativePlatform,
+                isIPad,
+                shouldUseMobileLayout,
+                userAgent: navigator.userAgent.substring(0, 100)
+            });
         };
 
         checkMobile();
         window.addEventListener('resize', checkMobile);
+        window.addEventListener('orientationchange', checkMobile);
         setMounted(true);
 
         const readyTimer = setTimeout(() => {
@@ -38,6 +58,7 @@ export default function MobileOptimizedLayout({ children }) {
 
         return () => {
             window.removeEventListener('resize', checkMobile);
+            window.removeEventListener('orientationchange', checkMobile);
             clearTimeout(readyTimer);
         };
     }, []);

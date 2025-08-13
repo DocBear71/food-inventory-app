@@ -2327,99 +2327,95 @@ export default function EnhancedAIShoppingListModal({
 
     const renderControls = () => (
         <div style={{
-            padding: '0.5rem 1rem',
-            borderBottom: '1px solid #f3f4f6',
+            padding: headerCollapsed ? '0.25rem 1rem' : '0.5rem 1rem',
+            borderBottom: '1px solid #e2e8f0',
             display: 'flex',
-            gap: '0.25rem',
+            gap: '0.375rem',
             alignItems: 'center',
             flexWrap: 'wrap',
-            backgroundColor: '#f8fafc',
-            flexShrink: 0
+            background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
+            flexShrink: 0,
+            minHeight: headerCollapsed ? '44px' : '64px'
         }}>
-            {/* Collapse Toggle for Details Below */}
-            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                <TouchEnhancedButton
-                    onClick={() => setHeaderCollapsed(!headerCollapsed)}
-                    style={{
-                        backgroundColor: headerCollapsed ? '#3b82f6' : '#e5e7eb',
-                        color: headerCollapsed ? 'white' : '#6b7280',
-                        border: 'none',
-                        borderRadius: '50%',
-                        width: '36px',
-                        height: '36px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        cursor: 'pointer',
-                        fontSize: '0.875rem',
-                        flexShrink: 0
-                    }}
-                    title={headerCollapsed ? 'Show controls' : 'Hide controls'}
-                >
-                    {headerCollapsed ? '▼' : '▲'}
-                </TouchEnhancedButton>
-
-                <TouchEnhancedButton
-                    onClick={onClose}
-                    style={{
-                        background: 'none',
-                        border: 'none',
-                        fontSize: '1.5rem',
-                        cursor: 'pointer',
-                        color: '#6b7280',
-                        padding: '0.5rem',
-                        flexShrink: 0,
-                        borderRadius: '0.375rem'
-                    }}
-                    title="Close"
-                >
-                    ×
-                </TouchEnhancedButton>
-            </div>
-
-
-            {/* Collapsible Details Section - THIS is what gets hidden */}
+            {/* Collapsible Details Section */}
             {!headerCollapsed && (
                 <>
-                    {/* Filter Dropdown */}
-                    <select
-                        value={filter}
-                        onChange={(e) => setFilter(e.target.value)}
-                        disabled={editingCategories}
-                        style={{
-                            padding: '0.375rem 0.5rem',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '0.75rem',
-                            backgroundColor: editingCategories ? '#f3f4f6' : 'white',
-                            flex: '1',
-                            minWidth: '80px',
-                            opacity: editingCategories ? 0.6 : 1
-                        }}
-                    >
-                        <option value="all">All ({stats.totalItems})</option>
-                        <option value="needToBuy">Need ({stats.needToBuy})</option>
-                        <option value="inInventory">Have ({stats.inInventory})</option>
-                        <option value="purchased">Bought ({stats.purchased})</option>
-                    </select>
+                    {/* Filter Dropdown with Icon */}
+                    <div style={{ position: 'relative', flex: '1', minWidth: '100px', maxWidth: '120px' }}>
+                        <select
+                            value={filter}
+                            onChange={(e) => setFilter(e.target.value)}
+                            disabled={editingCategories}
+                            style={{
+                                padding: '0.375rem 0.375rem 0.375rem 2rem',
+                                border: '1px solid #d1d5db',
+                                borderRadius: '6px',
+                                fontSize: '0.75rem',
+                                backgroundColor: editingCategories ? '#f3f4f6' : 'white',
+                                width: '100%',
+                                opacity: editingCategories ? 0.6 : 1,
+                                appearance: 'none',
+                                backgroundImage: 'url("data:image/svg+xml,%3csvg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 20 20\'%3e%3cpath stroke=\'%236b7280\' stroke-linecap=\'round\' stroke-linejoin=\'round\' stroke-width=\'1.5\' d=\'M6 8l4 4 4-4\'/%3e%3c/svg%3e")',
+                                backgroundPosition: 'right 0.5rem center',
+                                backgroundRepeat: 'no-repeat',
+                                backgroundSize: '1rem'
+                            }}
+                        >
+                            <option value="all">All ({stats.totalItems})</option>
+                            <option value="needToBuy">Need ({stats.needToBuy})</option>
+                            <option value="inInventory">Have ({stats.inInventory})</option>
+                            <option value="purchased">Done ({stats.purchased})</option>
+                        </select>
+                        <svg
+                            width="14"
+                            height="14"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="#6b7280"
+                            strokeWidth="2"
+                            style={{
+                                position: 'absolute',
+                                left: '0.5rem',
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                pointerEvents: 'none'
+                            }}
+                        >
+                            <path d="M3 6h18"/>
+                            <path d="M7 12h10"/>
+                            <path d="M10 18h4"/>
+                        </svg>
+                    </div>
 
-                    {/* Store Selection */}
+                    {/* Store Selection with Icon */}
                     <TouchEnhancedButton
                         onClick={() => setShowStoreSelector(true)}
                         disabled={editingCategories}
                         style={{
-                            backgroundColor: selectedStore ? '#059669' : '#6b7280',
+                            background: selectedStore ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.25rem 0.375rem',
+                            borderRadius: '6px',
+                            padding: '0.375rem 0.5rem',
                             fontSize: '0.7rem',
                             cursor: editingCategories ? 'not-allowed' : 'pointer',
-                            fontWeight: '500',
-                            opacity: editingCategories ? 0.6 : 1
+                            fontWeight: '600',
+                            opacity: editingCategories ? 0.6 : 1,
+                            whiteSpace: 'nowrap',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+                            maxWidth: '100px',
+                            overflow: 'hidden'
                         }}
                     >
-                        🏪 {selectedStore || 'Store'}
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M19 7h-3V5a2 2 0 0 0-2-2H10a2 2 0 0 0-2 2v2H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3zM10 5h4v2h-4V5z"/>
+                        </svg>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {selectedStore ? selectedStore.substring(0, 6) : 'Store'}
+                    </span>
                     </TouchEnhancedButton>
 
                     {/* Smart Price Mode Controls */}
@@ -2428,73 +2424,78 @@ export default function EnhancedAIShoppingListModal({
                             <TouchEnhancedButton
                                 onClick={() => setPriceMode('smart')}
                                 style={{
-                                    padding: '0.25rem 0.375rem',
+                                    padding: '0.375rem',
                                     fontSize: '0.7rem',
-                                    fontWeight: '500',
-                                    borderRadius: '4px',
-                                    border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
-                                    backgroundColor: priceMode === 'smart' ? '#2563eb' : 'white',
-                                    color: priceMode === 'smart' ? 'white' : '#374151',
-                                    cursor: 'pointer'
+                                    fontWeight: '600',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: priceMode === 'smart' ? 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)' : 'white',
+                                    color: priceMode === 'smart' ? 'white' : '#64748b',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '32px',
+                                    height: '32px',
+                                    boxShadow: priceMode === 'smart' ? '0 2px 4px rgba(59, 130, 246, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)'
                                 }}
                             >
-                                🧠 Smart
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L13.5 2.5L16.17 5.17C15.24 5.06 14.32 5 13.4 5C11.1 5 8.84 5.56 6.84 6.62L3 3L1.5 4.5L6.05 9.05C5.38 9.86 5 10.89 5 12C5 14.21 6.79 16 9 16H15C17.21 16 19 14.21 19 12C19 11.42 18.88 10.86 18.67 10.34L21 12.5V9M11 11H9V13H11V11M15 11H13V13H15V11Z"/>
+                                </svg>
                             </TouchEnhancedButton>
 
                             <TouchEnhancedButton
                                 onClick={() => setPriceMode('budget')}
                                 style={{
-                                    padding: '0.25rem 0.375rem',
+                                    padding: '0.375rem',
                                     fontSize: '0.7rem',
-                                    fontWeight: '500',
-                                    borderRadius: '4px',
-                                    border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
-                                    backgroundColor: priceMode === 'budget' ? '#059669' : 'white',
-                                    color: priceMode === 'budget' ? 'white' : '#374151',
-                                    cursor: 'pointer'
+                                    fontWeight: '600',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: priceMode === 'budget' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'white',
+                                    color: priceMode === 'budget' ? 'white' : '#64748b',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '32px',
+                                    height: '32px',
+                                    boxShadow: priceMode === 'budget' ? '0 2px 4px rgba(16, 185, 129, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)'
                                 }}
                             >
-                                💰 Budget
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M11.8 10.9C9.53 10.31 8.8 9.7 8.8 8.75C8.8 7.66 9.81 6.9 11.5 6.9C13.28 6.9 13.94 7.75 14 9H16.21C16.14 7.28 15.09 5.7 13 5.19V3H10V5.16C8.06 5.58 6.5 6.84 6.5 8.77C6.5 11.08 8.41 12.23 11.2 12.9C13.7 13.5 14.2 14.38 14.2 15.31C14.2 16 13.71 17.1 11.5 17.1C9.44 17.1 8.63 16.18 8.5 15H6.32C6.44 17.19 8.08 18.42 10 18.83V21H13V18.85C14.95 18.5 16.5 17.35 16.5 15.3C16.5 12.46 14.07 11.5 11.8 10.9Z"/>
+                                </svg>
                             </TouchEnhancedButton>
 
                             <TouchEnhancedButton
                                 onClick={() => setPriceMode('deals')}
                                 style={{
-                                    padding: '0.25rem 0.375rem',
+                                    padding: '0.375rem',
                                     fontSize: '0.7rem',
-                                    fontWeight: '500',
-                                    borderRadius: '4px',
-                                    border: priceMode === 'deals' ? 'none' : '1px solid #d1d5db',
-                                    backgroundColor: priceMode === 'deals' ? '#7c3aed' : 'white',
-                                    color: priceMode === 'deals' ? 'white' : '#374151',
-                                    cursor: 'pointer'
+                                    fontWeight: '600',
+                                    borderRadius: '6px',
+                                    border: 'none',
+                                    background: priceMode === 'deals' ? 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)' : 'white',
+                                    color: priceMode === 'deals' ? 'white' : '#64748b',
+                                    cursor: 'pointer',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '32px',
+                                    height: '32px',
+                                    boxShadow: priceMode === 'deals' ? '0 2px 4px rgba(139, 92, 246, 0.3)' : '0 1px 3px rgba(0, 0, 0, 0.1)'
                                 }}
                             >
-                                🎯 Deals
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
                             </TouchEnhancedButton>
-
-                            {budgetTracking.limit && (
-                                <TouchEnhancedButton
-                                    onClick={optimizeForBudget}
-                                    disabled={loading}
-                                    style={{
-                                        padding: '0.25rem 0.375rem',
-                                        fontSize: '0.7rem',
-                                        backgroundColor: loading ? '#9ca3af' : '#f59e0b',
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '4px',
-                                        cursor: loading ? 'not-allowed' : 'pointer',
-                                        fontWeight: '500'
-                                    }}
-                                >
-                                    {loading ? '⏳' : '💡'} Optimize
-                                </TouchEnhancedButton>
-                            )}
                         </>
                     )}
 
-                    {/* AI Optimization Button */}
+                    {/* AI Button with Enhanced Icon */}
                     <TouchEnhancedButton
                         onClick={async () => {
                             if (smartSuggestions && smartSuggestions.length > 0) {
@@ -2510,113 +2511,171 @@ export default function EnhancedAIShoppingListModal({
                         }}
                         disabled={aiLoading || editingCategories}
                         style={{
-                            backgroundColor: smartSuggestions?.length > 0 ? '#059669' : '#7c3aed',
+                            background: smartSuggestions?.length > 0 ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.25rem 0.375rem',
+                            borderRadius: '6px',
+                            padding: '0.375rem 0.5rem',
                             fontSize: '0.7rem',
                             cursor: (aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
-                            fontWeight: '500',
-                            opacity: (aiLoading || editingCategories) ? 0.6 : 1
+                            fontWeight: '600',
+                            opacity: (aiLoading || editingCategories) ? 0.6 : 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            boxShadow: '0 2px 4px rgba(139, 92, 246, 0.3)',
+                            whiteSpace: 'nowrap'
                         }}
                     >
-                        {aiLoading ? '⏳ AI...' :
-                            smartSuggestions?.length > 0 ? `🧠 AI (${smartSuggestions.length})` : '🧠 Get AI'}
+                        {aiLoading ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="animate-spin">
+                                <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                            </svg>
+                        ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L13.5 2.5L16.17 5.17C15.24 5.06 14.32 5 13.4 5C11.1 5 8.84 5.56 6.84 6.62L3 3L1.5 4.5L6.05 9.05C5.38 9.86 5 10.89 5 12C5 14.21 6.79 16 9 16H15C17.21 16 19 14.21 19 12C19 11.42 18.88 10.86 18.67 10.34L21 12.5V9M11 11H9V13H11V11M15 11H13V13H15V11Z"/>
+                            </svg>
+                        )}
+                        <span>
+                        {aiLoading ? 'AI...' : smartSuggestions?.length > 0 ? `AI (${smartSuggestions.length})` : 'AI'}
+                    </span>
                     </TouchEnhancedButton>
 
-                    {/* Category Management Toggle */}
+                    {/* Category Management Button */}
                     <TouchEnhancedButton
                         onClick={() => setEditingCategories(!editingCategories)}
                         style={{
-                            backgroundColor: editingCategories ? '#dc2626' : '#f59e0b',
+                            background: editingCategories ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' : 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
                             color: 'white',
                             border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.25rem 0.375rem',
+                            borderRadius: '6px',
+                            padding: '0.375rem 0.5rem',
                             fontSize: '0.7rem',
                             cursor: 'pointer',
-                            fontWeight: '500'
+                            fontWeight: '600',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            boxShadow: '0 2px 4px rgba(245, 158, 11, 0.3)'
                         }}
                     >
-                        {editingCategories ? '✓ Done' : '📂 Categories'}
+                        {editingCategories ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M20 6L9 17l-5-5"/>
+                            </svg>
+                        ) : (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M10 4H4c-1.11 0-2 .89-2 2v5h2V8h4V6m6 0v2h4v8h-4v2h4c1.11 0 2-.89 2-2V6c0-1.11-.89-2-2-2h-6M16 10v6l5.5-3L16 10Z"/>
+                            </svg>
+                        )}
+                        <span>{editingCategories ? 'Done' : 'Edit'}</span>
                     </TouchEnhancedButton>
 
-                    {/* Voice Input Button */}
-                    <TouchEnhancedButton
-                        onClick={() => setShowVoiceInput(true)}
-                        disabled={editingCategories}
-                        style={{
-                            backgroundColor: '#3b82f6',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.25rem 0.375rem',
-                            fontSize: '0.7rem',
-                            cursor: editingCategories ? 'not-allowed' : 'pointer',
-                            fontWeight: '500',
-                            opacity: editingCategories ? 0.6 : 1
-                        }}
-                    >
-                        🎤 Voice
-                    </TouchEnhancedButton>
-
-                    {/* Quick Actions - REMOVED DUPLICATE MORE BUTTON */}
+                    {/* Quick Actions - Enhanced with Icons */}
                     {!editingCategories && (
                         <>
                             <TouchEnhancedButton
                                 onClick={markAllAsPurchased}
                                 style={{
-                                    backgroundColor: '#8b5cf6',
+                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.375rem',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem',
                                     fontSize: '0.7rem',
                                     cursor: 'pointer',
-                                    fontWeight: '500'
+                                    fontWeight: '600',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '32px',
+                                    height: '32px',
+                                    boxShadow: '0 2px 4px rgba(139, 92, 246, 0.3)'
                                 }}
+                                title="Mark all as purchased"
                             >
-                                ✓ All
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={clearAllPurchased}
-                                style={{
-                                    backgroundColor: '#6b7280',
-                                    color: 'white',
-                                    border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.375rem',
-                                    fontSize: '0.7rem',
-                                    cursor: 'pointer',
-                                    fontWeight: '500'
-                                }}
-                            >
-                                ✗ Clear
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M20 6L9 17l-5-5"/>
+                                </svg>
                             </TouchEnhancedButton>
 
-                            {/* FIXED: Single More button that toggles expandable actions */}
                             <TouchEnhancedButton
                                 onClick={() => setShowActions(!showActions)}
                                 style={{
-                                    backgroundColor: showActions ? '#dc2626' : '#374151',
+                                    background: showActions ? 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' : 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: '4px',
-                                    padding: '0.25rem 0.375rem',
+                                    borderRadius: '6px',
+                                    padding: '0.375rem',
                                     fontSize: '0.7rem',
                                     cursor: 'pointer',
-                                    fontWeight: '500'
+                                    fontWeight: '600',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: '32px',
+                                    height: '32px',
+                                    boxShadow: showActions ? '0 2px 4px rgba(220, 38, 38, 0.3)' : '0 2px 4px rgba(100, 116, 139, 0.3)'
                                 }}
+                                title="More actions"
                             >
-                                {showActions ? '✗ Close' : '⋯ More'}
+                                {showActions ? (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                        <path d="M18 6L6 18"/>
+                                        <path d="M6 6l12 12"/>
+                                    </svg>
+                                ) : (
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                        <path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z"/>
+                                    </svg>
+                                )}
                             </TouchEnhancedButton>
                         </>
                     )}
                 </>
             )}
+
+            {/* Collapsed State Info */}
+            {headerCollapsed && (
+                <div style={{
+                    display: 'flex',
+                    gap: '0.75rem',
+                    alignItems: 'center',
+                    fontSize: '0.75rem',
+                    color: '#64748b',
+                    fontWeight: '500'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
+                        </svg>
+                        <span>{stats.totalItems} items</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M20 6L9 17l-5-5"/>
+                        </svg>
+                        <span>{stats.purchased} done</span>
+                    </div>
+                    {config.showPriceFeatures && (
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '0.25rem',
+                            color: '#059669',
+                            fontWeight: '600'
+                        }}>
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M11.8 10.9C9.53 10.31 8.8 9.7 8.8 8.75C8.8 7.66 9.81 6.9 11.5 6.9C13.28 6.9 13.94 7.75 14 9H16.21C16.14 7.28 15.09 5.7 13 5.19V3H10V5.16C8.06 5.58 6.5 6.84 6.5 8.77C6.5 11.08 8.41 12.23 11.2 12.9C13.7 13.5 14.2 14.38 14.2 15.31C14.2 16 13.71 17.1 11.5 17.1C9.44 17.1 8.63 16.18 8.5 15H6.32C6.44 17.19 8.08 18.42 10 18.83V21H13V18.85C14.95 18.5 16.5 17.35 16.5 15.3C16.5 12.46 14.07 11.5 11.8 10.9Z"/>
+                            </svg>
+                            <span>{formatPrice(budgetTracking.current)}</span>
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
+
 
 
     // ENHANCED: Item rendering with delete functionality
@@ -2684,14 +2743,133 @@ export default function EnhancedAIShoppingListModal({
                         />
                     )}
 
-                    {/* Category Icon */}
+                    {/* Enhanced Category Icon with Visual Status */}
                     <div style={{
-                        fontSize: '1.2rem',
+                        width: '32px',
+                        height: '32px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        borderRadius: '8px',
+                        position: 'relative',
                         flexShrink: 0,
-                        width: '24px',
-                        textAlign: 'center'
+                        background: (() => {
+                            if (isPurchased) return 'linear-gradient(135deg, #10b981 0%, #059669 100%)';
+                            if (item.inInventory) return 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+                            if (item.estimatedPrice > 0) return 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+                            return 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%)';
+                        })(),
+                        border: `2px solid ${(() => {
+                            if (isPurchased) return '#065f46';
+                            if (item.inInventory) return '#1e40af';
+                            if (item.estimatedPrice > 0) return '#92400e';
+                            return '#cbd5e1';
+                        })()}`,
+                        color: (() => {
+                            if (isPurchased || item.inInventory || item.estimatedPrice > 0) return 'white';
+                            return '#64748b';
+                        })(),
+                        fontSize: '1rem',
+                        fontWeight: '600',
+                        boxShadow: (() => {
+                            if (isPurchased) return '0 2px 4px rgba(16, 185, 129, 0.3)';
+                            if (item.inInventory) return '0 2px 4px rgba(59, 130, 246, 0.3)';
+                            if (item.estimatedPrice > 0) return '0 2px 4px rgba(245, 158, 11, 0.3)';
+                            return '0 1px 3px rgba(0, 0, 0, 0.1)';
+                        })(),
+                        transition: 'all 0.2s ease'
                     }}>
-                        {categoryIcon}
+                        {/* Main Category Icon */}
+                        <span style={{ fontSize: '14px', lineHeight: 1 }}>
+        {categoryIcon}
+    </span>
+
+                        {/* Status Indicator Badges */}
+                        {isPurchased && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '-4px',
+                                right: '-4px',
+                                width: '16px',
+                                height: '16px',
+                                backgroundColor: '#065f46',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '2px solid white',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+                            }}>
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="white" stroke="none">
+                                    <path d="M20.285 2l-11.285 11.567-5.286-5.011-3.714 3.716 9 8.728 15-15.285z"/>
+                                </svg>
+                            </div>
+                        )}
+
+                        {item.inInventory && !isPurchased && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '-4px',
+                                right: '-4px',
+                                width: '16px',
+                                height: '16px',
+                                backgroundColor: '#1e40af',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '2px solid white',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+                            }}>
+                                <svg width="8" height="8" viewBox="0 0 24 24" fill="white" stroke="none">
+                                    <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                                </svg>
+                            </div>
+                        )}
+
+                        {item.priceSource && item.priceSource.startsWith('inventory') && !isPurchased && !item.inInventory && (
+                            <div style={{
+                                position: 'absolute',
+                                top: '-4px',
+                                right: '-4px',
+                                width: '16px',
+                                height: '16px',
+                                backgroundColor: '#d97706',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '2px solid white',
+                                fontSize: '8px',
+                                fontWeight: '700',
+                                color: 'white',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+                            }}>
+                                $
+                            </div>
+                        )}
+
+                        {/* Priority indicator for urgent items */}
+                        {item.dealStatus === 'deal' && !isPurchased && (
+                            <div style={{
+                                position: 'absolute',
+                                bottom: '-4px',
+                                left: '-4px',
+                                width: '14px',
+                                height: '14px',
+                                backgroundColor: '#dc2626',
+                                borderRadius: '50%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                border: '2px solid white',
+                                boxShadow: '0 1px 3px rgba(0, 0, 0, 0.2)'
+                            }}>
+                                <svg width="6" height="6" viewBox="0 0 24 24" fill="white">
+                                    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                </svg>
+                            </div>
+                        )}
                     </div>
 
                     {/* Item Info */}
@@ -2973,151 +3151,225 @@ export default function EnhancedAIShoppingListModal({
                     overflow: 'hidden',
                     paddingBottom: 'max(env(safe-area-inset-bottom, 48px), 48px)'
                 }}>
-                    {/* Enhanced Header with Mode Indicator */}
+                    {/* Enhanced Header with Brand Colors and Heroicons */}
                     <div style={{
-                        padding: '0.75rem 1rem',
+                        padding: '0.5rem 1rem',
                         borderBottom: '1px solid #e5e7eb',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        backgroundColor: (() => {
-                            if (aiMode === 'ai-optimized') return '#f0f9ff';
-                            if (editingCategories) return '#fef3c7';
-                            if (shoppingMode === 'smart-price') return '#f0fdf4';
-                            if (shoppingMode === 'unified') return '#eff6ff';
-                            return '#f8fafc';
+                        background: (() => {
+                            if (aiMode === 'ai-optimized') return 'linear-gradient(135deg, #eff6ff 0%, #f0f9ff 100%)';
+                            if (editingCategories) return 'linear-gradient(135deg, #fef3c7 0%, #fff7ed 100%)';
+                            if (shoppingMode === 'smart-price') return 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)';
+                            if (shoppingMode === 'unified') return 'linear-gradient(135deg, #f3e8ff 0%, #eff6ff 100%)';
+                            return 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)';
                         })(),
-                        flexShrink: 0
+                        flexShrink: 0,
+                        minHeight: '64px'
                     }}>
-                        <div style={{flex: 1, minWidth: 0}}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                                <h2 style={{
-                                    margin: 0,
-                                    fontSize: '1rem',
-                                    fontWeight: '600',
-                                    color: '#111827',
+                        <div style={{flex: 1, minWidth: 0, display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                            {/* Collapse Toggle with Heroicon */}
+                            <TouchEnhancedButton
+                                onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                                style={{
+                                    backgroundColor: headerCollapsed ? '#6366f1' : '#e2e8f0',
+                                    color: headerCollapsed ? 'white' : '#64748b',
+                                    border: 'none',
+                                    borderRadius: '8px',
+                                    width: '32px',
+                                    height: '32px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    fontSize: '0.875rem',
+                                    flexShrink: 0,
+                                    transition: 'all 0.2s ease'
+                                }}
+                                title={headerCollapsed ? 'Show controls' : 'Hide controls'}
+                            >
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.5"
+                                    style={{
+                                        transform: headerCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+                                        transition: 'transform 0.2s ease'
+                                    }}
+                                >
+                                    <path d="m18 15-6-6-6 6"/>
+                                </svg>
+                            </TouchEnhancedButton>
+
+                            <div style={{flex: 1, minWidth: 0}}>
+                                <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap'}}>
+                                    {/* Brand Icon */}
+                                    <div style={{
+                                        width: '24px',
+                                        height: '24px',
+                                        background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                        borderRadius: '6px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0
+                                    }}>
+                                        <svg width="14" height="14" viewBox="0 0 24 24" fill="white">
+                                            <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
+                                        </svg>
+                                    </div>
+
+                                    <h2 style={{
+                                        margin: 0,
+                                        fontSize: '1rem',
+                                        fontWeight: '700',
+                                        color: '#1e293b',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap',
+                                        minWidth: 0
+                                    }}>
+                                        {config.title}
+                                    </h2>
+
+                                    {/* Compact Mode Switcher Button */}
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowModeSelector(true)}
+                                        style={{
+                                            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                            color: 'white',
+                                            border: 'none',
+                                            borderRadius: '6px',
+                                            padding: '0.125rem 0.5rem',
+                                            fontSize: '0.65rem',
+                                            cursor: 'pointer',
+                                            fontWeight: '600',
+                                            whiteSpace: 'nowrap',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+                                        }}
+                                        title="Switch shopping mode"
+                                    >
+                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                            <path d="M21 12c0 1.2-4.03 6-9 6s-9-4.8-9-6c0-1.2 4.03-6 9-6s9 4.8 9 6"/>
+                                            <path d="M9 12l2 2 4-4"/>
+                                        </svg>
+                                        Mode
+                                    </TouchEnhancedButton>
+                                </div>
+
+                                <p style={{
+                                    margin: '0.125rem 0 0 0',
+                                    fontSize: '0.7rem',
+                                    color: '#64748b',
                                     overflow: 'hidden',
                                     textOverflow: 'ellipsis',
                                     whiteSpace: 'nowrap'
                                 }}>
-                                    {config.title}
-                                </h2>
+                                    {config.subtitle}
+                                </p>
 
-                                {/* Mode Switcher Button */}
-                                <TouchEnhancedButton
-                                    onClick={() => setShowModeSelector(true)}
-                                    style={{
-                                        backgroundColor: config.primaryColor,
-                                        color: 'white',
-                                        border: 'none',
-                                        borderRadius: '12px',
-                                        padding: '0.25rem 0.5rem',
-                                        fontSize: '0.7rem',
-                                        cursor: 'pointer',
-                                        fontWeight: '500'
-                                    }}
-                                    title="Switch shopping mode"
-                                >
-                                    🔄 Mode
-                                </TouchEnhancedButton>
-                            </div>
+                                {/* Compact Status Indicators */}
+                                <div style={{display: 'flex', gap: '0.375rem', marginTop: '0.25rem', flexWrap: 'wrap'}}>
+                                    {aiLoading && (
+                                        <span style={{
+                                            fontSize: '0.6rem',
+                                            color: '#d97706',
+                                            backgroundColor: '#fef3c7',
+                                            padding: '0.125rem 0.375rem',
+                                            borderRadius: '8px',
+                                            fontWeight: '600',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            border: '1px solid #fbbf24'
+                                        }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" className="animate-spin">
+                            <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                        </svg>
+                        AI Processing
+                    </span>
+                                    )}
 
-                            <p style={{
-                                margin: '0.125rem 0 0 0',
-                                fontSize: '0.75rem',
-                                color: '#6b7280',
-                                overflow: 'hidden',
-                                textOverflow: 'ellipsis',
-                                whiteSpace: 'nowrap'
-                            }}>
-                                {config.subtitle}
-                            </p>
+                                    {smartSuggestions && smartSuggestions.length > 0 && (
+                                        <TouchEnhancedButton
+                                            onClick={() => setShowAiPanel(!showAiPanel)}
+                                            style={{
+                                                fontSize: '0.6rem',
+                                                color: '#059669',
+                                                backgroundColor: '#d1fae5',
+                                                padding: '0.125rem 0.375rem',
+                                                borderRadius: '8px',
+                                                fontWeight: '600',
+                                                border: '1px solid #10b981',
+                                                cursor: 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.25rem'
+                                            }}
+                                        >
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L13.5 2.5L16.17 5.17C15.24 5.06 14.32 5 13.4 5C11.1 5 8.84 5.56 6.84 6.62L3 3L1.5 4.5L6.05 9.05C5.38 9.86 5 10.89 5 12C5 14.21 6.79 16 9 16H15C17.21 16 19 14.21 19 12C19 11.42 18.88 10.86 18.67 10.34L21 12.5V9M11 11H9V13H11V11M15 11H13V13H15V11Z"/>
+                                            </svg>
+                                            AI ({smartSuggestions.length}) {showAiPanel ? '▼' : '▶'}
+                                        </TouchEnhancedButton>
+                                    )}
 
-                            {/* Mode Indicators */}
-                            <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap'}}>
-                                {aiLoading && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#d97706',
-                                        backgroundColor: '#fef3c7',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        🤖 AI Processing...
-                                    </span>
-                                )}
-                                {aiMode === 'ai-optimized' && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#0369a1',
-                                        backgroundColor: '#e0f2fe',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        🎯 AI Optimized
-                                    </span>
-                                )}
-                                {smartSuggestions && smartSuggestions.length > 0 && (
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowAiPanel(!showAiPanel)}
-                                        style={{
-                                            fontSize: '0.65rem',
+                                    {config.showPriceFeatures && priceAnalysis.totalSavings > 0 && (
+                                        <span style={{
+                                            fontSize: '0.6rem',
                                             color: '#059669',
                                             backgroundColor: '#d1fae5',
                                             padding: '0.125rem 0.375rem',
                                             borderRadius: '8px',
-                                            fontWeight: '500',
-                                            border: 'none',
-                                            cursor: 'pointer'
-                                        }}
-                                    >
-                                        🧠 AI Enhanced ({smartSuggestions.length}) {showAiPanel ? '▼' : '▶'}
-                                    </TouchEnhancedButton>
-                                )}
-                                {editingCategories && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#d97706',
-                                        backgroundColor: '#fef3c7',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        📂 Category Mode
-                                    </span>
-                                )}
-                                {config.showPriceFeatures && priceAnalysis.totalSavings > 0 && (
-                                    <span style={{
-                                        fontSize: '0.65rem',
-                                        color: '#059669',
-                                        backgroundColor: '#d1fae5',
-                                        padding: '0.125rem 0.375rem',
-                                        borderRadius: '8px',
-                                        fontWeight: '500'
-                                    }}>
-                                        💰 {formatPrice(priceAnalysis.totalSavings)} saved
-                                    </span>
-                                )}
+                                            fontWeight: '600',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            border: '1px solid #10b981'
+                                        }}>
+                        <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12,2A10,10 0 0,0 2,12A10,10 0 0,0 12,22A10,10 0 0,0 22,12A10,10 0 0,0 12,2M17,13H13V17H11V13H7V11H11V7H13V11H17V13Z"/>
+                        </svg>
+                                            {formatPrice(priceAnalysis.totalSavings)} saved
+                    </span>
+                                    )}
+                                </div>
                             </div>
                         </div>
+
+                        {/* Close Button with Heroicon - Properly positioned */}
                         <TouchEnhancedButton
                             onClick={onClose}
                             style={{
-                                background: 'none',
+                                background: 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)',
+                                color: 'white',
                                 border: 'none',
-                                fontSize: '1.5rem',
-                                cursor: 'pointer',
-                                color: '#6b7280',
+                                borderRadius: '8px',
                                 padding: '0.5rem',
-                                marginLeft: '0.5rem',
+                                cursor: 'pointer',
+                                marginLeft: '0.75rem',
                                 flexShrink: 0,
-                                borderRadius: '0.375rem'
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: '36px',
+                                height: '36px',
+                                boxShadow: '0 2px 4px rgba(0, 0, 0, 0.1)',
+                                transition: 'all 0.2s ease'
                             }}
-                            title="Close"
+                            title="Close shopping list"
                         >
-                            ×
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                <path d="M18 6L6 18"/>
+                                <path d="M6 6l12 12"/>
+                            </svg>
                         </TouchEnhancedButton>
                     </div>
 
@@ -3849,16 +4101,17 @@ export default function EnhancedAIShoppingListModal({
                         )}
                     </div>
 
-                    {/* Enhanced Footer with Fixed Layout */}
+                    {/* Enhanced Footer with Brand Styling */}
                     <div style={{
                         padding: footerCollapsed ? '0.5rem 1rem' : '0.75rem 1rem',
-                        paddingBottom: `calc(${footerCollapsed ? '0.5rem' : '0.75rem'} + max(env(safe-area-inset-bottom, 8px), 8px))`,
-                        borderTop: '1px solid #e5e7eb',
-                        backgroundColor: '#f8fafc',
+                        paddingBottom: `calc(${footerCollapsed ? '0.5rem' : '0.75rem'} + max(env(safe-area-inset-bottom, 12px), 12px))`,
+                        borderTop: '1px solid #e2e8f0',
+                        background: 'linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%)',
                         display: 'flex',
                         flexDirection: 'column',
                         gap: footerCollapsed ? '0.5rem' : '0.75rem',
-                        flexShrink: 0
+                        flexShrink: 0,
+                        minHeight: footerCollapsed ? '64px' : '88px'
                     }}>
                         {/* Primary Actions Row */}
                         <div style={{
@@ -3867,27 +4120,33 @@ export default function EnhancedAIShoppingListModal({
                             gap: '0.5rem',
                             alignItems: 'center'
                         }}>
-                            {/* Save Button - Takes most space */}
+                            {/* Save Button with Enhanced Styling */}
                             <TouchEnhancedButton
                                 onClick={config.showPriceFeatures ? handleSmartSave : () => setShowSaveModal(true)}
                                 style={{
-                                    backgroundColor: config.primaryColor,
+                                    background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '8px',
-                                    padding: footerCollapsed ? '0.5rem 0.75rem' : '0.75rem 1rem',
-                                    fontSize: footerCollapsed ? '0.875rem' : '1rem',
-                                    fontWeight: '600',
+                                    padding: footerCollapsed ? '0.625rem 1rem' : '0.75rem 1.25rem',
+                                    fontSize: footerCollapsed ? '0.875rem' : '0.95rem',
+                                    fontWeight: '700',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
                                     gap: '0.5rem',
-                                    minWidth: 0
+                                    minWidth: 0,
+                                    boxShadow: '0 4px 12px rgba(99, 102, 241, 0.3)',
+                                    transition: 'all 0.2s ease'
                                 }}
                             >
-                                <span>💾</span>
-                                <span>Save</span>
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/>
+                                    <polyline points="17,21 17,13 7,13 7,21"/>
+                                    <polyline points="7,3 7,8 15,8"/>
+                                </svg>
+                                <span>Save List</span>
                             </TouchEnhancedButton>
 
                             {/* Start Shopping Button */}
@@ -3907,22 +4166,26 @@ export default function EnhancedAIShoppingListModal({
                                     }
                                 }}
                                 style={{
-                                    backgroundColor: '#059669',
+                                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '8px',
-                                    padding: footerCollapsed ? '0.5rem' : '0.75rem',
-                                    fontSize: footerCollapsed ? '0.75rem' : '0.875rem',
-                                    fontWeight: '600',
+                                    padding: footerCollapsed ? '0.625rem' : '0.75rem',
+                                    fontSize: footerCollapsed ? '0.8rem' : '0.875rem',
+                                    fontWeight: '700',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '0.25rem',
-                                    whiteSpace: 'nowrap'
+                                    gap: '0.375rem',
+                                    whiteSpace: 'nowrap',
+                                    boxShadow: '0 4px 12px rgba(16, 185, 129, 0.3)',
+                                    transition: 'all 0.2s ease'
                                 }}
                             >
-                                <span>🛒</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
+                                </svg>
                                 <span>{shoppingProgress.startTime ? 'Resume' : 'Shop'}</span>
                             </TouchEnhancedButton>
 
@@ -3930,91 +4193,165 @@ export default function EnhancedAIShoppingListModal({
                             <TouchEnhancedButton
                                 onClick={() => setShowEmailModal(true)}
                                 style={{
-                                    backgroundColor: '#7c3aed',
+                                    background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)',
                                     color: 'white',
                                     border: 'none',
                                     borderRadius: '8px',
-                                    padding: footerCollapsed ? '0.5rem' : '0.75rem',
-                                    fontSize: footerCollapsed ? '0.75rem' : '0.875rem',
-                                    fontWeight: '600',
+                                    padding: footerCollapsed ? '0.625rem' : '0.75rem',
+                                    fontSize: footerCollapsed ? '0.8rem' : '0.875rem',
+                                    fontWeight: '700',
                                     cursor: 'pointer',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    gap: '0.25rem',
-                                    whiteSpace: 'nowrap'
+                                    gap: '0.375rem',
+                                    whiteSpace: 'nowrap',
+                                    boxShadow: '0 4px 12px rgba(139, 92, 246, 0.3)',
+                                    transition: 'all 0.2s ease'
                                 }}
                             >
-                                <span>📤</span>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                                    <path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8"/>
+                                    <polyline points="16,6 12,2 8,6"/>
+                                    <line x1="12" y1="2" x2="12" y2="15"/>
+                                </svg>
                                 <span>Share</span>
                             </TouchEnhancedButton>
 
-                            {/* Collapse Toggle */}
+                            {/* Collapse Toggle with Enhanced Icon */}
                             <TouchEnhancedButton
                                 onClick={() => setFooterCollapsed(!footerCollapsed)}
                                 style={{
-                                    backgroundColor: footerCollapsed ? '#059669' : '#6b7280',
+                                    background: footerCollapsed ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #64748b 0%, #475569 100%)',
                                     color: 'white',
                                     border: 'none',
-                                    borderRadius: '6px',
-                                    padding: '0.5rem',
-                                    fontSize: '0.7rem',
+                                    borderRadius: '8px',
+                                    padding: '0.625rem',
+                                    fontSize: '0.75rem',
                                     cursor: 'pointer',
-                                    fontWeight: '500',
-                                    minWidth: '50px',
-                                    textAlign: 'center'
+                                    fontWeight: '600',
+                                    minWidth: '44px',
+                                    textAlign: 'center',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+                                    transition: 'all 0.2s ease'
                                 }}
-                                title={footerCollapsed ? 'Expand footer' : 'Collapse footer for more space'}
+                                title={footerCollapsed ? 'Expand footer' : 'Collapse for more space'}
                             >
-                                {footerCollapsed ? '⬆️' : '⬇️'}
+                                <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 24 24"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2.5"
+                                    style={{
+                                        transform: footerCollapsed ? 'rotate(0deg)' : 'rotate(180deg)',
+                                        transition: 'transform 0.2s ease'
+                                    }}
+                                >
+                                    <path d="m18 15-6-6-6 6"/>
+                                </svg>
                             </TouchEnhancedButton>
                         </div>
 
-                        {/* Expandable Footer Content */}
+                        {/* Expandable Footer Content with Enhanced Styling */}
                         {!footerCollapsed && (
                             <>
-                                {/* Summary Statistics */}
+                                {/* Summary Statistics with Enhanced Visual Design */}
                                 <div style={{
-                                    backgroundColor: 'white',
-                                    borderRadius: '8px',
-                                    padding: '0.75rem',
-                                    border: '1px solid #e5e7eb'
+                                    background: 'linear-gradient(135deg, white 0%, #f8fafc 100%)',
+                                    borderRadius: '12px',
+                                    padding: '1rem',
+                                    border: '1px solid #e2e8f0',
+                                    boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
                                 }}>
                                     <div style={{
                                         display: 'grid',
                                         gridTemplateColumns: config.showPriceFeatures ? 'repeat(4, 1fr)' : 'repeat(2, 1fr)',
-                                        gap: '0.75rem',
+                                        gap: '1rem',
                                         fontSize: '0.875rem'
                                     }}>
-                                        <div>
-                                            <div style={{color: '#6b7280'}}>Selected Items:</div>
-                                            <div
-                                                style={{fontWeight: '600', color: '#111827'}}>{stats.totalItems} items
+                                        <div style={{ textAlign: 'center' }}>
+                                            <div style={{
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.25rem',
+                                                color: '#64748b',
+                                                marginBottom: '0.25rem'
+                                            }}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M7 4V2C7 1.45 7.45 1 8 1H16C16.55 1 17 1.45 17 2V4H20C20.55 4 21 4.45 21 5S20.55 6 20 6H19V19C19 20.1 18.1 21 17 21H7C5.9 21 5 20.1 5 19V6H4C3.45 6 3 5.55 3 5S3.45 4 4 4H7ZM9 3V4H15V3H9ZM7 6V19H17V6H7Z"/>
+                                                </svg>
+                                                <span>Items:</span>
+                                            </div>
+                                            <div style={{fontWeight: '700', color: '#1e293b', fontSize: '1.125rem'}}>
+                                                {stats.totalItems}
                                             </div>
                                         </div>
-                                        <div>
-                                            <div style={{color: '#6b7280'}}>Checked Off:</div>
+
+                                        <div style={{ textAlign: 'center' }}>
                                             <div style={{
-                                                fontWeight: '600',
-                                                color: '#111827'
-                                            }}>{stats.purchased} completed
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                gap: '0.25rem',
+                                                color: '#64748b',
+                                                marginBottom: '0.25rem'
+                                            }}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M20 6L9 17l-5-5"/>
+                                                </svg>
+                                                <span>Done:</span>
+                                            </div>
+                                            <div style={{fontWeight: '700', color: '#10b981', fontSize: '1.125rem'}}>
+                                                {stats.purchased}
                                             </div>
                                         </div>
 
                                         {config.showPriceFeatures && (
                                             <>
-                                                <div>
-                                                    <div style={{color: '#6b7280'}}>Est. Total:</div>
+                                                <div style={{ textAlign: 'center' }}>
                                                     <div style={{
-                                                        fontWeight: '600',
-                                                        color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#111827'
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '0.25rem',
+                                                        color: '#64748b',
+                                                        marginBottom: '0.25rem'
+                                                    }}>
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M11.8 10.9C9.53 10.31 8.8 9.7 8.8 8.75C8.8 7.66 9.81 6.9 11.5 6.9C13.28 6.9 13.94 7.75 14 9H16.21C16.14 7.28 15.09 5.7 13 5.19V3H10V5.16C8.06 5.58 6.5 6.84 6.5 8.77C6.5 11.08 8.41 12.23 11.2 12.9C13.7 13.5 14.2 14.38 14.2 15.31C14.2 16 13.71 17.1 11.5 17.1C9.44 17.1 8.63 16.18 8.5 15H6.32C6.44 17.19 8.08 18.42 10 18.83V21H13V18.85C14.95 18.5 16.5 17.35 16.5 15.3C16.5 12.46 14.07 11.5 11.8 10.9Z"/>
+                                                        </svg>
+                                                        <span>Total:</span>
+                                                    </div>
+                                                    <div style={{
+                                                        fontWeight: '700',
+                                                        color: budgetTracking.limit && budgetTracking.current > budgetTracking.limit ? '#dc2626' : '#1e293b',
+                                                        fontSize: '1.125rem'
                                                     }}>
                                                         {formatPrice(budgetTracking.current)}
                                                     </div>
                                                 </div>
-                                                <div>
-                                                    <div style={{color: '#6b7280'}}>Savings:</div>
-                                                    <div style={{fontWeight: '600', color: '#16a34a'}}>
+
+                                                <div style={{ textAlign: 'center' }}>
+                                                    <div style={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        justifyContent: 'center',
+                                                        gap: '0.25rem',
+                                                        color: '#64748b',
+                                                        marginBottom: '0.25rem'
+                                                    }}>
+                                                        <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                                                        </svg>
+                                                        <span>Saved:</span>
+                                                    </div>
+                                                    <div style={{fontWeight: '700', color: '#10b981', fontSize: '1.125rem'}}>
                                                         {formatPrice(priceAnalysis.totalSavings || 0)}
                                                     </div>
                                                 </div>
@@ -4022,39 +4359,44 @@ export default function EnhancedAIShoppingListModal({
                                         )}
                                     </div>
 
-                                    {/* Budget Progress Bar - Smart Price modes only */}
+                                    {/* Enhanced Budget Progress Bar */}
                                     {config.showPriceFeatures && budgetTracking.limit && (
                                         <div style={{
-                                            marginTop: '0.75rem',
-                                            paddingTop: '0.75rem',
-                                            borderTop: '1px solid #e5e7eb'
+                                            marginTop: '1rem',
+                                            paddingTop: '1rem',
+                                            borderTop: '1px solid #e2e8f0'
                                         }}>
                                             <div style={{
                                                 display: 'flex',
                                                 justifyContent: 'space-between',
+                                                alignItems: 'center',
                                                 fontSize: '0.875rem',
-                                                marginBottom: '0.5rem'
+                                                marginBottom: '0.75rem'
                                             }}>
-                                                <span style={{color: '#6b7280'}}>Budget Status:</span>
+                                                <span style={{color: '#64748b', fontWeight: '600'}}>Budget Progress:</span>
                                                 <span style={{
-                                                    fontWeight: '600',
-                                                    color: budgetTracking.remaining >= 0 ? '#16a34a' : '#dc2626'
+                                                    fontWeight: '700',
+                                                    color: budgetTracking.remaining >= 0 ? '#10b981' : '#dc2626'
                                                 }}>
-                                                    {budgetTracking.remaining >= 0 ? 'Under' : 'Over'} by {formatPrice(Math.abs(budgetTracking.remaining))}
-                                                </span>
+                                {budgetTracking.remaining >= 0 ? 'Under' : 'Over'} by {formatPrice(Math.abs(budgetTracking.remaining))}
+                            </span>
                                             </div>
                                             <div style={{
                                                 width: '100%',
-                                                height: '0.5rem',
-                                                backgroundColor: '#e5e7eb',
-                                                borderRadius: '0.25rem',
-                                                overflow: 'hidden'
+                                                height: '8px',
+                                                backgroundColor: '#e2e8f0',
+                                                borderRadius: '6px',
+                                                overflow: 'hidden',
+                                                position: 'relative'
                                             }}>
                                                 <div
                                                     style={{
                                                         height: '100%',
                                                         width: `${Math.min(100, (budgetTracking.current / budgetTracking.limit) * 100)}%`,
-                                                        backgroundColor: budgetTracking.current <= budgetTracking.limit ? '#16a34a' : '#dc2626',
+                                                        background: budgetTracking.current <= budgetTracking.limit
+                                                            ? 'linear-gradient(90deg, #10b981 0%, #059669 100%)'
+                                                            : 'linear-gradient(90deg, #dc2626 0%, #b91c1c 100%)',
+                                                        borderRadius: '6px',
                                                         transition: 'width 0.3s ease'
                                                     }}
                                                 ></div>
@@ -4063,22 +4405,61 @@ export default function EnhancedAIShoppingListModal({
                                     )}
                                 </div>
 
-                                {/* Footer Info */}
+                                {/* Enhanced Footer Info */}
                                 <div style={{
-                                    fontSize: '0.7rem',
-                                    color: '#6b7280',
-                                    textAlign: 'center'
+                                    fontSize: '0.75rem',
+                                    color: '#64748b',
+                                    textAlign: 'center',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    gap: '0.25rem'
                                 }}>
                                     {normalizedList.generatedAt && (
-                                        <div>Generated {new Date(normalizedList.generatedAt).toLocaleString()}</div>
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.375rem' }}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                                <circle cx="12" cy="12" r="10"/>
+                                                <polyline points="12,6 12,12 16,14"/>
+                                            </svg>
+                                            <span>Generated {new Date(normalizedList.generatedAt).toLocaleString()}</span>
+                                        </div>
                                     )}
-                                    <div style={{marginTop: '0.25rem'}}>
-                                        🏪 Store: {selectedStore || 'Not selected'}
+                                    <div style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.75rem',
+                                        flexWrap: 'wrap'
+                                    }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M19 7h-3V5a2 2 0 0 0-2-2H10a2 2 0 0 0-2 2v2H5a3 3 0 0 0-3 3v9a3 3 0 0 0 3 3h14a3 3 0 0 0 3-3v-9a3 3 0 0 0-3-3zM10 5h4v2h-4V5z"/>
+                                            </svg>
+                                            <span>{selectedStore || 'No store selected'}</span>
+                                        </div>
                                         {aiMode === 'ai-optimized' && aiInsights && (
-                                            <span
-                                                style={{color: '#059669'}}> • AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: '#10b981' }}>
+                                                <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+                                                    <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L13.5 2.5L16.17 5.17C15.24 5.06 14.32 5 13.4 5C11.1 5 8.84 5.56 6.84 6.62L3 3L1.5 4.5L6.05 9.05C5.38 9.86 5 10.89 5 12C5 14.21 6.79 16 9 16H15C17.21 16 19 14.21 19 12C19 11.42 18.88 10.86 18.67 10.34L21 12.5V9M11 11H9V13H11V11M15 11H13V13H15V11Z"/>
+                                                </svg>
+                                                <span>AI Optimized ({(aiInsights.confidenceScore * 100).toFixed(0)}%)</span>
+                                            </div>
                                         )}
-                                        <span style={{color: config.primaryColor}}> • {config.title}</span>
+                                        <div style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            padding: '0.25rem 0.5rem',
+                                            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
+                                            borderRadius: '8px',
+                                            color: 'white',
+                                            fontSize: '0.7rem',
+                                            fontWeight: '600'
+                                        }}>
+                                            <svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor">
+                                                <path d="M12 2C13.1 2 14 2.9 14 4C14 5.1 13.1 6 12 6C10.9 6 10 5.1 10 4C10 2.9 10.9 2 12 2ZM21 9V7L15 1L13.5 2.5L16.17 5.17C15.24 5.06 14.32 5 13.4 5C11.1 5 8.84 5.56 6.84 6.62L3 3L1.5 4.5L6.05 9.05C5.38 9.86 5 10.89 5 12C5 14.21 6.79 16 9 16H15C17.21 16 19 14.21 19 12C19 11.42 18.88 10.86 18.67 10.34L21 12.5V9M11 11H9V13H11V11M15 11H13V13H15V11Z"/>
+                                            </svg>
+                                            <span>{config.title}</span>
+                                        </div>
                                     </div>
                                 </div>
                             </>

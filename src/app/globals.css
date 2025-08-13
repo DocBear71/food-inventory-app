@@ -2677,6 +2677,89 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
+/* Add these CSS rules to your globals.css file */
+
+/* iPad and tablet-specific fixes for header alignment */
+@media (min-width: 768px) and (max-width: 1200px) {
+    /* Fix header button alignment on iPad */
+    .mobile-header .flex {
+        align-items: center !important;
+        justify-content: space-between !important;
+        height: 100% !important;
+    }
+
+    /* Ensure hamburger menu button is properly centered */
+    .mobile-header .flex > div:first-child {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+
+    /* Ensure right side buttons are properly centered */
+    .mobile-header .flex > div:last-child {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 0.5rem !important;
+    }
+
+    /* Fix button container alignment */
+    .mobile-header button,
+    .mobile-header .touch-friendly {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+
+    /* Ensure profile button is properly sized and centered */
+    .mobile-header .w-10.h-10 {
+        width: 2.5rem !important;
+        height: 2.5rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}
+
+/* Specific fixes for iPad touch targets */
+@media (min-width: 768px) and (max-width: 1200px) and (pointer: coarse) {
+    /* Larger touch targets for iPad */
+    .mobile-header .touch-friendly {
+        min-height: 48px !important;
+        min-width: 48px !important;
+        padding: 0.75rem !important;
+    }
+
+    /* Ensure proper spacing between header elements */
+    .mobile-header .space-x-2 > * + * {
+        margin-left: 0.75rem !important;
+    }
+}
+
+/* Fix for mobile menu overlay z-index on iPad */
+@media (min-width: 768px) and (max-width: 1200px) {
+    .mobile-menu-overlay {
+        z-index: 9999 !important;
+        position: fixed !important;
+        inset: 0 !important;
+    }
+
+    .mobile-menu-panel {
+        z-index: 10000 !important;
+        position: relative !important;
+    }
+}
+
+/* Ensure touch-friendly interactions work on iPad */
+@media (hover: none) and (pointer: coarse) {
+    .touch-friendly:active {
+        transform: scale(0.95) !important;
+        transition: transform 0.1s ease !important;
+    }
+}
+
 /* ===== END OF CLEANED GLOBALS.CSS ===== */
 
 /* Add this CSS to your BarcodeScanner component or global CSS */
@@ -2927,5 +3010,6 @@ div[style*="background-color: #f1f5f9"] {
 .capacitor-android .mobile-safe-layout {
     padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
 }
+
 
 
