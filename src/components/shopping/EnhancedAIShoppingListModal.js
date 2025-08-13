@@ -15,18 +15,24 @@ import {VoiceInput} from '@/components/mobile/VoiceInput';
 import {apiPost, apiGet} from '@/lib/api-config';
 import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 
-const PriceControls = memo(({
-                                item,
-                                itemKey,
-                                localPrices,
-                                localQuantities,
-                                onPriceChange,
-                                onQuantityChange,
-                                onPriceBlur
-                            }) => {
-    console.log(`🎯 PriceControls rendering for: ${itemKey}`);
+const PriceControls = ({
+                           item,
+                           itemKey,
+                           localPrices,
+                           localQuantities,
+                           onPriceChange,
+                           onQuantityChange,
+                           onPriceBlur
+                       }) => {
+    // Get current values - prefer local state, fallback to item values
+    const currentPrice = localPrices[itemKey] !== undefined ?
+        localPrices[itemKey] :
+        (item.actualPrice || item.estimatedPrice || '');
 
-    // Use direct inline functions since memo will prevent re-renders anyway
+    const currentQuantity = localQuantities[itemKey] !== undefined ?
+        localQuantities[itemKey] :
+        (item.quantity || 1);
+
     return (
         <div style={{
             display: 'flex',
@@ -56,14 +62,13 @@ const PriceControls = memo(({
                     type="number"
                     min="0"
                     step="0.1"
-                    value={localQuantities[itemKey] !== undefined ? localQuantities[itemKey] : (item.quantity || 1)}
+                    value={currentQuantity}
                     onChange={(e) => {
                         const newQuantity = e.target.value;
-                        if (/^\d*\.?\d*$/.test(newQuantity) || newQuantity === '') {
-                            const numericValue = newQuantity === '' ? 0 : parseFloat(newQuantity);
+                        // Allow empty string and valid numbers
+                        if (newQuantity === '' || /^\d*\.?\d*$/.test(newQuantity)) {
+                            const numericValue = newQuantity === '' ? 0 : parseFloat(newQuantity) || 0;
                             onQuantityChange(itemKey, numericValue);
-                        } else {
-                            e.preventDefault();
                         }
                     }}
                     style={{
@@ -109,20 +114,31 @@ const PriceControls = memo(({
                         fontWeight: '500'
                     }}>$</span>
                     <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={localPrices[itemKey] !== undefined ? localPrices[itemKey] : (item.actualPrice || item.estimatedPrice || '')}
+                        type="text"
+                        inputMode="decimal"
+                        value={currentPrice}
                         onChange={(e) => {
-                            const newPrice = e.target.value;
-                            if (/^\d*\.?\d*$/.test(newPrice) || newPrice === '') {
+                            let newPrice = e.target.value;
+
+                            // Allow empty string, numbers, and one decimal point
+                            if (newPrice === '' || /^\d*\.?\d{0,2}$/.test(newPrice)) {
                                 onPriceChange(itemKey, newPrice);
-                            } else {
-                                e.preventDefault();
                             }
                         }}
-                        onFocus={(e) => e.stopPropagation()}
-                        onBlur={(e) => onPriceBlur(itemKey, e.target.value)}
+                        onBlur={(e) => {
+                            let value = e.target.value;
+                            // Format to 2 decimal places on blur if it's a valid number
+                            if (value && !isNaN(parseFloat(value))) {
+                                const formatted = parseFloat(value).toFixed(2);
+                                onPriceChange(itemKey, formatted);
+                                onPriceBlur(itemKey, formatted);
+                            } else if (value === '') {
+                                onPriceBlur(itemKey, '');
+                            }
+                        }}
+                        onFocus={(e) => {
+                            e.target.select(); // Select all text when focused
+                        }}
                         placeholder={item.estimatedPrice ? item.estimatedPrice.toFixed(2) : "0.00"}
                         style={{
                             width: '5rem',
@@ -160,7 +176,7 @@ const PriceControls = memo(({
             )}
 
             {/* Item Total */}
-            {(item.estimatedPrice > 0 || item.actualPrice > 0) && (
+            {(item.estimatedPrice > 0 || item.actualPrice > 0 || currentPrice > 0) && (
                 <div style={{
                     fontSize: '0.75rem',
                     color: '#374151',
@@ -170,29 +186,12 @@ const PriceControls = memo(({
                     backgroundColor: '#f3f4f6',
                     borderRadius: '4px'
                 }}>
-                    Total: ${((item.actualPrice || item.estimatedPrice || 0) * (item.quantity || 1)).toFixed(2)}
+                    Total: ${((parseFloat(currentPrice) || item.actualPrice || item.estimatedPrice || 0) * currentQuantity).toFixed(2)}
                 </div>
             )}
         </div>
     );
-}, (prevProps, nextProps) => {
-    // Only re-render if the specific item's price or quantity changed
-    const prevPrice = prevProps.localPrices[prevProps.itemKey];
-    const nextPrice = nextProps.localPrices[nextProps.itemKey];
-    const prevQuantity = prevProps.localQuantities[prevProps.itemKey];
-    const nextQuantity = nextProps.localQuantities[nextProps.itemKey];
-
-    // Don't re-render if only local prices/quantities changed (to prevent input focus loss)
-    const shouldUpdate = (
-        prevProps.itemKey !== nextProps.itemKey ||
-        prevProps.item.estimatedPrice !== nextProps.item.estimatedPrice ||
-        prevProps.item.actualPrice !== nextProps.item.actualPrice ||
-        prevProps.item.priceSource !== nextProps.item.priceSource
-    );
-
-    return !shouldUpdate; // Return true to prevent re-render, false to allow it
-});
-PriceControls.displayName = 'PriceControls';
+};
 
 const isValidPriceInput = (value) => {
     // Allow empty, numbers, and partial decimal inputs like "25."
