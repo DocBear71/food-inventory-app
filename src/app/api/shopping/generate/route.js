@@ -13,7 +13,8 @@ import {
     normalizeIngredientName,
     createIngredientKey,
     getIngredientVariations,
-    findBestInventoryMatch
+    findBestInventoryMatch,
+    canIngredientsMatch  // ADD THIS LINE
 } from '@/utils/ingredientMatching.js';
 
 // Parse amount and unit from ingredient amount string (keep this - it's API-specific)
@@ -132,6 +133,38 @@ function combineIngredientAmounts(existing, newIngredient) {
         unit: ''
     };
 }
+
+// ENHANCED: Function to find if an ingredient should be consolidated with existing ones
+function findConsolidationMatch(ingredientName, existingIngredients) {
+    const cleaned = extractIngredientName(ingredientName);
+    const normalized = normalizeIngredientName(cleaned);
+
+    console.log(`[CONSOLIDATION] Looking for match for: "${ingredientName}" -> normalized: "${normalized}"`);
+
+    // Check each existing ingredient for potential consolidation
+    for (const [existingKey, existingIngredient] of existingIngredients) {
+        const existingNormalized = normalizeIngredientName(existingIngredient.name);
+
+        console.log(`[CONSOLIDATION] Comparing with existing: "${existingIngredient.name}" -> normalized: "${existingNormalized}"`);
+
+        // Use the centralized matching system
+        if (canIngredientsMatch(ingredientName, existingIngredient.name)) {
+            console.log(`[CONSOLIDATION] ✅ MATCH FOUND: "${ingredientName}" matches "${existingIngredient.name}"`);
+            return existingKey;
+        }
+
+        // Additional check: see if they would create the same ingredient key
+        const newKey = createIngredientKey(ingredientName);
+        if (newKey === existingKey) {
+            console.log(`[CONSOLIDATION] ✅ KEY MATCH: "${ingredientName}" -> key: "${newKey}" matches existing key`);
+            return existingKey;
+        }
+    }
+
+    console.log(`[CONSOLIDATION] ❌ No match found for: "${ingredientName}"`);
+    return null;
+}
+
 
 // Use groceryCategories categorization system (keep this - it's API-specific)
 function categorizeIngredient(ingredientName) {
@@ -352,8 +385,11 @@ export async function POST(request) {
 
                     console.log(`[SHOPPING API] ✅ Processing: "${ingredientName}" -> cleaned: "${cleanedIngredientName}" -> final: "${finalIngredientName}"`);
 
-                    // ENHANCED: Use centralized key creation
-                    const ingredientKey = createIngredientKey(finalIngredientName);
+                    // ENHANCED: First check if this ingredient should be consolidated with an existing one
+                    const consolidationMatch = findConsolidationMatch(finalIngredientName, ingredientMap);
+
+                    // Use consolidation match if found, otherwise create new key
+                    const ingredientKey = consolidationMatch || createIngredientKey(finalIngredientName);
 
                     // Ensure amounts are strings
                     let safeAmount = '';
@@ -383,13 +419,20 @@ export async function POST(request) {
                         existing.amount = combinedAmounts.amount;
                         existing.unit = combinedAmounts.unit;
 
-                        // Use the longer/more descriptive name
-                        if (finalIngredientName.length > existing.name.length) {
+                        // ENHANCED: Use the most descriptive name (prefer "whole milk" over "milk")
+                        const existingLength = existing.name.length;
+                        const newLength = finalIngredientName.length;
+
+                        // Prefer longer, more descriptive names, but also consider specificity
+                        if (newLength > existingLength ||
+                            (finalIngredientName.includes('whole') && !existing.name.includes('whole')) ||
+                            (finalIngredientName.includes('fresh') && !existing.name.includes('fresh'))) {
+                            console.log(`[SHOPPING API] 🔄 Updating name from "${existing.name}" to "${finalIngredientName}"`);
                             existing.name = finalIngredientName;
                             existing.originalName = finalIngredientName;
                         }
 
-                        console.log(`[SHOPPING API] ✅ Combined ingredient: ${existing.name} - ${existing.amount} ${existing.unit}`);
+                        console.log(`[SHOPPING API] ✅ CONSOLIDATED ingredient: ${existing.name} - ${existing.amount} ${existing.unit} (was: ${finalIngredientName})`);
                     } else {
                         // Add new ingredient using centralized categorization
                         const category = categorizeIngredient(finalIngredientName);
@@ -411,7 +454,7 @@ export async function POST(request) {
 
                         ingredientMap.set(ingredientKey, newIngredient);
 
-                        console.log(`[SHOPPING API] ✅ New ingredient added: ${finalIngredientName} - ${safeAmount} ${safeUnit} -> ${category}`);
+                        console.log(`[SHOPPING API] ✅ NEW ingredient added: ${finalIngredientName} - ${safeAmount} ${safeUnit} -> ${category}`);
                     }
 
                 } catch (ingredientError) {

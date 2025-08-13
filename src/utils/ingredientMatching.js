@@ -1,4 +1,4 @@
-// UPDATED /src/lib/utils/ingredientMatching.js
+// UPDATED /src/utils/ingredientMatching.js
 // This becomes the SINGLE SOURCE OF TRUTH for all ingredient matching logic
 
 const NEVER_MATCH_INGREDIENTS = [
@@ -446,32 +446,74 @@ export function normalizeIngredientName(name) {
 // Enhanced ingredient key creation
 export function createIngredientKey(ingredient) {
     const cleaned = extractIngredientName(ingredient).toLowerCase().trim();
+    const normalized = normalizeIngredientName(cleaned);
 
-    console.log(`[INGREDIENT KEY] Input: "${ingredient}" -> Cleaned: "${cleaned}"`);
+    console.log(`[INGREDIENT KEY] Input: "${ingredient}" -> Cleaned: "${cleaned}" -> Normalized: "${normalized}"`);
 
-    // PRIORITY MATCHES - Handle specific cuts first
+    // ENHANCED: Use variations system to find the base ingredient key
+    // Check if this ingredient matches any variation groups
+    for (const [baseIngredient, variations] of Object.entries(INGREDIENT_VARIATIONS)) {
+        const baseNorm = normalizeIngredientName(baseIngredient);
+
+        // Check if normalized ingredient matches the base
+        if (normalized === baseNorm) {
+            console.log(`[INGREDIENT KEY] ✅ Direct base match: "${normalized}" -> "${baseIngredient}"`);
+            return baseIngredient.replace(/\s+/g, '-');
+        }
+
+        // Check if normalized ingredient matches any variation
+        const matchesVariation = variations.some(variation => {
+            const varNorm = normalizeIngredientName(variation);
+            return normalized === varNorm;
+        });
+
+        if (matchesVariation) {
+            console.log(`[INGREDIENT KEY] ✅ Variation match: "${normalized}" -> base: "${baseIngredient}"`);
+            return baseIngredient.replace(/\s+/g, '-');
+        }
+    }
+
+    // PRIORITY MATCHES - Handle specific cuts that need special keys
     if (cleaned.includes('cube steaks') || cleaned.includes('cubed steaks') ||
         cleaned.includes('cube steak') || cleaned.includes('cubed steak') ||
         cleaned.includes('minute steaks') || cleaned.includes('minute steak') ||
         cleaned.includes('swiss steaks') || cleaned.includes('swiss steak')) {
-        console.log(`[INGREDIENT KEY] Matched cube steaks variant: "${cleaned}"`);
+        console.log(`[INGREDIENT KEY] ✅ Special cube steaks key: "${cleaned}"`);
         return 'cube-steaks';
     }
 
-    // Handle other ground beef variants
+    // Handle ground beef variants
     if (cleaned.includes('ground beef') || cleaned.includes('lean beef') ||
         cleaned.includes('hamburger') || cleaned.includes('ground chuck')) {
+        console.log(`[INGREDIENT KEY] ✅ Ground beef key: "${cleaned}"`);
         return 'ground-beef';
     }
 
-    // Additional meat cut groupings...
-    if (cleaned.includes('chicken breast') && !cleaned.includes('ground')) return 'chicken-breast';
-    if (cleaned.includes('ground chicken')) return 'ground-chicken';
-    if (cleaned.includes('pork chops')) return 'pork-chops';
-    if (cleaned.includes('italian sausage')) return 'italian-sausage';
+    // Handle chicken variants
+    if (cleaned.includes('chicken breast') && !cleaned.includes('ground')) {
+        console.log(`[INGREDIENT KEY] ✅ Chicken breast key: "${cleaned}"`);
+        return 'chicken-breast';
+    }
+    if (cleaned.includes('ground chicken')) {
+        console.log(`[INGREDIENT KEY] ✅ Ground chicken key: "${cleaned}"`);
+        return 'ground-chicken';
+    }
 
-    // Default: use cleaned name with dashes
-    return cleaned.replace(/\s+/g, '-');
+    // Handle pork variants
+    if (cleaned.includes('pork chops')) {
+        console.log(`[INGREDIENT KEY] ✅ Pork chops key: "${cleaned}"`);
+        return 'pork-chops';
+    }
+    if (cleaned.includes('italian sausage')) {
+        console.log(`[INGREDIENT KEY] ✅ Italian sausage key: "${cleaned}"`);
+        return 'italian-sausage';
+    }
+
+    // For ingredients not in variations, create a standardized key
+    const standardizedKey = normalized.replace(/\s+/g, '-');
+    console.log(`[INGREDIENT KEY] ✅ Standard key: "${normalized}" -> "${standardizedKey}"`);
+
+    return standardizedKey;
 }
 
 export function isSpecialtyIngredient(ingredient) {
