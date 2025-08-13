@@ -175,6 +175,20 @@ const PriceControls = memo(({
             )}
         </div>
     );
+}, (prevProps, nextProps) => {
+    // Only re-render if the specific item's price or quantity changed
+    const prevPrice = prevProps.localPrices[prevProps.itemKey];
+    const nextPrice = nextProps.localPrices[nextProps.itemKey];
+    const prevQuantity = prevProps.localQuantities[prevProps.itemKey];
+    const nextQuantity = nextProps.localQuantities[nextProps.itemKey];
+
+    return (
+        prevProps.itemKey === nextProps.itemKey &&
+        prevPrice === nextPrice &&
+        prevQuantity === nextQuantity &&
+        prevProps.item.estimatedPrice === nextProps.item.estimatedPrice &&
+        prevProps.item.actualPrice === nextProps.item.actualPrice
+    );
 });
 PriceControls.displayName = 'PriceControls';
 
@@ -2626,15 +2640,17 @@ export default function EnhancedAIShoppingListModal({
                     </div>
 
                     {config.showPriceFeatures && (
-                        <PriceControls
-                            item={item}
-                            itemKey={itemKey}
-                            localPrices={localPrices}
-                            localQuantities={localQuantities}
-                            onPriceChange={handlePriceChange}
-                            onQuantityChange={handleQuantityChange}
-                            onPriceBlur={handlePriceBlur}
-                        />
+                        <div key={`price-controls-${itemKey}`}>
+                            <PriceControls
+                                item={item}
+                                itemKey={itemKey}
+                                localPrices={localPrices}
+                                localQuantities={localQuantities}
+                                onPriceChange={handlePriceChange}
+                                onQuantityChange={handleQuantityChange}
+                                onPriceBlur={handlePriceBlur}
+                            />
+                        </div>
                     )}
 
                     {/* Category Movement Controls OR Delete Button */}
