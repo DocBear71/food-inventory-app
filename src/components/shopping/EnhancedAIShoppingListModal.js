@@ -186,7 +186,8 @@ const PriceControls = ({
                     backgroundColor: '#f3f4f6',
                     borderRadius: '4px'
                 }}>
-                    Total: ${((parseFloat(currentPrice) || item.actualPrice || item.estimatedPrice || 0) * currentQuantity).toFixed(2)}
+                    Total:
+                    ${((parseFloat(currentPrice) || item.actualPrice || item.estimatedPrice || 0) * currentQuantity).toFixed(2)}
                 </div>
             )}
         </div>
@@ -1141,11 +1142,16 @@ export default function EnhancedAIShoppingListModal({
 // NEW: Helper function for price source labels
     const getPriceSourceLabel = (priceSource) => {
         switch (priceSource) {
-            case 'inventory_average': return 'Avg';
-            case 'inventory_lowest': return 'Low';
-            case 'inventory_last': return 'Last';
-            case 'estimated': return 'Est';
-            default: return 'Price';
+            case 'inventory_average':
+                return 'Avg';
+            case 'inventory_lowest':
+                return 'Low';
+            case 'inventory_last':
+                return 'Last';
+            case 'estimated':
+                return 'Est';
+            default:
+                return 'Price';
         }
     };
 
@@ -1344,10 +1350,10 @@ export default function EnhancedAIShoppingListModal({
             const selectedItems = allItems.filter(item => item.selected !== false);
 
             const response = await apiPost('/api/price-tracking/budget-optimize', {
-                    items: selectedItems,
-                    budgetLimit: budgetTracking.limit,
-                    currentTotal: budgetTracking.current,
-                    store: selectedStore
+                items: selectedItems,
+                budgetLimit: budgetTracking.limit,
+                currentTotal: budgetTracking.current,
+                store: selectedStore
             });
 
             const data = await response.json();
@@ -2330,193 +2336,200 @@ export default function EnhancedAIShoppingListModal({
             backgroundColor: '#f8fafc',
             flexShrink: 0
         }}>
-            {/* Filter Dropdown */}
-            <select
-                value={filter}
-                onChange={(e) => setFilter(e.target.value)}
-                disabled={editingCategories}
-                style={{
-                    padding: '0.375rem 0.5rem',
-                    border: '1px solid #d1d5db',
-                    borderRadius: '4px',
-                    fontSize: '0.75rem',
-                    backgroundColor: editingCategories ? '#f3f4f6' : 'white',
-                    flex: '1',
-                    minWidth: '80px',
-                    opacity: editingCategories ? 0.6 : 1
-                }}
-            >
-                <option value="all">All ({stats.totalItems})</option>
-                <option value="needToBuy">Need ({stats.needToBuy})</option>
-                <option value="inInventory">Have ({stats.inInventory})</option>
-                <option value="purchased">Bought ({stats.purchased})</option>
-            </select>
+            {/* Collapse Toggle for Details Below */}
+            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
+                <TouchEnhancedButton
+                    onClick={() => setHeaderCollapsed(!headerCollapsed)}
+                    style={{
+                        backgroundColor: headerCollapsed ? '#3b82f6' : '#e5e7eb',
+                        color: headerCollapsed ? 'white' : '#6b7280',
+                        border: 'none',
+                        borderRadius: '50%',
+                        width: '36px',
+                        height: '36px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        cursor: 'pointer',
+                        fontSize: '0.875rem',
+                        flexShrink: 0
+                    }}
+                    title={headerCollapsed ? 'Show controls' : 'Hide controls'}
+                >
+                    {headerCollapsed ? '▼' : '▲'}
+                </TouchEnhancedButton>
 
-            {/* Store Selection */}
-            <TouchEnhancedButton
-                onClick={() => setShowStoreSelector(true)}
-                disabled={editingCategories}
-                style={{
-                    backgroundColor: selectedStore ? '#059669' : '#6b7280',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '0.25rem 0.375rem',
-                    fontSize: '0.7rem',
-                    cursor: editingCategories ? 'not-allowed' : 'pointer',
-                    fontWeight: '500',
-                    opacity: editingCategories ? 0.6 : 1
-                }}
-            >
-                🏪 {selectedStore || 'Store'}
-            </TouchEnhancedButton>
+                <TouchEnhancedButton
+                    onClick={onClose}
+                    style={{
+                        background: 'none',
+                        border: 'none',
+                        fontSize: '1.5rem',
+                        cursor: 'pointer',
+                        color: '#6b7280',
+                        padding: '0.5rem',
+                        flexShrink: 0,
+                        borderRadius: '0.375rem'
+                    }}
+                    title="Close"
+                >
+                    ×
+                </TouchEnhancedButton>
+            </div>
 
-            {/* Smart Price Mode Controls */}
-            {config.showPriceFeatures && (
+
+            {/* Collapsible Details Section - THIS is what gets hidden */}
+            {!headerCollapsed && (
                 <>
-                    <TouchEnhancedButton
-                        onClick={() => setPriceMode('smart')}
+                    {/* Filter Dropdown */}
+                    <select
+                        value={filter}
+                        onChange={(e) => setFilter(e.target.value)}
+                        disabled={editingCategories}
                         style={{
-                            padding: '0.25rem 0.375rem',
-                            fontSize: '0.7rem',
-                            fontWeight: '500',
+                            padding: '0.375rem 0.5rem',
+                            border: '1px solid #d1d5db',
                             borderRadius: '4px',
-                            border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
-                            backgroundColor: priceMode === 'smart' ? '#2563eb' : 'white',
-                            color: priceMode === 'smart' ? 'white' : '#374151',
-                            cursor: 'pointer'
+                            fontSize: '0.75rem',
+                            backgroundColor: editingCategories ? '#f3f4f6' : 'white',
+                            flex: '1',
+                            minWidth: '80px',
+                            opacity: editingCategories ? 0.6 : 1
                         }}
                     >
-                        🧠 Smart
-                    </TouchEnhancedButton>
+                        <option value="all">All ({stats.totalItems})</option>
+                        <option value="needToBuy">Need ({stats.needToBuy})</option>
+                        <option value="inInventory">Have ({stats.inInventory})</option>
+                        <option value="purchased">Bought ({stats.purchased})</option>
+                    </select>
 
+                    {/* Store Selection */}
                     <TouchEnhancedButton
-                        onClick={() => setPriceMode('budget')}
+                        onClick={() => setShowStoreSelector(true)}
+                        disabled={editingCategories}
                         style={{
+                            backgroundColor: selectedStore ? '#059669' : '#6b7280',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
                             padding: '0.25rem 0.375rem',
                             fontSize: '0.7rem',
+                            cursor: editingCategories ? 'not-allowed' : 'pointer',
                             fontWeight: '500',
-                            borderRadius: '4px',
-                            border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
-                            backgroundColor: priceMode === 'budget' ? '#059669' : 'white',
-                            color: priceMode === 'budget' ? 'white' : '#374151',
-                            cursor: 'pointer'
+                            opacity: editingCategories ? 0.6 : 1
                         }}
                     >
-                        💰 Budget
+                        🏪 {selectedStore || 'Store'}
                     </TouchEnhancedButton>
 
-                    <TouchEnhancedButton
-                        onClick={() => setPriceMode('deals')}
-                        style={{
-                            padding: '0.25rem 0.375rem',
-                            fontSize: '0.7rem',
-                            fontWeight: '500',
-                            borderRadius: '4px',
-                            border: priceMode === 'deals' ? 'none' : '1px solid #d1d5db',
-                            backgroundColor: priceMode === 'deals' ? '#7c3aed' : 'white',
-                            color: priceMode === 'deals' ? 'white' : '#374151',
-                            cursor: 'pointer'
-                        }}
-                    >
-                        🎯 Deals
-                    </TouchEnhancedButton>
+                    {/* Smart Price Mode Controls */}
+                    {config.showPriceFeatures && (
+                        <>
+                            <TouchEnhancedButton
+                                onClick={() => setPriceMode('smart')}
+                                style={{
+                                    padding: '0.25rem 0.375rem',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '500',
+                                    borderRadius: '4px',
+                                    border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
+                                    backgroundColor: priceMode === 'smart' ? '#2563eb' : 'white',
+                                    color: priceMode === 'smart' ? 'white' : '#374151',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🧠 Smart
+                            </TouchEnhancedButton>
 
-                    {budgetTracking.limit && (
-                        <TouchEnhancedButton
-                            onClick={optimizeForBudget}
-                            disabled={loading}
-                            style={{
-                                padding: '0.25rem 0.375rem',
-                                fontSize: '0.7rem',
-                                backgroundColor: loading ? '#9ca3af' : '#f59e0b',
-                                color: 'white',
-                                border: 'none',
-                                borderRadius: '4px',
-                                cursor: loading ? 'not-allowed' : 'pointer',
-                                fontWeight: '500'
-                            }}
-                        >
-                            {loading ? '⏳' : '💡'} Optimize
-                        </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={() => setPriceMode('budget')}
+                                style={{
+                                    padding: '0.25rem 0.375rem',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '500',
+                                    borderRadius: '4px',
+                                    border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
+                                    backgroundColor: priceMode === 'budget' ? '#059669' : 'white',
+                                    color: priceMode === 'budget' ? 'white' : '#374151',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                💰 Budget
+                            </TouchEnhancedButton>
+
+                            <TouchEnhancedButton
+                                onClick={() => setPriceMode('deals')}
+                                style={{
+                                    padding: '0.25rem 0.375rem',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '500',
+                                    borderRadius: '4px',
+                                    border: priceMode === 'deals' ? 'none' : '1px solid #d1d5db',
+                                    backgroundColor: priceMode === 'deals' ? '#7c3aed' : 'white',
+                                    color: priceMode === 'deals' ? 'white' : '#374151',
+                                    cursor: 'pointer'
+                                }}
+                            >
+                                🎯 Deals
+                            </TouchEnhancedButton>
+
+                            {budgetTracking.limit && (
+                                <TouchEnhancedButton
+                                    onClick={optimizeForBudget}
+                                    disabled={loading}
+                                    style={{
+                                        padding: '0.25rem 0.375rem',
+                                        fontSize: '0.7rem',
+                                        backgroundColor: loading ? '#9ca3af' : '#f59e0b',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '4px',
+                                        cursor: loading ? 'not-allowed' : 'pointer',
+                                        fontWeight: '500'
+                                    }}
+                                >
+                                    {loading ? '⏳' : '💡'} Optimize
+                                </TouchEnhancedButton>
+                            )}
+                        </>
                     )}
-                </>
-            )}
 
-            {/* AI Optimization Button */}
-            <TouchEnhancedButton
-                onClick={async () => {
-                    if (smartSuggestions && smartSuggestions.length > 0) {
-                        setShowAiPanel(!showAiPanel);
-                    } else {
-                        setAiLoading(true);
-                        try {
-                            await autoTriggerAISuggestions();
-                        } finally {
-                            setAiLoading(false);
-                        }
-                    }
-                }}
-                disabled={aiLoading || editingCategories}
-                style={{
-                    backgroundColor: smartSuggestions?.length > 0 ? '#059669' : '#7c3aed',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '0.25rem 0.375rem',
-                    fontSize: '0.7rem',
-                    cursor: (aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
-                    fontWeight: '500',
-                    opacity: (aiLoading || editingCategories) ? 0.6 : 1
-                }}
-            >
-                {aiLoading ? '⏳ AI...' :
-                    smartSuggestions?.length > 0 ? `🧠 AI (${smartSuggestions.length})` : '🧠 Get AI'}
-            </TouchEnhancedButton>
-
-            {/* Category Management Toggle */}
-            <TouchEnhancedButton
-                onClick={() => setEditingCategories(!editingCategories)}
-                style={{
-                    backgroundColor: editingCategories ? '#dc2626' : '#f59e0b',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '0.25rem 0.375rem',
-                    fontSize: '0.7rem',
-                    cursor: 'pointer',
-                    fontWeight: '500'
-                }}
-            >
-                {editingCategories ? '✓ Done' : '📂 Categories'}
-            </TouchEnhancedButton>
-
-            {/* Voice Input Button */}
-            <TouchEnhancedButton
-                onClick={() => setShowVoiceInput(true)}
-                disabled={editingCategories}
-                style={{
-                    backgroundColor: '#3b82f6',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    padding: '0.25rem 0.375rem',
-                    fontSize: '0.7rem',
-                    cursor: editingCategories ? 'not-allowed' : 'pointer',
-                    fontWeight: '500',
-                    opacity: editingCategories ? 0.6 : 1
-                }}
-            >
-                🎤 Voice
-            </TouchEnhancedButton>
-
-            {/* Quick Actions - REMOVED DUPLICATE MORE BUTTON */}
-            {!editingCategories && (
-                <>
+                    {/* AI Optimization Button */}
                     <TouchEnhancedButton
-                        onClick={markAllAsPurchased}
+                        onClick={async () => {
+                            if (smartSuggestions && smartSuggestions.length > 0) {
+                                setShowAiPanel(!showAiPanel);
+                            } else {
+                                setAiLoading(true);
+                                try {
+                                    await autoTriggerAISuggestions();
+                                } finally {
+                                    setAiLoading(false);
+                                }
+                            }
+                        }}
+                        disabled={aiLoading || editingCategories}
                         style={{
-                            backgroundColor: '#8b5cf6',
+                            backgroundColor: smartSuggestions?.length > 0 ? '#059669' : '#7c3aed',
+                            color: 'white',
+                            border: 'none',
+                            borderRadius: '4px',
+                            padding: '0.25rem 0.375rem',
+                            fontSize: '0.7rem',
+                            cursor: (aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
+                            fontWeight: '500',
+                            opacity: (aiLoading || editingCategories) ? 0.6 : 1
+                        }}
+                    >
+                        {aiLoading ? '⏳ AI...' :
+                            smartSuggestions?.length > 0 ? `🧠 AI (${smartSuggestions.length})` : '🧠 Get AI'}
+                    </TouchEnhancedButton>
+
+                    {/* Category Management Toggle */}
+                    <TouchEnhancedButton
+                        onClick={() => setEditingCategories(!editingCategories)}
+                        style={{
+                            backgroundColor: editingCategories ? '#dc2626' : '#f59e0b',
                             color: 'white',
                             border: 'none',
                             borderRadius: '4px',
@@ -2526,44 +2539,85 @@ export default function EnhancedAIShoppingListModal({
                             fontWeight: '500'
                         }}
                     >
-                        ✓ All
-                    </TouchEnhancedButton>
-                    <TouchEnhancedButton
-                        onClick={clearAllPurchased}
-                        style={{
-                            backgroundColor: '#6b7280',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            padding: '0.25rem 0.375rem',
-                            fontSize: '0.7rem',
-                            cursor: 'pointer',
-                            fontWeight: '500'
-                        }}
-                    >
-                        ✗ Clear
+                        {editingCategories ? '✓ Done' : '📂 Categories'}
                     </TouchEnhancedButton>
 
-                    {/* FIXED: Single More button that toggles expandable actions */}
+                    {/* Voice Input Button */}
                     <TouchEnhancedButton
-                        onClick={() => setShowActions(!showActions)}
+                        onClick={() => setShowVoiceInput(true)}
+                        disabled={editingCategories}
                         style={{
-                            backgroundColor: showActions ? '#dc2626' : '#374151',
+                            backgroundColor: '#3b82f6',
                             color: 'white',
                             border: 'none',
                             borderRadius: '4px',
                             padding: '0.25rem 0.375rem',
                             fontSize: '0.7rem',
-                            cursor: 'pointer',
-                            fontWeight: '500'
+                            cursor: editingCategories ? 'not-allowed' : 'pointer',
+                            fontWeight: '500',
+                            opacity: editingCategories ? 0.6 : 1
                         }}
                     >
-                        {showActions ? '✗ Close' : '⋯ More'}
+                        🎤 Voice
                     </TouchEnhancedButton>
+
+                    {/* Quick Actions - REMOVED DUPLICATE MORE BUTTON */}
+                    {!editingCategories && (
+                        <>
+                            <TouchEnhancedButton
+                                onClick={markAllAsPurchased}
+                                style={{
+                                    backgroundColor: '#8b5cf6',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.25rem 0.375rem',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                ✓ All
+                            </TouchEnhancedButton>
+                            <TouchEnhancedButton
+                                onClick={clearAllPurchased}
+                                style={{
+                                    backgroundColor: '#6b7280',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.25rem 0.375rem',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                ✗ Clear
+                            </TouchEnhancedButton>
+
+                            {/* FIXED: Single More button that toggles expandable actions */}
+                            <TouchEnhancedButton
+                                onClick={() => setShowActions(!showActions)}
+                                style={{
+                                    backgroundColor: showActions ? '#dc2626' : '#374151',
+                                    color: 'white',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    padding: '0.25rem 0.375rem',
+                                    fontSize: '0.7rem',
+                                    cursor: 'pointer',
+                                    fontWeight: '500'
+                                }}
+                            >
+                                {showActions ? '✗ Close' : '⋯ More'}
+                            </TouchEnhancedButton>
+                        </>
+                    )}
                 </>
             )}
         </div>
     );
+
 
     // ENHANCED: Item rendering with delete functionality
     const renderShoppingItem = (item, index, category) => {
@@ -2849,7 +2903,7 @@ export default function EnhancedAIShoppingListModal({
         );
     };
 
-    // Early return if not open or no data
+// Early return if not open or no data
     if (!isOpen) {
         return null;
     }
@@ -2919,22 +2973,27 @@ export default function EnhancedAIShoppingListModal({
                     overflow: 'hidden',
                     paddingBottom: 'max(env(safe-area-inset-bottom, 48px), 48px)'
                 }}>
-                    {/* Fixed Header - Always Visible */}
+                    {/* Enhanced Header with Mode Indicator */}
                     <div style={{
                         padding: '0.75rem 1rem',
                         borderBottom: '1px solid #e5e7eb',
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        backgroundColor: 'white',
-                        flexShrink: 0,
-                        minHeight: '70px'
+                        backgroundColor: (() => {
+                            if (aiMode === 'ai-optimized') return '#f0f9ff';
+                            if (editingCategories) return '#fef3c7';
+                            if (shoppingMode === 'smart-price') return '#f0fdf4';
+                            if (shoppingMode === 'unified') return '#eff6ff';
+                            return '#f8fafc';
+                        })(),
+                        flexShrink: 0
                     }}>
                         <div style={{flex: 1, minWidth: 0}}>
-                            <div style={{display: 'flex', alignItems: 'center', gap: '0.75rem'}}>
+                            <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
                                 <h2 style={{
                                     margin: 0,
-                                    fontSize: '1.1rem',
+                                    fontSize: '1rem',
                                     fontWeight: '600',
                                     color: '#111827',
                                     overflow: 'hidden',
@@ -2944,7 +3003,7 @@ export default function EnhancedAIShoppingListModal({
                                     {config.title}
                                 </h2>
 
-                                {/* Mode Switcher Button - Always Visible */}
+                                {/* Mode Switcher Button */}
                                 <TouchEnhancedButton
                                     onClick={() => setShowModeSelector(true)}
                                     style={{
@@ -2952,11 +3011,10 @@ export default function EnhancedAIShoppingListModal({
                                         color: 'white',
                                         border: 'none',
                                         borderRadius: '12px',
-                                        padding: '0.375rem 0.75rem',
-                                        fontSize: '0.75rem',
+                                        padding: '0.25rem 0.5rem',
+                                        fontSize: '0.7rem',
                                         cursor: 'pointer',
-                                        fontWeight: '600',
-                                        flexShrink: 0
+                                        fontWeight: '500'
                                     }}
                                     title="Switch shopping mode"
                                 >
@@ -2964,334 +3022,104 @@ export default function EnhancedAIShoppingListModal({
                                 </TouchEnhancedButton>
                             </div>
 
-                            {/* Compact Summary - Always Visible */}
-                            <div style={{
-                                display: 'flex',
-                                gap: '1rem',
-                                fontSize: '0.8rem',
+                            <p style={{
+                                margin: '0.125rem 0 0 0',
+                                fontSize: '0.75rem',
                                 color: '#6b7280',
-                                marginTop: '0.25rem'
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap'
                             }}>
-                                <span>{stats.totalItems} items</span>
-                                <span>{stats.purchased} done</span>
-                                {config.showPriceFeatures && (
-                                    <span>{formatPrice(getEstimatedTotal())}</span>
+                                {config.subtitle}
+                            </p>
+
+                            {/* Mode Indicators */}
+                            <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.25rem', flexWrap: 'wrap'}}>
+                                {aiLoading && (
+                                    <span style={{
+                                        fontSize: '0.65rem',
+                                        color: '#d97706',
+                                        backgroundColor: '#fef3c7',
+                                        padding: '0.125rem 0.375rem',
+                                        borderRadius: '8px',
+                                        fontWeight: '500'
+                                    }}>
+                                        🤖 AI Processing...
+                                    </span>
+                                )}
+                                {aiMode === 'ai-optimized' && (
+                                    <span style={{
+                                        fontSize: '0.65rem',
+                                        color: '#0369a1',
+                                        backgroundColor: '#e0f2fe',
+                                        padding: '0.125rem 0.375rem',
+                                        borderRadius: '8px',
+                                        fontWeight: '500'
+                                    }}>
+                                        🎯 AI Optimized
+                                    </span>
+                                )}
+                                {smartSuggestions && smartSuggestions.length > 0 && (
+                                    <TouchEnhancedButton
+                                        onClick={() => setShowAiPanel(!showAiPanel)}
+                                        style={{
+                                            fontSize: '0.65rem',
+                                            color: '#059669',
+                                            backgroundColor: '#d1fae5',
+                                            padding: '0.125rem 0.375rem',
+                                            borderRadius: '8px',
+                                            fontWeight: '500',
+                                            border: 'none',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🧠 AI Enhanced ({smartSuggestions.length}) {showAiPanel ? '▼' : '▶'}
+                                    </TouchEnhancedButton>
+                                )}
+                                {editingCategories && (
+                                    <span style={{
+                                        fontSize: '0.65rem',
+                                        color: '#d97706',
+                                        backgroundColor: '#fef3c7',
+                                        padding: '0.125rem 0.375rem',
+                                        borderRadius: '8px',
+                                        fontWeight: '500'
+                                    }}>
+                                        📂 Category Mode
+                                    </span>
+                                )}
+                                {config.showPriceFeatures && priceAnalysis.totalSavings > 0 && (
+                                    <span style={{
+                                        fontSize: '0.65rem',
+                                        color: '#059669',
+                                        backgroundColor: '#d1fae5',
+                                        padding: '0.125rem 0.375rem',
+                                        borderRadius: '8px',
+                                        fontWeight: '500'
+                                    }}>
+                                        💰 {formatPrice(priceAnalysis.totalSavings)} saved
+                                    </span>
                                 )}
                             </div>
                         </div>
-
-                        {/* Collapse Toggle for Details Below */}
-                        <div style={{display: 'flex', alignItems: 'center', gap: '0.5rem'}}>
-                            <TouchEnhancedButton
-                                onClick={() => setHeaderCollapsed(!headerCollapsed)}
-                                style={{
-                                    backgroundColor: headerCollapsed ? '#3b82f6' : '#e5e7eb',
-                                    color: headerCollapsed ? 'white' : '#6b7280',
-                                    border: 'none',
-                                    borderRadius: '50%',
-                                    width: '36px',
-                                    height: '36px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    fontSize: '0.875rem',
-                                    flexShrink: 0
-                                }}
-                                title={headerCollapsed ? 'Show controls' : 'Hide controls'}
-                            >
-                                {headerCollapsed ? '▼' : '▲'}
-                            </TouchEnhancedButton>
-
-                            <TouchEnhancedButton
-                                onClick={onClose}
-                                style={{
-                                    background: 'none',
-                                    border: 'none',
-                                    fontSize: '1.5rem',
-                                    cursor: 'pointer',
-                                    color: '#6b7280',
-                                    padding: '0.5rem',
-                                    flexShrink: 0,
-                                    borderRadius: '0.375rem'
-                                }}
-                                title="Close"
-                            >
-                                ×
-                            </TouchEnhancedButton>
-                        </div>
+                        <TouchEnhancedButton
+                            onClick={onClose}
+                            style={{
+                                background: 'none',
+                                border: 'none',
+                                fontSize: '1.5rem',
+                                cursor: 'pointer',
+                                color: '#6b7280',
+                                padding: '0.5rem',
+                                marginLeft: '0.5rem',
+                                flexShrink: 0,
+                                borderRadius: '0.375rem'
+                            }}
+                            title="Close"
+                        >
+                            ×
+                        </TouchEnhancedButton>
                     </div>
-
-                    {/* Collapsible Details Section - THIS is what gets hidden */}
-                    {!headerCollapsed && (
-                        <>
-                            {/* Price Summary Cards - Only in price modes */}
-                            {config.showPriceFeatures && (
-                                <div style={{
-                                    padding: '0.75rem 1rem',
-                                    backgroundColor: '#f8fafc',
-                                    borderBottom: '1px solid #e5e7eb',
-                                    flexShrink: 0
-                                }}>
-                                    <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(4, 1fr)',
-                                        gap: '0.5rem'
-                                    }}>
-                                        <div style={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{
-                                                fontSize: '0.65rem',
-                                                fontWeight: '500',
-                                                color: '#6b7280',
-                                                marginBottom: '0.125rem'
-                                            }}>Budget</div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                fontWeight: '600',
-                                                color: '#111827'
-                                            }}>
-                                                {budgetTracking.limit ? formatPrice(budgetTracking.limit) : 'None'}
-                                            </div>
-                                        </div>
-
-                                        <div style={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{
-                                                fontSize: '0.65rem',
-                                                fontWeight: '500',
-                                                color: '#6b7280',
-                                                marginBottom: '0.125rem'
-                                            }}>Est. Total</div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                fontWeight: '600',
-                                                color: budgetTracking.limit && getEstimatedTotal() > budgetTracking.limit ? '#dc2626' : '#059669'
-                                            }}>
-                                                {formatPrice(getEstimatedTotal())}
-                                            </div>
-                                        </div>
-
-                                        <div style={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{
-                                                fontSize: '0.65rem',
-                                                fontWeight: '500',
-                                                color: '#6b7280',
-                                                marginBottom: '0.125rem'
-                                            }}>Inventory</div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                fontWeight: '600',
-                                                color: '#059669'
-                                            }}>
-                                                {getItemsWithInventoryPrices().length}
-                                            </div>
-                                        </div>
-
-                                        <div style={{
-                                            backgroundColor: 'white',
-                                            border: '1px solid #e5e7eb',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            textAlign: 'center'
-                                        }}>
-                                            <div style={{
-                                                fontSize: '0.65rem',
-                                                fontWeight: '500',
-                                                color: '#6b7280',
-                                                marginBottom: '0.125rem'
-                                            }}>Need Price</div>
-                                            <div style={{
-                                                fontSize: '0.8rem',
-                                                fontWeight: '600',
-                                                color: '#dc2626'
-                                            }}>
-                                                {getItemsNeedingPrices().length}
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* Controls Section */}
-                            <div style={{
-                                padding: '0.75rem 1rem',
-                                borderBottom: '1px solid #f3f4f6',
-                                backgroundColor: '#f8fafc',
-                                flexShrink: 0
-                            }}>
-                                {/* First Row - Main Controls */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: '2fr 1fr 1fr',
-                                    gap: '0.5rem',
-                                    marginBottom: '0.75rem'
-                                }}>
-                                    <select
-                                        value={filter}
-                                        onChange={(e) => setFilter(e.target.value)}
-                                        disabled={editingCategories}
-                                        style={{
-                                            padding: '0.5rem',
-                                            border: '1px solid #d1d5db',
-                                            borderRadius: '6px',
-                                            fontSize: '0.875rem',
-                                            backgroundColor: editingCategories ? '#f3f4f6' : 'white',
-                                            opacity: editingCategories ? 0.6 : 1
-                                        }}
-                                    >
-                                        <option value="all">All ({stats.totalItems})</option>
-                                        <option value="needToBuy">Need ({stats.needToBuy})</option>
-                                        <option value="purchased">Done ({stats.purchased})</option>
-                                    </select>
-
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowStoreSelector(true)}
-                                        disabled={editingCategories}
-                                        style={{
-                                            backgroundColor: selectedStore ? '#059669' : '#6b7280',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            fontSize: '0.75rem',
-                                            cursor: editingCategories ? 'not-allowed' : 'pointer',
-                                            fontWeight: '500',
-                                            opacity: editingCategories ? 0.6 : 1
-                                        }}
-                                    >
-                                        🏪 {selectedStore || 'Store'}
-                                    </TouchEnhancedButton>
-
-                                    <TouchEnhancedButton
-                                        onClick={() => setEditingCategories(!editingCategories)}
-                                        style={{
-                                            backgroundColor: editingCategories ? '#dc2626' : '#f59e0b',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '6px',
-                                            padding: '0.5rem',
-                                            fontSize: '0.75rem',
-                                            cursor: 'pointer',
-                                            fontWeight: '500'
-                                        }}
-                                    >
-                                        {editingCategories ? '✓ Done' : '📂 Edit'}
-                                    </TouchEnhancedButton>
-                                </div>
-
-                                {/* Second Row - Action Buttons */}
-                                <div style={{
-                                    display: 'grid',
-                                    gridTemplateColumns: 'repeat(auto-fit, minmax(70px, 1fr))',
-                                    gap: '0.5rem'
-                                }}>
-                                    {/* Smart Price Mode Controls */}
-                                    {config.showPriceFeatures && (
-                                        <>
-                                            <TouchEnhancedButton
-                                                onClick={() => setPriceMode('smart')}
-                                                style={{
-                                                    padding: '0.375rem',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: '500',
-                                                    borderRadius: '4px',
-                                                    border: priceMode === 'smart' ? 'none' : '1px solid #d1d5db',
-                                                    backgroundColor: priceMode === 'smart' ? '#2563eb' : 'white',
-                                                    color: priceMode === 'smart' ? 'white' : '#374151',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                🧠 Smart
-                                            </TouchEnhancedButton>
-
-                                            <TouchEnhancedButton
-                                                onClick={() => setPriceMode('budget')}
-                                                style={{
-                                                    padding: '0.375rem',
-                                                    fontSize: '0.7rem',
-                                                    fontWeight: '500',
-                                                    borderRadius: '4px',
-                                                    border: priceMode === 'budget' ? 'none' : '1px solid #d1d5db',
-                                                    backgroundColor: priceMode === 'budget' ? '#059669' : 'white',
-                                                    color: priceMode === 'budget' ? 'white' : '#374151',
-                                                    cursor: 'pointer'
-                                                }}
-                                            >
-                                                💰 Budget
-                                            </TouchEnhancedButton>
-                                        </>
-                                    )}
-
-                                    {/* AI Button */}
-                                    <TouchEnhancedButton
-                                        onClick={async () => {
-                                            if (smartSuggestions && smartSuggestions.length > 0) {
-                                                setShowAiPanel(!showAiPanel);
-                                            } else {
-                                                setAiLoading(true);
-                                                try {
-                                                    await autoTriggerAISuggestions();
-                                                } finally {
-                                                    setAiLoading(false);
-                                                }
-                                            }
-                                        }}
-                                        disabled={aiLoading || editingCategories}
-                                        style={{
-                                            backgroundColor: smartSuggestions?.length > 0 ? '#059669' : '#7c3aed',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            padding: '0.375rem',
-                                            fontSize: '0.7rem',
-                                            cursor: (aiLoading || editingCategories) ? 'not-allowed' : 'pointer',
-                                            fontWeight: '500',
-                                            opacity: (aiLoading || editingCategories) ? 0.6 : 1
-                                        }}
-                                    >
-                                        {aiLoading ? '⏳ AI...' :
-                                            smartSuggestions?.length > 0 ? `🧠 AI (${smartSuggestions.length})` : '🧠 Get AI'}
-                                    </TouchEnhancedButton>
-
-                                    {/* Voice Button */}
-                                    <TouchEnhancedButton
-                                        onClick={() => setShowVoiceInput(true)}
-                                        disabled={editingCategories}
-                                        style={{
-                                            backgroundColor: '#3b82f6',
-                                            color: 'white',
-                                            border: 'none',
-                                            borderRadius: '4px',
-                                            padding: '0.375rem',
-                                            fontSize: '0.7rem',
-                                            cursor: editingCategories ? 'not-allowed' : 'pointer',
-                                            fontWeight: '500',
-                                            opacity: editingCategories ? 0.6 : 1
-                                        }}
-                                    >
-                                        🎤 Voice
-                                    </TouchEnhancedButton>
-                                </div>
-                            </div>
-                        </>
-                    )}
 
                     {/* Enhanced Smart Price Summary Cards - Only show in price modes */}
                     {config.showPriceFeatures && (
