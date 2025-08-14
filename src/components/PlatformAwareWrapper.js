@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/PlatformAwareWrapper.js v2 - FIXED: PWA content rendering issue
+// file: /src/components/PlatformAwareWrapper.js v3 - ENHANCED: Platform info events for landing page
 
 import { useState, useEffect } from 'react';
 import PWAWrapper from '@/components/PWAWrapper';
@@ -57,11 +57,54 @@ export default function PlatformAwareWrapper({ children }) {
                 });
 
                 setIsNativeApp(finalResult);
+
+                // ADDED: Emit platform detection event for landing page
+                if (typeof window !== 'undefined') {
+                    // Store platform info globally for immediate access
+                    window.platformInfo = {
+                        isNative: finalResult,
+                        isPWA: false, // Will be updated by PWAWrapper if needed
+                        isReady: true
+                    };
+
+                    // Emit custom event
+                    const event = new CustomEvent('platformDetected', {
+                        detail: {
+                            isNative: finalResult,
+                            isCapacitor: isCapacitorNative,
+                            buildTime: buildTimeCheck,
+                            hasSignature: hasAppSignature,
+                            userAgent: userAgent.substring(0, 60),
+                            debugMessage
+                        }
+                    });
+                    window.dispatchEvent(event);
+                    console.log('🚀 Platform detection event emitted:', event.detail);
+                }
+
             } catch (error) {
                 console.error('Platform detection failed:', error);
                 // FIXED: Default to web/PWA if detection fails (more common case)
                 setIsNativeApp(false);
                 setDebugInfo('Detection failed, defaulting to web');
+
+                // ADDED: Emit fallback event
+                if (typeof window !== 'undefined') {
+                    window.platformInfo = {
+                        isNative: false,
+                        isPWA: false,
+                        isReady: true
+                    };
+
+                    const event = new CustomEvent('platformDetected', {
+                        detail: {
+                            isNative: false,
+                            error: error.message,
+                            debugMessage: 'Detection failed, defaulting to web'
+                        }
+                    });
+                    window.dispatchEvent(event);
+                }
             }
         };
 
@@ -74,6 +117,24 @@ export default function PlatformAwareWrapper({ children }) {
                 console.log('⚠️ Platform detection timeout, defaulting to web');
                 setIsNativeApp(false);
                 setDebugInfo('Detection timeout, defaulting to web');
+
+                // ADDED: Emit timeout event
+                if (typeof window !== 'undefined') {
+                    window.platformInfo = {
+                        isNative: false,
+                        isPWA: false,
+                        isReady: true
+                    };
+
+                    const event = new CustomEvent('platformDetected', {
+                        detail: {
+                            isNative: false,
+                            timeout: true,
+                            debugMessage: 'Detection timeout, defaulting to web'
+                        }
+                    });
+                    window.dispatchEvent(event);
+                }
             }
         }, 2000); // 2 second timeout
 

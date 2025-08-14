@@ -1,8 +1,11 @@
-// file: /src/app/page.js v2.0 - Enhanced SEO with meta tags and structured data
+// file: /src/app/page.js v5.0 - Simplified landing page using existing platform detection
 
-import LandingPageContent from './LandingPageContent';
+import LandingContent from "@/components/landing/LandingContent";
 
-// Enhanced metadata for the landing page
+// ADDED: Force static for mobile builds
+export const dynamic = 'force-static';
+
+// Enhanced metadata for the landing page with platform detection
 export const metadata = {
     title: 'Doc Bear\'s Comfort Kitchen - AI Recipe App with Multi-Part Recipes & Barcode Scanner',
     description: 'Revolutionary food inventory management with AI recipe extraction from TikTok/Instagram, multi-part recipe creation, international barcode scanning (80+ countries), voice nutrition analysis, and smart meal planning. Free to start!',
@@ -25,11 +28,9 @@ export const metadata = {
         address: false,
         telephone: false,
     },
-    metadataBase: new URL(process.env.VERCEL_URL
-        ? `https://${process.env.VERCEL_URL}`
-        : process.env.NODE_ENV === 'production'
-            ? 'https://docbearscomfort.kitchen'
-            : 'http://localhost:3000'),
+    metadataBase: new URL(process.env.NODE_ENV === 'production'
+        ? 'https://docbearscomfort.kitchen'
+        : 'http://localhost:3000'),
     alternates: {
         canonical: '/',
         languages: {
@@ -42,7 +43,7 @@ export const metadata = {
     openGraph: {
         title: 'Doc Bear\'s Comfort Kitchen - AI Recipe & Food Management App',
         description: 'Smart food inventory with AI recipe extraction from social media, multi-part recipes, international barcode scanning, and voice nutrition analysis. Free app for iOS, Android & Web!',
-        url: 'https://docbearscomfort.kitchen',
+        url: '/',
         siteName: 'Doc Bear\'s Comfort Kitchen',
         images: [
             {
@@ -72,13 +73,9 @@ export const metadata = {
         ],
     },
     manifest: '/manifest.json',
-    other: {
-        'google-site-verification': 'jMxjOqCxZwYkjcIXLpc6rIIBLeeyCT78dX196T8At0U',
-        'msvalidate.01': '2B3DAD655CB93EEB509AB574BEA9A845',
-        'p:domain_verify': '41876bc30a1ee0330ab8aed8b2b64497',
-    },
 };
 
+// Simplified landing page that relies on existing platform detection
 export default function HomePage() {
-    return <LandingPageContent />;
+    return <LandingContent />;
 }
