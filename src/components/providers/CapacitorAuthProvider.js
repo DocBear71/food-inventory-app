@@ -46,7 +46,7 @@ export default function CapacitorAuthProvider({ children }) {
                     // ENHANCED: Handle successful sign-in redirects
                     if (url.includes('/api/auth/callback') || url.includes('/api/auth/signin')) {
                         // FIXED: Proper URL handling
-                        const newUrl = url.startsWith('/') ? `https://www.docbearscomfort.kitchen${url}` : url
+                        const newUrl = url.startsWith('/') ? `https://docbearscomfort.kitchen${url}` : url
                         console.log('Auth callback/signin redirect:', url, '→', newUrl)
 
                         return originalFetch(newUrl, {
@@ -70,7 +70,7 @@ export default function CapacitorAuthProvider({ children }) {
                         console.log('Session request detected - attempting production fetch with fallback')
 
                         // FIXED: Proper URL handling to avoid duplication
-                        const newUrl = url.startsWith('/') ? `https://www.docbearscomfort.kitchen${url}` : url
+                        const newUrl = url.startsWith('/') ? `https://docbearscomfort.kitchen${url}` : url
                         console.log('Session redirect:', url, '→', newUrl)
 
                         return originalFetch(newUrl, {
@@ -165,7 +165,7 @@ export default function CapacitorAuthProvider({ children }) {
                     // Handle provider requests
                     if (url.includes('/api/auth/providers')) {
                         // FIXED: Proper URL handling
-                        const newUrl = url.startsWith('/') ? `https://www.docbearscomfort.kitchen${url}` : url
+                        const newUrl = url.startsWith('/') ? `https://docbearscomfort.kitchen${url}` : url
                         console.log('Auth redirect for:', url, '→', newUrl)
                         return originalFetch(newUrl, {
                             ...options,
