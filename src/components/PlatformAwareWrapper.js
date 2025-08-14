@@ -129,7 +129,7 @@ export default function PlatformAwareWrapper({ children }) {
                 setDebugInfo(debugMessage);
                 setIsNativeApp(isNativeApp);
 
-                // Store platform info
+                // Store platform info GLOBALLY to override other detections
                 if (typeof window !== 'undefined') {
                     window.platformInfo = {
                         isNative: isNativeApp,
@@ -137,18 +137,36 @@ export default function PlatformAwareWrapper({ children }) {
                         isReady: true,
                         detectionMethod,
                         userAgent: userAgent.substring(0, 100),
-                        timestamp: Date.now()
+                        timestamp: Date.now(),
+                        // FORCE override for other components
+                        statusBarHeight: isNativeApp ? 24 : 0
                     };
+
+                    // ALSO store as backup properties for legacy components
+                    window.isNativeApp = isNativeApp;
+                    window.isAndroidApp = isNativeApp && isRealAndroidDevice;
 
                     const event = new CustomEvent('platformDetected', {
                         detail: {
                             isNative: isNativeApp,
                             detectionMethod,
-                            debugMessage
+                            debugMessage,
+                            // FORCE native properties for other components
+                            isAndroidApp: isNativeApp && isRealAndroidDevice,
+                            capacitorNative: isNativeApp, // Override the false result
+                            androidWebView: isNativeApp && isRealAndroidDevice
                         }
                     });
                     window.dispatchEvent(event);
-                    console.log('🚀 Final platform event:', event.detail);
+                    console.log('🚀 Final platform event with overrides:', event.detail);
+
+                    // FORCE refresh other components by dispatching multiple events
+                    setTimeout(() => {
+                        window.dispatchEvent(new CustomEvent('platformDetected', {
+                            detail: event.detail
+                        }));
+                        console.log('🔄 Re-emitted platform event to update all components');
+                    }, 100);
                 }
 
                 console.log('🏁 === FINAL DETECTION COMPLETE ===');
