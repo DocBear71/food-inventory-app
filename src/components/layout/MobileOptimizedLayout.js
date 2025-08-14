@@ -1,4 +1,5 @@
 'use client';
+// file: /src/components/layout/MobileOptimizedLayout.js v3 - Replaced deprecated navigator.platform with feature detection
 import { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import MobileDashboardLayout from './MobileDashboardLayout';
@@ -17,10 +18,29 @@ export default function MobileOptimizedLayout({ children }) {
             const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             const isNativePlatform = Capacitor.isNativePlatform();
 
-            // Detect iPad specifically
-            const isIPad = /iPad/.test(navigator.userAgent) ||
-                (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1) ||
-                (navigator.userAgent.includes('Macintosh') && 'ontouchend' in document);
+            // Feature-based iPad detection (replacing deprecated navigator.platform)
+            const isIPad = (() => {
+                // Check for iPad in user agent first (most reliable for older iPads)
+                if (/iPad/.test(navigator.userAgent)) {
+                    return true;
+                }
+
+                // Feature detection for newer iPads (iOS 13+) that identify as Mac
+                const isMacintosh = navigator.userAgent.includes('Macintosh');
+                const hasMultiTouch = navigator.maxTouchPoints > 1;
+                const hasTouchEvents = 'ontouchend' in document;
+                const hasDeviceMotion = 'DeviceMotionEvent' in window;
+                const hasDeviceOrientation = 'DeviceOrientationEvent' in window;
+
+                // Modern iPads report as Macintosh but have touch capabilities
+                // and motion sensors that typical Macs don't have
+                const isProbablyIPad = isMacintosh &&
+                    hasMultiTouch &&
+                    hasTouchEvents &&
+                    (hasDeviceMotion || hasDeviceOrientation);
+
+                return isProbablyIPad;
+            })();
 
             // Consider it mobile if:
             // - It's running as a native app (PWA/Capacitor) - always mobile
@@ -43,7 +63,10 @@ export default function MobileOptimizedLayout({ children }) {
                 isNativePlatform,
                 isIPad,
                 shouldUseMobileLayout,
-                userAgent: navigator.userAgent.substring(0, 100)
+                userAgent: navigator.userAgent.substring(0, 100),
+                maxTouchPoints: navigator.maxTouchPoints,
+                hasDeviceMotion: 'DeviceMotionEvent' in window,
+                hasDeviceOrientation: 'DeviceOrientationEvent' in window
             });
         };
 
