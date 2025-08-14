@@ -2,6 +2,9 @@
 
 import connectDB from '@/lib/mongodb';
 
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export default async function sitemap() {
     const baseUrl = 'https://docbearscomfort.kitchen';
 

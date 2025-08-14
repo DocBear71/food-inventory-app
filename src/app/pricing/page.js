@@ -2,6 +2,9 @@
 
 import PricingContent from './PricingContent';
 
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 export const metadata = {
     title: 'Pricing Plans - Doc Bear\'s Comfort Kitchen | Free Recipe App with Premium Features',
     description: 'Choose the perfect plan for your cooking needs. Start free with basic recipe management, or upgrade for unlimited recipes, AI features, multi-part recipes, and advanced meal planning.',

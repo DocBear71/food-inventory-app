@@ -2,6 +2,9 @@
 
 import RecipeSearchContent from './RecipeSearchContent';
 
+export const dynamic = 'force-static';
+export const revalidate = false;
+
 // Function to generate dynamic metadata based on search params
 export async function generateMetadata({ searchParams }) {
     const resolvedSearchParams = await searchParams;
