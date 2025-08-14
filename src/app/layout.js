@@ -214,12 +214,11 @@ export default function RootLayout({children}) {
             let detectionMethod = 'unknown';
 
             try {
-                // Method 1: Check if Capacitor is available and native
-                if (typeof window !== 'undefined' && window.Capacitor) {
-                    const { Capacitor } = await import('@capacitor/core');
-                    isNative = Capacitor.isNativePlatform();
+                // Method 1: Check if Capacitor is available and native (safe check)
+                if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform) {
+                    isNative = window.Capacitor.isNativePlatform();
                     detectionMethod = 'capacitor-direct';
-                    console.log('🔍 Capacitor direct check:', isNative);
+                    console.log('🔍 Safe Capacitor direct check:', isNative);
                 }
 
                 // Method 2: Check for Android app indicators

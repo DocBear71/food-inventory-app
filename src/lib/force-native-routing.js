@@ -1,45 +1,42 @@
-// file: /src/lib/force-native-routing.js v2 - Enhanced native behavior with triggerEvent fix
+// file: /src/lib/force-native-routing.js v3 - SAFE: No problematic dynamic imports
 
 'use client';
 
 // Force native routing and component behavior when Android/iOS is detected
 if (typeof window !== 'undefined') {
-    console.log('🔧 Enhanced force native routing loaded');
+    console.log('🔧 Safe force native routing loaded');
 
     // Store original methods before overriding
     const originalFetch = window.fetch;
     const originalOpen = window.open;
     let originalLocationReplace, originalLocationAssign;
 
-    // Fix for triggerEvent errors - ensure Capacitor plugins are properly handled
-    const ensureCapacitorReady = async () => {
-        if (typeof window.Capacitor !== 'undefined') {
-            try {
-                const { Capacitor } = await import('@capacitor/core');
+    // Safe Capacitor check without problematic dynamic imports
+    const checkCapacitorSafely = () => {
+        try {
+            if (typeof window.Capacitor !== 'undefined' && window.Capacitor.isNativePlatform) {
+                const isNative = window.Capacitor.isNativePlatform();
+                const platform = window.Capacitor.getPlatform ? window.Capacitor.getPlatform() : 'unknown';
 
-                // Check if we're actually in a native environment
-                const isNative = Capacitor.isNativePlatform();
-                console.log('🔧 Capacitor ready check:', { isNative, platform: Capacitor.getPlatform() });
+                console.log('🔧 Safe Capacitor check:', { isNative, platform });
 
                 if (isNative) {
-                    // Ensure plugins are available before using them
                     window.capacitorReady = true;
 
                     // Dispatch event to let components know Capacitor is ready
                     const event = new CustomEvent('capacitorReady', {
                         detail: {
                             isNative: true,
-                            platform: Capacitor.getPlatform()
+                            platform: platform
                         }
                     });
                     window.dispatchEvent(event);
                 }
 
                 return isNative;
-            } catch (error) {
-                console.error('🚫 Capacitor initialization error:', error);
-                return false;
             }
+        } catch (error) {
+            console.error('🚫 Safe Capacitor check error:', error);
         }
         return false;
     };
@@ -50,7 +47,9 @@ if (typeof window !== 'undefined') {
 
         // Check if this is an auth request and we're in a native app
         if (typeof url === 'string' && url.includes('/api/auth/')) {
-            const isNative = window.platformInfo?.isNative || window.layoutPlatformInfo?.isNative;
+            const isNative = window.platformInfo?.isNative ||
+                window.layoutPlatformInfo?.isNative ||
+                checkCapacitorSafely();
 
             if (isNative) {
                 console.log('🔧 Native app intercepting auth request:', url);
@@ -77,11 +76,13 @@ if (typeof window !== 'undefined') {
 
     // Enhanced native navigation behavior
     const forceNativeNavigation = () => {
-        const isNative = window.platformInfo?.isNative || window.layoutPlatformInfo?.isNative;
+        const isNative = window.platformInfo?.isNative ||
+            window.layoutPlatformInfo?.isNative ||
+            checkCapacitorSafely();
 
         if (!isNative) return;
 
-        console.log('🔧 Applying enhanced native navigation behavior');
+        console.log('🔧 Applying safe native navigation behavior');
 
         // Store original methods if not already stored
         if (!originalLocationReplace) {
@@ -161,13 +162,15 @@ if (typeof window !== 'undefined') {
         };
     };
 
-    // Enhanced NextAuth override for native apps
+    // Safe NextAuth override for native apps
     const forceNativeAuth = () => {
-        const isNative = window.platformInfo?.isNative || window.layoutPlatformInfo?.isNative;
+        const isNative = window.platformInfo?.isNative ||
+            window.layoutPlatformInfo?.isNative ||
+            checkCapacitorSafely();
 
         if (!isNative) return;
 
-        console.log('🔧 Applying native auth overrides');
+        console.log('🔧 Applying safe native auth overrides');
 
         // Override NextAuth signIn to prevent external redirects
         if (typeof window !== 'undefined' && window.next?.auth) {
@@ -206,12 +209,12 @@ if (typeof window !== 'undefined') {
     };
 
     // Apply native behavior when platform is detected
-    const applyNativeBehavior = async (isNative) => {
+    const applyNativeBehavior = (isNative) => {
         if (isNative) {
-            console.log('🔧 Platform detected as native, applying all native overrides');
+            console.log('🔧 Platform detected as native, applying safe native overrides');
 
-            // Ensure Capacitor is ready first
-            await ensureCapacitorReady();
+            // Check Capacitor safely
+            checkCapacitorSafely();
 
             // Apply navigation overrides
             forceNativeNavigation();
@@ -228,7 +231,7 @@ if (typeof window !== 'undefined') {
                     }
                 });
                 window.dispatchEvent(nativeEvent);
-                console.log('🔧 Dispatched forceNativeUpdate event');
+                console.log('🔧 Dispatched safe forceNativeUpdate event');
             }, 100);
 
             // Set global flag for other components
@@ -237,24 +240,26 @@ if (typeof window !== 'undefined') {
     };
 
     // Listen for platform detection events
-    window.addEventListener('platformDetected', async (event) => {
-        console.log('🔧 Force routing received platform event:', event.detail);
-        await applyNativeBehavior(event.detail.isNative);
+    window.addEventListener('platformDetected', (event) => {
+        console.log('🔧 Safe force routing received platform event:', event.detail);
+        applyNativeBehavior(event.detail.isNative);
     });
 
     // Listen for layout platform detection
-    window.addEventListener('layoutPlatformDetected', async (event) => {
-        console.log('🔧 Force routing received layout platform event:', event.detail);
-        await applyNativeBehavior(event.detail.isNative);
+    window.addEventListener('layoutPlatformDetected', (event) => {
+        console.log('🔧 Safe force routing received layout platform event:', event.detail);
+        applyNativeBehavior(event.detail.isNative);
     });
 
     // Apply immediately if platform info already exists
-    const checkExistingPlatform = async () => {
-        const isNative = window.platformInfo?.isNative || window.layoutPlatformInfo?.isNative;
+    const checkExistingPlatform = () => {
+        const isNative = window.platformInfo?.isNative ||
+            window.layoutPlatformInfo?.isNative ||
+            checkCapacitorSafely();
 
         if (isNative) {
-            console.log('🔧 Existing native platform detected, applying overrides');
-            await applyNativeBehavior(true);
+            console.log('🔧 Existing native platform detected, applying safe overrides');
+            applyNativeBehavior(true);
         }
     };
 
@@ -270,56 +275,53 @@ if (typeof window !== 'undefined') {
     const platformCheckInterval = setInterval(() => {
         checkCount++;
 
-        const isNative = window.platformInfo?.isNative || window.layoutPlatformInfo?.isNative;
+        const isNative = window.platformInfo?.isNative ||
+            window.layoutPlatformInfo?.isNative ||
+            checkCapacitorSafely();
+
         if (isNative || checkCount >= 10) {
             clearInterval(platformCheckInterval);
             if (isNative) {
-                console.log('🔧 Delayed native platform detected');
+                console.log('🔧 Delayed native platform detected via safe check');
                 applyNativeBehavior(true);
             }
         }
     }, 500);
 
-    // Enhanced error handling for triggerEvent issues
+    // Enhanced error handling for addEventListener
     const originalAddEventListener = window.addEventListener;
     window.addEventListener = function(type, listener, options) {
         try {
             return originalAddEventListener.call(this, type, listener, options);
         } catch (error) {
-            console.error('🚫 addEventListener error:', error);
+            console.error('🚫 addEventListener error (safely handled):', error.message);
             // Don't let event listener errors break the app
         }
     };
 
-    // Enhanced error handling for Capacitor plugin calls
-    window.safeCapacitorCall = async function(pluginName, methodName, ...args) {
+    // Safe Capacitor plugin wrapper (no dynamic imports)
+    window.safeCapacitorCall = function(pluginName, methodName, ...args) {
         try {
-            if (!window.capacitorReady) {
-                console.log('⏳ Waiting for Capacitor to be ready...');
-                return null;
+            if (!window.capacitorReady && !checkCapacitorSafely()) {
+                console.log('⏳ Capacitor not ready for safe call');
+                return Promise.resolve(null);
             }
 
-            const { Capacitor } = await import('@capacitor/core');
-
-            if (!Capacitor.isPluginAvailable(pluginName)) {
-                console.log(`⚠️ Plugin ${pluginName} not available`);
-                return null;
+            // Only use plugins that are directly available on window.Capacitor
+            if (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins[pluginName]) {
+                const plugin = window.Capacitor.Plugins[pluginName];
+                if (plugin && plugin[methodName]) {
+                    return plugin[methodName](...args);
+                }
             }
 
-            const plugin = await import(`@capacitor/${pluginName.toLowerCase()}`);
-            const pluginInstance = plugin[pluginName];
-
-            if (pluginInstance && pluginInstance[methodName]) {
-                return await pluginInstance[methodName](...args);
-            } else {
-                console.error(`🚫 Method ${methodName} not found on plugin ${pluginName}`);
-                return null;
-            }
+            console.log(`⚠️ Plugin ${pluginName}.${methodName} not available via safe call`);
+            return Promise.resolve(null);
         } catch (error) {
-            console.error(`🚫 Safe Capacitor call failed for ${pluginName}.${methodName}:`, error);
-            return null;
+            console.error(`🚫 Safe Capacitor call failed for ${pluginName}.${methodName}:`, error.message);
+            return Promise.resolve(null);
         }
     };
 
-    console.log('🔧 Enhanced force native routing setup complete');
+    console.log('🔧 Safe force native routing setup complete');
 }
