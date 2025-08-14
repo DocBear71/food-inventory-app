@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/layout/MobileOptimizedLayout.js v3 - Replaced deprecated navigator.platform with feature detection
+// file: /src/components/layout/MobileOptimizedLayout.js v4 - Fixed iPad detection and layout switching
 import { useState, useEffect } from 'react';
 import DashboardLayout from './DashboardLayout';
 import MobileDashboardLayout from './MobileDashboardLayout';
@@ -18,7 +18,7 @@ export default function MobileOptimizedLayout({ children }) {
             const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
             const isNativePlatform = Capacitor.isNativePlatform();
 
-            // Feature-based iPad detection (replacing deprecated navigator.platform)
+            // Enhanced iPad detection using feature detection
             const isIPad = (() => {
                 // Check for iPad in user agent first (most reliable for older iPads)
                 if (/iPad/.test(navigator.userAgent)) {
@@ -42,21 +42,22 @@ export default function MobileOptimizedLayout({ children }) {
                 return isProbablyIPad;
             })();
 
+            // UPDATED LOGIC: More aggressive mobile detection for iPad
             // Consider it mobile if:
             // - It's running as a native app (PWA/Capacitor) - always mobile
-            // - OR it's an iPad (regardless of orientation/screen size)
-            // - OR width is less than 1200px AND it's a touch device
+            // - OR it's an iPad (regardless of screen size - force mobile layout)
             // - OR width is less than 768px (phones)
+            // - OR it's a touch device with width less than 1024px (small tablets)
             const shouldUseMobileLayout =
                 isNativePlatform ||
                 isIPad ||
                 width < 768 ||
-                (width < 1200 && isTouchDevice);
+                (isTouchDevice && width < 1024);
 
             setIsMobile(shouldUseMobileLayout);
 
-            // Debug logging
-            console.log('📱 Layout Detection:', {
+            // Enhanced debug logging
+            console.log('📱 Enhanced Layout Detection:', {
                 width,
                 height,
                 isTouchDevice,
@@ -66,7 +67,8 @@ export default function MobileOptimizedLayout({ children }) {
                 userAgent: navigator.userAgent.substring(0, 100),
                 maxTouchPoints: navigator.maxTouchPoints,
                 hasDeviceMotion: 'DeviceMotionEvent' in window,
-                hasDeviceOrientation: 'DeviceOrientationEvent' in window
+                hasDeviceOrientation: 'DeviceOrientationEvent' in window,
+                layoutChoice: shouldUseMobileLayout ? 'MOBILE' : 'DESKTOP'
             });
         };
 
