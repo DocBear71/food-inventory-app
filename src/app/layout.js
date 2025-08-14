@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/layout.js - MINIMAL FIX: Keep SEO, fix native apps
+// file: /src/app/layout.js v16 - MINIMAL: Restored to working version + essential SEO fix
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -120,13 +120,10 @@ function useSimpleNativeDetection() {
         const result = detectNative();
         setIsNative(result);
 
-        // Store globally for other components
-        window.isNativeApp = result;
-        window.platformInfo = {
-            isNative: result,
-            isReady: true,
-            platform: result ? 'android' : 'web'
-        };
+        // Store globally for other components (minimal, non-conflicting)
+        if (result !== null) {
+            window.simpleNativeDetection = result;
+        }
     }, []);
 
     return isNative;
@@ -302,9 +299,9 @@ export default function RootLayout({children}) {
             <meta name="app-mode" content={isNative ? "native" : "web"} />
         </head>
         <body className={inter.className}>
-        {/* Debug banner */}
-        <div className="fixed top-0 left-0 right-0 z-50 bg-green-600 text-white text-xs p-1 text-center">
-            {isNative ? '📱 NATIVE APP MODE' : '🌐 WEB MODE'}
+        {/* Debug banner - remove in production */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-yellow-500 text-white text-xs p-1 text-center">
+            🔍 LAYOUT: {isNative ? 'NATIVE DETECTED' : 'WEB DETECTED'}
         </div>
         <div style={{ paddingTop: '25px' }}>
             <SafeAreaBackground />
