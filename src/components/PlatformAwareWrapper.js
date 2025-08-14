@@ -1,192 +1,196 @@
 'use client';
 
-// file: /src/components/PlatformAwareWrapper.js v3 - MINIMAL: Fixed SEO interference with original logic
+// file: /src/components/PlatformAwareWrapper.js - DEBUG VERSION: Let's see what's actually happening
 
 import { useState, useEffect } from 'react';
 import PWAWrapper from '@/components/PWAWrapper';
 import NativeAuthHandler from '@/components/NativeAuthHandler';
 
 export default function PlatformAwareWrapper({ children }) {
-    const [isNativeApp, setIsNativeApp] = useState(null); // null = loading, true/false = determined
+    const [isNativeApp, setIsNativeApp] = useState(null);
     const [mounted, setMounted] = useState(false);
     const [debugInfo, setDebugInfo] = useState('');
 
     useEffect(() => {
         setMounted(true);
 
-        // Runtime detection of platform
         const detectPlatform = async () => {
+            console.log('🚀 === PLATFORM DETECTION DEBUG START ===');
+
             try {
+                // Log everything we can see
+                console.log('🔍 Window object checks:', {
+                    hasCapacitor: typeof window !== 'undefined' && !!window.Capacitor,
+                    windowLocation: window.location.href,
+                    windowProtocol: window.location.protocol,
+                    userAgent: navigator.userAgent,
+                    hasProcess: typeof process !== 'undefined',
+                    processEnv: process?.env?.NODE_ENV,
+                    capacitorPlatform: process?.env?.CAPACITOR_PLATFORM
+                });
+
                 let isCapacitorNative = false;
                 let buildTimeCheck = false;
                 let hasAppSignature = false;
 
-                // Check if Capacitor is available
+                // Method 1: Check Capacitor
                 if (typeof window !== 'undefined' && window.Capacitor) {
+                    console.log('✅ window.Capacitor exists!');
                     try {
                         const { Capacitor } = await import('@capacitor/core');
                         isCapacitorNative = Capacitor.isNativePlatform();
+                        const platform = Capacitor.getPlatform();
+
+                        console.log('📱 Capacitor details:', {
+                            isNativePlatform: isCapacitorNative,
+                            getPlatform: platform,
+                            capacitorObject: !!Capacitor
+                        });
                     } catch (capacitorError) {
-                        console.log('Capacitor import failed:', capacitorError);
-                        isCapacitorNative = false;
+                        console.log('❌ Capacitor import failed:', capacitorError);
                     }
+                } else {
+                    console.log('❌ window.Capacitor does not exist');
                 }
 
-                // Additional checks for edge cases
+                // Method 2: Build time check
                 buildTimeCheck = process.env.CAPACITOR_PLATFORM === 'ios' ||
                     process.env.CAPACITOR_PLATFORM === 'android';
+                console.log('🏗️ Build time check:', {
+                    buildTimeCheck,
+                    capacitorPlatform: process.env.CAPACITOR_PLATFORM,
+                    nodeEnv: process.env.NODE_ENV
+                });
 
-                // Check user agent for mobile app indicators (backup)
+                // Method 3: User Agent Analysis
                 const userAgent = navigator.userAgent || '';
                 hasAppSignature = userAgent.includes('CapacitorWebView') ||
                     userAgent.includes('DocBearsComfortKitchen');
 
-                // ENHANCED: More aggressive detection to counter SEO interference
-                // If Capacitor says it's native, trust it completely
+                console.log('🔍 User Agent Analysis:', {
+                    userAgent: userAgent,
+                    hasCapacitorWebView: userAgent.includes('CapacitorWebView'),
+                    hasDocBearsSignature: userAgent.includes('DocBearsComfortKitchen'),
+                    hasAppSignature
+                });
+
+                // Method 4: Additional checks
+                const protocolCheck = window.location.protocol === 'capacitor:' ||
+                    window.location.protocol === 'file:';
+                const hasNativeGlobals = typeof window.cordova !== 'undefined' ||
+                    typeof window.PhoneGap !== 'undefined';
+
+                console.log('🔍 Additional checks:', {
+                    protocolCheck,
+                    protocol: window.location.protocol,
+                    hasNativeGlobals,
+                    hasCordova: typeof window.cordova !== 'undefined',
+                    hasPhoneGap: typeof window.PhoneGap !== 'undefined'
+                });
+
+                // Final decision
                 const finalResult = isCapacitorNative || (buildTimeCheck && hasAppSignature);
 
-                const debugMessage = `Platform: ${finalResult ? 'Native' : 'Web/PWA'} (Capacitor: ${isCapacitorNative}, Build: ${buildTimeCheck}, UA: ${hasAppSignature})`;
-                setDebugInfo(debugMessage);
-
-                console.log('🔍 Platform Detection in Layout:', {
-                    capacitorNative: isCapacitorNative,
+                console.log('🎯 FINAL DECISION:', {
+                    isCapacitorNative,
                     buildTimeCheck,
                     hasAppSignature,
-                    userAgent: userAgent.substring(0, 60) + '...',
                     finalResult,
-                    debugMessage
+                    logic: 'isCapacitorNative || (buildTimeCheck && hasAppSignature)'
                 });
+
+                const debugMessage = `RESULT: ${finalResult ? 'NATIVE' : 'WEB'} | Cap:${isCapacitorNative} | Build:${buildTimeCheck} | UA:${hasAppSignature}`;
+                setDebugInfo(debugMessage);
 
                 setIsNativeApp(finalResult);
 
-                // ADDED: Store platform info globally for landing page
+                // Store globally and emit event
                 if (typeof window !== 'undefined') {
                     window.platformInfo = {
                         isNative: finalResult,
                         isPWA: false,
                         isReady: true,
-                        userAgent: userAgent.substring(0, 100),
-                        timestamp: Date.now()
+                        debug: {
+                            isCapacitorNative,
+                            buildTimeCheck,
+                            hasAppSignature,
+                            userAgent: userAgent.substring(0, 100)
+                        }
                     };
 
-                    // ADDED: Emit platform detection event for landing page
                     const event = new CustomEvent('platformDetected', {
                         detail: {
                             isNative: finalResult,
-                            userAgent: userAgent.substring(0, 60),
+                            debug: window.platformInfo.debug,
                             debugMessage
                         }
                     });
                     window.dispatchEvent(event);
-                    console.log('🚀 Platform detection event emitted:', event.detail);
+                    console.log('🚀 Event emitted:', event.detail);
                 }
+
+                console.log('🏁 === PLATFORM DETECTION DEBUG END ===');
 
             } catch (error) {
-                console.error('Platform detection failed:', error);
-                // FIXED: Default to web/PWA if detection fails (more common case)
+                console.error('💥 PLATFORM DETECTION ERROR:', error);
                 setIsNativeApp(false);
-                setDebugInfo('Detection failed, defaulting to web');
-
-                // ADDED: Store error state
-                if (typeof window !== 'undefined') {
-                    window.platformInfo = {
-                        isNative: false,
-                        isPWA: false,
-                        isReady: true,
-                        error: error.message
-                    };
-
-                    const event = new CustomEvent('platformDetected', {
-                        detail: {
-                            isNative: false,
-                            error: error.message,
-                            debugMessage: 'Detection failed, defaulting to web'
-                        }
-                    });
-                    window.dispatchEvent(event);
-                }
+                setDebugInfo(`ERROR: ${error.message}`);
             }
         };
 
-        // FIXED: Reduce delay and add immediate detection
         detectPlatform();
 
-        // Also set a fallback timeout to prevent infinite loading
         const fallbackTimer = setTimeout(() => {
             if (isNativeApp === null) {
-                console.log('⚠️ Platform detection timeout, defaulting to web');
+                console.log('⏰ TIMEOUT: Defaulting to web');
                 setIsNativeApp(false);
-                setDebugInfo('Detection timeout, defaulting to web');
-
-                // ADDED: Handle timeout state
-                if (typeof window !== 'undefined') {
-                    window.platformInfo = {
-                        isNative: false,
-                        isPWA: false,
-                        isReady: true,
-                        timeout: true
-                    };
-
-                    const event = new CustomEvent('platformDetected', {
-                        detail: {
-                            isNative: false,
-                            timeout: true,
-                            debugMessage: 'Detection timeout, defaulting to web'
-                        }
-                    });
-                    window.dispatchEvent(event);
-                }
+                setDebugInfo('TIMEOUT: Defaulted to web');
             }
-        }, 2000); // 2 second timeout
+        }, 3000);
 
         return () => clearTimeout(fallbackTimer);
     }, []);
 
-    // FIXED: Reduce loading time and provide better feedback
     if (!mounted || isNativeApp === null) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">Loading your kitchen...</p>
+                    <p className="text-gray-600">🔍 Detecting platform...</p>
                     {debugInfo && (
-                        <p className="text-xs text-gray-400 mt-2">{debugInfo}</p>
+                        <p className="text-xs text-gray-400 mt-2 font-mono">{debugInfo}</p>
                     )}
                 </div>
             </div>
         );
     }
 
-    // FIXED: Add debug info to help troubleshoot
-    console.log(`🎯 PlatformAwareWrapper rendering: ${isNativeApp ? 'Native' : 'Web/PWA'} wrapper`);
+    console.log(`🎯 RENDERING: ${isNativeApp ? '📱 NATIVE WRAPPER' : '🌐 WEB BROWSER'}`);
 
-    // Render appropriate wrapper based on platform
     if (isNativeApp) {
-        console.log('📱 Rendering native app wrapper');
         return (
             <>
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="fixed top-0 left-0 right-0 z-50 bg-blue-100 text-blue-800 text-xs p-1 text-center">
-                        🔧 Native App Mode - {debugInfo}
-                    </div>
-                )}
-                <NativeAuthHandler>
-                    {children}
-                </NativeAuthHandler>
+                <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white text-xs p-2 text-center font-mono">
+                    📱 NATIVE APP DETECTED - {debugInfo}
+                </div>
+                <div style={{ paddingTop: '40px' }}>
+                    <NativeAuthHandler>
+                        {children}
+                    </NativeAuthHandler>
+                </div>
             </>
         );
     } else {
-        console.log('🌐 Rendering web app wrapper with PWA features');
         return (
             <>
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="fixed top-0 left-0 right-0 z-50 bg-green-100 text-green-800 text-xs p-1 text-center">
-                        🔧 Web/PWA Mode - {debugInfo}
-                    </div>
-                )}
-                <PWAWrapper>
-                    {children}
-                </PWAWrapper>
+                <div className="fixed top-0 left-0 right-0 z-50 bg-green-600 text-white text-xs p-2 text-center font-mono">
+                    🌐 WEB BROWSER DETECTED - {debugInfo}
+                </div>
+                <div style={{ paddingTop: '40px' }}>
+                    <PWAWrapper>
+                        {children}
+                    </PWAWrapper>
+                </div>
             </>
         );
     }
