@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/layout.js v14 - MINIMAL: Just fix the SEO conflicts without major changes
+// file: /src/app/layout.js v15 - FIXED: Native-aware SEO that doesn't break Android/iOS apps
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -202,41 +202,103 @@ function StructuredData() {
 }
 
 export default function RootLayout({children}) {
+    const [platformDetected, setPlatformDetected] = useState(null);
     const [isNativeApp, setIsNativeApp] = useState(null);
 
-    // MINIMAL: Quick platform detection to conditionally apply problematic SEO
+    // CRITICAL: Enhanced platform detection to prevent SEO conflicts
     useEffect(() => {
-        const checkPlatform = () => {
-            const detected = typeof window !== 'undefined' &&
-                window.Capacitor &&
-                window.Capacitor.isNativePlatform &&
-                window.Capacitor.isNativePlatform();
+        const detectPlatform = async () => {
+            console.log('🔍 Layout platform detection starting...');
 
-            console.log('🔍 Quick native check in layout:', detected);
-            setIsNativeApp(detected);
+            let isNative = false;
+            let detectionMethod = 'unknown';
+
+            try {
+                // Method 1: Check if Capacitor is available and native
+                if (typeof window !== 'undefined' && window.Capacitor) {
+                    const { Capacitor } = await import('@capacitor/core');
+                    isNative = Capacitor.isNativePlatform();
+                    detectionMethod = 'capacitor-direct';
+                    console.log('🔍 Capacitor direct check:', isNative);
+                }
+
+                // Method 2: Check for Android app indicators
+                if (!isNative && typeof window !== 'undefined') {
+                    const userAgent = navigator.userAgent || '';
+                    const isAndroidUA = userAgent.includes('Android');
+                    const hasCapacitor = typeof window.Capacitor !== 'undefined';
+                    const isYourDomain = window.location.hostname === 'docbearscomfort.kitchen';
+
+                    // If Android device + Capacitor + your domain = likely your app
+                    if (isAndroidUA && hasCapacitor && isYourDomain) {
+                        isNative = true;
+                        detectionMethod = 'android-app-indicators';
+                        console.log('🔍 Android app detected via indicators');
+                    }
+                }
+
+                // Method 3: Check window.platformInfo (set by PlatformAwareWrapper)
+                if (!isNative && window.platformInfo?.isNative) {
+                    isNative = true;
+                    detectionMethod = 'platform-info';
+                    console.log('🔍 Native detected via platformInfo');
+                }
+
+            } catch (error) {
+                console.log('🔍 Platform detection error:', error);
+                isNative = false;
+                detectionMethod = 'error-fallback';
+            }
+
+            console.log('🔍 Layout detection result:', { isNative, detectionMethod });
+
+            setIsNativeApp(isNative);
+            setPlatformDetected(true);
+
+            // Store globally for other components
+            if (typeof window !== 'undefined') {
+                window.layoutPlatformInfo = {
+                    isNative,
+                    detectionMethod,
+                    timestamp: Date.now()
+                };
+            }
         };
 
-        // Check immediately and also listen for platform events
-        checkPlatform();
+        detectPlatform();
 
+        // Also listen for platform events from PlatformAwareWrapper
         const handlePlatformDetected = (event) => {
+            console.log('🔍 Layout received platform event:', event.detail);
             setIsNativeApp(event.detail.isNative);
+            setPlatformDetected(true);
         };
 
         window.addEventListener('platformDetected', handlePlatformDetected);
 
-        // Quick timeout for undetected apps
-        const timer = setTimeout(() => {
-            if (isNativeApp === null) {
-                setIsNativeApp(false);
-            }
-        }, 1000);
-
         return () => {
             window.removeEventListener('platformDetected', handlePlatformDetected);
-            clearTimeout(timer);
         };
-    }, [isNativeApp]);
+    }, []);
+
+    // Don't render SEO head content until platform is detected
+    if (platformDetected === null) {
+        return (
+            <html lang="en">
+            <head>
+                <title>Doc Bear's Comfort Kitchen</title>
+                <meta name="viewport" content="width=device-width, initial-scale=1" />
+            </head>
+            <body className={inter.className}>
+            <div className="min-h-screen flex items-center justify-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+            </div>
+            </body>
+            </html>
+        );
+    }
+
+    console.log('🎯 Layout rendering with platform:', isNativeApp ? 'NATIVE' : 'WEB');
 
     return (
         <html lang="en">
@@ -247,30 +309,42 @@ export default function RootLayout({children}) {
             <meta name="description" content="Smart food inventory management with AI-powered recipe discovery, multi-part recipes, international barcode scanning, and social media recipe extraction. Free app for iOS, Android & Web." />
             <meta name="keywords" content="recipe app, food inventory, meal planning, barcode scanner, AI recipes, multi-part recipes, social media recipe extraction, TikTok recipes, food management, cooking app, grocery list, nutrition tracker, recipe discovery, voice nutrition, international barcode, recipe scaling" />
 
-            {/* CRITICAL: Search Engine Verification Tags */}
-            <meta name="google-site-verification" content="jMxjOqCxZwYkjcIXLpc6rIIBLeeyCT78dX196T8At0U" />
-            <meta name="msvalidate.01" content="2B3DAD655CB93EEB509AB574BEA9A845" />
-            <meta name="p:domain_verify" content="41876bc30a1ee0330ab8aed8b2b64497" />
+            {/* CRITICAL: Only add SEO verification tags for WEB, not native apps */}
+            {!isNativeApp && (
+                <>
+                    <meta name="google-site-verification" content="jMxjOqCxZwYkjcIXLpc6rIIBLeeyCT78dX196T8At0U" />
+                    <meta name="msvalidate.01" content="2B3DAD655CB93EEB509AB574BEA9A845" />
+                    <meta name="p:domain_verify" content="41876bc30a1ee0330ab8aed8b2b64497" />
+                </>
+            )}
 
-            {/* FIXED: Only set base href for web browsers, not native apps */}
-            {isNativeApp === false && (
+            {/* CRITICAL: Only set base href for WEB browsers, never for native apps */}
+            {!isNativeApp && (
                 <base href={process.env.NODE_ENV === 'production' ? 'https://docbearscomfort.kitchen/' : 'http://localhost:3000/'} />
             )}
 
-            {/* Geo-targeting */}
-            <meta name="geo.region" content="US" />
-            <meta name="geo.placename" content="Cedar Rapids, Iowa" />
-            <meta name="geo.position" content="42.0080;-91.6780" />
-            <meta name="ICBM" content="42.0080, -91.6780" />
+            {/* Geo-targeting - only for web */}
+            {!isNativeApp && (
+                <>
+                    <meta name="geo.region" content="US" />
+                    <meta name="geo.placename" content="Cedar Rapids, Iowa" />
+                    <meta name="geo.position" content="42.0080;-91.6780" />
+                    <meta name="ICBM" content="42.0080, -91.6780" />
+                </>
+            )}
 
-            {/* Language and Region */}
-            <link rel="alternate" hrefLang="en-us" href="https://docbearscomfort.kitchen/" />
-            <link rel="alternate" hrefLang="en-gb" href="https://docbearscomfort.kitchen/" />
-            <link rel="alternate" hrefLang="en-ca" href="https://docbearscomfort.kitchen/" />
-            <link rel="alternate" hrefLang="en-au" href="https://docbearscomfort.kitchen/" />
-            <link rel="alternate" hrefLang="x-default" href="https://docbearscomfort.kitchen/" />
+            {/* Language and Region - only for web */}
+            {!isNativeApp && (
+                <>
+                    <link rel="alternate" hrefLang="en-us" href="https://docbearscomfort.kitchen/" />
+                    <link rel="alternate" hrefLang="en-gb" href="https://docbearscomfort.kitchen/" />
+                    <link rel="alternate" hrefLang="en-ca" href="https://docbearscomfort.kitchen/" />
+                    <link rel="alternate" hrefLang="en-au" href="https://docbearscomfort.kitchen/" />
+                    <link rel="alternate" hrefLang="x-default" href="https://docbearscomfort.kitchen/" />
+                </>
+            )}
 
-            {/* Open Graph / Facebook */}
+            {/* Open Graph / Facebook - safe for both */}
             <meta property="og:type" content="website" />
             <meta property="og:url" content="https://docbearscomfort.kitchen/" />
             <meta property="og:title" content="Doc Bear's Comfort Kitchen - AI Recipe & Food Management App" />
@@ -282,7 +356,7 @@ export default function RootLayout({children}) {
             <meta property="og:site_name" content="Doc Bear's Comfort Kitchen" />
             <meta property="og:locale" content="en_US" />
 
-            {/* Twitter */}
+            {/* Twitter - safe for both */}
             <meta property="twitter:card" content="summary_large_image" />
             <meta property="twitter:url" content="https://docbearscomfort.kitchen/" />
             <meta property="twitter:title" content="Doc Bear's Comfort Kitchen - AI Recipe & Food Management" />
@@ -291,55 +365,68 @@ export default function RootLayout({children}) {
             <meta property="twitter:image:alt" content="Doc Bear's Comfort Kitchen app showcasing recipe management features" />
             <meta name="twitter:creator" content="@DocBearsKitchen" />
 
-            {/* App Store / Mobile App */}
-            <meta name="apple-itunes-app" content="app-id=coming-soon, app-argument=https://docbearscomfort.kitchen/" />
-            <meta name="google-play-app" content="app-id=kitchen.docbearscomfort" />
+            {/* App Store / Mobile App - only for web */}
+            {!isNativeApp && (
+                <>
+                    <meta name="apple-itunes-app" content="app-id=coming-soon, app-argument=https://docbearscomfort.kitchen/" />
+                    <meta name="google-play-app" content="app-id=kitchen.docbearscomfort" />
+                </>
+            )}
 
-            {/* Mobile Web App */}
+            {/* Mobile Web App - safe for both */}
             <meta name="mobile-web-app-capable" content="yes" />
             <meta name="apple-mobile-web-app-capable" content="yes" />
             <meta name="apple-mobile-web-app-status-bar-style" content="default" />
             <meta name="apple-mobile-web-app-title" content="Doc Bear's Kitchen" />
 
-            {/* FIXED: Only set canonical for web browsers */}
-            {isNativeApp === false && (
+            {/* CRITICAL: Only set canonical URL for WEB browsers, never for native apps */}
+            {!isNativeApp && (
                 <link rel="canonical" href="https://docbearscomfort.kitchen/" />
             )}
 
-            {/* Additional SEO Tags */}
-            <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-            <meta name="googlebot" content="index, follow" />
-            <meta name="bingbot" content="index, follow" />
+            {/* SEO Tags - only for web */}
+            {!isNativeApp && (
+                <>
+                    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+                    <meta name="googlebot" content="index, follow" />
+                    <meta name="bingbot" content="index, follow" />
+                </>
+            )}
 
-            {/* Author and Publisher */}
+            {/* Author and Publisher - safe for both */}
             <meta name="author" content="Dr. Edward McKeown" />
             <meta name="publisher" content="Doc Bear Enterprises, LLC" />
             <meta name="copyright" content="© 2025 Doc Bear Enterprises, LLC" />
 
-            {/* Theme and Branding */}
+            {/* Theme and Branding - safe for both */}
             <meta name="theme-color" content="#7c3aed" />
             <meta name="msapplication-TileColor" content="#7c3aed" />
             <meta name="msapplication-TileImage" content="/icons/mstile-144x144.png" />
 
-            {/* Icons and Favicons */}
+            {/* Icons and Favicons - safe for both */}
             <link rel="icon" type="image/x-icon" href="/favicon.ico" />
             <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
             <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
             <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png" />
             <link rel="manifest" href="/manifest.json" />
 
-            {/* Structured Data */}
-            <StructuredData />
+            {/* Structured Data - only for web */}
+            {!isNativeApp && <StructuredData />}
 
-            {/* Preconnect to Important Domains */}
+            {/* Preconnect to Important Domains - safe for both */}
             <link rel="preconnect" href="https://fonts.googleapis.com" />
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
             <link rel="preconnect" href="https://www.google-analytics.com" />
 
-            {/* Performance Hints */}
+            {/* Performance Hints - safe for both */}
             <link rel="dns-prefetch" href="//fonts.googleapis.com" />
             <link rel="dns-prefetch" href="//fonts.gstatic.com" />
             <link rel="dns-prefetch" href="//www.google-analytics.com" />
+
+            {/* CRITICAL: Add meta tag to indicate native app mode */}
+            {isNativeApp && (
+                <meta name="native-app-mode" content="true" />
+            )}
         </head>
         <body className={inter.className}>
         <SafeAreaBackground />

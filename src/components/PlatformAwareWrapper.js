@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/PlatformAwareWrapper.js v7 - FINAL: Detect Android app loading from web
+// file: /src/components/PlatformAwareWrapper.js v8 - ENHANCED: Better Android detection and SEO compatibility
 
 import { useState, useEffect } from 'react';
 import PWAWrapper from '@/components/PWAWrapper';
@@ -15,166 +15,254 @@ export default function PlatformAwareWrapper({ children }) {
         setMounted(true);
 
         const detectPlatform = async () => {
-            console.log('🚀 === FINAL ANDROID DETECTION ===');
+            console.log('🚀 === ENHANCED PLATFORM DETECTION ===');
 
             try {
                 let isNativeApp = false;
                 let detectionMethod = 'none';
 
-                // Get user agent details
+                // Get comprehensive device information
                 const userAgent = navigator.userAgent || '';
                 const isAndroidUA = userAgent.includes('Android');
                 const isMobileUA = userAgent.includes('Mobile');
                 const isRealAndroidDevice = isAndroidUA && isMobileUA;
+                const currentURL = window.location.href;
+                const isYourDomain = window.location.hostname === 'docbearscomfort.kitchen';
 
-                console.log('🔍 User Agent Analysis:', {
-                    userAgent,
+                console.log('🔍 Enhanced Device Analysis:', {
+                    userAgent: userAgent.substring(0, 100) + '...',
                     isAndroidUA,
                     isMobileUA,
                     isRealAndroidDevice,
-                    location: window.location.href
+                    currentURL,
+                    isYourDomain,
+                    protocol: window.location.protocol,
+                    hostname: window.location.hostname
                 });
 
-                // Method 1: Standard Capacitor check
+                // Method 1: Enhanced Capacitor check
                 let capacitorResult = false;
+                let capacitorPlatform = 'unknown';
                 try {
-                    const { Capacitor } = await import('@capacitor/core');
-                    capacitorResult = Capacitor.isNativePlatform();
-                    console.log('📱 Capacitor check:', {
-                        isNativePlatform: capacitorResult,
-                        getPlatform: Capacitor.getPlatform()
-                    });
+                    // Check if Capacitor exists in window first
+                    if (typeof window.Capacitor !== 'undefined') {
+                        const { Capacitor } = await import('@capacitor/core');
+                        capacitorResult = Capacitor.isNativePlatform();
+                        capacitorPlatform = Capacitor.getPlatform();
+
+                        console.log('📱 Enhanced Capacitor check:', {
+                            isNativePlatform: capacitorResult,
+                            getPlatform: capacitorPlatform,
+                            isPluginAvailable: Capacitor.isPluginAvailable('Device'),
+                            capacitorVersion: window.Capacitor?.version || 'unknown'
+                        });
+                    } else {
+                        console.log('📱 Capacitor not found in window object');
+                    }
                 } catch (error) {
-                    console.log('❌ Capacitor failed:', error);
+                    console.log('❌ Capacitor check failed:', error.message);
                 }
 
-                // Method 2: CRITICAL - Detect Android app loading from web
-                const isAndroidAppLoadingFromWeb = () => {
-                    // If we have:
-                    // 1. Real Android device (user agent)
-                    // 2. Capacitor available
-                    // 3. Loading from https://docbearscomfort.kitchen
-                    // 4. But Capacitor says "web"
-                    // = Android app configured to load from web
-
-                    const hasCapacitor = typeof window.Capacitor !== 'undefined';
-                    const loadingFromYourSite = window.location.href.includes('docbearscomfort.kitchen');
-                    const capacitorSaysWeb = !capacitorResult;
-
-                    const isAndroidAppFromWeb = isRealAndroidDevice &&
-                        hasCapacitor &&
-                        loadingFromYourSite &&
-                        capacitorSaysWeb;
-
-                    console.log('🔍 Android app from web check:', {
-                        isRealAndroidDevice,
-                        hasCapacitor,
-                        loadingFromYourSite,
-                        capacitorSaysWeb,
-                        isAndroidAppFromWeb
-                    });
-
-                    return isAndroidAppFromWeb;
-                };
-
-                // Method 3: Additional Android app indicators
-                const hasAndroidAppFeatures = () => {
-                    // Look for other signs this is your Android app
+                // Method 2: CRITICAL - Enhanced Android app detection
+                const detectAndroidAppFromWeb = () => {
+                    // Enhanced criteria for detecting your Android app loading from web
+                    const hasCapacitorObject = typeof window.Capacitor !== 'undefined';
                     const hasServiceWorker = 'serviceWorker' in navigator;
-                    const hasPWAFeatures = hasServiceWorker; // Your logs show SW registration
-                    const isCorrectDomain = window.location.hostname === 'docbearscomfort.kitchen';
+                    const isHTTPS = window.location.protocol === 'https:';
+                    const isCorrectPort = !window.location.port || window.location.port === '443';
 
-                    // Android device + your domain + PWA features + Capacitor = your app
+                    // Check for app-specific indicators
+                    const hasAppManifest = document.querySelector('link[rel="manifest"]');
+                    const hasAppIcons = document.querySelector('link[rel="apple-touch-icon"]');
+                    const hasThemeColor = document.querySelector('meta[name="theme-color"]');
+
+                    // Your Android app characteristics:
+                    // 1. Real Android device
+                    // 2. Your domain
+                    // 3. HTTPS
+                    // 4. Has Capacitor (even if it says "web")
+                    // 5. Has PWA features
                     const isYourAndroidApp = isRealAndroidDevice &&
-                        isCorrectDomain &&
-                        hasPWAFeatures &&
-                        typeof window.Capacitor !== 'undefined';
+                        isYourDomain &&
+                        isHTTPS &&
+                        hasCapacitorObject &&
+                        hasServiceWorker &&
+                        hasAppManifest;
 
-                    console.log('🔍 Android app features check:', {
+                    console.log('🔍 Enhanced Android app detection:', {
+                        isRealAndroidDevice,
+                        isYourDomain,
+                        isHTTPS,
+                        isCorrectPort,
+                        hasCapacitorObject,
                         hasServiceWorker,
-                        hasPWAFeatures,
-                        isCorrectDomain,
+                        hasAppManifest: !!hasAppManifest,
+                        hasAppIcons: !!hasAppIcons,
+                        hasThemeColor: !!hasThemeColor,
                         isYourAndroidApp
                     });
 
                     return isYourAndroidApp;
                 };
 
-                // Run detection methods
-                const androidAppFromWeb = isAndroidAppLoadingFromWeb();
-                const hasAppFeatures = hasAndroidAppFeatures();
+                // Method 3: Check for existing platform info from layout
+                const hasExistingPlatformInfo = () => {
+                    const layoutInfo = window.layoutPlatformInfo;
+                    const wrapperInfo = window.platformInfo;
 
-                // Final decision
-                isNativeApp = capacitorResult || androidAppFromWeb || hasAppFeatures;
+                    console.log('🔍 Existing platform info check:', {
+                        layoutInfo,
+                        wrapperInfo,
+                        hasLayout: !!layoutInfo,
+                        hasWrapper: !!wrapperInfo
+                    });
 
+                    return layoutInfo?.isNative || wrapperInfo?.isNative;
+                };
+
+                // Method 4: Browser-specific Android app detection
+                const detectBrowserSpecificAndroidApp = () => {
+                    // Look for specific browser behaviors that indicate your app
+                    const isChrome = userAgent.includes('Chrome');
+                    const isWebView = userAgent.includes('wv') || userAgent.includes('WebView');
+                    const hasCustomUserAgent = userAgent.includes('docbearscomfort') || userAgent.includes('DocBear');
+
+                    // Check for app-specific localStorage or sessionStorage
+                    let hasAppStorage = false;
+                    try {
+                        hasAppStorage = localStorage.getItem('app-platform') === 'android' ||
+                            sessionStorage.getItem('capacitor-platform') === 'android';
+                    } catch (e) {
+                        // Storage might not be available
+                    }
+
+                    const isBrowserApp = isRealAndroidDevice &&
+                        isYourDomain &&
+                        (isWebView || hasCustomUserAgent || hasAppStorage);
+
+                    console.log('🔍 Browser-specific detection:', {
+                        isChrome,
+                        isWebView,
+                        hasCustomUserAgent,
+                        hasAppStorage,
+                        isBrowserApp
+                    });
+
+                    return isBrowserApp;
+                };
+
+                // Run all detection methods
+                const androidAppFromWeb = detectAndroidAppFromWeb();
+                const hasExistingInfo = hasExistingPlatformInfo();
+                const browserSpecificApp = detectBrowserSpecificAndroidApp();
+
+                // Final decision logic
+                isNativeApp = capacitorResult || androidAppFromWeb || hasExistingInfo || browserSpecificApp;
+
+                // Determine detection method for debugging
                 if (capacitorResult) {
-                    detectionMethod = 'capacitor-native';
+                    detectionMethod = `capacitor-native-${capacitorPlatform}`;
                 } else if (androidAppFromWeb) {
                     detectionMethod = 'android-app-from-web';
-                } else if (hasAppFeatures) {
-                    detectionMethod = 'android-app-features';
+                } else if (hasExistingInfo) {
+                    detectionMethod = 'existing-platform-info';
+                } else if (browserSpecificApp) {
+                    detectionMethod = 'browser-specific-android';
                 } else {
                     detectionMethod = 'web-browser';
                 }
 
-                console.log('🎯 FINAL DETECTION:', {
+                console.log('🎯 ENHANCED FINAL DETECTION:', {
                     capacitorResult,
                     androidAppFromWeb,
-                    hasAppFeatures,
+                    hasExistingInfo,
+                    browserSpecificApp,
                     isNativeApp,
                     detectionMethod
                 });
 
-                const debugMessage = `${isNativeApp ? 'ANDROID' : 'WEB'} via ${detectionMethod}`;
+                const debugMessage = `${isNativeApp ? 'NATIVE' : 'WEB'} via ${detectionMethod}`;
                 setDebugInfo(debugMessage);
                 setIsNativeApp(isNativeApp);
 
-                // Store platform info GLOBALLY to override other detections
+                // Store comprehensive platform info globally
                 if (typeof window !== 'undefined') {
                     window.platformInfo = {
                         isNative: isNativeApp,
-                        isPWA: false,
+                        isPWA: !isNativeApp && hasServiceWorker && isYourDomain,
                         isReady: true,
                         detectionMethod,
+                        platform: isNativeApp ? (isRealAndroidDevice ? 'android' : 'ios') : 'web',
                         userAgent: userAgent.substring(0, 100),
                         timestamp: Date.now(),
-                        // FORCE override for other components
-                        statusBarHeight: isNativeApp ? 24 : 0
+                        statusBarHeight: isNativeApp ? (isRealAndroidDevice ? 24 : 44) : 0,
+                        // Enhanced properties for components
+                        capacitorNative: capacitorResult,
+                        standalonePWA: window.navigator?.standalone === true,
+                        androidWebView: isNativeApp && isRealAndroidDevice,
+                        iOSApp: isNativeApp && !isRealAndroidDevice,
+                        fromAndroidApp: isNativeApp && isRealAndroidDevice
                     };
 
-                    // ALSO store as backup properties for legacy components
+                    // Also store backup references
                     window.isNativeApp = isNativeApp;
                     window.isAndroidApp = isNativeApp && isRealAndroidDevice;
+                    window.isiOSApp = isNativeApp && !isRealAndroidDevice;
 
+                    // Dispatch comprehensive platform event
                     const event = new CustomEvent('platformDetected', {
                         detail: {
-                            isNative: isNativeApp,
-                            detectionMethod,
-                            debugMessage,
-                            // FORCE native properties for other components
-                            isAndroidApp: isNativeApp && isRealAndroidDevice,
-                            capacitorNative: isNativeApp, // Override the false result
-                            androidWebView: isNativeApp && isRealAndroidDevice
+                            ...window.platformInfo,
+                            debugMessage
                         }
                     });
                     window.dispatchEvent(event);
-                    console.log('🚀 Final platform event with overrides:', event.detail);
 
-                    // FORCE refresh other components by dispatching multiple events
+                    console.log('🚀 Enhanced platform event dispatched:', event.detail);
+
+                    // Force refresh other components with multiple events
                     setTimeout(() => {
                         window.dispatchEvent(new CustomEvent('platformDetected', {
                             detail: event.detail
                         }));
-                        console.log('🔄 Re-emitted platform event to update all components');
+
+                        // Also dispatch layout-specific event
+                        window.dispatchEvent(new CustomEvent('layoutPlatformDetected', {
+                            detail: event.detail
+                        }));
+
+                        console.log('🔄 Re-emitted platform events for component updates');
                     }, 100);
+
+                    // Store in localStorage for future visits (if available)
+                    try {
+                        if (isNativeApp) {
+                            localStorage.setItem('app-platform', isRealAndroidDevice ? 'android' : 'ios');
+                            sessionStorage.setItem('capacitor-platform', isRealAndroidDevice ? 'android' : 'ios');
+                        }
+                    } catch (e) {
+                        // Storage might not be available
+                    }
                 }
 
-                console.log('🏁 === FINAL DETECTION COMPLETE ===');
+                console.log('🏁 === ENHANCED DETECTION COMPLETE ===');
 
             } catch (error) {
-                console.error('💥 FINAL DETECTION ERROR:', error);
+                console.error('💥 ENHANCED DETECTION ERROR:', error);
                 setIsNativeApp(false);
                 setDebugInfo(`ERROR: ${error.message}`);
+
+                // Even on error, try to set basic platform info
+                if (typeof window !== 'undefined') {
+                    window.platformInfo = {
+                        isNative: false,
+                        isPWA: false,
+                        isReady: true,
+                        detectionMethod: 'error-fallback',
+                        platform: 'web',
+                        timestamp: Date.now()
+                    };
+                }
             }
         };
 
@@ -182,27 +270,30 @@ export default function PlatformAwareWrapper({ children }) {
         return () => {};
     }, []);
 
+    // Enhanced loading state
     if (!mounted || isNativeApp === null) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
                 <div className="text-center">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mx-auto mb-4"></div>
-                    <p className="text-gray-600">🔍 Final Android detection...</p>
+                    <p className="text-gray-600">🔍 Enhanced platform detection...</p>
                     {debugInfo && (
                         <p className="text-xs text-gray-400 mt-2 font-mono">{debugInfo}</p>
                     )}
+                    <p className="text-xs text-gray-300 mt-1">Ensuring native app compatibility...</p>
                 </div>
             </div>
         );
     }
 
-    console.log(`🎯 FINAL RENDER: ${isNativeApp ? '📱 ANDROID APP' : '🌐 WEB BROWSER'} (${debugInfo})`);
+    console.log(`🎯 ENHANCED FINAL RENDER: ${isNativeApp ? '📱 NATIVE APP' : '🌐 WEB BROWSER'} (${debugInfo})`);
 
     if (isNativeApp) {
         return (
             <>
+                {/* Enhanced debug banner for native apps */}
                 <div className="fixed top-0 left-0 right-0 z-50 bg-green-600 text-white text-xs p-2 text-center font-mono">
-                    ✅ ANDROID APP DETECTED - {debugInfo}
+                    ✅ NATIVE APP MODE - {debugInfo}
                 </div>
                 <div style={{ paddingTop: '40px' }}>
                     <NativeAuthHandler>
@@ -214,8 +305,9 @@ export default function PlatformAwareWrapper({ children }) {
     } else {
         return (
             <>
+                {/* Enhanced debug banner for web */}
                 <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white text-xs p-2 text-center font-mono">
-                    🌐 WEB BROWSER - {debugInfo}
+                    🌐 WEB MODE - {debugInfo}
                 </div>
                 <div style={{ paddingTop: '40px' }}>
                     <PWAWrapper>
