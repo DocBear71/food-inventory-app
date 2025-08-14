@@ -188,7 +188,7 @@ export default function PlatformAwareWrapper({ children }) {
         return (
             <>
                 <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white text-xs p-2 text-center font-mono">
-                    🌐 WEB BROWSER CONFIRMED - {debugMessage}
+                    🌐 WEB BROWSER CONFIRMED - {debugInfo}
                 </div>
                 <div style={{ paddingTop: '40px' }}>
                     <PWAWrapper>
