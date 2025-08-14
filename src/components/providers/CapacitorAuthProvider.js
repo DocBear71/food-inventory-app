@@ -28,19 +28,50 @@ export default function CapacitorAuthProvider({ children }) {
 
                         console.log('Sign-out URL:', localUrl)
 
-                        // Ensure we're using POST for sign-out with proper headers
-                        const signOutOptions = {
-                            ...options,
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/x-www-form-urlencoded',
-                                ...options?.headers
-                            },
-                            // Add credentials to ensure cookies are included
-                            credentials: 'include'
-                        }
+                        // Get CSRF token first for signout
+                        const handleSignOut = async () => {
+                            try {
+                                const csrfUrl = localUrl.replace('/signout', '/csrf');
+                                const csrfResponse = await originalFetch(csrfUrl, {
+                                    credentials: 'include',
+                                    headers: {
+                                        'Origin': 'https://docbearscomfort.kitchen',
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                const csrfData = await csrfResponse.json();
 
-                        return originalFetch(localUrl, signOutOptions)
+                                const signOutOptions = {
+                                    ...options,
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                        'Origin': 'https://docbearscomfort.kitchen',
+                                        ...options?.headers
+                                    },
+                                    body: `csrfToken=${csrfData.csrfToken}`,
+                                    credentials: 'include'
+                                }
+
+                                return originalFetch(localUrl, signOutOptions);
+                            } catch (error) {
+                                console.error('Failed to get CSRF token:', error);
+                                // Fallback without CSRF
+                                const signOutOptions = {
+                                    ...options,
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/x-www-form-urlencoded',
+                                        'Origin': 'https://docbearscomfort.kitchen',
+                                        ...options?.headers
+                                    },
+                                    credentials: 'include'
+                                }
+                                return originalFetch(localUrl, signOutOptions);
+                            }
+                        };
+
+                        return handleSignOut();
                     }
 
                     // ENHANCED: Handle successful sign-in redirects
@@ -51,7 +82,12 @@ export default function CapacitorAuthProvider({ children }) {
 
                         return originalFetch(newUrl, {
                             ...options,
-                            credentials: 'include'
+                            credentials: 'include',
+                            headers: {
+                                'Origin': 'https://docbearscomfort.kitchen',
+                                'Content-Type': 'application/json',
+                                ...options?.headers
+                            }
                         }).then(response => {
                             console.log('Auth response status:', response.status);
 
@@ -76,7 +112,12 @@ export default function CapacitorAuthProvider({ children }) {
 
                         return originalFetch(newUrl, {
                             ...options,
-                            credentials: 'include'
+                            credentials: 'include',
+                            headers: {
+                                'Origin': 'https://docbearscomfort.kitchen',
+                                'Content-Type': 'application/json',
+                                ...options?.headers
+                            }
                         }).then(async response => {
                             console.log('Session response status:', response.status)
 
@@ -171,7 +212,12 @@ export default function CapacitorAuthProvider({ children }) {
                         console.log('Auth redirect for:', url, '→', newUrl)
                         return originalFetch(newUrl, {
                             ...options,
-                            credentials: 'include'
+                            credentials: 'include',
+                            headers: {
+                                'Origin': 'https://docbearscomfort.kitchen',
+                                'Content-Type': 'application/json',
+                                ...options?.headers
+                            }
                         })
                     }
 
