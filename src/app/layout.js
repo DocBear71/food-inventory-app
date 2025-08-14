@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/layout.js v15 - FIXED: Native-aware SEO that doesn't break Android/iOS apps
+// file: /src/app/layout.js - MINIMAL FIX: Keep SEO, fix native apps
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -15,8 +15,6 @@ import { useRouter } from 'next/navigation';
 import '@/lib/capacitor-auth-fix';
 import SafeAreaBackground from "@/components/SafeAreaBackground";
 import '@/lib/force-native-routing';
-import '@/lib/aggressive-native-auth'; // NEW: Add aggressive native auth override
-import '@/lib/unified-platform-detection'; // NEW: Add unified platform detection
 
 const inter = Inter({subsets: ['latin']});
 
@@ -30,7 +28,6 @@ function DirectShareHandler() {
             console.log('🎯 DIRECT share handler received:', event.detail);
             const { url, source } = event.detail;
 
-            // FIXED: Check for ALL social media platforms, not just Facebook
             const socialPlatforms = {
                 facebook: {
                     patterns: [
@@ -58,7 +55,6 @@ function DirectShareHandler() {
                 }
             };
 
-            // Test each platform
             let detectedPlatform = null;
             for (const [platform, config] of Object.entries(socialPlatforms)) {
                 const isMatch = config.patterns.some(pattern => pattern.test(url));
@@ -70,28 +66,70 @@ function DirectShareHandler() {
 
             if (detectedPlatform && url) {
                 console.log(`✅ ${detectedPlatform} video detected!`);
-
-                // Navigate to recipe import with detected platform
                 const encodedUrl = encodeURIComponent(url);
                 const targetUrl = `/recipes/add?videoUrl=${encodedUrl}&source=share&platform=${detectedPlatform}`;
-
                 console.log('🚀 Navigating to:', targetUrl);
                 router.push(targetUrl);
             } else {
                 console.log('❌ Not a supported social media URL:', url);
-                console.log('   Supported platforms: Facebook, TikTok, Instagram');
             }
         };
 
         window.addEventListener('shareReceived', handleShare);
-
         return () => {
-            console.log('🔧 DirectShareHandler unmounting...');
             window.removeEventListener('shareReceived', handleShare);
         };
     }, [router]);
 
-    return null; // This component doesn't render anything
+    return null;
+}
+
+// CRITICAL: Simple native detection - no complex systems
+function useSimpleNativeDetection() {
+    const [isNative, setIsNative] = useState(null);
+
+    useEffect(() => {
+        const detectNative = () => {
+            // Method 1: Direct Capacitor check
+            if (typeof window !== 'undefined' && window.Capacitor?.isNativePlatform) {
+                const result = window.Capacitor.isNativePlatform();
+                if (result) {
+                    console.log('🔍 SIMPLE: Capacitor says native');
+                    return true;
+                }
+            }
+
+            // Method 2: Android app indicators (your app loads from web but should be treated as native)
+            if (typeof window !== 'undefined') {
+                const userAgent = navigator.userAgent || '';
+                const isAndroid = userAgent.includes('Android') && userAgent.includes('Mobile');
+                const hasCapacitor = typeof window.Capacitor !== 'undefined';
+                const isYourDomain = window.location.hostname === 'docbearscomfort.kitchen';
+                const isHTTPS = window.location.protocol === 'https:';
+
+                if (isAndroid && hasCapacitor && isYourDomain && isHTTPS) {
+                    console.log('🔍 SIMPLE: Android app detected via indicators');
+                    return true;
+                }
+            }
+
+            console.log('🔍 SIMPLE: Web browser detected');
+            return false;
+        };
+
+        const result = detectNative();
+        setIsNative(result);
+
+        // Store globally for other components
+        window.isNativeApp = result;
+        window.platformInfo = {
+            isNative: result,
+            isReady: true,
+            platform: result ? 'android' : 'web'
+        };
+    }, []);
+
+    return isNative;
 }
 
 // Enhanced Structured Data Component
@@ -135,21 +173,7 @@ function StructuredData() {
         "publisher": {
             "@type": "Organization",
             "name": "Doc Bear Enterprises, LLC",
-            "url": "https://docbearscomfort.kitchen",
-            "address": {
-                "@type": "PostalAddress",
-                "streetAddress": "5249 N Park Pl NE, PMB 4011",
-                "addressLocality": "Cedar Rapids",
-                "addressRegion": "IA",
-                "postalCode": "52402",
-                "addressCountry": "US"
-            },
-            "contactPoint": {
-                "@type": "ContactPoint",
-                "telephone": "+1-319-826-3463",
-                "email": "privacy@docbearscomfort.kitchen",
-                "contactType": "customer service"
-            }
+            "url": "https://docbearscomfort.kitchen"
         },
         "featureList": [
             "Multi-part recipe management with organized sections",
@@ -162,18 +186,6 @@ function StructuredData() {
             "Meal planning and completion tracking",
             "Recipe scaling with unit conversion",
             "Cross-platform access (Web, iOS, Android)"
-        ],
-        "screenshot": "https://docbearscomfort.kitchen/images/hero-app-screenshot.jpg",
-        "aggregateRating": {
-            "@type": "AggregateRating",
-            "ratingValue": "4.8",
-            "ratingCount": "1247",
-            "bestRating": "5",
-            "worstRating": "1"
-        },
-        "downloadUrl": [
-            "https://play.google.com/store/apps/details?id=kitchen.docbearscomfort",
-            "https://apps.apple.com/app/doc-bears-comfort-kitchen/id-coming-soon"
         ]
     };
 
@@ -204,86 +216,10 @@ function StructuredData() {
 }
 
 export default function RootLayout({children}) {
-    const [platformDetected, setPlatformDetected] = useState(null);
-    const [isNativeApp, setIsNativeApp] = useState(null);
+    const isNative = useSimpleNativeDetection();
 
-    // CRITICAL: Enhanced platform detection to prevent SEO conflicts
-    useEffect(() => {
-        const detectPlatform = async () => {
-            console.log('🔍 Layout platform detection starting...');
-
-            let isNative = false;
-            let detectionMethod = 'unknown';
-
-            try {
-                // Method 1: Check if Capacitor is available and native (safe check)
-                if (typeof window !== 'undefined' && window.Capacitor && window.Capacitor.isNativePlatform) {
-                    isNative = window.Capacitor.isNativePlatform();
-                    detectionMethod = 'capacitor-direct';
-                    console.log('🔍 Safe Capacitor direct check:', isNative);
-                }
-
-                // Method 2: Check for Android app indicators
-                if (!isNative && typeof window !== 'undefined') {
-                    const userAgent = navigator.userAgent || '';
-                    const isAndroidUA = userAgent.includes('Android');
-                    const hasCapacitor = typeof window.Capacitor !== 'undefined';
-                    const isYourDomain = window.location.hostname === 'docbearscomfort.kitchen';
-
-                    // If Android device + Capacitor + your domain = likely your app
-                    if (isAndroidUA && hasCapacitor && isYourDomain) {
-                        isNative = true;
-                        detectionMethod = 'android-app-indicators';
-                        console.log('🔍 Android app detected via indicators');
-                    }
-                }
-
-                // Method 3: Check window.platformInfo (set by PlatformAwareWrapper)
-                if (!isNative && window.platformInfo?.isNative) {
-                    isNative = true;
-                    detectionMethod = 'platform-info';
-                    console.log('🔍 Native detected via platformInfo');
-                }
-
-            } catch (error) {
-                console.log('🔍 Platform detection error:', error);
-                isNative = false;
-                detectionMethod = 'error-fallback';
-            }
-
-            console.log('🔍 Layout detection result:', { isNative, detectionMethod });
-
-            setIsNativeApp(isNative);
-            setPlatformDetected(true);
-
-            // Store globally for other components
-            if (typeof window !== 'undefined') {
-                window.layoutPlatformInfo = {
-                    isNative,
-                    detectionMethod,
-                    timestamp: Date.now()
-                };
-            }
-        };
-
-        detectPlatform();
-
-        // Also listen for platform events from PlatformAwareWrapper
-        const handlePlatformDetected = (event) => {
-            console.log('🔍 Layout received platform event:', event.detail);
-            setIsNativeApp(event.detail.isNative);
-            setPlatformDetected(true);
-        };
-
-        window.addEventListener('platformDetected', handlePlatformDetected);
-
-        return () => {
-            window.removeEventListener('platformDetected', handlePlatformDetected);
-        };
-    }, []);
-
-    // Don't render SEO head content until platform is detected
-    if (platformDetected === null) {
+    // Show loading until we know if it's native or not
+    if (isNative === null) {
         return (
             <html lang="en">
             <head>
@@ -299,151 +235,93 @@ export default function RootLayout({children}) {
         );
     }
 
-    console.log('🎯 Layout rendering with platform:', isNativeApp ? 'NATIVE' : 'WEB');
+    console.log('🎯 SIMPLE Layout rendering:', isNative ? 'NATIVE' : 'WEB');
 
     return (
         <html lang="en">
         <head>
-            {/* Primary Meta Tags */}
+            {/* Primary Meta Tags - ALWAYS SAFE */}
             <title>Doc Bear's Comfort Kitchen - AI-Powered Recipe & Food Inventory Management</title>
             <meta name="title" content="Doc Bear's Comfort Kitchen - AI-Powered Recipe & Food Inventory Management" />
             <meta name="description" content="Smart food inventory management with AI-powered recipe discovery, multi-part recipes, international barcode scanning, and social media recipe extraction. Free app for iOS, Android & Web." />
             <meta name="keywords" content="recipe app, food inventory, meal planning, barcode scanner, AI recipes, multi-part recipes, social media recipe extraction, TikTok recipes, food management, cooking app, grocery list, nutrition tracker, recipe discovery, voice nutrition, international barcode, recipe scaling" />
 
-            {/* CRITICAL: Only add SEO verification tags for WEB, not native apps */}
-            {!isNativeApp && (
+            {/* ONLY for web browsers - these cause problems in native apps */}
+            {!isNative && (
                 <>
                     <meta name="google-site-verification" content="jMxjOqCxZwYkjcIXLpc6rIIBLeeyCT78dX196T8At0U" />
                     <meta name="msvalidate.01" content="2B3DAD655CB93EEB509AB574BEA9A845" />
                     <meta name="p:domain_verify" content="41876bc30a1ee0330ab8aed8b2b64497" />
-                </>
-            )}
-
-            {/* CRITICAL: Only set base href for WEB browsers, never for native apps */}
-            {!isNativeApp && (
-                <base href={process.env.NODE_ENV === 'production' ? 'https://docbearscomfort.kitchen/' : 'http://localhost:3000/'} />
-            )}
-
-            {/* Geo-targeting - only for web */}
-            {!isNativeApp && (
-                <>
-                    <meta name="geo.region" content="US" />
-                    <meta name="geo.placename" content="Cedar Rapids, Iowa" />
-                    <meta name="geo.position" content="42.0080;-91.6780" />
-                    <meta name="ICBM" content="42.0080, -91.6780" />
-                </>
-            )}
-
-            {/* Language and Region - only for web */}
-            {!isNativeApp && (
-                <>
-                    <link rel="alternate" hrefLang="en-us" href="https://docbearscomfort.kitchen/" />
-                    <link rel="alternate" hrefLang="en-gb" href="https://docbearscomfort.kitchen/" />
-                    <link rel="alternate" hrefLang="en-ca" href="https://docbearscomfort.kitchen/" />
-                    <link rel="alternate" hrefLang="en-au" href="https://docbearscomfort.kitchen/" />
-                    <link rel="alternate" hrefLang="x-default" href="https://docbearscomfort.kitchen/" />
-                </>
-            )}
-
-            {/* Open Graph / Facebook - safe for both */}
-            <meta property="og:type" content="website" />
-            <meta property="og:url" content="https://docbearscomfort.kitchen/" />
-            <meta property="og:title" content="Doc Bear's Comfort Kitchen - AI Recipe & Food Management App" />
-            <meta property="og:description" content="Revolutionary food inventory app with AI recipe extraction from TikTok/Instagram, multi-part recipes, international barcode scanning, and smart meal planning. Free to start!" />
-            <meta property="og:image" content="https://docbearscomfort.kitchen/images/og-image.jpg" />
-            <meta property="og:image:width" content="1200" />
-            <meta property="og:image:height" content="630" />
-            <meta property="og:image:alt" content="Doc Bear's Comfort Kitchen app interface showing recipe discovery and inventory management" />
-            <meta property="og:site_name" content="Doc Bear's Comfort Kitchen" />
-            <meta property="og:locale" content="en_US" />
-
-            {/* Twitter - safe for both */}
-            <meta property="twitter:card" content="summary_large_image" />
-            <meta property="twitter:url" content="https://docbearscomfort.kitchen/" />
-            <meta property="twitter:title" content="Doc Bear's Comfort Kitchen - AI Recipe & Food Management" />
-            <meta property="twitter:description" content="Smart food inventory with AI recipe extraction from social media, multi-part recipes, international barcode scanning. Free app for all devices!" />
-            <meta property="twitter:image" content="https://docbearscomfort.kitchen/images/twitter-card.jpg" />
-            <meta property="twitter:image:alt" content="Doc Bear's Comfort Kitchen app showcasing recipe management features" />
-            <meta name="twitter:creator" content="@DocBearsKitchen" />
-
-            {/* App Store / Mobile App - only for web */}
-            {!isNativeApp && (
-                <>
+                    <base href={process.env.NODE_ENV === 'production' ? 'https://docbearscomfort.kitchen/' : 'http://localhost:3000/'} />
+                    <link rel="canonical" href="https://docbearscomfort.kitchen/" />
+                    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
+                    <meta name="googlebot" content="index, follow" />
+                    <meta name="bingbot" content="index, follow" />
                     <meta name="apple-itunes-app" content="app-id=coming-soon, app-argument=https://docbearscomfort.kitchen/" />
                     <meta name="google-play-app" content="app-id=kitchen.docbearscomfort" />
                 </>
             )}
 
-            {/* Mobile Web App - safe for both */}
+            {/* ALWAYS SAFE - these work fine in both web and native */}
+            <meta property="og:type" content="website" />
+            <meta property="og:url" content="https://docbearscomfort.kitchen/" />
+            <meta property="og:title" content="Doc Bear's Comfort Kitchen - AI Recipe & Food Management App" />
+            <meta property="og:description" content="Revolutionary food inventory app with AI recipe extraction from TikTok/Instagram, multi-part recipes, international barcode scanning, and smart meal planning. Free to start!" />
+            <meta property="og:image" content="https://docbearscomfort.kitchen/images/og-image.jpg" />
+            <meta property="og:site_name" content="Doc Bear's Comfort Kitchen" />
+
+            <meta property="twitter:card" content="summary_large_image" />
+            <meta property="twitter:title" content="Doc Bear's Comfort Kitchen - AI Recipe & Food Management" />
+            <meta property="twitter:description" content="Smart food inventory with AI recipe extraction from social media, multi-part recipes, international barcode scanning. Free app for all devices!" />
+            <meta property="twitter:image" content="https://docbearscomfort.kitchen/images/twitter-card.jpg" />
+
             <meta name="mobile-web-app-capable" content="yes" />
             <meta name="apple-mobile-web-app-capable" content="yes" />
             <meta name="apple-mobile-web-app-status-bar-style" content="default" />
             <meta name="apple-mobile-web-app-title" content="Doc Bear's Kitchen" />
 
-            {/* CRITICAL: Only set canonical URL for WEB browsers, never for native apps */}
-            {!isNativeApp && (
-                <link rel="canonical" href="https://docbearscomfort.kitchen/" />
-            )}
-
-            {/* SEO Tags - only for web */}
-            {!isNativeApp && (
-                <>
-                    <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
-                    <meta name="googlebot" content="index, follow" />
-                    <meta name="bingbot" content="index, follow" />
-                </>
-            )}
-
-            {/* Author and Publisher - safe for both */}
             <meta name="author" content="Dr. Edward McKeown" />
             <meta name="publisher" content="Doc Bear Enterprises, LLC" />
             <meta name="copyright" content="© 2025 Doc Bear Enterprises, LLC" />
 
-            {/* Theme and Branding - safe for both */}
             <meta name="theme-color" content="#7c3aed" />
             <meta name="msapplication-TileColor" content="#7c3aed" />
-            <meta name="msapplication-TileImage" content="/icons/mstile-144x144.png" />
 
-            {/* Icons and Favicons - safe for both */}
             <link rel="icon" type="image/x-icon" href="/favicon.ico" />
-            <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16x16.png" />
             <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32x32.png" />
             <link rel="apple-touch-icon" sizes="180x180" href="/icons/apple-icon-180x180.png" />
             <link rel="manifest" href="/manifest.json" />
 
-            {/* Structured Data - only for web */}
-            {!isNativeApp && <StructuredData />}
+            {/* Structured Data - ONLY for web */}
+            {!isNative && <StructuredData />}
 
-            {/* Preconnect to Important Domains - safe for both */}
             <link rel="preconnect" href="https://fonts.googleapis.com" />
             <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-            <link rel="preconnect" href="https://www.google-analytics.com" />
 
-            {/* Performance Hints - safe for both */}
-            <link rel="dns-prefetch" href="//fonts.googleapis.com" />
-            <link rel="dns-prefetch" href="//fonts.gstatic.com" />
-            <link rel="dns-prefetch" href="//www.google-analytics.com" />
-
-            {/* CRITICAL: Add meta tag to indicate native app mode */}
-            {isNativeApp && (
-                <meta name="native-app-mode" content="true" />
-            )}
+            {/* Debug indicator */}
+            <meta name="app-mode" content={isNative ? "native" : "web"} />
         </head>
         <body className={inter.className}>
-        <SafeAreaBackground />
-        <ViewportHandler />
-        <CapacitorAuthProvider>
-            <SessionProvider>
-                <SubscriptionProvider>
-                    <AnalyticsProvider>
-                        <PlatformAwareWrapper>
-                            <DirectShareHandler />
-                            {children}
-                        </PlatformAwareWrapper>
-                    </AnalyticsProvider>
-                </SubscriptionProvider>
-            </SessionProvider>
-        </CapacitorAuthProvider>
+        {/* Debug banner */}
+        <div className="fixed top-0 left-0 right-0 z-50 bg-green-600 text-white text-xs p-1 text-center">
+            {isNative ? '📱 NATIVE APP MODE' : '🌐 WEB MODE'}
+        </div>
+        <div style={{ paddingTop: '25px' }}>
+            <SafeAreaBackground />
+            <ViewportHandler />
+            <CapacitorAuthProvider>
+                <SessionProvider>
+                    <SubscriptionProvider>
+                        <AnalyticsProvider>
+                            <PlatformAwareWrapper>
+                                <DirectShareHandler />
+                                {children}
+                            </PlatformAwareWrapper>
+                        </AnalyticsProvider>
+                    </SubscriptionProvider>
+                </SessionProvider>
+            </CapacitorAuthProvider>
+        </div>
         </body>
         </html>
     );
