@@ -90,40 +90,58 @@ if (typeof window !== 'undefined') {
             originalLocationAssign = window.location.assign;
         }
 
-        // Override location methods to prevent external redirects
-        window.location.replace = function(url) {
-            console.log('🔧 Native app intercepting location.replace to:', url);
+        // Try to override location methods safely (some browsers don't allow this)
+        try {
+            const locationDescriptor = Object.getOwnPropertyDescriptor(window.location, 'replace');
+            if (!locationDescriptor || locationDescriptor.configurable) {
+                window.location.replace = function(url) {
+                    console.log('🔧 Native app intercepting location.replace to:', url);
 
-            // Allow internal navigation within your domain
-            if (url.includes('docbearscomfort.kitchen') || url.startsWith('/') || url.startsWith('#')) {
-                return originalLocationReplace.call(this, url);
+                    // Allow internal navigation within your domain
+                    if (url.includes('docbearscomfort.kitchen') || url.startsWith('/') || url.startsWith('#')) {
+                        return originalLocationReplace.call(this, url);
+                    }
+
+                    // Block external redirects that could take user out of app
+                    if (url.startsWith('http') && !url.includes('docbearscomfort.kitchen')) {
+                        console.log('🚫 Blocked external redirect in native app:', url);
+                        return;
+                    }
+
+                    return originalLocationReplace.call(this, url);
+                };
+            } else {
+                console.log('🔧 Cannot override location.replace (read-only)');
             }
+        } catch (error) {
+            console.log('🔧 Cannot override location.replace:', error.message);
+        }
 
-            // Block external redirects that could take user out of app
-            if (url.startsWith('http') && !url.includes('docbearscomfort.kitchen')) {
-                console.log('🚫 Blocked external redirect in native app:', url);
-                return;
+        try {
+            const assignDescriptor = Object.getOwnPropertyDescriptor(window.location, 'assign');
+            if (!assignDescriptor || assignDescriptor.configurable) {
+                window.location.assign = function(url) {
+                    console.log('🔧 Native app intercepting location.assign to:', url);
+
+                    // Allow internal navigation within your domain
+                    if (url.includes('docbearscomfort.kitchen') || url.startsWith('/') || url.startsWith('#')) {
+                        return originalLocationAssign.call(this, url);
+                    }
+
+                    // Block external redirects
+                    if (url.startsWith('http') && !url.includes('docbearscomfort.kitchen')) {
+                        console.log('🚫 Blocked external redirect in native app:', url);
+                        return;
+                    }
+
+                    return originalLocationAssign.call(this, url);
+                };
+            } else {
+                console.log('🔧 Cannot override location.assign (read-only)');
             }
-
-            return originalLocationReplace.call(this, url);
-        };
-
-        window.location.assign = function(url) {
-            console.log('🔧 Native app intercepting location.assign to:', url);
-
-            // Allow internal navigation within your domain
-            if (url.includes('docbearscomfort.kitchen') || url.startsWith('/') || url.startsWith('#')) {
-                return originalLocationAssign.call(this, url);
-            }
-
-            // Block external redirects
-            if (url.startsWith('http') && !url.includes('docbearscomfort.kitchen')) {
-                console.log('🚫 Blocked external redirect in native app:', url);
-                return;
-            }
-
-            return originalLocationAssign.call(this, url);
-        };
+        } catch (error) {
+            console.log('🔧 Cannot override location.assign:', error.message);
+        }
 
         // Enhanced window.open override
         window.open = function(url, target, features) {

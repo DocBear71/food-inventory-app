@@ -15,6 +15,7 @@ import { useRouter } from 'next/navigation';
 import '@/lib/capacitor-auth-fix';
 import SafeAreaBackground from "@/components/SafeAreaBackground";
 import '@/lib/force-native-routing';
+import '@/lib/aggressive-native-auth'; // NEW: Add aggressive native auth override
 
 const inter = Inter({subsets: ['latin']});
 
