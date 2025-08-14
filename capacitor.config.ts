@@ -5,7 +5,6 @@ const config: CapacitorConfig = {
     appName: "Doc Bear's Comfort Kitchen",
     webDir: 'out',
     server: {
-        url: 'https://docbearscomfort.kitchen',
         cleartext: true,
         androidScheme: 'https'
     },
