@@ -185,9 +185,9 @@ export default function PlatformAwareWrapper({ children }) {
                 setDebugInfo(debugMessage);
                 setIsNativeApp(isNativeApp);
 
-                // Store comprehensive platform info globally
+                // Store comprehensive platform info globally AND in unified system
                 if (typeof window !== 'undefined') {
-                    window.platformInfo = {
+                    const platformData = {
                         isNative: isNativeApp,
                         isPWA: !isNativeApp && hasServiceWorker && isYourDomain,
                         isReady: true,
@@ -204,6 +204,19 @@ export default function PlatformAwareWrapper({ children }) {
                         fromAndroidApp: isNativeApp && isRealAndroidDevice
                     };
 
+                    // Store in legacy locations
+                    window.platformInfo = platformData;
+
+                    // CRITICAL: Store in unified system for consistency across all components
+                    if (window.UnifiedPlatformManager) {
+                        console.log('🌟 Setting platform info in unified system');
+                        window.UnifiedPlatformManager.setPlatformInfo(platformData);
+                    } else {
+                        console.log('⚠️ UnifiedPlatformManager not available yet, storing for later');
+                        // Store for when unified system loads
+                        window.__PENDING_PLATFORM_INFO__ = platformData;
+                    }
+
                     // Also store backup references
                     window.isNativeApp = isNativeApp;
                     window.isAndroidApp = isNativeApp && isRealAndroidDevice;
@@ -211,28 +224,39 @@ export default function PlatformAwareWrapper({ children }) {
 
                     // Dispatch comprehensive platform event
                     const event = new CustomEvent('platformDetected', {
-                        detail: {
-                            ...window.platformInfo,
-                            debugMessage
-                        }
+                        detail: platformData
                     });
                     window.dispatchEvent(event);
 
                     console.log('🚀 Enhanced platform event dispatched:', event.detail);
 
-                    // Force refresh other components with multiple events
+                    // CRITICAL: Force unified system update after short delay
                     setTimeout(() => {
+                        if (window.UnifiedPlatformManager) {
+                            console.log('🌟 Force updating unified system after dispatch');
+                            window.UnifiedPlatformManager.forceGlobalUpdate();
+                        }
+
+                        // Re-emit events for any late-loading components
                         window.dispatchEvent(new CustomEvent('platformDetected', {
-                            detail: event.detail
+                            detail: platformData
                         }));
 
                         // Also dispatch layout-specific event
                         window.dispatchEvent(new CustomEvent('layoutPlatformDetected', {
-                            detail: event.detail
+                            detail: platformData
                         }));
 
-                        console.log('🔄 Re-emitted platform events for component updates');
+                        console.log('🔄 Re-emitted platform events with unified system update');
                     }, 100);
+
+                    // Additional forced update after 1 second for stubborn components
+                    setTimeout(() => {
+                        if (window.UnifiedPlatformManager && isNativeApp) {
+                            console.log('🌟 Final forced update for native app');
+                            window.UnifiedPlatformManager.forceGlobalUpdate();
+                        }
+                    }, 1000);
 
                     // Store in localStorage for future visits (if available)
                     try {

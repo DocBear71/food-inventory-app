@@ -16,6 +16,7 @@ import '@/lib/capacitor-auth-fix';
 import SafeAreaBackground from "@/components/SafeAreaBackground";
 import '@/lib/force-native-routing';
 import '@/lib/aggressive-native-auth'; // NEW: Add aggressive native auth override
+import '@/lib/unified-platform-detection'; // NEW: Add unified platform detection
 
 const inter = Inter({subsets: ['latin']});
 
