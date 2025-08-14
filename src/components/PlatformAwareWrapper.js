@@ -14,6 +14,28 @@ export default function PlatformAwareWrapper({ children }) {
     useEffect(() => {
         setMounted(true);
 
+        // CRITICAL: Prevent multiple instances from conflicting
+        if (window.platformDetectionInProgress) {
+            console.log('⚠️ Platform detection already in progress, waiting...');
+
+            // Wait for existing detection to complete
+            const checkExisting = setInterval(() => {
+                if (window.platformInfo?.isReady) {
+                    console.log('✅ Using existing platform detection result:', window.platformInfo);
+                    setIsNativeApp(window.platformInfo.isNative);
+                    setDebugInfo('Used existing detection: ' + (window.platformInfo.isNative ? 'Native' : 'Web'));
+                    clearInterval(checkExisting);
+                }
+            }, 100);
+
+            // Clear check after 3 seconds
+            setTimeout(() => clearInterval(checkExisting), 3000);
+            return;
+        }
+
+        // Mark detection as in progress
+        window.platformDetectionInProgress = true;
+
         // Runtime detection of platform
         const detectPlatform = async () => {
             try {
@@ -83,11 +105,17 @@ export default function PlatformAwareWrapper({ children }) {
                 };
                 window.isNativeApp = finalResult;
 
+                // Mark detection as complete
+                window.platformDetectionInProgress = false;
+
             } catch (error) {
                 console.error('Platform detection failed:', error);
                 // RESTORED: Default to web/PWA if detection fails (more common case)
                 setIsNativeApp(false);
                 setDebugInfo('Detection failed, defaulting to web');
+
+                // Mark detection as complete even on error
+                window.platformDetectionInProgress = false;
             }
         };
 
@@ -97,13 +125,31 @@ export default function PlatformAwareWrapper({ children }) {
         // Also set a fallback timeout to prevent infinite loading
         const fallbackTimer = setTimeout(() => {
             if (isNativeApp === null) {
-                console.log('⚠️ Platform detection timeout, defaulting to web');
-                setIsNativeApp(false);
-                setDebugInfo('Detection timeout, defaulting to web');
-            }
-        }, 2000); // 2 second timeout
+                console.log('⚠️ Platform detection timeout, checking for existing result...');
 
-        return () => clearTimeout(fallbackTimer);
+                // Check if another instance already detected
+                if (window.platformInfo?.isReady) {
+                    console.log('✅ Found existing platform result during timeout');
+                    setIsNativeApp(window.platformInfo.isNative);
+                    setDebugInfo('Timeout - used existing: ' + (window.platformInfo.isNative ? 'Native' : 'Web'));
+                } else {
+                    console.log('❌ No existing result found, defaulting to web');
+                    setIsNativeApp(false);
+                    setDebugInfo('Detection timeout, defaulting to web');
+                }
+
+                // Clear the progress flag
+                window.platformDetectionInProgress = false;
+            }
+        }, 5000); // INCREASED: 5 second timeout instead of 2 seconds
+
+        return () => {
+            clearTimeout(fallbackTimer);
+            // Only clear progress flag if this instance set it
+            if (window.platformDetectionInProgress) {
+                window.platformDetectionInProgress = false;
+            }
+        };
     }, []);
 
     // RESTORED: Original loading screen
