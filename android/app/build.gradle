@@ -8,8 +8,8 @@ android {
         applicationId "kitchen.docbearscomfort"
         minSdkVersion 26
         targetSdkVersion 35
-        versionCode 20
-        versionName "1.7.1"
+        versionCode 22
+        versionName "1.7.3"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // SIMPLIFIED: 16KB native library alignment (handled automatically by AGP 8.11+)
@@ -58,19 +58,15 @@ android {
             useLegacyPackaging = false
             // Modern approach: 16KB alignment handled automatically by AGP 8.1+
             keepDebugSymbols += ['**/*.so']
+            pickFirsts += ['**/libc++_shared.so', '**/libjsc.so', '**/libfbjni.so']
+        }
+        resources {
+            excludes += ['META-INF/DEPENDENCIES', 'META-INF/NOTICE', 'META-INF/LICENSE', 'META-INF/LICENSE.txt', 'META-INF/NOTICE.txt']
         }
 
         // Ensure proper native library handling
-        pickFirst '**/libc++_shared.so'
-        pickFirst '**/libjsc.so'
-        pickFirst '**/libfbjni.so'
 
         // 16KB alignment for all native libraries
-        exclude 'META-INF/DEPENDENCIES'
-        exclude 'META-INF/NOTICE'
-        exclude 'META-INF/LICENSE'
-        exclude 'META-INF/LICENSE.txt'
-        exclude 'META-INF/NOTICE.txt'
     }
 
     // UPDATED: Java 21 compatibility to match Kotlin

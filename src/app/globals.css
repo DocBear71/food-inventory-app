@@ -3105,6 +3105,224 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
+/* iPad Specific Fixes - Add to globals.css */
+
+/* Force proper button centering on iPad */
+@media (min-width: 768px) and (max-width: 1200px) {
+    /* Ensure all header buttons use consistent sizing and centering */
+    header .touch-friendly {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 56px !important;
+        height: 56px !important;
+        min-width: 56px !important;
+        min-height: 56px !important;
+        box-sizing: border-box !important;
+        padding: 0 !important; /* Remove padding to prevent misalignment */
+    }
+
+    /* Specific fixes for different button types */
+    header .w-14 {
+        width: 56px !important;
+        height: 56px !important;
+    }
+
+    header .h-14 {
+        height: 56px !important;
+    }
+
+    /* Ensure SVG icons are perfectly centered */
+    header .touch-friendly svg {
+        display: block !important;
+        margin: 0 auto !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Fix for profile button */
+    header .rounded-full {
+        width: 56px !important;
+        height: 56px !important;
+        border-radius: 50% !important;
+    }
+
+    /* Ensure header container maintains proper spacing */
+    header .flex.items-center.justify-between {
+        width: 100% !important;
+        height: 64px !important; /* Fixed height */
+        padding: 0.5rem 1rem !important;
+    }
+
+    /* Fix space-x-2 to use gap instead */
+    header .space-x-2 {
+        display: flex !important;
+        gap: 0.5rem !important;
+    }
+
+    header .space-x-2 > * + * {
+        margin-left: 0 !important; /* Reset Tailwind margin */
+    }
+}
+
+/* iPad touch interaction fixes */
+@media (hover: none) and (pointer: coarse) and (min-width: 768px) {
+    /* Enhanced touch feedback for iPad */
+    .touch-friendly:active {
+        transform: scale(0.94) !important;
+        transition: transform 0.1s ease !important;
+    }
+
+    /* Ensure buttons remain clickable */
+    .touch-friendly {
+        touch-action: manipulation !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+    }
+}
+
+/* Debug mode for iPad - Remove in production */
+@media (min-width: 768px) and (max-width: 1200px) {
+    /* Uncomment these lines to see button boundaries for debugging */
+    /*
+    header .touch-friendly {
+        border: 2px solid red !important;
+    }
+
+    header .touch-friendly svg {
+        border: 1px solid blue !important;
+    }
+    */
+}
+
+/* Force hardware acceleration for smoother interactions on iPad */
+@media (min-width: 768px) and (max-width: 1200px) {
+    header .touch-friendly {
+        transform: translateZ(0) !important;
+        backface-visibility: hidden !important;
+        perspective: 1000px !important;
+    }
+}
+
+/* Additional iPad layout fixes */
+@media (min-width: 768px) and (max-width: 1200px) {
+    /* Ensure header doesn't get compressed */
+    header {
+        min-height: 64px !important;
+        height: auto !important;
+    }
+
+    /* Fix flexbox shrinking issues */
+    header .flex-shrink-0 {
+        flex-shrink: 0 !important;
+    }
+
+    /* Ensure proper z-index for mobile menu */
+    .fixed.inset-0.z-50 {
+        z-index: 50 !important;
+    }
+
+    .fixed.top-0.left-0.bottom-0 {
+        z-index: 51 !important;
+    }
+}
+
+/* iPad and Tablet Button Centering Fix - Add to globals.css */
+
+/* Extend the mobile button padding fix to include iPad and tablet sizes */
+@media (max-width: 1200px) {
+    .mobile-header .touch-friendly {
+        padding: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+        min-height: 56px !important;
+        min-width: 56px !important;
+    }
+
+    /* Ensure all header buttons get the same treatment */
+    header .touch-friendly {
+        padding: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+    }
+
+    /* Fix for specific button classes that might override */
+    header .p-2\.5,
+    header .p-2,
+    header .p-3 {
+        padding: 12px !important;
+    }
+
+    /* Ensure SVG icons are properly sized within the padded buttons */
+    header .touch-friendly svg {
+        width: 24px !important;
+        height: 24px !important;
+        display: block !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Profile button specific fix */
+    header .w-10.h-10,
+    header .rounded-full {
+        padding: 8px !important; /* Slightly less padding for circular profile button */
+        width: 56px !important;
+        height: 56px !important;
+    }
+
+    /* Profile button text centering */
+    header .rounded-full span {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+}
+
+/* Additional fix for the header container spacing */
+@media (min-width: 768px) and (max-width: 1200px) {
+    /* Fix the header container to match mobile spacing */
+    header .px-4.py-3 {
+        padding: 0.75rem 1rem !important;
+        min-height: 64px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
+
+    /* Fix space-x-2 to use consistent gap */
+    header .space-x-2 {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+
+    header .space-x-2 > * + * {
+        margin-left: 0 !important;
+    }
+}
+
+/* Hamburger menu z-index fix for iPad */
+@media (min-width: 768px) and (max-width: 1200px) {
+    /* Ensure mobile menu shows properly on iPad */
+    .fixed.inset-0.z-50.lg\\:hidden {
+        z-index: 9999 !important;
+        display: block !important;
+    }
+
+    .fixed.top-0.left-0.bottom-0 {
+        z-index: 10000 !important;
+        position: fixed !important;
+    }
+
+    /* Force mobile menu to be visible on iPad */
+    .lg\\:hidden {
+        display: block !important;
+    }
+}
 
 /* ===== END OF CLEANED GLOBALS.CSS ===== */
 

@@ -194,22 +194,60 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         async redirect({ url, baseUrl }) {
             console.log('Auth redirect (v5):', url, '→', baseUrl);
 
+            // Handle signout
             if (url.includes('signout') || url.includes('signOut')) {
                 return '/';
             }
 
+            // Handle dashboard redirects
             if (url === '/dashboard' || url.endsWith('/dashboard')) {
                 return '/dashboard';
             }
 
+            // Handle relative URLs
             if (url.startsWith('/')) {
                 return url;
             }
 
-            if (url.startsWith(baseUrl)) {
-                return url;
+            // ADDED: Handle domain consistency (www vs non-www)
+            const normalizeUrl = (urlString) => {
+                try {
+                    const urlObj = new URL(urlString);
+                    // Normalize to your preferred domain (choose one)
+                    if (urlObj.hostname === 'docbearscomfort.kitchen') {
+                        urlObj.hostname = 'docbearscomfort.kitchen';
+                    }
+                    return urlObj.toString();
+                } catch {
+                    return urlString;
+                }
+            };
+
+            const normalizedUrl = normalizeUrl(url);
+            const normalizedBaseUrl = normalizeUrl(baseUrl);
+
+            // Check if URL starts with normalized base URL
+            if (normalizedUrl.startsWith(normalizedBaseUrl)) {
+                return normalizedUrl;
             }
 
+            // ADDED: Handle cross-domain redirects more safely
+            try {
+                const urlObj = new URL(url);
+                const baseUrlObj = new URL(baseUrl);
+
+                // Allow redirects within the same domain (with or without www)
+                const urlDomain = urlObj.hostname.replace('www.', '');
+                const baseDomain = baseUrlObj.hostname.replace('www.', '');
+
+                if (urlDomain === baseDomain) {
+                    return normalizedUrl;
+                }
+            } catch (error) {
+                console.warn('Error parsing URLs in redirect:', error);
+            }
+
+            // Default fallback
             return '/dashboard';
         },
         async signIn({ user, account, profile }) {
