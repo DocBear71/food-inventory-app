@@ -266,14 +266,24 @@ export default function MobileDashboardLayout({children}) {
     // Enhanced platform detection with StatusBar handling
     useEffect(() => {
         async function detectPlatform() {
+            console.log('🧪 MobileDashboardLayout DETAILED detection starting...');
+
             try {
                 let isNative = false;
                 let isPWA = false;
                 let statusBarHeight = 0;
 
+                // ADD THIS DEBUG SECTION:
+                console.log('🧪 Window.Capacitor exists:', typeof window.Capacitor !== 'undefined');
+                console.log('🧪 Window.Capacitor object:', window.Capacitor);
+
                 if (typeof window !== 'undefined' && window.Capacitor) {
                     try {
                         const { Capacitor } = await import('@capacitor/core');
+                        console.log('🧪 Capacitor import successful');
+                        console.log('🧪 Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
+                        console.log('🧪 Capacitor.getPlatform():', Capacitor.getPlatform());
+
                         isNative = Capacitor.isNativePlatform();
 
                         if (isNative) {
