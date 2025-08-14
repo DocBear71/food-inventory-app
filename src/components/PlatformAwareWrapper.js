@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/PlatformAwareWrapper.js v3 - ENHANCED: Platform info events for landing page
+// file: /src/components/PlatformAwareWrapper.js v3 - MINIMAL: Fixed SEO interference with original logic
 
 import { useState, useEffect } from 'react';
 import PWAWrapper from '@/components/PWAWrapper';
@@ -41,7 +41,8 @@ export default function PlatformAwareWrapper({ children }) {
                 hasAppSignature = userAgent.includes('CapacitorWebView') ||
                     userAgent.includes('DocBearsComfortKitchen');
 
-                // FIXED: Be more conservative - only consider native if we have strong indicators
+                // ENHANCED: More aggressive detection to counter SEO interference
+                // If Capacitor says it's native, trust it completely
                 const finalResult = isCapacitorNative || (buildTimeCheck && hasAppSignature);
 
                 const debugMessage = `Platform: ${finalResult ? 'Native' : 'Web/PWA'} (Capacitor: ${isCapacitorNative}, Build: ${buildTimeCheck}, UA: ${hasAppSignature})`;
@@ -58,22 +59,20 @@ export default function PlatformAwareWrapper({ children }) {
 
                 setIsNativeApp(finalResult);
 
-                // ADDED: Emit platform detection event for landing page
+                // ADDED: Store platform info globally for landing page
                 if (typeof window !== 'undefined') {
-                    // Store platform info globally for immediate access
                     window.platformInfo = {
                         isNative: finalResult,
-                        isPWA: false, // Will be updated by PWAWrapper if needed
-                        isReady: true
+                        isPWA: false,
+                        isReady: true,
+                        userAgent: userAgent.substring(0, 100),
+                        timestamp: Date.now()
                     };
 
-                    // Emit custom event
+                    // ADDED: Emit platform detection event for landing page
                     const event = new CustomEvent('platformDetected', {
                         detail: {
                             isNative: finalResult,
-                            isCapacitor: isCapacitorNative,
-                            buildTime: buildTimeCheck,
-                            hasSignature: hasAppSignature,
                             userAgent: userAgent.substring(0, 60),
                             debugMessage
                         }
@@ -88,12 +87,13 @@ export default function PlatformAwareWrapper({ children }) {
                 setIsNativeApp(false);
                 setDebugInfo('Detection failed, defaulting to web');
 
-                // ADDED: Emit fallback event
+                // ADDED: Store error state
                 if (typeof window !== 'undefined') {
                     window.platformInfo = {
                         isNative: false,
                         isPWA: false,
-                        isReady: true
+                        isReady: true,
+                        error: error.message
                     };
 
                     const event = new CustomEvent('platformDetected', {
@@ -118,12 +118,13 @@ export default function PlatformAwareWrapper({ children }) {
                 setIsNativeApp(false);
                 setDebugInfo('Detection timeout, defaulting to web');
 
-                // ADDED: Emit timeout event
+                // ADDED: Handle timeout state
                 if (typeof window !== 'undefined') {
                     window.platformInfo = {
                         isNative: false,
                         isPWA: false,
-                        isReady: true
+                        isReady: true,
+                        timeout: true
                     };
 
                     const event = new CustomEvent('platformDetected', {

@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/layout.js v13 - Enhanced SEO with comprehensive meta tags and structured data
+// file: /src/app/layout.js v14 - MINIMAL: Just fix the SEO conflicts without major changes
 
 import {Inter} from 'next/font/google';
 import './globals.css';
@@ -10,7 +10,7 @@ import {SubscriptionProvider} from '@/hooks/useSubscription';
 import { AnalyticsProvider } from '@/components/providers/AnalyticsProvider';
 import ViewportHandler from '@/components/ViewportHandler';
 import PlatformAwareWrapper from '@/components/PlatformAwareWrapper';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import '@/lib/capacitor-auth-fix';
 import SafeAreaBackground from "@/components/SafeAreaBackground";
@@ -201,6 +201,42 @@ function StructuredData() {
 }
 
 export default function RootLayout({children}) {
+    const [isNativeApp, setIsNativeApp] = useState(null);
+
+    // MINIMAL: Quick platform detection to conditionally apply problematic SEO
+    useEffect(() => {
+        const checkPlatform = () => {
+            const detected = typeof window !== 'undefined' &&
+                window.Capacitor &&
+                window.Capacitor.isNativePlatform &&
+                window.Capacitor.isNativePlatform();
+
+            console.log('🔍 Quick native check in layout:', detected);
+            setIsNativeApp(detected);
+        };
+
+        // Check immediately and also listen for platform events
+        checkPlatform();
+
+        const handlePlatformDetected = (event) => {
+            setIsNativeApp(event.detail.isNative);
+        };
+
+        window.addEventListener('platformDetected', handlePlatformDetected);
+
+        // Quick timeout for undetected apps
+        const timer = setTimeout(() => {
+            if (isNativeApp === null) {
+                setIsNativeApp(false);
+            }
+        }, 1000);
+
+        return () => {
+            window.removeEventListener('platformDetected', handlePlatformDetected);
+            clearTimeout(timer);
+        };
+    }, [isNativeApp]);
+
     return (
         <html lang="en">
         <head>
@@ -215,8 +251,10 @@ export default function RootLayout({children}) {
             <meta name="msvalidate.01" content="2B3DAD655CB93EEB509AB574BEA9A845" />
             <meta name="p:domain_verify" content="41876bc30a1ee0330ab8aed8b2b64497" />
 
-            {/* Base URL for relative paths */}
-            <base href={process.env.NODE_ENV === 'production' ? 'https://docbearscomfort.kitchen/' : 'http://localhost:3000/'} />
+            {/* FIXED: Only set base href for web browsers, not native apps */}
+            {isNativeApp === false && (
+                <base href={process.env.NODE_ENV === 'production' ? 'https://docbearscomfort.kitchen/' : 'http://localhost:3000/'} />
+            )}
 
             {/* Geo-targeting */}
             <meta name="geo.region" content="US" />
@@ -262,8 +300,10 @@ export default function RootLayout({children}) {
             <meta name="apple-mobile-web-app-status-bar-style" content="default" />
             <meta name="apple-mobile-web-app-title" content="Doc Bear's Kitchen" />
 
-            {/* Canonical URL */}
-            <link rel="canonical" href="https://docbearscomfort.kitchen/" />
+            {/* FIXED: Only set canonical for web browsers */}
+            {isNativeApp === false && (
+                <link rel="canonical" href="https://docbearscomfort.kitchen/" />
+            )}
 
             {/* Additional SEO Tags */}
             <meta name="robots" content="index, follow, max-image-preview:large, max-snippet:-1, max-video-preview:-1" />
