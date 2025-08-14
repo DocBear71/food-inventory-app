@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/PlatformAwareWrapper.js v2 - RESTORED: Back to July 20th working version with minimal Android fix
+// file: /src/components/PlatformAwareWrapper.js v2 - FIXED: PWA content rendering issue
 
 import { useState, useEffect } from 'react';
 import PWAWrapper from '@/components/PWAWrapper';
@@ -13,28 +13,6 @@ export default function PlatformAwareWrapper({ children }) {
 
     useEffect(() => {
         setMounted(true);
-
-        // CRITICAL: Prevent multiple instances from conflicting
-        if (window.platformDetectionInProgress) {
-            console.log('⚠️ Platform detection already in progress, waiting...');
-
-            // Wait for existing detection to complete
-            const checkExisting = setInterval(() => {
-                if (window.platformInfo?.isReady) {
-                    console.log('✅ Using existing platform detection result:', window.platformInfo);
-                    setIsNativeApp(window.platformInfo.isNative);
-                    setDebugInfo('Used existing detection: ' + (window.platformInfo.isNative ? 'Native' : 'Web'));
-                    clearInterval(checkExisting);
-                }
-            }, 100);
-
-            // Clear check after 3 seconds
-            setTimeout(() => clearInterval(checkExisting), 3000);
-            return;
-        }
-
-        // Mark detection as in progress
-        window.platformDetectionInProgress = true;
 
         // Runtime detection of platform
         const detectPlatform = async () => {
@@ -63,31 +41,14 @@ export default function PlatformAwareWrapper({ children }) {
                 hasAppSignature = userAgent.includes('CapacitorWebView') ||
                     userAgent.includes('DocBearsComfortKitchen');
 
-                // MINIMAL FIX: Add check for your Android app that loads from web
-                let isYourAndroidApp = false;
-                if (!isCapacitorNative && typeof window !== 'undefined') {
-                    const isAndroidDevice = userAgent.includes('Android') && userAgent.includes('Mobile');
-                    const hasCapacitorLib = typeof window.Capacitor !== 'undefined';
-                    const isYourDomain = window.location.hostname === 'docbearscomfort.kitchen';
-                    const isHTTPS = window.location.protocol === 'https:';
+                // FIXED: Be more conservative - only consider native if we have strong indicators
+                const finalResult = isCapacitorNative || (buildTimeCheck && hasAppSignature);
 
-                    // Your specific app signature
-                    isYourAndroidApp = isAndroidDevice && hasCapacitorLib && isYourDomain && isHTTPS;
-
-                    if (isYourAndroidApp) {
-                        console.log('🔍 Detected your Android app loading from web');
-                    }
-                }
-
-                // RESTORED: Original conservative logic with Android app fix
-                const finalResult = isCapacitorNative || isYourAndroidApp || (buildTimeCheck && hasAppSignature);
-
-                const debugMessage = `Platform: ${finalResult ? 'Native' : 'Web/PWA'} (Capacitor: ${isCapacitorNative}, AndroidApp: ${isYourAndroidApp}, Build: ${buildTimeCheck}, UA: ${hasAppSignature})`;
+                const debugMessage = `Platform: ${finalResult ? 'Native' : 'Web/PWA'} (Capacitor: ${isCapacitorNative}, Build: ${buildTimeCheck}, UA: ${hasAppSignature})`;
                 setDebugInfo(debugMessage);
 
                 console.log('🔍 Platform Detection in Layout:', {
                     capacitorNative: isCapacitorNative,
-                    isYourAndroidApp,
                     buildTimeCheck,
                     hasAppSignature,
                     userAgent: userAgent.substring(0, 60) + '...',
@@ -96,63 +57,30 @@ export default function PlatformAwareWrapper({ children }) {
                 });
 
                 setIsNativeApp(finalResult);
-
-                // Store globally for other components (minimal)
-                window.platformInfo = {
-                    isNative: finalResult,
-                    isReady: true,
-                    platform: finalResult ? 'android' : 'web'
-                };
-                window.isNativeApp = finalResult;
-
-                // Mark detection as complete
-                window.platformDetectionInProgress = false;
-
             } catch (error) {
                 console.error('Platform detection failed:', error);
-                // RESTORED: Default to web/PWA if detection fails (more common case)
+                // FIXED: Default to web/PWA if detection fails (more common case)
                 setIsNativeApp(false);
                 setDebugInfo('Detection failed, defaulting to web');
-
-                // Mark detection as complete even on error
-                window.platformDetectionInProgress = false;
             }
         };
 
-        // RESTORED: Original timing
+        // FIXED: Reduce delay and add immediate detection
         detectPlatform();
 
         // Also set a fallback timeout to prevent infinite loading
         const fallbackTimer = setTimeout(() => {
             if (isNativeApp === null) {
-                console.log('⚠️ Platform detection timeout, checking for existing result...');
-
-                // Check if another instance already detected
-                if (window.platformInfo?.isReady) {
-                    console.log('✅ Found existing platform result during timeout');
-                    setIsNativeApp(window.platformInfo.isNative);
-                    setDebugInfo('Timeout - used existing: ' + (window.platformInfo.isNative ? 'Native' : 'Web'));
-                } else {
-                    console.log('❌ No existing result found, defaulting to web');
-                    setIsNativeApp(false);
-                    setDebugInfo('Detection timeout, defaulting to web');
-                }
-
-                // Clear the progress flag
-                window.platformDetectionInProgress = false;
+                console.log('⚠️ Platform detection timeout, defaulting to web');
+                setIsNativeApp(false);
+                setDebugInfo('Detection timeout, defaulting to web');
             }
-        }, 5000); // INCREASED: 5 second timeout instead of 2 seconds
+        }, 2000); // 2 second timeout
 
-        return () => {
-            clearTimeout(fallbackTimer);
-            // Only clear progress flag if this instance set it
-            if (window.platformDetectionInProgress) {
-                window.platformDetectionInProgress = false;
-            }
-        };
+        return () => clearTimeout(fallbackTimer);
     }, []);
 
-    // RESTORED: Original loading screen
+    // FIXED: Reduce loading time and provide better feedback
     if (!mounted || isNativeApp === null) {
         return (
             <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -167,7 +95,7 @@ export default function PlatformAwareWrapper({ children }) {
         );
     }
 
-    // RESTORED: Original debug info
+    // FIXED: Add debug info to help troubleshoot
     console.log(`🎯 PlatformAwareWrapper rendering: ${isNativeApp ? 'Native' : 'Web/PWA'} wrapper`);
 
     // Render appropriate wrapper based on platform
