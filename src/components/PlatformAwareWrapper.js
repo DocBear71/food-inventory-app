@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/components/PlatformAwareWrapper.js - DEBUG VERSION: Let's see what's actually happening
+// file: /src/components/PlatformAwareWrapper.js v5 - FIXED: Works with existing capacitor-auth-fix.js
 
 import { useState, useEffect } from 'react';
 import PWAWrapper from '@/components/PWAWrapper';
@@ -15,136 +15,180 @@ export default function PlatformAwareWrapper({ children }) {
         setMounted(true);
 
         const detectPlatform = async () => {
-            console.log('🚀 === PLATFORM DETECTION DEBUG START ===');
+            console.log('🚀 === PLATFORM DETECTION (v5) ===');
 
             try {
-                // Log everything we can see
-                console.log('🔍 Window object checks:', {
-                    hasCapacitor: typeof window !== 'undefined' && !!window.Capacitor,
-                    windowLocation: window.location.href,
-                    windowProtocol: window.location.protocol,
-                    userAgent: navigator.userAgent,
-                    hasProcess: typeof process !== 'undefined',
-                    processEnv: process?.env?.NODE_ENV,
-                    capacitorPlatform: process?.env?.CAPACITOR_PLATFORM
-                });
-
                 let isCapacitorNative = false;
-                let buildTimeCheck = false;
-                let hasAppSignature = false;
+                let detectionMethod = 'none';
 
-                // Method 1: Check Capacitor
-                if (typeof window !== 'undefined' && window.Capacitor) {
-                    console.log('✅ window.Capacitor exists!');
-                    try {
-                        const { Capacitor } = await import('@capacitor/core');
+                // Method 1: Use Capacitor import (same as your auth fix)
+                try {
+                    console.log('🔄 Attempting Capacitor import (like auth fix)...');
+                    const { Capacitor } = await import('@capacitor/core');
+
+                    if (Capacitor && typeof Capacitor.isNativePlatform === 'function') {
                         isCapacitorNative = Capacitor.isNativePlatform();
-                        const platform = Capacitor.getPlatform();
-
-                        console.log('📱 Capacitor details:', {
+                        detectionMethod = 'capacitor-import';
+                        console.log('✅ Capacitor import successful:', {
                             isNativePlatform: isCapacitorNative,
-                            getPlatform: platform,
-                            capacitorObject: !!Capacitor
+                            getPlatform: Capacitor.getPlatform ? Capacitor.getPlatform() : 'unknown'
                         });
-                    } catch (capacitorError) {
-                        console.log('❌ Capacitor import failed:', capacitorError);
+                    } else {
+                        console.log('❌ Capacitor import returned invalid object');
                     }
-                } else {
-                    console.log('❌ window.Capacitor does not exist');
+                } catch (importError) {
+                    console.log('❌ Capacitor import failed:', importError);
                 }
 
-                // Method 2: Build time check
-                buildTimeCheck = process.env.CAPACITOR_PLATFORM === 'ios' ||
-                    process.env.CAPACITOR_PLATFORM === 'android';
-                console.log('🏗️ Build time check:', {
-                    buildTimeCheck,
-                    capacitorPlatform: process.env.CAPACITOR_PLATFORM,
-                    nodeEnv: process.env.NODE_ENV
-                });
+                // Method 2: Check if Capacitor is already on window (from auth fix)
+                if (!isCapacitorNative && typeof window !== 'undefined' && window.Capacitor) {
+                    console.log('✅ Found window.Capacitor (from auth fix?)');
+                    try {
+                        isCapacitorNative = window.Capacitor.isNativePlatform();
+                        detectionMethod = 'window-capacitor';
+                        console.log('📱 Window Capacitor check:', isCapacitorNative);
+                    } catch (error) {
+                        console.log('❌ Window Capacitor error:', error);
+                    }
+                }
 
-                // Method 3: User Agent Analysis
-                const userAgent = navigator.userAgent || '';
-                hasAppSignature = userAgent.includes('CapacitorWebView') ||
-                    userAgent.includes('DocBearsComfortKitchen');
+                // Method 3: Wait for Capacitor to be ready (sync with auth fix timing)
+                if (!isCapacitorNative) {
+                    console.log('⏳ Waiting for Capacitor to be ready (like auth fix)...');
 
-                console.log('🔍 User Agent Analysis:', {
-                    userAgent: userAgent,
-                    hasCapacitorWebView: userAgent.includes('CapacitorWebView'),
-                    hasDocBearsSignature: userAgent.includes('DocBearsComfortKitchen'),
-                    hasAppSignature
-                });
+                    // Wait for DOMContentLoaded (same as auth fix)
+                    const waitForCapacitorReady = () => {
+                        return new Promise((resolve) => {
+                            const checkCapacitor = async () => {
+                                try {
+                                    const { Capacitor } = await import('@capacitor/core');
+                                    if (Capacitor && Capacitor.isNativePlatform) {
+                                        resolve({
+                                            isNative: Capacitor.isNativePlatform(),
+                                            method: 'delayed-ready'
+                                        });
+                                    } else {
+                                        resolve({ isNative: false, method: 'delayed-failed' });
+                                    }
+                                } catch (error) {
+                                    resolve({ isNative: false, method: 'delayed-error' });
+                                }
+                            };
 
-                // Method 4: Additional checks
-                const protocolCheck = window.location.protocol === 'capacitor:' ||
-                    window.location.protocol === 'file:';
-                const hasNativeGlobals = typeof window.cordova !== 'undefined' ||
-                    typeof window.PhoneGap !== 'undefined';
+                            if (document.readyState === 'loading') {
+                                document.addEventListener('DOMContentLoaded', checkCapacitor);
+                            } else {
+                                checkCapacitor();
+                            }
+                        });
+                    };
 
-                console.log('🔍 Additional checks:', {
-                    protocolCheck,
-                    protocol: window.location.protocol,
-                    hasNativeGlobals,
-                    hasCordova: typeof window.cordova !== 'undefined',
-                    hasPhoneGap: typeof window.PhoneGap !== 'undefined'
-                });
+                    const delayedResult = await waitForCapacitorReady();
+                    isCapacitorNative = delayedResult.isNative;
+                    detectionMethod = delayedResult.method;
+                    console.log('📱 Delayed Capacitor result:', delayedResult);
+                }
 
-                // Final decision
-                const finalResult = isCapacitorNative || (buildTimeCheck && hasAppSignature);
+                // Method 4: Android-specific fallback (since you mentioned Android issues)
+                let androidFallback = false;
+                if (!isCapacitorNative) {
+                    const userAgent = navigator.userAgent || '';
+                    console.log('🔍 Android fallback detection...');
+                    console.log('User Agent:', userAgent);
 
-                console.log('🎯 FINAL DECISION:', {
+                    // Strong Android app indicators
+                    androidFallback = (
+                        // Android WebView in app
+                        (userAgent.includes('Android') && userAgent.includes('wv')) ||
+                        // Your custom signature from Capacitor config
+                        userAgent.includes('DocBearsComfortKitchen') ||
+                        // Standard Capacitor signature
+                        userAgent.includes('CapacitorWebView') ||
+                        // File or Capacitor protocol
+                        window.location.protocol === 'file:' ||
+                        window.location.protocol === 'capacitor:' ||
+                        // Android app without Chrome browser
+                        (userAgent.includes('Android') && !userAgent.includes('Chrome/'))
+                    );
+
+                    if (androidFallback) {
+                        detectionMethod = 'android-fallback';
+                        console.log('📱 Android fallback detection: TRUE');
+                    } else {
+                        console.log('🌐 Android fallback detection: FALSE');
+                    }
+                }
+
+                const finalResult = isCapacitorNative || androidFallback;
+
+                console.log('🎯 FINAL DETECTION:', {
                     isCapacitorNative,
-                    buildTimeCheck,
-                    hasAppSignature,
+                    androidFallback,
                     finalResult,
-                    logic: 'isCapacitorNative || (buildTimeCheck && hasAppSignature)'
+                    detectionMethod,
+                    userAgent: navigator.userAgent.substring(0, 100)
                 });
 
-                const debugMessage = `RESULT: ${finalResult ? 'NATIVE' : 'WEB'} | Cap:${isCapacitorNative} | Build:${buildTimeCheck} | UA:${hasAppSignature}`;
+                const debugMessage = `${finalResult ? 'NATIVE' : 'WEB'} via ${detectionMethod}`;
                 setDebugInfo(debugMessage);
-
                 setIsNativeApp(finalResult);
 
-                // Store globally and emit event
+                // Store platform info globally and emit event
                 if (typeof window !== 'undefined') {
                     window.platformInfo = {
                         isNative: finalResult,
                         isPWA: false,
                         isReady: true,
-                        debug: {
-                            isCapacitorNative,
-                            buildTimeCheck,
-                            hasAppSignature,
-                            userAgent: userAgent.substring(0, 100)
-                        }
+                        detectionMethod,
+                        timestamp: Date.now()
                     };
 
                     const event = new CustomEvent('platformDetected', {
                         detail: {
                             isNative: finalResult,
-                            debug: window.platformInfo.debug,
+                            detectionMethod,
                             debugMessage
                         }
                     });
                     window.dispatchEvent(event);
-                    console.log('🚀 Event emitted:', event.detail);
+                    console.log('🚀 Platform event emitted:', event.detail);
                 }
 
-                console.log('🏁 === PLATFORM DETECTION DEBUG END ===');
+                console.log('🏁 === DETECTION COMPLETE ===');
 
             } catch (error) {
                 console.error('💥 PLATFORM DETECTION ERROR:', error);
-                setIsNativeApp(false);
-                setDebugInfo(`ERROR: ${error.message}`);
+
+                // Emergency Android detection based on user agent only
+                const userAgent = navigator.userAgent || '';
+                const emergencyAndroid = userAgent.includes('Android') && !userAgent.includes('Chrome/');
+
+                console.log('🚨 Emergency Android detection:', { userAgent, emergencyAndroid });
+
+                setIsNativeApp(emergencyAndroid);
+                setDebugInfo(`ERROR-RECOVERY: ${emergencyAndroid ? 'ANDROID' : 'WEB'}`);
             }
         };
 
-        detectPlatform();
+        // Start detection with a small delay to let auth fix load
+        setTimeout(() => {
+            detectPlatform();
+        }, 100);
 
+        // Fallback timeout
         const fallbackTimer = setTimeout(() => {
             if (isNativeApp === null) {
-                console.log('⏰ TIMEOUT: Defaulting to web');
-                setIsNativeApp(false);
-                setDebugInfo('TIMEOUT: Defaulted to web');
+                console.log('⏰ DETECTION TIMEOUT - Using emergency detection');
+
+                const userAgent = navigator.userAgent || '';
+                const timeoutDetection = (
+                    userAgent.includes('Android') &&
+                    (userAgent.includes('wv') || !userAgent.includes('Chrome/'))
+                );
+
+                console.log('🚨 Timeout detection result:', { userAgent, timeoutDetection });
+                setIsNativeApp(timeoutDetection);
+                setDebugInfo(`TIMEOUT: ${timeoutDetection ? 'ANDROID' : 'WEB'}`);
             }
         }, 3000);
 
@@ -165,32 +209,32 @@ export default function PlatformAwareWrapper({ children }) {
         );
     }
 
-    console.log(`🎯 RENDERING: ${isNativeApp ? '📱 NATIVE WRAPPER' : '🌐 WEB BROWSER'}`);
+    console.log(`🎯 RENDERING: ${isNativeApp ? '📱 NATIVE APP' : '🌐 WEB BROWSER'} (${debugInfo})`);
 
     if (isNativeApp) {
         return (
             <>
-                <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white text-xs p-2 text-center font-mono">
-                    📱 NATIVE APP DETECTED - {debugInfo}
-                </div>
-                <div style={{ paddingTop: '40px' }}>
-                    <NativeAuthHandler>
-                        {children}
-                    </NativeAuthHandler>
-                </div>
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="fixed top-0 left-0 right-0 z-50 bg-blue-600 text-white text-xs p-2 text-center font-mono">
+                        📱 NATIVE APP - {debugInfo}
+                    </div>
+                )}
+                <NativeAuthHandler>
+                    {children}
+                </NativeAuthHandler>
             </>
         );
     } else {
         return (
             <>
-                <div className="fixed top-0 left-0 right-0 z-50 bg-green-600 text-white text-xs p-2 text-center font-mono">
-                    🌐 WEB BROWSER DETECTED - {debugInfo}
-                </div>
-                <div style={{ paddingTop: '40px' }}>
-                    <PWAWrapper>
-                        {children}
-                    </PWAWrapper>
-                </div>
+                {process.env.NODE_ENV === 'development' && (
+                    <div className="fixed top-0 left-0 right-0 z-50 bg-green-600 text-white text-xs p-2 text-center font-mono">
+                        🌐 WEB BROWSER - {debugInfo}
+                    </div>
+                )}
+                <PWAWrapper>
+                    {children}
+                </PWAWrapper>
             </>
         );
     }
