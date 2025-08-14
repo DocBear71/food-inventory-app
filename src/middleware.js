@@ -1,25 +1,50 @@
 import { NextResponse } from 'next/server'
 
 export function middleware(request) {
-    // Handle CORS for mobile app
-    if (request.nextUrl.pathname.startsWith('/api/')) {
-        const response = NextResponse.next()
+    // Get origin and determine if it's allowed
+    const origin = request.headers.get('origin');
+    const allowedOrigins = [
+        'https://localhost', // Capacitor mobile
+        'http://localhost:3000', // Development
+        'https://docbearscomfort.kitchen', // Production
+        'https://www.docbearscomfort.kitchen', // Production with www (to handle redirects)
+        'capacitor://localhost',
+        'ionic://localhost'
+    ];
 
-        // Allow mobile app origins
-        response.headers.set('Access-Control-Allow-Origin', 'https://localhost')
-        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
-        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With')
-        response.headers.set('Access-Control-Allow-Credentials', 'true')
+    console.log('🌍 Middleware request from origin:', origin, 'to:', request.nextUrl.pathname);
+
+    // Handle CORS for all API routes
+    if (request.nextUrl.pathname.startsWith('/api/')) {
 
         // Handle preflight requests
         if (request.method === 'OPTIONS') {
-            return new Response(null, { status: 200, headers: response.headers })
+            const allowOrigin = (origin && allowedOrigins.includes(origin)) ? origin : 'https://localhost';
+
+            return new NextResponse(null, {
+                status: 200,
+                headers: {
+                    'Access-Control-Allow-Origin': allowOrigin,
+                    'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+                    'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Requested-With, x-native-platform, Accept',
+                    'Access-Control-Allow-Credentials': 'true',
+                },
+            });
         }
 
-        return response
+        // Add CORS headers to actual requests
+        const response = NextResponse.next();
+        const allowOrigin = (origin && allowedOrigins.includes(origin)) ? origin : 'https://localhost';
+
+        response.headers.set('Access-Control-Allow-Origin', allowOrigin);
+        response.headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+        response.headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With, x-native-platform, Accept');
+        response.headers.set('Access-Control-Allow-Credentials', 'true');
+
+        return response;
     }
 
-    return NextResponse.next()
+    return NextResponse.next();
 }
 
 export const config = {

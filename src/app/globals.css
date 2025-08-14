@@ -3425,24 +3425,90 @@ div[style*="background-color: #f1f5f9"] {
 
 /* Debug styles - Uncomment these to see what's happening */
 
-@media (min-width: 768px) and (max-width: 1200px) {
-    .fixed.inset-0.z-50 {
-        border: 3px solid red !important;
-        background: rgba(255, 0, 0, 0.3) !important;
+/*@media (min-width: 768px) and (max-width: 1200px) {*/
+/*    .fixed.inset-0.z-50 {*/
+/*        border: 3px solid red !important;*/
+/*        background: rgba(255, 0, 0, 0.3) !important;*/
+/*    }*/
+
+/*    .fixed.top-0.left-0.bottom-0 {*/
+/*        border: 3px solid blue !important;*/
+/*        background: rgba(0, 0, 255, 0.3) !important;*/
+/*    }*/
+/*}*/
+
+/* iPad and Tablet Button Centering Fix */
+@media (max-width: 1200px) {
+    .mobile-header .touch-friendly,
+    header .touch-friendly {
+        padding: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+        min-height: 56px !important;
+        min-width: 56px !important;
     }
 
-    .fixed.top-0.left-0.bottom-0 {
-        border: 3px solid blue !important;
-        background: rgba(0, 0, 255, 0.3) !important;
+    /* Fix for specific button classes that might override */
+    header .p-2\.5,
+    header .p-2,
+    header .p-3 {
+        padding: 12px !important;
+    }
+
+    /* Ensure SVG icons are properly sized within the padded buttons */
+    header .touch-friendly svg {
+        width: 24px !important;
+        height: 24px !important;
+        display: block !important;
+        flex-shrink: 0 !important;
+    }
+
+    /* Profile button specific fix */
+    header .w-10.h-10,
+    header .rounded-full {
+        padding: 8px !important;
+        width: 56px !important;
+        height: 56px !important;
+    }
+
+    /* Profile button text centering */
+    header .rounded-full span {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
     }
 }
 
-/* Visual Debug CSS - Add to globals.css */
-
-/* iPad Menu Visual Debug - Makes menu elements visible with colored borders */
+/* iPad Header Container Fixes */
 @media (min-width: 768px) and (max-width: 1200px) {
+    /* Fix the header container spacing */
+    header .px-4.py-3 {
+        padding: 0.75rem 1rem !important;
+        min-height: 64px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+    }
 
-    /* Make the overlay highly visible with red border */
+    /* Fix space-x-2 to use consistent gap */
+    header .space-x-2 {
+        display: flex !important;
+        align-items: center !important;
+        gap: 0.5rem !important;
+    }
+
+    header .space-x-2 > * + * {
+        margin-left: 0 !important;
+    }
+}
+
+/* iPad Mobile Menu Fixes */
+@media (min-width: 768px) and (max-width: 1200px) {
+    /* Ensure mobile menu shows properly on iPad */
     .fixed.inset-0.z-50 {
         display: block !important;
         position: fixed !important;
@@ -3451,11 +3517,8 @@ div[style*="background-color: #f1f5f9"] {
         right: 0 !important;
         bottom: 0 !important;
         z-index: 9999 !important;
-        background-color: rgba(255, 0, 0, 0.3) !important; /* Red tint so you can see it */
-        border: 5px solid red !important;
     }
 
-    /* Make the menu panel highly visible with blue border */
     .fixed.top-0.left-0.bottom-0 {
         display: flex !important;
         position: fixed !important;
@@ -3466,7 +3529,6 @@ div[style*="background-color: #f1f5f9"] {
         background: white !important;
         width: 320px !important;
         transform: translateX(0) !important;
-        border: 5px solid blue !important;
         box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
     }
 
@@ -3476,43 +3538,29 @@ div[style*="background-color: #f1f5f9"] {
         visibility: visible !important;
         opacity: 1 !important;
     }
+}
 
-    /* Override any transform that might hide the menu */
-    .transform.transition-transform {
-        transform: translateX(0) !important;
-        transition: none !important; /* Remove transition for debugging */
+/* Touch interaction improvements for iPad */
+@media (hover: none) and (pointer: coarse) and (min-width: 768px) {
+    .touch-friendly:active {
+        transform: scale(0.94) !important;
+        transition: transform 0.1s ease !important;
     }
 
-    /* Make sure the menu content is visible */
-    .w-80.max-w-sm {
-        width: 320px !important;
-        max-width: 20rem !important;
-        background: yellow !important; /* Yellow background so you can see it */
-        border: 3px solid green !important;
-        height: 100vh !important;
-    }
-
-    /* Visual indicator for debugging */
-    .mobile-menu-debug::before {
-        content: "🔍 MENU DEBUG MODE - iPad Menu Should Be Visible";
-        position: fixed;
-        top: 50px;
-        left: 50%;
-        transform: translateX(-50%);
-        background: purple;
-        color: white;
-        padding: 10px 20px;
-        border-radius: 8px;
-        z-index: 999999;
-        font-size: 16px;
-        font-weight: bold;
+    .touch-friendly {
+        touch-action: manipulation !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
     }
 }
 
-/* Add this class to your mobile menu container for visual debugging */
-.mobile-menu-container {
-    border: 3px dashed orange !important;
-    background: rgba(0, 255, 0, 0.1) !important;
+/* Hardware acceleration for smoother interactions */
+@media (min-width: 768px) and (max-width: 1200px) {
+    header .touch-friendly {
+        transform: translateZ(0) !important;
+        backface-visibility: hidden !important;
+        perspective: 1000px !important;
+    }
 }
 
 /* ===== END OF CLEANED GLOBALS.CSS ===== */
