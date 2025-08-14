@@ -85,7 +85,8 @@ export default function LandingContent() {
     useEffect(() => {
         if (status === 'authenticated' && session?.user) {
             console.log('🔄 Authenticated user detected, redirecting to dashboard');
-            router.replace('/dashboard');
+            // Use window.location for reliable redirect
+            window.location.href = '/dashboard';
         }
     }, [status, session, router]);
 

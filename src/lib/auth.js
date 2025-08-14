@@ -173,21 +173,21 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 });
 
                 // Store in mobile session storage for cross-platform compatibility
-                if (typeof window !== 'undefined' && session?.user) {
-                    try {
-                        console.log('💾 Storing session in mobile session from NextAuth v5 callback...');
-                        const { MobileSession } = await import('@/lib/mobile-session-simple');
-                        const success = await MobileSession.setSession(session);
-
-                        if (success) {
-                            console.log('✅ Mobile session stored successfully from NextAuth v5 callback');
-                        } else {
-                            console.error('❌ Failed to store mobile session from NextAuth v5 callback');
-                        }
-                    } catch (error) {
-                        console.error('💥 Error storing mobile session in NextAuth v5 callback:', error);
-                    }
-                }
+                // if (typeof window !== 'undefined' && session?.user) {
+                //     try {
+                //         console.log('💾 Storing session in mobile session from NextAuth v5 callback...');
+                //         const { MobileSession } = await import('@/lib/mobile-session-simple');
+                //         const success = await MobileSession.setSession(session);
+                //
+                //         if (success) {
+                //             console.log('✅ Mobile session stored successfully from NextAuth v5 callback');
+                //         } else {
+                //             console.error('❌ Failed to store mobile session from NextAuth v5 callback');
+                //         }
+                //     } catch (error) {
+                //         console.error('💥 Error storing mobile session in NextAuth v5 callback:', error);
+                //     }
+                // }
             }
             return session;
         },

@@ -98,6 +98,7 @@ function SignInContent() {
                 email: formData.email,
                 password: formData.password,
                 redirect: false,
+                redirectTo: '/dashboard'
             });
 
             console.log('SignIn result:', result);
@@ -121,144 +122,13 @@ function SignInContent() {
                 console.log('Login appears successful');
                 setRedirecting(true);
 
-                if (isNative) {
-                    // For native platforms, we need to get the session data directly
-                    // since NextAuth session retrieval might fail
-                    console.log('🔄 Native platform - fetching session data directly...');
+                // Simplified approach - let NextAuth handle the session
+                // Wait a moment for session to be established
+                await new Promise(resolve => setTimeout(resolve, 1000));
 
-                    try {
-                        // ENHANCED: Try multiple methods to get user data
-                        console.log('🔍 Method 1: Trying NextAuth session...');
-
-                        // First try NextAuth session
-                        const { getSession } = await import('next-auth/react');
-                        const nextAuthSession = await getSession();
-
-                        if (nextAuthSession?.user) {
-                            console.log('✅ NextAuth session found:', nextAuthSession.user);
-                            const success = await MobileSession.setSession(nextAuthSession);
-                            if (success) {
-                                console.log('✅ NextAuth session stored, redirecting...');
-                                setTimeout(() => {
-                                    window.location.replace('/dashboard');
-                                }, 1000);
-                                return;
-                            }
-                        }
-
-                        console.log('🔍 Method 2: Trying direct session API...');
-
-                        // Try direct API call to get session data
-                        const sessionResponse = await apiGet('/api/auth/session');
-
-                        if (sessionResponse.ok) {
-                            const sessionData = await sessionResponse.json();
-                            console.log('✅ Direct session fetch response:', sessionData);
-
-                            if (sessionData?.user && Object.keys(sessionData.user).length > 1) {
-                                // Store the session in mobile storage
-                                const mobileSessionData = {
-                                    user: sessionData.user,
-                                    expires: sessionData.expires || new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                                };
-
-                                const success = await MobileSession.setSession(mobileSessionData);
-                                console.log('📱 Mobile session storage result:', success);
-
-                                if (success) {
-                                    console.log('✅ Session stored successfully, redirecting...');
-                                    setTimeout(() => {
-                                        window.location.replace('/dashboard');
-                                    }, 1000);
-                                    return;
-                                }
-                            }
-                        }
-
-                        console.log('🔍 Method 3: Trying user profile API...');
-
-                        // Try to get user data from profile endpoint
-                        const profileResponse = await apiGet('/api/user/profile');
-
-                        if (profileResponse.ok) {
-                            const userData = await profileResponse.json();
-                            console.log('✅ User profile fetch successful:', userData);
-
-                            if (userData?.email) {
-                                // Create session from user data
-                                const sessionData = {
-                                    user: userData,
-                                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                                };
-
-                                const success = await MobileSession.setSession(sessionData);
-                                console.log('📱 Profile session storage result:', success);
-
-                                if (success) {
-                                    console.log('✅ Profile session stored successfully, redirecting...');
-                                    setTimeout(() => {
-                                        window.location.replace('/dashboard');
-                                    }, 1000);
-                                    return;
-                                }
-                            }
-                        }
-
-                        console.log('🔍 Method 4: Trying user data by email...');
-
-                        // Add a small delay to ensure the callback processing is complete
-                        await new Promise(resolve => setTimeout(resolve, 1000));
-
-                        // Try to get user data by email
-                        const userResponse = await apiPost('/api/user/by-email', { email: formData.email });
-
-                        console.log('📡 User by email API response status:', userResponse.status);
-
-                        if (userResponse.ok) {
-                            const userData = await userResponse.json();
-                            console.log('✅ User data by email successful:', userData);
-
-                            if (userData?.email) {
-                                // Create session from user data
-                                const sessionData = {
-                                    user: userData,
-                                    expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-                                };
-
-                                const success = await MobileSession.setSession(sessionData);
-                                console.log('📱 Email user session storage result:', success);
-
-                                if (success) {
-                                    console.log('✅ Email user session stored successfully, redirecting...');
-                                    setTimeout(() => {
-                                        window.location.replace('/dashboard');
-                                    }, 1000);
-                                    return;
-                                }
-                            }
-                        } else {
-                            console.error('❌ User by email API failed:', userResponse.status, userResponse.statusText);
-                            try {
-                                const errorData = await userResponse.text();
-                                console.error('Error response:', errorData);
-                            } catch (e) {
-                                console.error('Could not read error response');
-                            }
-                        }
-
-                        console.log('❌ All methods failed, using fallback...');
-                        await handleFallbackSessionRetrieval(isNative);
-
-                    } catch (fetchError) {
-                        console.error('❌ Error during session retrieval:', fetchError);
-                        // Fallback: try to get the session a different way
-                        await handleFallbackSessionRetrieval(isNative);
-                    }
-                } else {
-                    // For web platforms, use the original logic
-                    console.log('🌐 Web platform - using NextAuth session...');
-                    await handleWebSessionRetrieval();
-                }
+                // Force redirect to dashboard - this works for both web and native
+                window.location.href = '/dashboard';
+                return;
             }
         } catch (error) {
             console.error('Login exception:', error);
