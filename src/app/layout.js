@@ -14,6 +14,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import '@/lib/capacitor-auth-fix';
 import SafeAreaBackground from "@/components/SafeAreaBackground";
+import '@/lib/force-native-routing';
 
 const inter = Inter({subsets: ['latin']});
 
