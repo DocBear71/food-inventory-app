@@ -3088,23 +3088,6 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
-/* iPad-specific header debugging - remove after testing */
-@media (min-width: 1000px) and (max-width: 1400px) and (pointer: coarse) {
-    body::before {
-        content: "iPad Mode Active" !important;
-        position: fixed !important;
-        top: 50px !important;
-        left: 10px !important;
-        background: blue !important;
-        color: white !important;
-        padding: 4px 8px !important;
-        border-radius: 4px !important;
-        font-size: 12px !important;
-        z-index: 9999 !important;
-        pointer-events: none !important;
-    }
-}
-
 /* iPad Specific Fixes - Add to globals.css */
 
 /* Force proper button centering on iPad */
