@@ -1,4 +1,4 @@
-/* file: /src/app/globals.css - CLEANED AND ORGANIZED */
+/* ===== GLOBALS.CSS - ORGANIZED AND STREAMLINED ===== */
 
 @import "tailwindcss/preflight";
 @import "tailwindcss/utilities";
@@ -29,6 +29,8 @@ html {
     -webkit-tap-highlight-color: transparent !important;
     touch-action: manipulation !important;
     height: 100% !important;
+    margin: 0;
+    padding: 0;
 }
 
 body {
@@ -40,400 +42,13 @@ body {
     margin: 0 !important;
     padding: 0 !important;
     height: 100%;
+    width: 100%;
 }
 
 /* Prevent over-scrolling on mobile */
 html, body {
     overscroll-behavior: none;
     -webkit-overflow-scrolling: touch;
-}
-
-/* Force safe area support for mobile apps */
-html, body {
-    margin: 0;
-    padding: 0;
-    height: 100%;
-    width: 100%;
-}
-
-/* Safe area handling for mobile apps */
-.mobile-safe-layout {
-    /* Use CSS environment variables with robust fallbacks */
-    padding-top: max(env(safe-area-inset-top, 24px), 24px);
-    padding-bottom: max(env(safe-area-inset-bottom, 88px), 88px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
-
-    min-height: 100vh;
-    box-sizing: border-box;
-}
-
-
-
-/* ===== COMPREHENSIVE SAFE AREA UTILITIES ===== */
-
-/* Safe area inset utilities */
-.safe-top {
-    padding-top: env(safe-area-inset-top, 0px);
-}
-
-.safe-bottom {
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.safe-left {
-    padding-left: env(safe-area-inset-left, 0px);
-}
-
-.safe-right {
-    padding-right: env(safe-area-inset-right, 0px);
-}
-
-.safe-area-full {
-    padding-top: env(safe-area-inset-top, 0px);
-    padding-bottom: env(safe-area-inset-bottom, 0px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
-}
-
-/* Safe area positioning for fixed elements */
-.fixed-safe-top {
-    top: env(safe-area-inset-top, 0px);
-}
-
-.fixed-safe-bottom {
-    bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.fixed-safe-left {
-    left: env(safe-area-inset-left, 0px);
-}
-
-.fixed-safe-right {
-    right: env(safe-area-inset-right, 0px);
-}
-
-/* Fixed positioning with all safe areas */
-.fixed-safe-insets {
-    top: env(safe-area-inset-top, 0px);
-    bottom: env(safe-area-inset-bottom, 0px);
-    left: env(safe-area-inset-left, 0px);
-    right: env(safe-area-inset-right, 0px);
-}
-
-/* Margin utilities for safe areas */
-.margin-safe-top {
-    margin-top: env(safe-area-inset-top, 0px);
-}
-
-.margin-safe-bottom {
-    margin-bottom: env(safe-area-inset-bottom, 0px);
-}
-
-.margin-safe-left {
-    margin-left: env(safe-area-inset-left, 0px);
-}
-
-.margin-safe-right {
-    margin-right: env(safe-area-inset-right, 0px);
-}
-
-/* Height calculations with safe areas */
-.height-screen-safe {
-    height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-}
-
-.min-height-screen-safe {
-    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-}
-
-.max-height-screen-safe {
-    max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-}
-
-/* Modal safe area handling */
-.modal-safe-insets {
-    top: env(safe-area-inset-top, 0px);
-    left: env(safe-area-inset-left, 0px);
-    right: env(safe-area-inset-right, 0px);
-    bottom: 0;
-    padding-bottom: max(env(safe-area-inset-bottom, 0px), 0px);
-}
-
-/* Full viewport with safe areas */
-.viewport-safe {
-    width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
-    height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-}
-
-/* Enhanced mobile padding for better clearance */
-@media screen and (max-width: 768px) {
-    .mobile-safe-layout {
-        padding-top: max(env(safe-area-inset-top, 32px), 32px) !important;
-        padding-bottom: max(env(safe-area-inset-bottom, 96px), 96px) !important;
-    }
-}
-
-/* Capacitor app specific overrides */
-.capacitor-android .mobile-safe-layout {
-    padding-top: max(env(safe-area-inset-top, 32px), 32px) !important;
-    padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
-}
-
-/* Ensure the main container doesn't allow over-scroll */
-.dashboard-container {
-    overscroll-behavior: none;
-    overflow-y: auto;
-    max-height: 100vh;
-}
-
-/* For Capacitor apps specifically */
-.capacitor-app {
-    overscroll-behavior: none;
-}
-
-/* Alternative: If you have a specific layout container */
-.mobile-layout {
-    position: relative;
-    overflow-x: hidden;
-    overscroll-behavior: none;
-    min-height: 100vh;
-    max-height: 100vh;
-}
-
-/* ===== BROWSER-SPECIFIC FIXES ===== */
-
-/* iOS Safari viewport fixes */
-.min-h-screen {
-    min-height: 100vh !important;
-    min-height: calc(var(--vh, 1vh) * 100) !important;
-}
-
-.h-screen {
-    height: 100vh !important;
-    height: calc(var(--vh, 1vh) * 100) !important;
-}
-
-
-/* PWA standalone mode */
-@media all and (display-mode: standalone) {
-    body {
-        padding-top: env(safe-area-inset-top, 0px) !important;
-        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-        padding-left: env(safe-area-inset-left, 0px) !important;
-        padding-right: env(safe-area-inset-right, 0px) !important;
-    }
-}
-
-/* iOS Safari specific fixes */
-@supports (-webkit-touch-callout: none) {
-    .ios-safe-top {
-        padding-top: env(safe-area-inset-top, 0px) !important;
-    }
-    .ios-safe-bottom {
-        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
-    }
-}
-
-/* Input and button fixes */
-button {
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    border: none !important;
-    cursor: pointer !important;
-}
-
-input, select, textarea {
-    border-radius: 0 !important;
-    font-size: 16px !important; /* Prevents zoom on iOS */
-}
-
-/* Enhanced input styles for better mobile keyboard and swipe typing support */
-input[type="text"],
-input[type="email"],
-input[type="password"],
-input[type="number"],
-input[type="tel"],
-input[type="search"],
-input[type="date"],
-input[type="url"],
-select,
-textarea {
-    border: 1px solid #d1d5db;
-    border-radius: 0.375rem;
-    padding: 0.5rem 0.75rem;
-    font-size: 0.875rem;
-    line-height: 1.25rem;
-    touch-action: manipulation !important;
-
-    /* Enhanced mobile keyboard support */
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-
-    /* Ensure proper text rendering for swipe typing */
-    text-rendering: optimizeLegibility;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-
-    /* Prevent iOS zoom on focus while maintaining responsive design */
-    transform-origin: left top;
-    transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out;
-}
-
-input[type="text"]:focus,
-input[type="email"]:focus,
-input[type="password"]:focus,
-input[type="number"]:focus,
-input[type="tel"]:focus,
-input[type="search"]:focus,
-input[type="date"]:focus,
-input[type="url"]:focus,
-select:focus,
-textarea:focus {
-    outline: none;
-    border-color: #6366f1;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
-
-    /* Ensure consistent focus behavior across devices */
-    transform: scale(1);
-}
-
-/* Mobile-specific optimizations */
-@media (max-width: 640px) {
-    input[type="text"],
-    input[type="email"],
-    input[type="password"],
-    input[type="number"],
-    input[type="tel"],
-    input[type="search"],
-    input[type="date"],
-    input[type="url"],
-    select,
-    textarea {
-        /* Use 16px on mobile to prevent iOS zoom */
-        font-size: 16px;
-
-        /* Slightly larger touch targets on mobile */
-        min-height: 44px;
-        padding: 0.625rem 0.75rem;
-    }
-}
-
-/* Specific optimizations for different input types */
-input[type="password"] {
-    /* Better for password visibility */
-    font-family: monospace;
-}
-
-/* Search field optimizations */
-input[type="search"] {
-    -webkit-appearance: none;
-    -moz-appearance: none;
-    appearance: none;
-}
-
-/* Textarea optimizations */
-textarea {
-    resize: vertical;
-    min-height: 80px;
-    font-family: inherit;
-}
-
-/* Safe area support for devices with notches */
-.pt-safe {
-    padding-top: env(safe-area-inset-top);
-}
-
-.pb-safe {
-    padding-bottom: env(safe-area-inset-bottom);
-}
-
-/* Additional mobile keyboard support utilities */
-.keyboard-optimized {
-    -webkit-user-select: text;
-    -moz-user-select: text;
-    -ms-user-select: text;
-    user-select: text;
-
-    -webkit-touch-callout: default;
-    -webkit-tap-highlight-color: transparent;
-}
-
-/* Override checkbox margins for form layouts */
-.ingredient-checkbox {
-    margin-right: 0.75rem !important; /* 12px spacing */
-}
-
-/* Checkbox styling */
-input[type="checkbox"] {
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    background-color: #fff !important;
-    margin: 0 !important;
-    font: inherit !important;
-    color: currentColor !important;
-    width: 1rem !important;
-    height: 1rem !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 0.25rem !important;
-    transform: translateY(-0.075em) !important;
-    display: grid !important;
-    place-content: center !important;
-}
-
-input[type="checkbox"]:checked {
-    background-color: #3b82f6 !important;
-    border-color: #3b82f6 !important;
-}
-
-input[type="checkbox"]:checked::before {
-    content: "✓" !important;
-    color: white !important;
-    font-size: 0.75rem !important;
-    font-weight: bold !important;
-}
-
-input[type="checkbox"]:focus {
-    outline: 2px solid transparent !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 2px #3b82f6 !important;
-}
-
-/* Radio button styling */
-input[type="radio"] {
-    -webkit-appearance: none !important;
-    appearance: none !important;
-    background-color: #fff !important;
-    margin: 0 !important;
-    font: inherit !important;
-    color: currentColor !important;
-    width: 1rem !important;
-    height: 1rem !important;
-    border: 1px solid #d1d5db !important;
-    border-radius: 50% !important;
-    transform: translateY(-0.075em) !important;
-    display: grid !important;
-    place-content: center !important;
-}
-
-input[type="radio"]:checked {
-    background-color: #3b82f6 !important;
-    border-color: #3b82f6 !important;
-}
-
-input[type="radio"]:checked::before {
-    content: "" !important;
-    width: 0.5rem !important;
-    height: 0.5rem !important;
-    border-radius: 50% !important;
-    background-color: white !important;
-}
-
-input[type="radio"]:focus {
-    outline: 2px solid transparent !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 2px #3b82f6 !important;
 }
 
 /* ===== LAYOUT UTILITIES ===== */
@@ -471,10 +86,12 @@ input[type="radio"]:focus {
 .bottom-20 { bottom: 5rem !important; }
 .left-0 { left: 0 !important; }
 .left-2 { left: 0.5rem !important; }
+.left-2\.5 { left: 0.625rem !important; }
 .left-4 { left: 1rem !important; }
 .left-1\/2 { left: 50% !important; }
 .right-0 { right: 0 !important; }
 .right-2 { right: 0.5rem !important; }
+.right-2\.5 { right: 0.625rem !important; }
 .right-4 { right: 1rem !important; }
 
 /* Flexbox */
@@ -552,7 +169,7 @@ input[type="radio"]:focus {
 /* Height */
 .h-3 { height: 0.75rem !important; }
 .h-4 { height: 1rem !important; }
-.h-5 { height: 1.5rem !important; }
+.h-5 { height: 1.25rem !important; }
 .h-6 { height: 1.5rem !important; }
 .h-7 { height: 1.75rem !important; }
 .h-8 { height: 2rem !important; }
@@ -566,24 +183,81 @@ input[type="radio"]:focus {
 .h-40 { height: 10rem !important; }
 .h-64 { height: 16rem !important; }
 .h-full { height: 100% !important; }
+.h-screen {
+    height: 100vh !important;
+    height: calc(var(--vh, 1vh) * 100) !important;
+}
 
-/* Max Width */
+/* Min/Max Sizing */
+.min-h-0 { min-height: 0px !important; }
+.min-h-screen {
+    min-height: 100vh !important;
+    min-height: calc(var(--vh, 1vh) * 100) !important;
+}
+.min-w-full { min-width: 100% !important; }
+
 .max-w-sm { max-width: 24rem !important; }
 .max-w-md { max-width: 28rem !important; }
 .max-w-2xl { max-width: 42rem !important; }
 .max-w-4xl { max-width: 56rem !important; }
 .max-w-7xl { max-width: 80rem !important; }
 
-/* Max Height */
 .max-h-20 { max-height: 5rem !important; }
 .max-h-screen { max-height: 100vh !important; }
 .max-h-\[90vh\] { max-height: 90vh !important; }
 
 /* ===== SPACING UTILITIES ===== */
 
+/* Padding */
+.p-1 { padding: 0.25rem !important; }
+.p-2 { padding: 0.5rem !important; }
+.p-4 { padding: 1rem !important; }
+.p-5 { padding: 1.25rem !important; }
+.p-6 { padding: 1.5rem !important; }
+
+.px-1 { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
+.px-1\.5 { padding-left: 0.375rem !important; padding-right: 0.375rem !important; }
+.px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
+.px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+.px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
+.px-6 { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
+.px-8 { padding-left: 2rem !important; padding-right: 2rem !important; }
+
+.py-0\.5 { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
+.py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
+.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
+.py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
+.py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
+.py-5 { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; }
+.py-6 { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
+.py-8 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
+
+.pt-1, .pyt-1 { padding-top: 0.25rem !important; }
+.pt-2, .pyt-2 { padding-top: 0.5rem !important; }
+.pt-3, .pyt-3 { padding-top: 0.75rem !important; }
+.pt-4, .pyt-4 { padding-top: 1rem !important; }
+.pt-5, .pyt-5 { padding-top: 1.25rem !important; }
+.pt-6, .pyt-6 { padding-top: 1.5rem !important; }
+.pt-8, .pyt-8 { padding-top: 2rem !important; }
+
+.pr-3 { padding-right: 0.75rem !important; }
+.pr-4 { padding-right: 1rem !important; }
+.pr-6 { padding-right: 1.5rem !important; }
+.pr-8 { padding-right: 2rem !important; }
+
+.pb-3 { padding-bottom: 0.75rem !important; }
+.pb-4 { padding-bottom: 1rem !important; }
+.pb-8 { padding-bottom: 2rem !important; }
+.pb-16 { padding-bottom: 4rem !important; }
+.pb-32 { padding-bottom: 8rem !important; }
+
+.pl-7 { padding-left: 1.75rem !important; }
+.pl-8 { padding-left: 2rem !important; }
+
 /* Margin */
 .mx-auto { margin-left: auto !important; margin-right: auto !important; }
 .mx-4 { margin-left: 1rem !important; margin-right: 1rem !important; }
+
 .mt-1 { margin-top: 0.25rem !important; }
 .mt-2 { margin-top: 0.5rem !important; }
 .mt-3 { margin-top: 0.75rem !important; }
@@ -592,6 +266,7 @@ input[type="radio"]:focus {
 .mt-6 { margin-top: 1.5rem !important; }
 .mt-8 { margin-top: 2rem !important; }
 .mt-10 { margin-top: 2.5rem !important; }
+
 .mb-1 { margin-bottom: 0.25rem !important; }
 .mb-2 { margin-bottom: 0.5rem !important; }
 .mb-3 { margin-bottom: 0.75rem !important; }
@@ -601,9 +276,11 @@ input[type="radio"]:focus {
 .mb-8 { margin-bottom: 2rem !important; }
 .mb-10 { margin-bottom: 2.5rem !important; }
 .mb-12 { margin-bottom: 4rem !important; }
+
 .ml-1 { margin-left: 0.25rem !important; }
 .ml-2 { margin-left: 0.5rem !important; }
 .ml-3 { margin-left: 0.75rem !important; }
+
 .mr-1 { margin-right: 0.25rem !important; }
 .mr-2 { margin-right: 0.5rem !important; }
 .mr-3 { margin-right: 0.75rem !important; }
@@ -619,6 +296,7 @@ input[type="radio"]:focus {
 .space-x-8 > * + * { margin-left: 2rem !important; }
 .space-x-10 > * + * { margin-left: 2.5rem !important; }
 .space-x-12 > * + * { margin-left: 3rem !important; }
+
 .space-y-1 > * + * { margin-top: 0.25rem !important; }
 .space-y-2 > * + * { margin-top: 0.5rem !important; }
 .space-y-3 > * + * { margin-top: 0.75rem !important; }
@@ -626,100 +304,68 @@ input[type="radio"]:focus {
 .space-y-5 > * + * { margin-top: 1.25rem !important; }
 .space-y-6 > * + * { margin-top: 1.5rem !important; }
 
-/* Missing Gap utilities (for flexbox spacing) */
-.gap-1 { gap: 0.25rem !important; }
-.gap-2 { gap: 0.5rem !important; }
+/* ===== TYPOGRAPHY UTILITIES ===== */
 
-/* Missing Padding utilities */
-.p-1 { padding: 0.25rem !important; }
-.p-2 { padding: 0.5rem !important; }
-.p-3 { padding: 0.75rem !important; }
-.px-1 { padding-left: 0.25rem !important; padding-right: 0.25rem !important; }
-.px-1\.5 { padding-left: 0.375rem !important; padding-right: 0.375rem !important; }
-.px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-.py-0\.5 { padding-top: 0.125rem !important; padding-bottom: 0.125rem !important; }
-.py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
-.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
-.pl-7 { padding-left: 1.75rem !important; }
-.pr-8 { padding-right: 2rem !important; }
-.pl-8 { padding-left: 2rem !important; }
-
-/* Missing Margin utilities */
-.ml-1 { margin-left: 0.25rem !important; }
-.mt-1 { margin-top: 0.25rem !important; }
-.mt-2 { margin-top: 0.5rem !important; }
-
-/* Missing Width/Height utilities */
-.w-5 { width: 1.25rem !important; }
-.w-6 { width: 1.5rem !important; }
-.w-12 { width: 3rem !important; }
-.h-5 { height: 1.25rem !important; }
-.h-6 { height: 1.5rem !important; }
-
-/* Missing Position utilities */
-.left-2\.5 { left: 0.625rem !important; }
-.right-2\.5 { right: 0.625rem !important; }
-
-/* Missing Transform utilities */
-.transform { transform: var(--tw-transform) !important; }
-.-translate-y-1\/2 { transform: translateY(-50%) !important; }
-
-/* Missing Flex utilities */
-.flex-wrap { flex-wrap: wrap !important; }
-.flex-shrink-0 { flex-shrink: 0 !important; }
-
-/* Missing Text utilities */
+/* Font Size */
 .text-xs { font-size: 0.75rem !important; line-height: 1rem !important; }
+.text-sm { font-size: 0.875rem !important; line-height: 1.25rem !important; }
+.text-base { font-size: 1rem !important; line-height: 1.5rem !important; }
+.text-lg { font-size: 1.125rem !important; line-height: 1.75rem !important; }
+.text-xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
+.text-2xl { font-size: 1.5rem !important; line-height: 2rem !important; }
+.text-3xl { font-size: 1.875rem !important; line-height: 2.25rem !important; }
+.text-4xl { font-size: 2.25rem !important; line-height: 2.5rem !important; }
 
-/* Missing Cursor utilities */
-.cursor-grab { cursor: grab !important; }
-.cursor-grabbing { cursor: grabbing !important; }
+/* Font Weight */
+.font-medium { font-weight: 500 !important; }
+.font-semibold { font-weight: 600 !important; }
+.font-bold { font-weight: 700 !important; }
+.font-extrabold { font-weight: 800 !important; }
 
-/* Missing Min-height utilities */
-.min-h-0 { min-height: 0px !important; }
+/* Text Align */
+.text-left { text-align: left !important; }
+.text-center { text-align: center !important; }
 
-/* Missing Max-height utilities */
-.max-h-\[90vh\] { max-height: 90vh !important; }
+/* Text Transform */
+.uppercase { text-transform: uppercase !important; }
+.capitalize { text-transform: capitalize !important; }
 
-/* Padding */
-.p-2 { padding: 0.5rem !important; }
-.p-4 { padding: 1rem !important; }
-.p-5 { padding: 1.25rem !important; }
-.p-6 { padding: 1.5rem !important; }
-.px-2 { padding-left: 0.5rem !important; padding-right: 0.5rem !important; }
-.px-3 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
-.px-4 { padding-left: 1rem !important; padding-right: 1rem !important; }
-.px-6 { padding-left: 1.5rem !important; padding-right: 1.5rem !important; }
-.px-8 { padding-left: 2rem !important; padding-right: 2rem !important; }
-.py-1 { padding-top: 0.25rem !important; padding-bottom: 0.25rem !important; }
-.py-2 { padding-top: 0.5rem !important; padding-bottom: 0.5rem !important; }
-.py-3 { padding-top: 0.75rem !important; padding-bottom: 0.75rem !important; }
-.py-4 { padding-top: 1rem !important; padding-bottom: 1rem !important; }
-.py-5 { padding-top: 1.25rem !important; padding-bottom: 1.25rem !important; }
-.py-6 { padding-top: 1.5rem !important; padding-bottom: 1.5rem !important; }
-.py-8 { padding-top: 2rem !important; padding-bottom: 2rem !important; }
-.pyt-1 { padding-top: 0.25rem !important; }
-.pyt-2 { padding-top: 0.5rem !important; }
-.pyt-3 { padding-top: 0.75rem !important; }
-.pyt-4 { padding-top: 1rem !important; }
-.pyt-5 { padding-top: 1.25rem !important; }
-.pyt-6 { padding-top: 1.5rem !important; }
-.pyt-8 { padding-top: 2rem !important; }
-.pr-3 { padding-right: 0.75rem !important; }
-.pr-4 { padding-right: 1rem !important; }
-.pr-6 { padding-right: 1.5rem !important; }
-.pr-8 { padding-right: 2rem !important; }
-.pb-3 { padding-bottom: 0.75rem !important; }
-.pb-4 { padding-bottom: 1rem !important; }
-.pb-8 { padding-bottom: 2rem !important; }
-.pb-16 { padding-bottom: 4rem !important; }
-.pb-32 { padding-bottom: 8rem !important; }
+/* Text Decoration */
+.line-through { text-decoration-line: line-through !important; }
+
+/* Text Properties */
+.whitespace-nowrap { white-space: nowrap !important; }
+.tracking-wider { letter-spacing: 0.05em !important; }
+.leading-5 { line-height: 1.25rem !important; }
+.leading-6 { line-height: 1.5rem !important; }
+.leading-relaxed { line-height: 1.625 !important; }
+.truncate {
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+}
+
+/* Special Text */
+.text-transparent { color: transparent !important; }
+.sr-only {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: -1px !important;
+    overflow: hidden !important;
+    clip: rect(0, 0, 0, 0) !important;
+    white-space: nowrap !important;
+    border: 0 !important;
+}
 
 /* ===== COLOR UTILITIES ===== */
 
 /* Text Colors */
 .text-black { color: #000000 !important; }
 .text-white { color: #ffffff !important; }
+
+/* Gray Colors */
 .text-gray-50 { color: #f9fafb !important; }
 .text-gray-300 { color: #d1d5db !important; }
 .text-gray-400 { color: #9ca3af !important; }
@@ -728,50 +374,83 @@ input[type="radio"]:focus {
 .text-gray-700 { color: #374151 !important; }
 .text-gray-800 { color: #1f2937 !important; }
 .text-gray-900 { color: #111827 !important; }
+
+/* Red Colors */
 .text-red-200 { color: #fecaca !important; }
 .text-red-400 { color: #f87171 !important; }
+.text-red-500 { color: #ef4444 !important; }
 .text-red-600 { color: #dc2626 !important; }
 .text-red-700 { color: #b91c1c !important; }
 .text-red-800 { color: #991b1b !important; }
 .text-red-900 { color: #7f1d1d !important; }
+
+/* Orange Colors */
 .text-orange-100 { color: #fed7aa !important; }
+.text-orange-500 { color: #f97316 !important; }
 .text-orange-600 { color: #ea580c !important; }
 .text-orange-700 { color: #c2410c !important; }
 .text-orange-900 { color: #9a3412 !important; }
+
+/* Amber Colors */
 .text-amber-700 { color: #b45309 !important; }
 .text-amber-800 { color: #92400e !important; }
+
+/* Yellow Colors */
 .text-yellow-400 { color: #fbbf24 !important; }
+.text-yellow-500 { color: #eab308 !important; }
 .text-yellow-600 { color: #ca8a04 !important; }
 .text-yellow-700 { color: #a16207 !important; }
 .text-yellow-800 { color: #92400e !important; }
 .text-yellow-900 { color: #713f12 !important; }
+
+/* Lime Colors */
+.text-lime-500 { color: #84cc16 !important; }
 .text-lime-700 { color: #4d7c0f !important; }
 .text-lime-800 { color: #365314 !important; }
+
+/* Green Colors */
 .text-green-400 { color: #4ade80 !important; }
+.text-green-500 { color: #22c55e !important; }
 .text-green-600 { color: #16a34a !important; }
 .text-green-700 { color: #15803d !important; }
 .text-green-800 { color: #166534 !important; }
 .text-green-900 { color: #14532d !important; }
+
+/* Emerald Colors */
 .text-emerald-600 { color: #059669 !important; }
 .text-emerald-700 { color: #047857 !important; }
+
+/* Teal Colors */
 .text-teal-700 { color: #0f766e !important; }
 .text-teal-800 { color: #115e59 !important; }
+
+/* Cyan Colors */
 .text-cyan-700 { color: #0e7490 !important; }
 .text-cyan-800 { color: #155e75 !important; }
+
+/* Blue Colors */
 .text-blue-600 { color: #2563eb !important; }
 .text-blue-700 { color: #1d4ed8 !important; }
 .text-blue-800 { color: #1e40af !important; }
 .text-blue-900 { color: #1e3a8a !important; }
+
+/* Indigo Colors */
 .text-indigo-500 { color: #6366f1 !important; }
 .text-indigo-600 { color: #4f46e5 !important; }
 .text-indigo-700 { color: #4338ca !important; }
 .text-indigo-900 { color: #312e81 !important; }
+
+/* Violet Colors */
 .text-violet-600 { color: #7c3aed !important; }
 .text-violet-700 { color: #6d28d9 !important; }
+
+/* Purple Colors */
 .text-purple-600 { color: #9333ea !important; }
 .text-purple-700 { color: #7c3aed !important; }
 .text-purple-800 { color: #6b21a8 !important; }
 .text-purple-900 { color: #581c87 !important; }
+
+/* Pink Colors */
 .text-pink-700 { color: #be185d !important; }
 .text-pink-800 { color: #9d174d !important; }
 
@@ -779,6 +458,8 @@ input[type="radio"]:focus {
 .bg-transparent { background-color: transparent !important; }
 .bg-black { background-color: #000000 !important; }
 .bg-white { background-color: #ffffff !important; }
+
+/* Gray Backgrounds */
 .bg-gray-50 { background-color: #f9fafb !important; }
 .bg-gray-100 { background-color: #f3f4f6 !important; }
 .bg-gray-200 { background-color: #e5e7eb !important; }
@@ -788,33 +469,49 @@ input[type="radio"]:focus {
 .bg-gray-600 { background-color: #4b5563 !important; }
 .bg-gray-700 { background-color: #374151 !important; }
 .bg-gray-900 { background-color: #111827 !important; }
+
+/* Red Backgrounds */
 .bg-red-50 { background-color: #fef2f2 !important; }
 .bg-red-100 { background-color: #fee2e2 !important; }
 .bg-red-200 { background-color: #fecaca !important; }
 .bg-red-500 { background-color: #ef4444 !important; }
 .bg-red-600 { background-color: #dc2626 !important; }
 .bg-red-700 { background-color: #b91c1c !important; }
+
+/* Orange Backgrounds */
 .bg-orange-50 { background-color: #fff7ed !important; }
 .bg-orange-100 { background-color: #ffedd5 !important; }
+.bg-orange-500 { background-color: #f97316 !important; }
 .bg-orange-600 { background-color: #ea580c !important; }
 .bg-orange-700 { background-color: #c2410c !important; }
+
+/* Amber Backgrounds */
 .bg-amber-100 { background-color: #fef3c7 !important; }
 .bg-amber-600 { background-color: #d97706 !important; }
+
+/* Yellow Backgrounds */
 .bg-yellow-50 { background-color: #fefce8 !important; }
 .bg-yellow-100 { background-color: #fef3c7 !important; }
 .bg-yellow-200 { background-color: #fef08a !important; }
+.bg-yellow-500 { background-color: #eab308 !important; }
 .bg-yellow-600 { background-color: #ca8a04 !important; }
 .bg-yellow-700 { background-color: #a16207 !important; }
+
+/* Lime Backgrounds */
 .bg-lime-100 { background-color: #ecfccb !important; }
+.bg-lime-500 { background-color: #84cc16 !important; }
 .bg-lime-600 { background-color: #65a30d !important; }
+
+/* Green Backgrounds */
 .bg-green-50 { background-color: #f0fdf4 !important; }
 .bg-green-100 { background-color: #dcfce7 !important; }
 .bg-green-200 { background-color: #bbf7d0 !important; }
 .bg-green-400 { background-color: #dbeaf7 !important; }
-.bg-green-500 { background-color: #159239 !important; }
+.bg-green-500 { background-color: #22c55e !important; }
 .bg-green-600 { background-color: #16a34a !important; }
 .bg-green-700 { background-color: #15803d !important; }
-/* Emerald Colors */
+
+/* Emerald Backgrounds */
 .bg-emerald-50 { background-color: #ecfdf5 !important; }
 .bg-emerald-100 { background-color: #d1fae5 !important; }
 .bg-emerald-200 { background-color: #a7f3d0 !important; }
@@ -826,7 +523,8 @@ input[type="radio"]:focus {
 .bg-emerald-800 { background-color: #065f46 !important; }
 .bg-emerald-900 { background-color: #064e3b !important; }
 .bg-emerald-950 { background-color: #022c22 !important; }
-/* Teal Colors */
+
+/* Teal Backgrounds */
 .bg-teal-50 { background-color: #f0fdfa !important; }
 .bg-teal-100 { background-color: #ccfbf1 !important; }
 .bg-teal-200 { background-color: #99f6e4 !important; }
@@ -838,41 +536,41 @@ input[type="radio"]:focus {
 .bg-teal-800 { background-color: #115e59 !important; }
 .bg-teal-900 { background-color: #134e4a !important; }
 .bg-teal-950 { background-color: #042f2e !important; }
+
+/* Cyan Backgrounds */
 .bg-cyan-100 { background-color: #cffafe !important; }
 .bg-cyan-600 { background-color: #0891b2 !important; }
 .bg-cyan-700 { background-color: #0e7490 !important; }
+
+/* Blue Backgrounds */
 .bg-blue-50 { background-color: #eff6ff !important; }
 .bg-blue-100 { background-color: #dbeafe !important; }
 .bg-blue-500 { background-color: #3b82f6 !important; }
 .bg-blue-600 { background-color: #2563eb !important; }
 .bg-blue-700 { background-color: #1d4ed8 !important; }
+
+/* Indigo Backgrounds */
 .bg-indigo-50 { background-color: #eef2ff !important; }
 .bg-indigo-100 { background-color: #e0e7ff !important; }
 .bg-indigo-400 { background-color: #818cf8 !important; }
 .bg-indigo-500 { background-color: #6366f1 !important; }
 .bg-indigo-600 { background-color: #4f46e5 !important; }
 .bg-indigo-700 { background-color: #4338ca !important; }
+
+/* Violet Backgrounds */
 .bg-violet-500 { background-color: #8b5cf6 !important; }
 .bg-violet-600 { background-color: #7c3aed !important; }
 .bg-violet-700 { background-color: #6d28d9 !important; }
+
+/* Purple Backgrounds */
 .bg-purple-50 { background-color: #faf5ff !important; }
 .bg-purple-100 { background-color: #f3e8ff !important; }
 .bg-purple-600 { background-color: #9333ea !important; }
 .bg-purple-700 { background-color: #7c3aed !important; }
+
+/* Pink Backgrounds */
 .bg-pink-100 { background-color: #fce7f3 !important; }
 .bg-pink-600 { background-color: #db2777 !important; }
-
-/* Nutrition Grade Colors */
-.bg-lime-500 { background-color: #84cc16 !important; }
-.bg-yellow-500 { background-color: #eab308 !important; }
-.bg-orange-500 { background-color: #f97316 !important; }
-.bg-green-500 { background-color: #22c55e !important; }
-/* Text colors for consistency */
-.text-lime-500 { color: #84cc16 !important; }
-.text-yellow-500 {color: #eab308 !important; }
-.text-orange-500 { color: #f97316 !important; }
-.text-red-500 { color: #ef4444 !important; }
-.text-green-500 { color: #22c55e !important; }
 
 /* Background Opacity */
 .bg-opacity-60 { background-color: rgba(0, 0, 0, 0.6) !important; }
@@ -962,74 +660,6 @@ input[type="radio"]:focus {
 .rounded-bl-lg { border-bottom-left-radius: 0.5rem !important; }
 .rounded-br-lg { border-bottom-right-radius: 0.5rem !important; }
 
-/* ===== TYPOGRAPHY UTILITIES ===== */
-
-/* Font Size */
-.text-xs { font-size: 0.75rem !important; line-height: 1rem !important; }
-.text-sm { font-size: 0.875rem !important; line-height: 1.25rem !important; }
-.text-base { font-size: 1rem !important; line-height: 1.5rem !important; }
-.text-lg { font-size: 1.125rem !important; line-height: 1.75rem !important; }
-.text-xl { font-size: 1.25rem !important; line-height: 1.75rem !important; }
-.text-2xl { font-size: 1.5rem !important; line-height: 2rem !important; }
-.text-3xl { font-size: 1.875rem !important; line-height: 2.25rem !important; }
-.text-4xl { font-size: 2.25rem !important; line-height: 2.5rem !important; }
-
-/* Font Weight */
-.font-medium { font-weight: 500 !important; }
-.font-semibold { font-weight: 600 !important; }
-.font-bold { font-weight: 700 !important; }
-.font-extrabold { font-weight: 800 !important; }
-
-/* Text Align */
-.text-left { text-align: left !important; }
-.text-center { text-align: center !important; }
-
-/* Text Transform */
-.uppercase { text-transform: uppercase !important; }
-.capitalize { text-transform: capitalize !important; }
-
-/* Text Decoration */
-.line-through { text-decoration-line: line-through !important; }
-
-/* Text Properties */
-.whitespace-nowrap { white-space: nowrap !important; }
-.tracking-wider { letter-spacing: 0.05em !important; }
-.leading-5 { line-height: 1.25rem !important; }
-.leading-6 { line-height: 1.5rem !important; }
-.leading-relaxed { line-height: 1.625 !important; }
-.truncate {
-    overflow: hidden !important;
-    text-overflow: ellipsis !important;
-    white-space: nowrap !important;
-}
-
-/* Special Text */
-.text-transparent { color: transparent !important; }
-.sr-only {
-    position: absolute !important;
-    width: 1px !important;
-    height: 1px !important;
-    padding: 0 !important;
-    margin: -1px !important;
-    overflow: hidden !important;
-    clip: rect(0, 0, 0, 0) !important;
-    white-space: nowrap !important;
-    border: 0 !important;
-}
-
-/* ===== OVERFLOW UTILITIES ===== */
-.overflow-hidden { overflow: hidden !important; }
-.overflow-auto { overflow: auto !important; }
-.overflow-x-auto {
-    -webkit-overflow-scrolling: touch !important;
-    overflow-x: auto !important;
-}
-.overflow-y-auto {
-    -webkit-overflow-scrolling: touch !important;
-    overflow-y: auto !important;
-}
-.overscroll-contain { overscroll-behavior: contain !important; }
-
 /* ===== SHADOW UTILITIES ===== */
 .shadow {
     -webkit-box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06) !important;
@@ -1047,20 +677,6 @@ input[type="radio"]:focus {
 .shadow-xl { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04) !important; }
 .shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important; }
 
-/* ===== BACKDROP & FILTERS ===== */
-.backdrop-blur-sm {
-    backdrop-filter: blur(4px) !important;
-    -webkit-backdrop-filter: blur(4px) !important;
-}
-.backdrop-blur {
-    backdrop-filter: blur(8px) !important;
-    -webkit-backdrop-filter: blur(8px) !important;
-}
-.backdrop-blur-md {
-    -webkit-backdrop-filter: blur(12px) !important;
-    backdrop-filter: blur(12px) !important;
-}
-
 /* ===== Z-INDEX UTILITIES ===== */
 .z-1 { z-index: 1 !important; }
 .z-10 { z-index: 10 !important; }
@@ -1070,6 +686,19 @@ input[type="radio"]:focus {
 .z-50 { z-index: 50 !important; }
 .z-999 { z-index: 999 !important; }
 .z-9999 { z-index: 9999 !important; }
+
+/* ===== OVERFLOW UTILITIES ===== */
+.overflow-hidden { overflow: hidden !important; }
+.overflow-auto { overflow: auto !important; }
+.overflow-x-auto {
+    -webkit-overflow-scrolling: touch !important;
+    overflow-x: auto !important;
+}
+.overflow-y-auto {
+    -webkit-overflow-scrolling: touch !important;
+    overflow-y: auto !important;
+}
+.overscroll-contain { overscroll-behavior: contain !important; }
 
 /* ===== TRANSFORM UTILITIES ===== */
 .transform {
@@ -1089,8 +718,7 @@ input[type="radio"]:focus {
     --tw-scale-y: 1.05 !important;
     transform: translate(var(--tw-translate-x, 0), var(--tw-translate-y, 0)) rotate(var(--tw-rotate, 0)) skewX(var(--tw-skew-x, 0)) skewY(var(--tw-skew-y, 0)) scaleX(var(--tw-scale-x, 1)) scaleY(var(--tw-scale-y, 1)) !important;
 }
-
-.scale-110 { transform: scale(1.1); }
+.scale-110 { transform: scale(1.1) !important; }
 
 /* ===== TRANSITION UTILITIES ===== */
 .transition-all {
@@ -1126,6 +754,166 @@ input[type="radio"]:focus {
     50% { opacity: .5; }
 }
 
+/* ===== CURSOR & INTERACTION UTILITIES ===== */
+.cursor-pointer { cursor: pointer !important; }
+.cursor-not-allowed { cursor: not-allowed !important; }
+.cursor-grab { cursor: grab !important; }
+.cursor-grabbing { cursor: grabbing !important; }
+.pointer-events-none { pointer-events: none !important; }
+.select-none { user-select: none !important; }
+
+/* ===== BACKDROP & FILTERS ===== */
+.backdrop-blur-sm {
+    backdrop-filter: blur(4px) !important;
+    -webkit-backdrop-filter: blur(4px) !important;
+}
+.backdrop-blur {
+    backdrop-filter: blur(8px) !important;
+    -webkit-backdrop-filter: blur(8px) !important;
+}
+.backdrop-blur-md {
+    -webkit-backdrop-filter: blur(12px) !important;
+    backdrop-filter: blur(12px) !important;
+}
+
+/* ===== GRADIENT UTILITIES ===== */
+
+/* Gradient Directions */
+.bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)) !important; }
+.bg-gradient-to-l { background-image: linear-gradient(to left, var(--tw-gradient-stops)) !important; }
+.bg-gradient-to-t { background-image: linear-gradient(to top, var(--tw-gradient-stops)) !important; }
+.bg-gradient-to-b { background-image: linear-gradient(to bottom, var(--tw-gradient-stops)) !important; }
+.bg-gradient-to-tr { background-image: linear-gradient(to top right, var(--tw-gradient-stops)) !important; }
+.bg-gradient-to-tl { background-image: linear-gradient(to top left, var(--tw-gradient-stops)) !important; }
+.bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)) !important; }
+.bg-gradient-to-bl { background-image: linear-gradient(to bottom left, var(--tw-gradient-stops)) !important; }
+
+/* Gradient From Colors */
+.from-red-50 { --tw-gradient-from: #fef2f2 !important; --tw-gradient-to: rgba(254, 242, 242, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-red-400 { --tw-gradient-from: #f87171 !important; --tw-gradient-to: rgba(248, 113, 113, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-red-500 { --tw-gradient-from: #ef4444 !important; --tw-gradient-to: rgba(239, 68, 68, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-orange-50 { --tw-gradient-from: #fff7ed !important; --tw-gradient-to: rgba(255, 247, 237, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-orange-400 { --tw-gradient-from: #fb923c !important; --tw-gradient-to: rgba(251, 146, 60, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-orange-500 { --tw-gradient-from: #f97316 !important; --tw-gradient-to: rgba(249, 115, 22, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-orange-600 { --tw-gradient-from: #ea580c !important; --tw-gradient-to: rgb(234 88 12 / 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-yellow-50 { --tw-gradient-from: #fefce8 !important; --tw-gradient-to: rgba(254, 252, 232, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-yellow-400 { --tw-gradient-from: #fbbf24 !important; --tw-gradient-to: rgba(251, 191, 36, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-yellow-500 { --tw-gradient-from: #f59e0b !important; --tw-gradient-to: rgba(245, 158, 11, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-lime-50 { --tw-gradient-from: #f7fee7 !important; --tw-gradient-to: rgba(247, 254, 231, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-green-50 { --tw-gradient-from: #f0fdf4 !important; --tw-gradient-to: rgba(240, 253, 244, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-green-400 { --tw-gradient-from: #4ade80 !important; --tw-gradient-to: rgba(74, 222, 128, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-green-500 { --tw-gradient-from: #22c55e !important; --tw-gradient-to: rgba(34, 197, 94, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-green-600 { --tw-gradient-from: #16a34a !important; --tw-gradient-to: rgba(22, 163, 74, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-green-700 { --tw-gradient-from: #15803d !important; --tw-gradient-to: rgba(21, 128, 61, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-emerald-50 { --tw-gradient-from: #ecfdf5 !important; --tw-gradient-to: rgba(236, 253, 245, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-emerald-400 { --tw-gradient-from: #34d399 !important; --tw-gradient-to: rgba(52, 211, 153, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-emerald-500 { --tw-gradient-from: #10b981 !important; --tw-gradient-to: rgba(16, 185, 129, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-emerald-600 { --tw-gradient-from: #059669 !important; --tw-gradient-to: rgba(5, 150, 105, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-teal-50 { --tw-gradient-from: #f0fdfa !important; --tw-gradient-to: rgba(240, 253, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-cyan-50 { --tw-gradient-from: #ecfeff !important; --tw-gradient-to: rgba(236, 254, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-cyan-400 { --tw-gradient-from: #22d3ee !important; --tw-gradient-to: rgba(34, 211, 238, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-cyan-500 { --tw-gradient-from: #06b6d4 !important; --tw-gradient-to: rgba(6, 182, 212, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-blue-50 { --tw-gradient-from: #eff6ff !important; --tw-gradient-to: rgba(239, 246, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-blue-400 { --tw-gradient-from: #60a5fa !important; --tw-gradient-to: rgba(96, 165, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-blue-500 { --tw-gradient-from: #3b82f6 !important; --tw-gradient-to: rgba(59, 130, 246, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-blue-600 { --tw-gradient-from: #2563eb !important; --tw-gradient-to: rgba(37, 99, 235, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-blue-700 { --tw-gradient-from: #1d4ed8 !important; --tw-gradient-to: rgba(29, 78, 216, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-indigo-50 { --tw-gradient-from: #eef2ff !important; --tw-gradient-to: rgba(238, 242, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-indigo-400 { --tw-gradient-from: #818cf8 !important; --tw-gradient-to: rgba(129, 140, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-indigo-500 { --tw-gradient-from: #6366f1 !important; --tw-gradient-to: rgba(99, 102, 241, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-indigo-600 { --tw-gradient-from: #4f46e5 !important; --tw-gradient-to: rgba(79, 70, 229, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-indigo-700 { --tw-gradient-from: #4338ca !important; --tw-gradient-to: rgba(67, 56, 202, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-violet-50 { --tw-gradient-from: #f5f3ff !important; --tw-gradient-to: rgba(245, 243, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-50 { --tw-gradient-from: #faf5ff !important; --tw-gradient-to: rgba(250, 245, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-100 { --tw-gradient-from: #f3e8ff !important; --tw-gradient-to: rgba(243, 232, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-200 { --tw-gradient-from: #e9d5ff !important; --tw-gradient-to: rgba(233, 213, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-300 { --tw-gradient-from: #d8b4fe !important; --tw-gradient-to: rgba(216, 180, 254, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-400 { --tw-gradient-from: #c084fc !important; --tw-gradient-to: rgba(192, 132, 252, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-500 { --tw-gradient-from: #a855f7 !important; --tw-gradient-to: rgba(168, 85, 247, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-600 { --tw-gradient-from: #9333ea !important; --tw-gradient-to: rgba(147, 51, 234, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-700 { --tw-gradient-from: #7c3aed !important; --tw-gradient-to: rgba(124, 58, 237, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-800 { --tw-gradient-from: #6b21a8 !important; --tw-gradient-to: rgba(107, 33, 168, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-purple-900 { --tw-gradient-from: #581c87 !important; --tw-gradient-to: rgba(88, 28, 135, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-pink-50 { --tw-gradient-from: #fdf2f8 !important; --tw-gradient-to: rgba(253, 242, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-pink-400 { --tw-gradient-from: #f472b6 !important; --tw-gradient-to: rgba(244, 114, 182, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-pink-500 { --tw-gradient-from: #ec4899 !important; --tw-gradient-to: rgba(236, 72, 153, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-black { --tw-gradient-from: #000000 !important; --tw-gradient-to: rgba(0, 0, 0, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-gray-900 { --tw-gradient-from: #111827 !important; --tw-gradient-to: rgba(17, 24, 39, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+.from-slate-900 { --tw-gradient-from: #0f172a !important; --tw-gradient-to: rgba(15, 23, 42, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+
+/* Gradient To Colors */
+.to-red-50 { --tw-gradient-to: #fef2f2 !important; }
+.to-red-400 { --tw-gradient-to: #f87171 !important; }
+.to-red-500 { --tw-gradient-to: #ef4444 !important; }
+.to-red-600 { --tw-gradient-to: #dc2626 !important; }
+.to-orange-50 { --tw-gradient-to: #fff7ed !important; }
+.to-orange-400 { --tw-gradient-to: #fb923c !important; }
+.to-orange-500 { --tw-gradient-to: #f97316 !important; }
+.to-orange-600 { --tw-gradient-to: #ea580c !important; }
+.to-yellow-50 { --tw-gradient-to: #fefce8 !important; }
+.to-yellow-400 { --tw-gradient-to: #fbbf24 !important; }
+.to-yellow-500 { --tw-gradient-to: #f59e0b !important; }
+.to-yellow-600 { --tw-gradient-to: #d97706 !important; }
+.to-lime-50 { --tw-gradient-to: #f7fee7 !important; }
+.to-green-50 { --tw-gradient-to: #f0fdf4 !important; }
+.to-green-400 { --tw-gradient-to: #4ade80 !important; }
+.to-green-500 { --tw-gradient-to: #22c55e !important; }
+.to-green-600 { --tw-gradient-to: #16a34a !important; }
+.to-emerald-50 { --tw-gradient-to: #ecfdf5 !important; }
+.to-emerald-400 { --tw-gradient-to: #34d399 !important; }
+.to-emerald-500 { --tw-gradient-to: #10b981 !important; }
+.to-emerald-600 { --tw-gradient-to: #059669 !important; }
+.to-emerald-700 { --tw-gradient-to: #047857 !important; }
+.to-teal-50 { --tw-gradient-to: #f0fdfa !important; }
+.to-cyan-50 { --tw-gradient-to: #ecfeff !important; }
+.to-cyan-400 { --tw-gradient-to: #22d3ee !important; }
+.to-cyan-500 { --tw-gradient-to: #06b6d4 !important; }
+.to-cyan-600 { --tw-gradient-to: #0891b2 !important; }
+.to-blue-50 { --tw-gradient-to: #eff6ff !important; }
+.to-blue-100 { --tw-gradient-to: #dbeafe !important; }
+.to-blue-200 { --tw-gradient-to: #bfdbfe !important; }
+.to-blue-300 { --tw-gradient-to: #93c5fd !important; }
+.to-blue-400 { --tw-gradient-to: #60a5fa !important; }
+.to-blue-500 { --tw-gradient-to: #3b82f6 !important; }
+.to-blue-600 { --tw-gradient-to: #2563eb !important; }
+.to-blue-700 { --tw-gradient-to: #1d4ed8 !important; }
+.to-blue-800 { --tw-gradient-to: #1e40af !important; }
+.to-blue-900 { --tw-gradient-to: #1e3a8a !important; }
+.to-indigo-50 { --tw-gradient-to: #eef2ff !important; }
+.to-indigo-400 { --tw-gradient-to: #818cf8 !important; }
+.to-indigo-500 { --tw-gradient-to: #6366f1 !important; }
+.to-indigo-600 { --tw-gradient-to: #4f46e5 !important; }
+.to-indigo-700 { --tw-gradient-to: #4338ca !important; }
+.to-violet-50 { --tw-gradient-to: #f5f3ff !important; }
+.to-purple-400 { --tw-gradient-to: #c084fc !important; }
+.to-purple-500 { --tw-gradient-to: #a855f7 !important; }
+.to-purple-600 { --tw-gradient-to: #9333ea !important; }
+.to-pink-50 { --tw-gradient-to: #fdf2f8 !important; }
+.to-pink-400 { --tw-gradient-to: #f472b6 !important; }
+.to-pink-500 { --tw-gradient-to: #ec4899 !important; }
+.to-pink-600 { --tw-gradient-to: #db2777 !important; }
+
+/* Gradient Via Colors (for 3-color gradients) */
+.via-red-50 { --tw-gradient-to: rgba(254, 242, 242, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fef2f2, var(--tw-gradient-to) !important; }
+.via-red-400 { --tw-gradient-to: rgba(248, 113, 113, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f87171, var(--tw-gradient-to) !important; }
+.via-orange-50 { --tw-gradient-to: rgba(255, 247, 237, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fff7ed, var(--tw-gradient-to) !important; }
+.via-orange-400 { --tw-gradient-to: rgba(251, 146, 60, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fb923c, var(--tw-gradient-to) !important; }
+.via-yellow-50 { --tw-gradient-to: rgba(254, 252, 232, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fefce8, var(--tw-gradient-to) !important; }
+.via-yellow-400 { --tw-gradient-to: rgba(251, 191, 36, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fbbf24, var(--tw-gradient-to) !important; }
+.via-green-50 { --tw-gradient-to: rgba(240, 253, 244, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f0fdf4, var(--tw-gradient-to) !important; }
+.via-emerald-50 { --tw-gradient-to: rgba(236, 253, 245, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #ecfdf5, var(--tw-gradient-to) !important; }
+.via-teal-50 { --tw-gradient-to: rgba(240, 253, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f0fdfa, var(--tw-gradient-to) !important; }
+.via-blue-50 { --tw-gradient-to: rgba(239, 246, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #eff6ff, var(--tw-gradient-to) !important; }
+.via-blue-400 { --tw-gradient-to: rgba(96, 165, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #60a5fa, var(--tw-gradient-to) !important; }
+.via-indigo-50 { --tw-gradient-to: rgba(238, 242, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #eef2ff, var(--tw-gradient-to) !important; }
+.via-indigo-400 { --tw-gradient-to: rgba(129, 140, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #818cf8, var(--tw-gradient-to) !important; }
+.via-purple-50 { --tw-gradient-to: rgba(250, 245, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #faf5ff, var(--tw-gradient-to) !important; }
+.via-purple-400 { --tw-gradient-to: rgba(192, 132, 252, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #c084fc, var(--tw-gradient-to) !important; }
+.via-pink-50 { --tw-gradient-to: rgba(253, 242, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fdf2f8, var(--tw-gradient-to) !important; }
+
+/* Text Gradients */
+.bg-clip-text { -webkit-background-clip: text !important; background-clip: text !important; }
+
 /* ===== FOCUS UTILITIES ===== */
 .focus\:outline-none:focus {
     outline: 2px solid transparent !important;
@@ -1137,18 +925,9 @@ input[type="radio"]:focus {
     box-shadow: var(--tw-ring-offset-shadow), var(--tw-ring-shadow), var(--tw-shadow, 0 0 #0000) !important;
 }
 .focus\:ring-offset-2:focus { box-shadow: 0 0 0 2px #fff, 0 0 0 4px rgba(59, 130, 246, 0.5) !important; }
-.focus\:ring-blue-500:focus {
-    --tw-ring-color: rgba(59, 130, 246, 0.5) !important;
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important;
-}
-.focus\:ring-indigo-500:focus {
-    --tw-ring-color: rgba(99, 102, 241, 0.5) !important;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5) !important;
-}
-.focus\:ring-green-500:focus {
-    --tw-ring-color: rgba(34, 197, 94, 0.5) !important;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.5) !important;
-}
+.focus\:ring-blue-500:focus { --tw-ring-color: rgba(59, 130, 246, 0.5) !important; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5) !important; }
+.focus\:ring-indigo-500:focus { --tw-ring-color: rgba(99, 102, 241, 0.5) !important; box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5) !important; }
+.focus\:ring-green-500:focus { --tw-ring-color: rgba(34, 197, 94, 0.5) !important; box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.5) !important; }
 .focus\:ring-red-500:focus { box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.5) !important; }
 .focus\:ring-gray-500:focus { box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.5) !important; }
 .focus\:ring-purple-500:focus { box-shadow: 0 0 0 3px rgba(147, 51, 234, 0.5) !important; }
@@ -1174,9 +953,7 @@ input[type="radio"]:focus {
 }
 
 /* Ring Utilities */
-.ring-2 {
-    box-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color) !important;
-}
+.ring-2 { box-shadow: var(--tw-ring-inset) 0 0 0 calc(2px + var(--tw-ring-offset-width)) var(--tw-ring-color) !important; }
 .ring-4 {
     --tw-ring-offset-shadow: var(--tw-ring-inset) 0 0 0 var(--tw-ring-offset-width) var(--tw-ring-offset-color) !important;
     --tw-ring-shadow: var(--tw-ring-inset) 0 0 0 calc(4px + var(--tw-ring-offset-width)) var(--tw-ring-color) !important;
@@ -1188,19 +965,6 @@ input[type="radio"]:focus {
 .ring-green-500 { --tw-ring-color: rgba(34, 197, 94, 0.5) !important; }
 .ring-opacity-20 { --tw-ring-opacity: 0.2 !important; }
 .ring-opacity-30 { --tw-ring-opacity: 0.3 !important; }
-
-/* ===== CURSOR & INTERACTION UTILITIES ===== */
-.cursor-pointer { cursor: pointer !important; }
-.cursor-not-allowed { cursor: not-allowed !important; }
-.pointer-events-none { pointer-events: none !important; }
-.select-none { user-select: none !important; }
-
-/* ===== DISABLED UTILITIES ===== */
-.disabled\:bg-gray-400:disabled { background-color: #9ca3af !important; }
-.disabled\:bg-indigo-400:disabled { background-color: #818cf8 !important; }
-.disabled\:bg-blue-400:disabled { background-color: #60a5fa !important; }
-.disabled\:bg-red-300:disabled { background-color: #fca5a5 !important; }
-.disabled\:cursor-not-allowed:disabled { cursor: not-allowed !important; }
 
 /* ===== HOVER UTILITIES ===== */
 
@@ -1215,8 +979,8 @@ input[type="radio"]:focus {
 .hover\:bg-red-100:hover { background-color: #fee2e2 !important; }
 .hover\:bg-red-600:hover { background-color: #dc2626 !important; }
 .hover\:bg-red-700:hover { background-color: #b91c1c !important; }
-.hover\:bg-orange-700:hover { background-color: #c2410c !important; }
 .hover\:bg-orange-50:hover { background-color: #fff7ed !important; }
+.hover\:bg-orange-700:hover { background-color: #c2410c !important; }
 .hover\:bg-amber-200:hover { background-color: #fde68a !important; }
 .hover\:bg-yellow-100:hover { background-color: #fef3c7 !important; }
 .hover\:bg-yellow-600:hover { background-color: #ca8a04 !important; }
@@ -1245,8 +1009,8 @@ input[type="radio"]:focus {
 .hover\:text-gray-600:hover { color: #4b5563 !important; }
 .hover\:text-red-700:hover { color: #b91c1c !important; }
 .hover\:text-red-900:hover { color: #7f1d1d !important; }
-.hover\:text-orange-700:hover { color: #c2410c !important; }
 .hover\:text-orange-200:hover { color: #fed7aa !important; }
+.hover\:text-orange-700:hover { color: #c2410c !important; }
 .hover\:text-yellow-400:hover { color: #fbbf24 !important; }
 .hover\:text-indigo-500:hover { color: #6366f1 !important; }
 .hover\:text-indigo-700:hover { color: #4338ca !important; }
@@ -1282,204 +1046,403 @@ input[type="radio"]:focus {
 .active\:bg-gray-100:active { background-color: #f3f4f6 !important; }
 .active\:bg-gray-200:active { background-color: #e5e7eb !important; }
 
-/* ===== GRADIENT UTILITIES ===== */
+/* ===== DISABLED UTILITIES ===== */
+.disabled\:bg-gray-400:disabled { background-color: #9ca3af !important; }
+.disabled\:bg-indigo-400:disabled { background-color: #818cf8 !important; }
+.disabled\:bg-blue-400:disabled { background-color: #60a5fa !important; }
+.disabled\:bg-red-300:disabled { background-color: #fca5a5 !important; }
+.disabled\:cursor-not-allowed:disabled { cursor: not-allowed !important; }
 
-/* Gradient Directions */
-.bg-gradient-to-r { background-image: linear-gradient(to right, var(--tw-gradient-stops)) !important; }
-.bg-gradient-to-l { background-image: linear-gradient(to left, var(--tw-gradient-stops)) !important; }
-.bg-gradient-to-t { background-image: linear-gradient(to top, var(--tw-gradient-stops)) !important; }
-.bg-gradient-to-b { background-image: linear-gradient(to bottom, var(--tw-gradient-stops)) !important; }
-.bg-gradient-to-tr { background-image: linear-gradient(to top right, var(--tw-gradient-stops)) !important; }
-.bg-gradient-to-tl { background-image: linear-gradient(to top left, var(--tw-gradient-stops)) !important; }
-.bg-gradient-to-br { background-image: linear-gradient(to bottom right, var(--tw-gradient-stops)) !important; }
-.bg-gradient-to-bl { background-image: linear-gradient(to bottom left, var(--tw-gradient-stops)) !important; }
+/* ===== FORM ELEMENTS ===== */
 
-/* Gradient From Colors */
-.from-red-400 { --tw-gradient-from: #f87171 !important; --tw-gradient-to: rgba(248, 113, 113, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-red-500 { --tw-gradient-from: #ef4444 !important; --tw-gradient-to: rgba(239, 68, 68, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-orange-400 { --tw-gradient-from: #fb923c !important; --tw-gradient-to: rgba(251, 146, 60, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-orange-500 { --tw-gradient-from: #f97316 !important; --tw-gradient-to: rgba(249, 115, 22, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-orange-600 { --tw-gradient-from: #ea580c; --tw-gradient-to: rgb(234 88 12 / 0); --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to); }
-.from-yellow-400 { --tw-gradient-from: #fbbf24 !important; --tw-gradient-to: rgba(251, 191, 36, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-yellow-500 { --tw-gradient-from: #f59e0b !important; --tw-gradient-to: rgba(245, 158, 11, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-green-400 { --tw-gradient-from: #4ade80 !important; --tw-gradient-to: rgba(74, 222, 128, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-green-500 { --tw-gradient-from: #22c55e !important; --tw-gradient-to: rgba(34, 197, 94, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-green-600 { --tw-gradient-from: #16a34a !important; --tw-gradient-to: rgba(22, 163, 74, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-green-700 { --tw-gradient-from: #15803d !important; --tw-gradient-to: rgba(21, 128, 61, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-emerald-400 { --tw-gradient-from: #34d399 !important; --tw-gradient-to: rgba(52, 211, 153, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-emerald-500 { --tw-gradient-from: #10b981 !important; --tw-gradient-to: rgba(16, 185, 129, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-emerald-600 { --tw-gradient-from: #059669 !important; --tw-gradient-to: rgba(5, 150, 105, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-cyan-400 { --tw-gradient-from: #22d3ee !important; --tw-gradient-to: rgba(34, 211, 238, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-cyan-500 { --tw-gradient-from: #06b6d4 !important; --tw-gradient-to: rgba(6, 182, 212, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-blue-400 { --tw-gradient-from: #60a5fa !important; --tw-gradient-to: rgba(96, 165, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-blue-500 { --tw-gradient-from: #3b82f6 !important; --tw-gradient-to: rgba(59, 130, 246, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-blue-600 { --tw-gradient-from: #2563eb !important; --tw-gradient-to: rgba(37, 99, 235, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-blue-700 { --tw-gradient-from: #1d4ed8 !important; --tw-gradient-to: rgba(29, 78, 216, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-indigo-400 { --tw-gradient-from: #818cf8 !important; --tw-gradient-to: rgba(129, 140, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-indigo-500 { --tw-gradient-from: #6366f1 !important; --tw-gradient-to: rgba(99, 102, 241, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-indigo-600 { --tw-gradient-from: #4f46e5 !important; --tw-gradient-to: rgba(79, 70, 229, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-indigo-700 { --tw-gradient-from: #4338ca !important; --tw-gradient-to: rgba(67, 56, 202, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-/* Purple gradient from classes */
-.from-purple-50 { --tw-gradient-from: #faf5ff !important; --tw-gradient-to: rgba(250, 245, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-100 { --tw-gradient-from: #f3e8ff !important; --tw-gradient-to: rgba(243, 232, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-200 { --tw-gradient-from: #e9d5ff !important; --tw-gradient-to: rgba(233, 213, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-300 { --tw-gradient-from: #d8b4fe !important; --tw-gradient-to: rgba(216, 180, 254, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-400 { --tw-gradient-from: #c084fc !important; --tw-gradient-to: rgba(192, 132, 252, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-500 { --tw-gradient-from: #a855f7 !important; --tw-gradient-to: rgba(168, 85, 247, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-600 { --tw-gradient-from: #9333ea !important; --tw-gradient-to: rgba(147, 51, 234, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-700 { --tw-gradient-from: #7c3aed !important; --tw-gradient-to: rgba(124, 58, 237, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-800 { --tw-gradient-from: #6b21a8 !important; --tw-gradient-to: rgba(107, 33, 168, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-purple-900 { --tw-gradient-from: #581c87 !important; --tw-gradient-to: rgba(88, 28, 135, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+/* Button Styles */
+button {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    border: none !important;
+    cursor: pointer !important;
+}
 
-.from-pink-400 { --tw-gradient-from: #f472b6 !important; --tw-gradient-to: rgba(244, 114, 182, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-pink-500 { --tw-gradient-from: #ec4899 !important; --tw-gradient-to: rgba(236, 72, 153, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-blue-50 { --tw-gradient-from: #eff6ff !important; --tw-gradient-to: rgba(239, 246, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-green-50 { --tw-gradient-from: #f0fdf4 !important; --tw-gradient-to: rgba(240, 253, 244, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-black { --tw-gradient-from: #000000 !important; --tw-gradient-to: rgba(0, 0, 0, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-gray-900 { --tw-gradient-from: #111827 !important; --tw-gradient-to: rgba(17, 24, 39, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-slate-900 { --tw-gradient-from: #0f172a !important; --tw-gradient-to: rgba(15, 23, 42, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-/* Missing -50 Gradient From Colors */
-.from-red-50 { --tw-gradient-from: #fef2f2 !important; --tw-gradient-to: rgba(254, 242, 242, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-orange-50 { --tw-gradient-from: #fff7ed !important; --tw-gradient-to: rgba(255, 247, 237, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-amber-50 { --tw-gradient-from: #fffbeb !important; --tw-gradient-to: rgba(255, 251, 235, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-yellow-50 { --tw-gradient-from: #fefce8 !important; --tw-gradient-to: rgba(254, 252, 232, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-lime-50 { --tw-gradient-from: #f7fee7 !important; --tw-gradient-to: rgba(247, 254, 231, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-emerald-50 { --tw-gradient-from: #ecfdf5 !important; --tw-gradient-to: rgba(236, 253, 245, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-teal-50 { --tw-gradient-from: #f0fdfa !important; --tw-gradient-to: rgba(240, 253, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-cyan-50 { --tw-gradient-from: #ecfeff !important; --tw-gradient-to: rgba(236, 254, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-sky-50 { --tw-gradient-from: #f0f9ff !important; --tw-gradient-to: rgba(240, 249, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-indigo-50 { --tw-gradient-from: #eef2ff !important; --tw-gradient-to: rgba(238, 242, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-violet-50 { --tw-gradient-from: #f5f3ff !important; --tw-gradient-to: rgba(245, 243, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-pink-50 { --tw-gradient-from: #fdf2f8 !important; --tw-gradient-to: rgba(253, 242, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.from-rose-50 { --tw-gradient-from: #fff1f2 !important; --tw-gradient-to: rgba(255, 241, 242, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
+/* Input and Form Elements */
+input, select, textarea {
+    border-radius: 0 !important;
+    font-size: 16px !important; /* Prevents zoom on iOS */
+}
 
-/* Missing -50 Gradient To Colors */
-.to-red-50 { --tw-gradient-to: #fef2f2 !important; }
-.to-orange-50 { --tw-gradient-to: #fff7ed !important; }
-.to-amber-50 { --tw-gradient-to: #fffbeb !important; }
-.to-yellow-50 { --tw-gradient-to: #fefce8 !important; }
-.to-lime-50 { --tw-gradient-to: #f7fee7 !important; }
-.to-green-50 { --tw-gradient-to: #f0fdf4 !important; }
-.to-emerald-50 { --tw-gradient-to: #ecfdf5 !important; }
-.to-teal-50 { --tw-gradient-to: #f0fdfa !important; }
-.to-cyan-50 { --tw-gradient-to: #ecfeff !important; }
-.to-sky-50 { --tw-gradient-to: #f0f9ff !important; }
-.to-violet-50 { --tw-gradient-to: #f5f3ff !important; }
-.to-pink-50 { --tw-gradient-to: #fdf2f8 !important; }
-.to-rose-50 { --tw-gradient-to: #fff1f2 !important; }
-/* Missing -50 Gradient To Colors */
-.to-red-50 { --tw-gradient-to: #fef2f2 !important; }
-.to-orange-50 { --tw-gradient-to: #fff7ed !important; }
-.to-amber-50 { --tw-gradient-to: #fffbeb !important; }
-.to-yellow-50 { --tw-gradient-to: #fefce8 !important; }
-.to-lime-50 { --tw-gradient-to: #f7fee7 !important; }
-.to-green-50 { --tw-gradient-to: #f0fdf4 !important; }
-.to-emerald-50 { --tw-gradient-to: #ecfdf5 !important; }
-.to-teal-50 { --tw-gradient-to: #f0fdfa !important; }
-.to-cyan-50 { --tw-gradient-to: #ecfeff !important; }
-.to-sky-50 { --tw-gradient-to: #f0f9ff !important; }
-.to-violet-50 { --tw-gradient-to: #f5f3ff !important; }
-.to-pink-50 { --tw-gradient-to: #fdf2f8 !important; }
-.to-rose-50 { --tw-gradient-to: #fff1f2 !important; }
+/* Enhanced input styles for better mobile keyboard and swipe typing support */
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="number"],
+input[type="tel"],
+input[type="search"],
+input[type="date"],
+input[type="url"],
+select,
+textarea {
+    border: 1px solid #d1d5db;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    line-height: 1.25rem;
+    touch-action: manipulation !important;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    transform-origin: left top;
+    transition: transform 0.2s ease-in-out, border-color 0.2s ease-in-out;
+}
 
-/* Additional Missing Via Colors for -50 */
-.via-red-50 { --tw-gradient-to: rgba(254, 242, 242, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fef2f2, var(--tw-gradient-to) !important; }
-.via-orange-50 { --tw-gradient-to: rgba(255, 247, 237, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fff7ed, var(--tw-gradient-to) !important; }
-.via-yellow-50 { --tw-gradient-to: rgba(254, 252, 232, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fefce8, var(--tw-gradient-to) !important; }
-.via-green-50 { --tw-gradient-to: rgba(240, 253, 244, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f0fdf4, var(--tw-gradient-to) !important; }
-.via-emerald-50 { --tw-gradient-to: rgba(236, 253, 245, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #ecfdf5, var(--tw-gradient-to) !important; }
-.via-teal-50 { --tw-gradient-to: rgba(240, 253, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f0fdfa, var(--tw-gradient-to) !important; }
-.via-blue-50 { --tw-gradient-to: rgba(239, 246, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #eff6ff, var(--tw-gradient-to) !important; }
-.via-indigo-50 { --tw-gradient-to: rgba(238, 242, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #eef2ff, var(--tw-gradient-to) !important; }
-.via-purple-50 { --tw-gradient-to: rgba(250, 245, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #faf5ff, var(--tw-gradient-to) !important; }
-.via-pink-50 { --tw-gradient-to: rgba(253, 242, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fdf2f8, var(--tw-gradient-to) !important; }
-/* Additional Missing Via Colors for -50 */
-.via-red-50 { --tw-gradient-to: rgba(254, 242, 242, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fef2f2, var(--tw-gradient-to) !important; }
-.via-orange-50 { --tw-gradient-to: rgba(255, 247, 237, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fff7ed, var(--tw-gradient-to) !important; }
-.via-yellow-50 { --tw-gradient-to: rgba(254, 252, 232, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fefce8, var(--tw-gradient-to) !important; }
-.via-green-50 { --tw-gradient-to: rgba(240, 253, 244, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f0fdf4, var(--tw-gradient-to) !important; }
-.via-emerald-50 { --tw-gradient-to: rgba(236, 253, 245, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #ecfdf5, var(--tw-gradient-to) !important; }
-.via-teal-50 { --tw-gradient-to: rgba(240, 253, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f0fdfa, var(--tw-gradient-to) !important; }
-.via-blue-50 { --tw-gradient-to: rgba(239, 246, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #eff6ff, var(--tw-gradient-to) !important; }
-.via-indigo-50 { --tw-gradient-to: rgba(238, 242, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #eef2ff, var(--tw-gradient-to) !important; }
-.via-purple-50 { --tw-gradient-to: rgba(250, 245, 255, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #faf5ff, var(--tw-gradient-to) !important; }
-.via-pink-50 { --tw-gradient-to: rgba(253, 242, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fdf2f8, var(--tw-gradient-to) !important; }
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="number"]:focus,
+input[type="tel"]:focus,
+input[type="search"]:focus,
+input[type="date"]:focus,
+input[type="url"]:focus,
+select:focus,
+textarea:focus {
+    outline: none;
+    border-color: #6366f1;
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+    transform: scale(1);
+}
 
-/* Gradient To Colors */
-.to-red-400 { --tw-gradient-to: #f87171 !important; }
-.to-red-500 { --tw-gradient-to: #ef4444 !important; }
-.to-red-600 { --tw-gradient-to: #dc2626 !important; }
-.to-orange-400 { --tw-gradient-to: #fb923c !important; }
-.to-orange-500 { --tw-gradient-to: #f97316 !important; }
-.to-orange-600 { --tw-gradient-to: #ea580c !important; }
-.to-yellow-400 { --tw-gradient-to: #fbbf24 !important; }
-.to-yellow-500 { --tw-gradient-to: #f59e0b !important; }
-.to-yellow-600 { --tw-gradient-to: #d97706 !important; }
-.to-green-400 { --tw-gradient-to: #4ade80 !important; }
-.to-green-500 { --tw-gradient-to: #22c55e !important; }
-.to-green-600 { --tw-gradient-to: #16a34a !important; }
-.to-emerald-400 { --tw-gradient-to: #34d399 !important; }
-.to-emerald-500 { --tw-gradient-to: #10b981 !important; }
-.to-emerald-600 { --tw-gradient-to: #059669 !important; }
-.to-emerald-700 { --tw-gradient-to: #047857 !important; }
-.to-cyan-400 { --tw-gradient-to: #22d3ee !important; }
-.to-cyan-500 { --tw-gradient-to: #06b6d4 !important; }
-.to-cyan-600 { --tw-gradient-to: #0891b2 !important; }
-.to-blue-50 { --tw-gradient-to: #eff6ff !important; }
-.to-blue-100 { --tw-gradient-to: #dbeafe !important; }
-.to-blue-200 { --tw-gradient-to: #bfdbfe !important; }
-.to-blue-300 { --tw-gradient-to: #93c5fd !important; }
-.to-blue-400 { --tw-gradient-to: #60a5fa !important; }
-.to-blue-500 { --tw-gradient-to: #3b82f6 !important; }
-.to-blue-600 { --tw-gradient-to: #2563eb !important; }
-.to-blue-700 { --tw-gradient-to: #1d4ed8 !important; }
-.to-blue-800 { --tw-gradient-to: #1e40af !important; }
-.to-blue-900 { --tw-gradient-to: #1e3a8a !important; }
-.to-indigo-400 { --tw-gradient-to: #818cf8 !important; }
-.to-indigo-500 { --tw-gradient-to: #6366f1 !important; }
-.to-indigo-600 { --tw-gradient-to: #4f46e5 !important; }
-.to-indigo-700 { --tw-gradient-to: #4338ca !important; }
-.to-purple-400 { --tw-gradient-to: #c084fc !important; }
-.to-purple-500 { --tw-gradient-to: #a855f7 !important; }
-.to-purple-600 { --tw-gradient-to: #9333ea !important; }
-.to-pink-400 { --tw-gradient-to: #f472b6 !important; }
-.to-pink-500 { --tw-gradient-to: #ec4899 !important; }
-.to-pink-600 { --tw-gradient-to: #db2777 !important; }
-.to-blue-50 { --tw-gradient-to: #eff6ff !important; }
-.to-indigo-50 { --tw-gradient-to: #eef2ff !important; }
+/* Checkbox styling */
+input[type="checkbox"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-color: #fff !important;
+    margin: 0 !important;
+    font: inherit !important;
+    color: currentColor !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 0.25rem !important;
+    transform: translateY(-0.075em) !important;
+    display: grid !important;
+    place-content: center !important;
+}
 
+input[type="checkbox"]:checked {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
 
-/* Gradient Via Colors (for 3-color gradients) */
-.via-yellow-400 { --tw-gradient-to: rgba(251, 191, 36, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fbbf24, var(--tw-gradient-to) !important; }
-.via-orange-400 { --tw-gradient-to: rgba(251, 146, 60, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #fb923c, var(--tw-gradient-to) !important; }
-.via-red-400 { --tw-gradient-to: rgba(248, 113, 113, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #f87171, var(--tw-gradient-to) !important; }
-.via-blue-400 { --tw-gradient-to: rgba(96, 165, 250, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #60a5fa, var(--tw-gradient-to) !important; }
-.via-indigo-400 { --tw-gradient-to: rgba(129, 140, 248, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #818cf8, var(--tw-gradient-to) !important; }
-.via-purple-400 { --tw-gradient-to: rgba(192, 132, 252, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), #c084fc, var(--tw-gradient-to) !important; }
+input[type="checkbox"]:checked::before {
+    content: "✓" !important;
+    color: white !important;
+    font-size: 0.75rem !important;
+    font-weight: bold !important;
+}
 
-/* Gradient Hover Effects */
-.hover\:from-yellow-400:hover { --tw-gradient-from: #fbbf24 !important; --tw-gradient-to: rgba(251, 191, 36, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.hover\:from-blue-500:hover { --tw-gradient-from: #3b82f6 !important; --tw-gradient-to: rgba(59, 130, 246, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.hover\:from-indigo-500:hover { --tw-gradient-from: #6366f1 !important; --tw-gradient-to: rgba(99, 102, 241, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.hover\:from-purple-500:hover { --tw-gradient-from: #a855f7 !important; --tw-gradient-to: rgba(168, 85, 247, 0) !important; --tw-gradient-stops: var(--tw-gradient-from), var(--tw-gradient-to) !important; }
-.hover\:to-yellow-500:hover { --tw-gradient-to: #f59e0b !important; }
-.hover\:to-blue-600:hover { --tw-gradient-to: #2563eb !important; }
-.hover\:to-indigo-600:hover { --tw-gradient-to: #4f46e5 !important; }
-.hover\:to-purple-600:hover { --tw-gradient-to: #9333ea !important; }
+input[type="checkbox"]:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px #3b82f6 !important;
+}
 
-/* Text Gradients */
-.bg-clip-text { -webkit-background-clip: text !important; background-clip: text !important; }
+/* Radio button styling */
+input[type="radio"] {
+    -webkit-appearance: none !important;
+    appearance: none !important;
+    background-color: #fff !important;
+    margin: 0 !important;
+    font: inherit !important;
+    color: currentColor !important;
+    width: 1rem !important;
+    height: 1rem !important;
+    border: 1px solid #d1d5db !important;
+    border-radius: 50% !important;
+    transform: translateY(-0.075em) !important;
+    display: grid !important;
+    place-content: center !important;
+}
 
-/* ===== DIVIDERS ===== */
-.divide-y > * + * { border-top-width: 1px !important; }
-.divide-gray-200 > * + * { border-top-color: #e5e7eb !important; }
+input[type="radio"]:checked {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+}
 
-/* ===== OBJECT UTILITIES ===== */
-.object-cover { object-fit: cover !important; }
-.object-fit { object-fit: fill !important; }
+input[type="radio"]:checked::before {
+    content: "" !important;
+    width: 0.5rem !important;
+    height: 0.5rem !important;
+    border-radius: 50% !important;
+    background-color: white !important;
+}
 
-/* ===== TABLE UTILITIES ===== */
-.min-w-full { min-width: 100% !important; }
+input[type="radio"]:focus {
+    outline: 2px solid transparent !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px #3b82f6 !important;
+}
+
+/* Override checkbox margins for form layouts */
+.ingredient-checkbox {
+    margin-right: 0.75rem !important; /* 12px spacing */
+}
+
+/* Password field optimization */
+input[type="password"] {
+    font-family: monospace;
+}
+
+/* Search field optimizations */
+input[type="search"] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* Textarea optimizations */
+textarea {
+    resize: vertical;
+    min-height: 80px;
+    font-family: inherit;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+    input[type="text"],
+    input[type="email"],
+    input[type="password"],
+    input[type="number"],
+    input[type="tel"],
+    input[type="search"],
+    input[type="date"],
+    input[type="url"],
+    select,
+    textarea {
+        font-size: 16px;
+        min-height: 44px;
+        padding: 0.625rem 0.75rem;
+    }
+}
+
+/* Additional mobile keyboard support utilities */
+.keyboard-optimized {
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+    -webkit-touch-callout: default;
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* ===== SAFE AREA & MOBILE LAYOUT ===== */
+
+/* Safe area handling for mobile apps */
+.mobile-safe-layout {
+    padding-top: max(env(safe-area-inset-top, 24px), 24px);
+    padding-bottom: max(env(safe-area-inset-bottom, 88px), 88px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+    min-height: 100vh;
+    box-sizing: border-box;
+}
+
+/* Safe area inset utilities */
+.safe-top { padding-top: env(safe-area-inset-top, 0px); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px); }
+.safe-left { padding-left: env(safe-area-inset-left, 0px); }
+.safe-right { padding-right: env(safe-area-inset-right, 0px); }
+.safe-area-full {
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+}
+
+/* Safe area positioning for fixed elements */
+.fixed-safe-top { top: env(safe-area-inset-top, 0px); }
+.fixed-safe-bottom { bottom: env(safe-area-inset-bottom, 0px); }
+.fixed-safe-left { left: env(safe-area-inset-left, 0px); }
+.fixed-safe-right { right: env(safe-area-inset-right, 0px); }
+.fixed-safe-insets {
+    top: env(safe-area-inset-top, 0px);
+    bottom: env(safe-area-inset-bottom, 0px);
+    left: env(safe-area-inset-left, 0px);
+    right: env(safe-area-inset-right, 0px);
+}
+
+/* Margin utilities for safe areas */
+.margin-safe-top { margin-top: env(safe-area-inset-top, 0px); }
+.margin-safe-bottom { margin-bottom: env(safe-area-inset-bottom, 0px); }
+.margin-safe-left { margin-left: env(safe-area-inset-left, 0px); }
+.margin-safe-right { margin-right: env(safe-area-inset-right, 0px); }
+
+/* Height calculations with safe areas */
+.height-screen-safe {
+    height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+.min-height-screen-safe {
+    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+.max-height-screen-safe {
+    max-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+/* Full viewport with safe areas */
+.viewport-safe {
+    width: calc(100vw - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
+    height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+}
+
+/* Enhanced mobile padding for better clearance */
+@media screen and (max-width: 768px) {
+    .mobile-safe-layout {
+        padding-top: max(env(safe-area-inset-top, 32px), 32px) !important;
+        padding-bottom: max(env(safe-area-inset-bottom, 96px), 96px) !important;
+    }
+}
+
+/* Capacitor app specific overrides */
+.capacitor-android .mobile-safe-layout {
+    padding-top: max(env(safe-area-inset-top, 32px), 32px) !important;
+    padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
+}
+
+/* PWA standalone mode */
+@media all and (display-mode: standalone) {
+    body {
+        padding-top: env(safe-area-inset-top, 0px) !important;
+        padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+        padding-left: env(safe-area-inset-left, 0px) !important;
+        padding-right: env(safe-area-inset-right, 0px) !important;
+    }
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+    .ios-safe-top { padding-top: env(safe-area-inset-top, 0px) !important; }
+    .ios-safe-bottom { padding-bottom: env(safe-area-inset-bottom, 0px) !important; }
+}
+
+/* Safe area support for devices with notches */
+.pt-safe { padding-top: env(safe-area-inset-top); }
+.pb-safe { padding-bottom: env(safe-area-inset-bottom); }
+
+/* Android Safe Area Support */
+@supports (padding: env(safe-area-inset-top)) {
+    body {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+}
+
+/* Android APK specific fixes */
+@media (display-mode: standalone) {
+    body {
+        padding-top: 24px; /* Typical Android status bar height */
+        padding-bottom: 96px; /* Navigation gestures area */
+    }
+
+    @supports (padding: env(safe-area-inset-top)) {
+        body {
+            padding-top: env(safe-area-inset-top);
+            padding-bottom: env(safe-area-inset-bottom);
+            padding-left: env(safe-area-inset-left);
+            padding-right: env(safe-area-inset-right);
+        }
+    }
+
+    header {
+        position: relative;
+        z-index: 10;
+    }
+
+    .fixed { top: env(safe-area-inset-top, 24px); }
+    .sticky { top: env(safe-area-inset-top, 0px); }
+}
+
+/* ===== TOUCH & MOBILE OPTIMIZATIONS ===== */
+
+/* Mobile touch improvements */
+.touch-friendly {
+    -webkit-touch-callout: none !important;
+    -webkit-user-select: none !important;
+    -khtml-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    -webkit-tap-highlight-color: transparent !important;
+    touch-action: manipulation !important;
+    min-height: 44px !important;
+    min-width: 44px !important;
+    cursor: pointer !important;
+}
+
+@media (max-width: 767px) {
+    .touch-friendly {
+        min-height: 48px !important;
+        min-width: 48px !important;
+        padding: 12px !important;
+    }
+}
+
+/* Force hardware acceleration for better performance */
+.mobile-optimized {
+    -webkit-transform: translateZ(0) !important;
+    transform: translateZ(0) !important;
+    -webkit-backface-visibility: hidden !important;
+    backface-visibility: hidden !important;
+    -webkit-perspective: 1000px !important;
+    perspective: 1000px !important;
+}
+
+/* Dashboard container fixes */
+.dashboard-container {
+    overscroll-behavior: none;
+    overflow-y: auto;
+    max-height: 100vh;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+.capacitor-app {
+    overscroll-behavior: none;
+}
+
+.mobile-layout {
+    position: relative;
+    overflow-x: hidden;
+    overscroll-behavior: none;
+    min-height: 100vh;
+    max-height: 100vh;
+}
+
+/* Haptic feedback styles */
+.haptic-light:active { animation: haptic-pulse-light 0.1s ease !important; }
+.haptic-medium:active { animation: haptic-pulse-medium 0.15s ease !important; }
+.haptic-heavy:active { animation: haptic-pulse-heavy 0.2s ease !important; }
+
+@keyframes haptic-pulse-light {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.98); }
+    100% { transform: scale(1); }
+}
+
+@keyframes haptic-pulse-medium {
+    0% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    100% { transform: scale(1); }
+}
+
+@keyframes haptic-pulse-heavy {
+    0% { transform: scale(1); }
+    25% { transform: scale(0.92); }
+    75% { transform: scale(1.02); }
+    100% { transform: scale(1); }
+}
 
 /* ===== SCROLLBAR UTILITIES ===== */
 .scrollbar-hide {
@@ -1496,8 +1459,13 @@ input[type="radio"]:focus {
     width: 8px;
 }
 
+::-webkit-scrollbar:horizontal {
+    height: 8px;
+}
+
 ::-webkit-scrollbar-track {
     background: #f1f1f1;
+    border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb {
@@ -1505,8 +1473,38 @@ input[type="radio"]:focus {
     border-radius: 4px;
 }
 
+.scrollbar-hide::-webkit-scrollbar {
+    display: none !important;
+}
+
 ::-webkit-scrollbar-thumb:hover {
     background: #a1a1a1;
+}
+
+/* Force single scrollbar by removing overflow from nested containers */
+.dashboard-container {
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+}
+
+.nutrition-dashboard-content {
+    overflow-x: hidden;
+    overflow-y: visible;
+}
+
+.mobile-layout-main {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: 100vh;
+}
+
+.mobile-layout-main > * {
+    overflow: visible;
+}
+
+.max-w-6xl, .max-w-4xl {
+    overflow: visible !important;
 }
 
 /* ===== RESPONSIVE UTILITIES ===== */
@@ -1552,30 +1550,7 @@ input[type="radio"]:focus {
     .xl\:grid-cols-5 { grid-template-columns: repeat(5, minmax(0, 1fr)) !important; }
 }
 
-/* ===== MOBILE-SPECIFIC STYLES ===== */
-
-/* Mobile touch improvements */
-.touch-friendly {
-    -webkit-touch-callout: none !important;
-    -webkit-user-select: none !important;
-    -khtml-user-select: none !important;
-    -moz-user-select: none !important;
-    -ms-user-select: none !important;
-    user-select: none !important;
-    -webkit-tap-highlight-color: transparent !important;
-    touch-action: manipulation !important;
-    min-height: 44px !important;
-    min-width: 44px !important;
-    cursor: pointer !important;
-}
-
-@media (max-width: 767px) {
-    .touch-friendly {
-        min-height: 48px !important;
-        min-width: 48px !important;
-        padding: 12px !important;
-    }
-}
+/* ===== MOBILE LAYOUT FIXES ===== */
 
 /* Mobile layout fixes */
 @media (max-width: 767px) {
@@ -1622,19 +1597,147 @@ input[type="radio"]:focus {
     }
 }
 
-/* Force hardware acceleration for better performance */
-.mobile-optimized {
-    -webkit-transform: translateZ(0) !important;
-    transform: translateZ(0) !important;
-    -webkit-backface-visibility: hidden !important;
-    backface-visibility: hidden !important;
-    -webkit-perspective: 1000px !important;
-    perspective: 1000px !important;
+/* ===== IPAD AND TABLET FIXES ===== */
+
+/* iPad and tablet-specific fixes for header alignment */
+@media (min-width: 768px) and (max-width: 1200px) {
+    .mobile-header .flex {
+        align-items: center !important;
+        justify-content: space-between !important;
+        height: 100% !important;
+    }
+
+    .mobile-header .flex > div:first-child {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+    }
+
+    .mobile-header .flex > div:last-child {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-end !important;
+        gap: 0.5rem !important;
+    }
+
+    .mobile-header button,
+    .mobile-header .touch-friendly {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: 44px !important;
+        min-width: 44px !important;
+    }
+
+    .mobile-header .w-10.h-10 {
+        width: 2.5rem !important;
+        height: 2.5rem !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+}
+
+/* iPad and Tablet Button Centering Fix */
+@media (max-width: 1200px) {
+    .mobile-header .touch-friendly,
+    header .touch-friendly {
+        padding: 12px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        box-sizing: border-box !important;
+        min-height: 56px !important;
+        min-width: 56px !important;
+    }
+
+    header .p-2\.5,
+    header .p-2,
+    header .p-3 {
+        padding: 12px !important;
+    }
+
+    header .touch-friendly svg {
+        width: 24px !important;
+        height: 24px !important;
+        display: block !important;
+        flex-shrink: 0 !important;
+    }
+
+    header .w-10.h-10,
+    header .rounded-full {
+        padding: 8px !important;
+        width: 56px !important;
+        height: 56px !important;
+    }
+
+    header .rounded-full span {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: 100% !important;
+        height: 100% !important;
+    }
+}
+
+/* iPad Mobile Menu Fixes */
+@media (min-width: 768px) and (max-width: 1200px) {
+    .fixed.inset-0.z-50 {
+        display: block !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        z-index: 9999 !important;
+    }
+
+    .fixed.top-0.left-0.bottom-0 {
+        display: flex !important;
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        z-index: 10000 !important;
+        background: white !important;
+        width: 320px !important;
+        transform: translateX(0) !important;
+        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+    }
+
+    .lg\\:hidden {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+    }
+}
+
+/* Touch interaction improvements for iPad */
+@media (hover: none) and (pointer: coarse) and (min-width: 768px) {
+    .touch-friendly:active {
+        transform: scale(0.94) !important;
+        transition: transform 0.1s ease !important;
+    }
+
+    .touch-friendly {
+        touch-action: manipulation !important;
+        -webkit-touch-callout: none !important;
+        -webkit-tap-highlight-color: transparent !important;
+    }
+}
+
+/* Hardware acceleration for smoother interactions */
+@media (min-width: 768px) and (max-width: 1200px) {
+    header .touch-friendly {
+        transform: translateZ(0) !important;
+        backface-visibility: hidden !important;
+        perspective: 1000px !important;
+    }
 }
 
 /* ===== MODAL & OVERLAY STYLES ===== */
 
-/* Modal safe area handling - CORRECTED */
+/* Modal safe area handling */
 .modal-container {
     position: fixed !important;
     top: env(safe-area-inset-top, 0px) !important;
@@ -2270,6 +2373,130 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
+/* ZXing Scanner Optimized Styles */
+.zxing-scanner-container {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: black;
+    border-radius: 0; /* Mobile fullscreen */
+}
+
+.zxing-scanner-container video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    z-index: 1 !important;
+    background: black;
+}
+
+/* Desktop-specific styling */
+@media (min-width: 769px) {
+    .zxing-scanner-container {
+        border-radius: 0.5rem; /* Rounded corners on desktop */
+    }
+
+    .zxing-scanner-container video {
+        border-radius: 0.5rem;
+    }
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 768px) {
+    .zxing-scanner-container video {
+        min-width: 100% !important;
+        min-height: 100% !important;
+        transform: none !important;
+        border-radius: 0 !important;
+    }
+}
+
+/* Landscape mode fixes for mobile */
+@media (orientation: landscape) and (max-height: 600px) {
+    .zxing-scanner-container video {
+        object-fit: cover !important;
+        height: 100vh !important;
+        width: 100vw !important;
+    }
+}
+
+/* Portrait mode optimizations */
+@media (orientation: portrait) and (max-width: 768px) {
+    .zxing-scanner-container video {
+        object-fit: cover !important;
+        height: 100% !important;
+        width: 100% !important;
+    }
+}
+
+/* High DPI / Retina display optimizations */
+@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
+    .zxing-scanner-container video {
+        image-rendering: -webkit-optimize-contrast;
+        image-rendering: crisp-edges;
+    }
+}
+
+/* Accessibility improvements */
+.zxing-scanner-container video:focus {
+    outline: 2px solid #3b82f6;
+    outline-offset: 2px;
+}
+
+/* Loading state styling */
+.zxing-scanner-loading {
+    background: linear-gradient(45deg, #1f2937, #374151);
+    background-size: 400% 400%;
+    animation: gradientShift 2s ease infinite;
+}
+
+@keyframes gradientShift {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* Scanner overlay animations */
+.zxing-scanner-overlay {
+    pointer-events: none;
+    z-index: 10;
+}
+
+.zxing-detection-indicator {
+    animation: pulseBlue 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseBlue {
+    0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+    50% {
+        transform: scale(1.1);
+        opacity: 0.7;
+    }
+}
+
+/* Smooth transitions for scanner state changes */
+.zxing-scanner-container,
+.zxing-scanner-container video {
+    transition: all 0.3s ease-in-out;
+}
+
+/* Error state styling */
+.zxing-scanner-error {
+    background: linear-gradient(45deg, #7f1d1d, #991b1b);
+}
+
+/* Success state styling */
+.zxing-scanner-success {
+    background: linear-gradient(45deg, #14532d, #166534);
+}
+
 /* ===== LOADING MODAL STYLES ===== */
 
 .loading-modal-container {
@@ -2501,39 +2728,6 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
-/* ===== HAPTIC FEEDBACK STYLES ===== */
-
-.haptic-light:active {
-    animation: haptic-pulse-light 0.1s ease !important;
-}
-
-.haptic-medium:active {
-    animation: haptic-pulse-medium 0.15s ease !important;
-}
-
-.haptic-heavy:active {
-    animation: haptic-pulse-heavy 0.2s ease !important;
-}
-
-@keyframes haptic-pulse-light {
-    0% { transform: scale(1); }
-    50% { transform: scale(0.98); }
-    100% { transform: scale(1); }
-}
-
-@keyframes haptic-pulse-medium {
-    0% { transform: scale(1); }
-    50% { transform: scale(0.95); }
-    100% { transform: scale(1); }
-}
-
-@keyframes haptic-pulse-heavy {
-    0% { transform: scale(1); }
-    25% { transform: scale(0.92); }
-    75% { transform: scale(1.02); }
-    100% { transform: scale(1); }
-}
-
 /* ===== UTILITY CLASSES ===== */
 
 .force-scroll {
@@ -2562,60 +2756,13 @@ div[style*="background-color: #f1f5f9"] {
     display: grid !important;
 }
 
-/* Add this CSS to your global styles or component styles to fix double scrollbar */
+/* Dividers */
+.divide-y > * + * { border-top-width: 1px !important; }
+.divide-gray-200 > * + * { border-top-color: #e5e7eb !important; }
 
-/* Option 1: Force single scrollbar by removing overflow from nested containers */
-.dashboard-container {
-    overflow: visible !important;
-    height: auto !important;
-    max-height: none !important;
-}
-
-/* Option 2: Hide scrollbars on specific containers if needed */
-.nutrition-dashboard-content {
-    overflow-x: hidden;
-    overflow-y: visible;
-}
-
-/* Option 3: Ensure only the main viewport handles scrolling */
-.mobile-layout-main {
-    overflow-y: auto;
-    overflow-x: hidden;
-    height: 100vh;
-}
-
-.mobile-layout-main > * {
-    overflow: visible;
-}
-
-/* Option 4: Target specific containers that might be causing the issue */
-.max-w-6xl, .max-w-4xl {
-    overflow: visible !important;
-}
-
-/* Hide thin scrollbars (webkit browsers) */
-::-webkit-scrollbar {
-    width: 8px;
-}
-
-::-webkit-scrollbar:horizontal {
-    height: 8px;
-}
-
-/* Style the remaining scrollbar to be more visible */
-::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
-    border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-    background: #a1a1a1;
-}
+/* Object utilities */
+.object-cover { object-fit: cover !important; }
+.object-fit { object-fit: fill !important; }
 
 /* ===== FALLBACK GRADIENTS ===== */
 
@@ -2677,1125 +2824,62 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
-/* Add these CSS rules to your globals.css file */
+/* ===== END OF ORGANIZED GLOBALS.CSS ===== */
 
-/* iPad and tablet-specific fixes for header alignment */
+/* iPad Scrolling Fix - Add to globals.css */
+
+/* Fix scrolling issues on iPad while keeping menu functionality */
 @media (min-width: 768px) and (max-width: 1200px) {
-    /* Fix header button alignment on iPad */
-    .mobile-header .flex {
-        align-items: center !important;
-        justify-content: space-between !important;
-        height: 100% !important;
-    }
-
-    /* Ensure hamburger menu button is properly centered */
-    .mobile-header .flex > div:first-child {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-    }
-
-    /* Ensure right side buttons are properly centered */
-    .mobile-header .flex > div:last-child {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        gap: 0.5rem !important;
-    }
-
-    /* Fix button container alignment */
-    .mobile-header button,
-    .mobile-header .touch-friendly {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-height: 44px !important;
-        min-width: 44px !important;
-    }
-
-    /* Ensure profile button is properly sized and centered */
-    .mobile-header .w-10.h-10 {
-        width: 2.5rem !important;
-        height: 2.5rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-    }
-}
-
-/* Specific fixes for iPad touch targets */
-@media (min-width: 768px) and (max-width: 1200px) and (pointer: coarse) {
-    /* Larger touch targets for iPad */
-    .mobile-header .touch-friendly {
-        min-height: 48px !important;
-        min-width: 48px !important;
-        padding: 0.75rem !important;
-    }
-
-    /* Ensure proper spacing between header elements */
-    .mobile-header .space-x-2 > * + * {
-        margin-left: 0.75rem !important;
-    }
-}
-
-/* Fix for mobile menu overlay z-index on iPad */
-@media (min-width: 768px) and (max-width: 1200px) {
-    .mobile-menu-overlay {
-        z-index: 9999 !important;
-        position: fixed !important;
-        inset: 0 !important;
-    }
-
-    .mobile-menu-panel {
-        z-index: 10000 !important;
-        position: relative !important;
-    }
-}
-
-/* Ensure touch-friendly interactions work on iPad */
-@media (hover: none) and (pointer: coarse) {
-    .touch-friendly:active {
-        transform: scale(0.95) !important;
-        transition: transform 0.1s ease !important;
-    }
-}
-
-/* iPad and tablet-specific fixes for header alignment - UPDATED */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Fix header button alignment on iPad and tablets */
-    .mobile-header .flex {
-        align-items: center !important;
-        justify-content: space-between !important;
-        height: 100% !important;
-        display: flex !important;
-        width: 100% !important;
-    }
-
-    /* Ensure hamburger menu button container is properly aligned */
-    .mobile-header .flex > div:first-child {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        flex-shrink: 0 !important;
-    }
-
-    /* Ensure right side buttons container is properly aligned */
-    .mobile-header .flex > div:last-child {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        gap: 0.5rem !important;
-        flex-shrink: 0 !important;
-    }
-
-    /* Fix individual button alignment within containers */
-    .mobile-header button,
-    .mobile-header .touch-friendly {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-height: 44px !important;
-        min-width: 44px !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Specific fix for hamburger menu button */
-    .mobile-header .mobile-menu-button,
-    .mobile-header .touch-friendly:first-child {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 3.5rem !important;
-        height: 3.5rem !important;
-    }
-
-    /* Ensure profile button is properly sized and centered */
-    .mobile-header .w-10.h-10 {
-        width: 2.5rem !important;
-        height: 2.5rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        flex-shrink: 0 !important;
-    }
-
-    /* Fix for space-x-2 spacing on right side buttons */
-    .mobile-header .space-x-2 {
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-    }
-
-    .mobile-header .space-x-2 > * + * {
-        margin-left: 0 !important; /* Reset margin-left */
-    }
-
-    /* Ensure header padding and layout is consistent */
-    .mobile-header .px-4.py-3 {
-        padding: 0.75rem 1rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        width: 100% !important;
-        box-sizing: border-box !important;
-    }
-}
-
-/* Specific fixes for iPad touch targets and interactions */
-@media (min-width: 768px) and (max-width: 1200px) and (pointer: coarse) {
-    /* Larger touch targets for iPad */
-    .mobile-header .touch-friendly {
-        min-height: 48px !important;
-        min-width: 48px !important;
-        padding: 0.75rem !important;
-    }
-
-    /* Ensure proper spacing between header elements */
-    .mobile-header .space-x-2 {
-        gap: 0.75rem !important;
-    }
-}
-
-/* Additional fixes for button centering specifically on iPad */
-@media (width >= 768px) and (width <= 1200px) {
-    /* Force flexbox alignment for all header buttons */
-    .mobile-header [class*="bg-indigo-600"],
-    .mobile-header [class*="bg-purple-600"],
-    .mobile-header [class*="bg-blue-600"],
-    .mobile-header [class*="bg-green-600"] {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Fix SVG centering within buttons */
-    .mobile-header button svg {
-        display: block !important;
-        margin: auto !important;
-    }
-
-    /* Ensure consistent button dimensions */
-    .mobile-header .p-2\.5 {
-        padding: 0.625rem !important;
-        width: auto !important;
-        height: auto !important;
-        min-width: 44px !important;
-        min-height: 44px !important;
-    }
-}
-
-/* Fix for mobile menu overlay z-index and positioning on iPad */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Mobile menu overlay */
-    .mobile-menu-overlay,
-    .fixed.inset-0.z-50 {
-        z-index: 9999 !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-    }
-
-    /* Mobile menu panel */
-    .mobile-menu-panel,
-    .fixed.top-0.left-0.bottom-0 {
-        z-index: 10000 !important;
-        position: fixed !important;
-        background: white !important;
-    }
-
-    /* Ensure backdrop click works properly */
-    .fixed.inset-0.bg-black.bg-opacity-50 {
-        background-color: rgba(0, 0, 0, 0.5) !important;
-        backdrop-filter: blur(4px) !important;
-        -webkit-backdrop-filter: blur(4px) !important;
-    }
-}
-
-/* Ensure touch-friendly interactions work on iPad */
-@media (hover: none) and (pointer: coarse) {
-    .touch-friendly:active {
-        transform: scale(0.95) !important;
-        transition: transform 0.1s ease !important;
-    }
-
-    /* Ensure button press feedback works */
-    .mobile-header .touch-friendly:active {
-        opacity: 0.8 !important;
-        transform: scale(0.95) !important;
-    }
-}
-
-/* Additional debugging for iPad layout issues */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Add visible border for debugging - remove in production */
-    .mobile-header .flex:first-child {
-        /* border: 1px solid red; /* Remove this line in production */
-    }
-
-    .mobile-header .flex:last-child {
-        /* border: 1px solid blue; /* Remove this line in production */
-    }
-}
-
-/* Force proper flex behavior on all mobile headers */
-@media (max-width: 1200px) {
-    .mobile-header {
-        display: block !important;
-        width: 100% !important;
-    }
-
-    .mobile-header > div {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        width: 100% !important;
-    }
-}
-
-/* Prevent any margin/padding issues that might cause misalignment */
-@media (min-width: 768px) and (max-width: 1200px) {
-    .mobile-header * {
-        box-sizing: border-box !important;
-    }
-
-    /* Reset any inherited margins that might affect button alignment */
-    .mobile-header button,
-    .mobile-header .touch-friendly {
-        margin: 0 !important;
-        vertical-align: top !important;
-    }
-
-    /* Ensure consistent line-height doesn't affect button centering */
-    .mobile-header {
-        line-height: 1 !important;
-    }
-}
-
-/* Add this to your globals.css - iPad-specific fixes */
-
-/* Force mobile layout styles for iPad screens */
-@media (min-width: 768px) and (max-width: 1366px) and (pointer: coarse) {
-    /* Override any desktop-specific styles */
-    .mobile-header {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        z-index: 40 !important;
-        background: white !important;
-        border-bottom: 1px solid #e5e7eb !important;
-    }
-
-    /* Fix the flex container in mobile header */
-    .mobile-header .flex.items-center.justify-between {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-        width: 100% !important;
-        padding: 0.75rem 1rem !important;
-    }
-
-    /* Ensure hamburger menu button is properly positioned */
-    .mobile-header .flex > div:first-child {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-    }
-
-    /* Ensure right side button group is properly positioned */
-    .mobile-header .flex > div:last-child {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: flex-end !important;
-        gap: 0.5rem !important;
-    }
-
-    /* Fix all buttons in the header */
-    .mobile-header button,
-    .mobile-header .touch-friendly {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        min-height: 44px !important;
-        min-width: 44px !important;
-        border-radius: 0.5rem !important;
-    }
-
-    /* Specific fix for profile button */
-    .mobile-header .w-10.h-10 {
-        width: 2.5rem !important;
-        height: 2.5rem !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        border-radius: 50% !important;
-    }
-
-    /* Ensure mobile menu overlay works on iPad */
-    .mobile-menu-overlay {
-        position: fixed !important;
-        inset: 0 !important;
-        z-index: 50 !important;
-        background-color: rgba(0, 0, 0, 0.5) !important;
-    }
-
-    .mobile-menu-panel {
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        bottom: 0 !important;
-        width: 20rem !important;
-        max-width: 85vw !important;
-        background: white !important;
-        z-index: 51 !important;
-        transform: translateX(-100%) !important;
-        transition: transform 0.3s ease !important;
-    }
-
-    .mobile-menu-panel.open {
-        transform: translateX(0) !important;
-    }
-
-    /* Fix bottom navigation on iPad */
-    .bottom-navigation {
-        position: fixed !important;
-        bottom: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        z-index: 30 !important;
-        background: white !important;
-        border-top: 1px solid #e5e7eb !important;
-    }
-}
-
-/* Force touch-friendly behavior on iPad */
-@media (pointer: coarse) and (hover: none) {
-    .touch-friendly:active {
-        transform: scale(0.95) !important;
-        transition: transform 0.1s ease !important;
-    }
-
-    /* Ensure all interactive elements have proper touch targets */
-    button,
-    .touch-friendly,
-    [role="button"] {
-        min-height: 44px !important;
-        min-width: 44px !important;
-        touch-action: manipulation !important;
-    }
-}
-
-/* iPad Specific Fixes - Add to globals.css */
-
-/* Force proper button centering on iPad */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Ensure all header buttons use consistent sizing and centering */
-    header .touch-friendly {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 56px !important;
-        height: 56px !important;
-        min-width: 56px !important;
-        min-height: 56px !important;
-        box-sizing: border-box !important;
-        padding: 0 !important; /* Remove padding to prevent misalignment */
-    }
-
-    /* Specific fixes for different button types */
-    header .w-14 {
-        width: 56px !important;
-        height: 56px !important;
-    }
-
-    header .h-14 {
-        height: 56px !important;
-    }
-
-    /* Ensure SVG icons are perfectly centered */
-    header .touch-friendly svg {
-        display: block !important;
-        margin: 0 auto !important;
-        flex-shrink: 0 !important;
-    }
-
-    /* Fix for profile button */
-    header .rounded-full {
-        width: 56px !important;
-        height: 56px !important;
-        border-radius: 50% !important;
-    }
-
-    /* Ensure header container maintains proper spacing */
-    header .flex.items-center.justify-between {
-        width: 100% !important;
-        height: 64px !important; /* Fixed height */
-        padding: 0.5rem 1rem !important;
-    }
-
-    /* Fix space-x-2 to use gap instead */
-    header .space-x-2 {
-        display: flex !important;
-        gap: 0.5rem !important;
-    }
-
-    header .space-x-2 > * + * {
-        margin-left: 0 !important; /* Reset Tailwind margin */
-    }
-}
-
-/* iPad touch interaction fixes */
-@media (hover: none) and (pointer: coarse) and (min-width: 768px) {
-    /* Enhanced touch feedback for iPad */
-    .touch-friendly:active {
-        transform: scale(0.94) !important;
-        transition: transform 0.1s ease !important;
-    }
-
-    /* Ensure buttons remain clickable */
-    .touch-friendly {
-        touch-action: manipulation !important;
-        -webkit-touch-callout: none !important;
-        -webkit-tap-highlight-color: transparent !important;
-    }
-}
-
-/* Debug mode for iPad - Remove in production */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Uncomment these lines to see button boundaries for debugging */
-    /*
-    header .touch-friendly {
-        border: 2px solid red !important;
-    }
-
-    header .touch-friendly svg {
-        border: 1px solid blue !important;
-    }
-    */
-}
-
-/* Force hardware acceleration for smoother interactions on iPad */
-@media (min-width: 768px) and (max-width: 1200px) {
-    header .touch-friendly {
-        transform: translateZ(0) !important;
-        backface-visibility: hidden !important;
-        perspective: 1000px !important;
-    }
-}
-
-/* Additional iPad layout fixes */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Ensure header doesn't get compressed */
-    header {
-        min-height: 64px !important;
-        height: auto !important;
-    }
-
-    /* Fix flexbox shrinking issues */
-    header .flex-shrink-0 {
-        flex-shrink: 0 !important;
-    }
-
-    /* Ensure proper z-index for mobile menu */
-    .fixed.inset-0.z-50 {
-        z-index: 50 !important;
-    }
-
-    .fixed.top-0.left-0.bottom-0 {
-        z-index: 51 !important;
-    }
-}
-
-/* iPad and Tablet Button Centering Fix - Add to globals.css */
-
-/* Extend the mobile button padding fix to include iPad and tablet sizes */
-@media (max-width: 1200px) {
-    .mobile-header .touch-friendly {
-        padding: 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-sizing: border-box !important;
-        min-height: 56px !important;
-        min-width: 56px !important;
-    }
-
-    /* Ensure all header buttons get the same treatment */
-    header .touch-friendly {
-        padding: 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-sizing: border-box !important;
-    }
-
-    /* Fix for specific button classes that might override */
-    header .p-2\.5,
-    header .p-2,
-    header .p-3 {
-        padding: 12px !important;
-    }
-
-    /* Ensure SVG icons are properly sized within the padded buttons */
-    header .touch-friendly svg {
-        width: 24px !important;
-        height: 24px !important;
-        display: block !important;
-        flex-shrink: 0 !important;
-    }
-
-    /* Profile button specific fix */
-    header .w-10.h-10,
-    header .rounded-full {
-        padding: 8px !important; /* Slightly less padding for circular profile button */
-        width: 56px !important;
-        height: 56px !important;
-    }
-
-    /* Profile button text centering */
-    header .rounded-full span {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 100% !important;
-        height: 100% !important;
-    }
-}
-
-/* Additional fix for the header container spacing */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Fix the header container to match mobile spacing */
-    header .px-4.py-3 {
-        padding: 0.75rem 1rem !important;
-        min-height: 64px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
-    }
-
-    /* Fix space-x-2 to use consistent gap */
-    header .space-x-2 {
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-    }
-
-    header .space-x-2 > * + * {
-        margin-left: 0 !important;
-    }
-}
-
-/* Hamburger menu z-index fix for iPad */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Ensure mobile menu shows properly on iPad */
-    .fixed.inset-0.z-50.lg\\:hidden {
-        z-index: 9999 !important;
-        display: block !important;
-    }
-
-    .fixed.top-0.left-0.bottom-0 {
-        z-index: 10000 !important;
-        position: fixed !important;
-    }
-
-    /* Force mobile menu to be visible on iPad */
-    .lg\\:hidden {
-        display: block !important;
-    }
-}
-
-/* iPad Hamburger Menu Fix - Add to globals.css */
-
-/* Force mobile menu to display on iPad - Override any hiding styles */
-@media (min-width: 768px) and (max-width: 1200px) {
-
-    /* Ensure mobile menu overlay is visible and properly positioned */
-    .fixed.inset-0.z-50 {
-        display: block !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        z-index: 9999 !important;
-        background-color: rgba(0, 0, 0, 0.5) !important;
-    }
-
-    /* Mobile menu panel positioning and visibility */
-    .fixed.top-0.left-0.bottom-0 {
-        display: block !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        bottom: 0 !important;
-        z-index: 10000 !important;
-        background: white !important;
-        width: 320px !important; /* 80 * 4 = 320px for w-80 */
-        max-width: 20rem !important;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-        transform: translateX(0) !important;
-    }
-
-    /* Override any lg:hidden classes that might be hiding the menu */
-    .lg\\:hidden {
-        display: block !important;
-    }
-
-    /* Ensure the mobile menu container is visible */
-    .fixed.inset-0.z-50.lg\\:hidden {
-        display: block !important;
-        z-index: 9999 !important;
-    }
-
-    /* Fix for the mobile menu content */
-    .w-80.max-w-sm {
-        width: 320px !important;
-        max-width: 20rem !important;
-        height: 100vh !important;
+    /* Ensure main content can scroll */
+    .mobile-main-content {
         overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        height: auto !important;
+        max-height: none !important;
     }
 
-    /* Ensure menu items are clickable */
-    .mobile-menu-content {
-        pointer-events: auto !important;
-        touch-action: manipulation !important;
+    /* Ensure dashboard container can scroll */
+    .dashboard-container {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        max-height: none !important;
+        height: auto !important;
     }
 
-    /* Force the backdrop to be visible and clickable */
-    .bg-black.bg-opacity-50 {
-        background-color: rgba(0, 0, 0, 0.5) !important;
-        backdrop-filter: blur(4px) !important;
-        -webkit-backdrop-filter: blur(4px) !important;
-        pointer-events: auto !important;
+    /* Fix for page content containers */
+    main {
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        height: auto !important;
     }
 
-    /* Ensure transform animations don't interfere */
-    .transform.transition-transform {
-        transform: translateX(0) !important;
-        transition: transform 0.3s ease-in-out !important;
+    /* Ensure body can scroll when menu is NOT open */
+    body:not(.menu-open) {
+        overflow: auto !important;
+        -webkit-overflow-scrolling: touch !important;
     }
 
-    /* Override any desktop-only hiding styles */
-    @supports (-webkit-touch-callout: none) {
-        /* iOS Safari specific fixes */
-        .fixed.inset-0.z-50,
-        .fixed.top-0.left-0.bottom-0 {
-            -webkit-transform: translateZ(0) !important;
-            transform: translateZ(0) !important;
-        }
-    }
-}
-
-/* Additional iPad-specific mobile menu fixes */
-@media (min-width: 768px) and (max-width: 1200px) and (orientation: landscape) {
-    /* Landscape mode fixes for iPad */
-    .fixed.top-0.left-0.bottom-0 {
-        height: 100vh !important;
-        max-height: 100vh !important;
+    /* Only prevent body scroll when menu IS open */
+    body.menu-open {
+        overflow: hidden !important;
     }
 }
 
-@media (min-width: 768px) and (max-width: 1200px) and (orientation: portrait) {
-    /* Portrait mode fixes for iPad */
-    .fixed.top-0.left-0.bottom-0 {
-        height: 100vh !important;
-        max-height: 100vh !important;
-    }
-}
-
-/* Debug styles - Uncomment these to see what's happening */
-
-/*@media (min-width: 768px) and (max-width: 1200px) {*/
-/*    .fixed.inset-0.z-50 {*/
-/*        border: 3px solid red !important;*/
-/*        background: rgba(255, 0, 0, 0.3) !important;*/
-/*    }*/
-
-/*    .fixed.top-0.left-0.bottom-0 {*/
-/*        border: 3px solid blue !important;*/
-/*        background: rgba(0, 0, 255, 0.3) !important;*/
-/*    }*/
-/*}*/
-
-/* iPad and Tablet Button Centering Fix */
-@media (max-width: 1200px) {
-    .mobile-header .touch-friendly,
-    header .touch-friendly {
-        padding: 12px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        box-sizing: border-box !important;
-        min-height: 56px !important;
-        min-width: 56px !important;
-    }
-
-    /* Fix for specific button classes that might override */
-    header .p-2\.5,
-    header .p-2,
-    header .p-3 {
-        padding: 12px !important;
-    }
-
-    /* Ensure SVG icons are properly sized within the padded buttons */
-    header .touch-friendly svg {
-        width: 24px !important;
-        height: 24px !important;
-        display: block !important;
-        flex-shrink: 0 !important;
-    }
-
-    /* Profile button specific fix */
-    header .w-10.h-10,
-    header .rounded-full {
-        padding: 8px !important;
-        width: 56px !important;
-        height: 56px !important;
-    }
-
-    /* Profile button text centering */
-    header .rounded-full span {
-        display: flex !important;
-        align-items: center !important;
-        justify-content: center !important;
-        width: 100% !important;
-        height: 100% !important;
-    }
-}
-
-/* iPad Header Container Fixes */
+/* Fix for any content containers that might be blocking scroll */
 @media (min-width: 768px) and (max-width: 1200px) {
-    /* Fix the header container spacing */
-    header .px-4.py-3 {
-        padding: 0.75rem 1rem !important;
-        min-height: 64px !important;
-        display: flex !important;
-        align-items: center !important;
-        justify-content: space-between !important;
+    .max-w-7xl,
+    .max-w-6xl,
+    .max-w-4xl {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
     }
 
-    /* Fix space-x-2 to use consistent gap */
-    header .space-x-2 {
-        display: flex !important;
-        align-items: center !important;
-        gap: 0.5rem !important;
-    }
-
-    header .space-x-2 > * + * {
-        margin-left: 0 !important;
+    /* Ensure page containers are scrollable */
+    .min-h-screen {
+        min-height: 100vh !important;
+        height: auto !important;
+        overflow: visible !important;
     }
 }
-
-/* iPad Mobile Menu Fixes */
-@media (min-width: 768px) and (max-width: 1200px) {
-    /* Ensure mobile menu shows properly on iPad */
-    .fixed.inset-0.z-50 {
-        display: block !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        right: 0 !important;
-        bottom: 0 !important;
-        z-index: 9999 !important;
-    }
-
-    .fixed.top-0.left-0.bottom-0 {
-        display: flex !important;
-        position: fixed !important;
-        top: 0 !important;
-        left: 0 !important;
-        bottom: 0 !important;
-        z-index: 10000 !important;
-        background: white !important;
-        width: 320px !important;
-        transform: translateX(0) !important;
-        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
-    }
-
-    /* Force any lg:hidden classes to show */
-    .lg\\:hidden {
-        display: block !important;
-        visibility: visible !important;
-        opacity: 1 !important;
-    }
-}
-
-/* Touch interaction improvements for iPad */
-@media (hover: none) and (pointer: coarse) and (min-width: 768px) {
-    .touch-friendly:active {
-        transform: scale(0.94) !important;
-        transition: transform 0.1s ease !important;
-    }
-
-    .touch-friendly {
-        touch-action: manipulation !important;
-        -webkit-touch-callout: none !important;
-        -webkit-tap-highlight-color: transparent !important;
-    }
-}
-
-/* Hardware acceleration for smoother interactions */
-@media (min-width: 768px) and (max-width: 1200px) {
-    header .touch-friendly {
-        transform: translateZ(0) !important;
-        backface-visibility: hidden !important;
-        perspective: 1000px !important;
-    }
-}
-
-/* ===== END OF CLEANED GLOBALS.CSS ===== */
-
-/* Add this CSS to your BarcodeScanner component or global CSS */
-/* ZXing Scanner Optimized Styles - Replace the Quagga CSS with this */
-
-/* ZXing video element styling for mobile and desktop */
-.zxing-scanner-container {
-    position: relative;
-    width: 100%;
-    height: 100%;
-    overflow: hidden;
-    background: black;
-    border-radius: 0; /* Mobile fullscreen */
-}
-
-.zxing-scanner-container video {
-    width: 100% !important;
-    height: 100% !important;
-    object-fit: cover !important;
-    position: absolute !important;
-    top: 0 !important;
-    left: 0 !important;
-    z-index: 1 !important;
-    background: black;
-}
-
-/* Desktop-specific styling */
-@media (min-width: 769px) {
-    .zxing-scanner-container {
-        border-radius: 0.5rem; /* Rounded corners on desktop */
-    }
-
-    .zxing-scanner-container video {
-        border-radius: 0.5rem;
-    }
-}
-
-/* Mobile-specific optimizations */
-@media (max-width: 768px) {
-    .zxing-scanner-container video {
-        min-width: 100% !important;
-        min-height: 100% !important;
-        transform: none !important;
-        border-radius: 0 !important;
-    }
-}
-
-/* Landscape mode fixes for mobile */
-@media (orientation: landscape) and (max-height: 600px) {
-    .zxing-scanner-container video {
-        object-fit: cover !important;
-        height: 100vh !important;
-        width: 100vw !important;
-    }
-}
-
-/* Portrait mode optimizations */
-@media (orientation: portrait) and (max-width: 768px) {
-    .zxing-scanner-container video {
-        object-fit: cover !important;
-        height: 100% !important;
-        width: 100% !important;
-    }
-}
-
-/* High DPI / Retina display optimizations */
-@media (-webkit-min-device-pixel-ratio: 2), (min-resolution: 192dpi) {
-    .zxing-scanner-container video {
-        image-rendering: -webkit-optimize-contrast;
-        image-rendering: crisp-edges;
-    }
-}
-
-/* Accessibility improvements */
-.zxing-scanner-container video:focus {
-    outline: 2px solid #3b82f6;
-    outline-offset: 2px;
-}
-
-/* Loading state styling */
-.zxing-scanner-loading {
-    background: linear-gradient(45deg, #1f2937, #374151);
-    background-size: 400% 400%;
-    animation: gradientShift 2s ease infinite;
-}
-
-@keyframes gradientShift {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-/* Scanner overlay animations */
-.zxing-scanner-overlay {
-    pointer-events: none;
-    z-index: 10;
-}
-
-.zxing-detection-indicator {
-    animation: pulseBlue 1.5s ease-in-out infinite;
-}
-
-@keyframes pulseBlue {
-    0%, 100% {
-        transform: scale(1);
-        opacity: 1;
-    }
-    50% {
-        transform: scale(1.1);
-        opacity: 0.7;
-    }
-}
-
-/* Smooth transitions for scanner state changes */
-.zxing-scanner-container,
-.zxing-scanner-container video {
-    transition: all 0.3s ease-in-out;
-}
-
-/* Error state styling */
-.zxing-scanner-error {
-    background: linear-gradient(45deg, #7f1d1d, #991b1b);
-}
-
-/* Success state styling */
-.zxing-scanner-success {
-    background: linear-gradient(45deg, #14532d, #166534);
-}
-
-@keyframes scanline {
-    0% {
-        top: 10%;
-        opacity: 1;
-        box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
-    }
-    50% {
-        opacity: 0.8;
-        box-shadow: 0 0 30px rgba(255, 255, 255, 1);
-    }
-    100% {
-        top: 90%;
-        opacity: 1;
-        box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
-    }
-}
-
-/* Android Safe Area Support */
-@supports (padding: env(safe-area-inset-top)) {
-    /* For Android APK - ensure body respects safe areas */
-    body {
-        padding-top: env(safe-area-inset-top);
-        padding-bottom: env(safe-area-inset-bottom);
-        padding-left: env(safe-area-inset-left);
-        padding-right: env(safe-area-inset-right);
-    }
-}
-
-/* Android APK specific fixes */
-@media (display-mode: standalone) {
-    /* This applies when the app is running as a standalone PWA or APK */
-    body {
-        /* Fallback padding for devices that don't support env() */
-        padding-top: 24px; /* Typical Android status bar height */
-        padding-bottom: 96px; /* Navigation gestures area */
-    }
-
-    /* Override with env() if supported */
-    @supports (padding: env(safe-area-inset-top)) {
-        body {
-            padding-top: env(safe-area-inset-top);
-            padding-bottom: env(safe-area-inset-bottom);
-            padding-left: env(safe-area-inset-left);
-            padding-right: env(safe-area-inset-right);
-        }
-    }
-}
-
-/* Ensure full height calculations include safe areas */
-.min-h-screen {
-    min-height: 100vh;
-    min-height: calc(100vh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
-}
-
-/* Android-specific header fixes */
-@media (display-mode: standalone) {
-    /* Ensure headers don't overlap with status bar */
-    header {
-        position: relative;
-        z-index: 10;
-    }
-
-    /* Fix for any fixed positioned elements */
-    .fixed {
-        top: env(safe-area-inset-top, 24px);
-    }
-
-    /* Fix for sticky headers */
-    .sticky {
-        top: env(safe-area-inset-top, 0px);
-    }
-}
-
-/* Debug helper for development - remove in production */
-@media (display-mode: standalone) {
-    .android-debug::before {
-        content: 'Safe areas: ' attr(data-safe-top) ' / ' attr(data-safe-bottom);
-        position: fixed;
-        top: 0;
-        left: 0;
-        background: rgba(255, 0, 0, 0.8);
-        color: white;
-        padding: 4px 8px;
-        font-size: 12px;
-        z-index: 9999;
-        pointer-events: none;
-    }
-}
-
-/* Add this animation to your globals.css */
-@keyframes spin {
-    from {
-        transform: rotate(0deg);
-    }
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* Safe area handling for mobile apps - Clean version without warnings */
-.mobile-safe-layout {
-    /* Use CSS environment variables with fallbacks */
-    padding-bottom: max(env(safe-area-inset-bottom, 88px), 88px);
-    padding-left: env(safe-area-inset-left, 0px);
-    padding-right: env(safe-area-inset-right, 0px);
-
-    min-height: 100vh;
-    box-sizing: border-box;
-}
-
-/* Force even larger values for mobile screens */
-@media screen and (max-width: 768px) {
-    .mobile-safe-layout {
-        padding-bottom: max(env(safe-area-inset-bottom, 96px), 96px) !important;
-    }
-}
-
-/* Capacitor-specific overrides with very large values */
-.capacitor-android .mobile-safe-layout {
-    padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
-}
-
-
 

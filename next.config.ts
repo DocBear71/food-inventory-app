@@ -324,12 +324,7 @@ const nextConfig: NextConfig = {
     // ADDED: SEO redirects
     async redirects() {
         return [
-            {
-                source: '/recipes',
-                destination: '/recipe-search',
-                permanent: true,
-            },
-            // Add more SEO redirects as needed
+            // Add other SEO redirects as needed (but not the recipes one)
         ];
     },
 }

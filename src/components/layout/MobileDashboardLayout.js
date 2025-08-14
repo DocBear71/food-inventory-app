@@ -386,7 +386,18 @@ export default function MobileDashboardLayout({children}) {
     // Close mobile menu when route changes
     useEffect(() => {
         setMobileMenuOpen(false);
+        // Also clean up body scroll when navigating
+        document.body.classList.remove('menu-open');
+        document.body.style.overflow = '';
     }, [pathname, searchParams]);
+
+    useEffect(() => {
+        // Clean up body class when component unmounts or menu closes
+        return () => {
+            document.body.classList.remove('menu-open');
+            document.body.style.overflow = '';
+        };
+    }, []);
 
     // Memoized event handlers
     const handleNavigation = useCallback((href) => {
@@ -435,8 +446,12 @@ export default function MobileDashboardLayout({children}) {
                     `;
                     }
 
+                    // Add class to body to prevent scroll when menu is open
+                    document.body.classList.add('menu-open');
                     document.body.style.overflow = 'hidden';
                 } else {
+                    // Remove class and restore scroll when menu is closed
+                    document.body.classList.remove('menu-open');
                     document.body.style.overflow = '';
                 }
             }, 50);
@@ -444,6 +459,7 @@ export default function MobileDashboardLayout({children}) {
             return newState;
         });
     }, [mobileMenuOpen]);
+
 
     const handleSignOut = useCallback(async () => {
         if (isSigningOut) return;
