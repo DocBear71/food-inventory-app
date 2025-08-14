@@ -395,6 +395,42 @@ export default function MobileDashboardLayout({children}) {
         });
     }, [mobileMenuOpen]);
 
+    useEffect(() => {
+        console.log('📊 Menu state effect triggered:', {
+            mobileMenuOpen,
+            screenWidth: window.innerWidth,
+            userAgent: navigator.userAgent.includes('iPad') ? 'iPad' : 'Other'
+        });
+
+        // Additional iPad-specific fixes when menu opens
+        if (mobileMenuOpen) {
+            const timer = setTimeout(() => {
+                // Double-check menu visibility on iPad
+                const overlay = document.querySelector('.fixed.inset-0.z-50');
+                const panel = document.querySelector('.fixed.top-0.left-0.bottom-0');
+
+                console.log('🔍 Menu elements check:', {
+                    overlayExists: !!overlay,
+                    panelExists: !!panel,
+                    overlayVisible: overlay ? getComputedStyle(overlay).display !== 'none' : false,
+                    panelVisible: panel ? getComputedStyle(panel).display !== 'none' : false
+                });
+
+                // Force visibility if elements exist but aren't visible
+                if (overlay && getComputedStyle(overlay).display === 'none') {
+                    overlay.style.display = 'block';
+                    console.log('🔧 Fixed hidden overlay');
+                }
+                if (panel && getComputedStyle(panel).display === 'none') {
+                    panel.style.display = 'flex';
+                    console.log('🔧 Fixed hidden panel');
+                }
+            }, 100);
+
+            return () => clearTimeout(timer);
+        }
+    }, [mobileMenuOpen]);
+
     // Memoized event handlers
     const handleNavigation = useCallback((href) => {
         MobileHaptics.light();
@@ -403,39 +439,101 @@ export default function MobileDashboardLayout({children}) {
     }, [router]);
 
     const toggleMobileMenu = useCallback(() => {
-        console.log('🍔 Hamburger menu clicked!', {
-            currentState: mobileMenuOpen,
-            willBecome: !mobileMenuOpen,
-            timestamp: new Date().toISOString()
-        });
+        // Create visual feedback on screen
+        const createDebugMessage = (message, color = 'blue') => {
+            const debugDiv = document.createElement('div');
+            debugDiv.style.cssText = `
+            position: fixed;
+            top: 100px;
+            left: 20px;
+            right: 20px;
+            background: ${color};
+            color: white;
+            padding: 10px;
+            z-index: 999999;
+            font-size: 14px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        `;
+            debugDiv.textContent = message;
+            document.body.appendChild(debugDiv);
 
+            // Remove after 3 seconds
+            setTimeout(() => {
+                if (document.body.contains(debugDiv)) {
+                    document.body.removeChild(debugDiv);
+                }
+            }, 3000);
+        };
+
+        createDebugMessage(`🍔 Menu clicked! Current state: ${mobileMenuOpen}`, 'green');
+
+        // Add haptic feedback
         try {
-            // Add haptic feedback if available
-            if (typeof MobileHaptics !== 'undefined' && MobileHaptics.medium) {
+            if (MobileHaptics?.medium) {
                 MobileHaptics.medium();
             }
-
-            // Toggle menu state
-            setMobileMenuOpen(prev => {
-                const newState = !prev;
-                console.log('🔄 Menu state changing:', prev, '->', newState);
-                return newState;
-            });
-
-            // Add visual feedback
-            const button = document.activeElement;
-            if (button) {
-                button.style.transform = 'scale(0.95)';
-                setTimeout(() => {
-                    if (button.style) {
-                        button.style.transform = '';
-                    }
-                }, 100);
-            }
-
         } catch (error) {
-            console.error('❌ Error in toggleMobileMenu:', error);
+            // Silent fail
         }
+
+        setMobileMenuOpen(prev => {
+            const newState = !prev;
+
+            // Visual confirmation of state change
+            setTimeout(() => {
+                createDebugMessage(`📱 Menu state changed to: ${newState}`, newState ? 'blue' : 'orange');
+
+                if (newState) {
+                    // Check if menu elements exist and force them visible
+                    const overlay = document.querySelector('.fixed.inset-0.z-50');
+                    const panel = document.querySelector('.fixed.top-0.left-0.bottom-0');
+
+                    if (overlay) {
+                        overlay.style.cssText = `
+                        display: block !important;
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        bottom: 0 !important;
+                        z-index: 9999 !important;
+                        background-color: rgba(0, 0, 0, 0.5) !important;
+                        backdrop-filter: blur(4px) !important;
+                    `;
+                        createDebugMessage('✅ Overlay found and forced visible', 'green');
+                    } else {
+                        createDebugMessage('❌ Overlay NOT found in DOM', 'red');
+                    }
+
+                    if (panel) {
+                        panel.style.cssText = `
+                        display: flex !important;
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        bottom: 0 !important;
+                        z-index: 10000 !important;
+                        background: white !important;
+                        width: 320px !important;
+                        transform: translateX(0) !important;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+                    `;
+                        createDebugMessage('✅ Panel found and forced visible', 'green');
+                    } else {
+                        createDebugMessage('❌ Panel NOT found in DOM', 'red');
+                    }
+
+                    // Prevent body scroll
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    document.body.style.overflow = '';
+                    createDebugMessage('🔄 Menu closed, body scroll restored', 'gray');
+                }
+            }, 50);
+
+            return newState;
+        });
     }, [mobileMenuOpen]);
 
     const handleSignOut = useCallback(async () => {
@@ -654,11 +752,55 @@ export default function MobileDashboardLayout({children}) {
                 <VerificationBanner user={session.user} />
             )}
 
-            {/* Mobile Menu */}
+            {/* Mobile Menu - Enhanced for iPad debugging */}
             {mobileMenuOpen && (
-                <div className="fixed inset-0 z-50 lg:hidden">
-                    <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}/>
-                    <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col">
+                <div className="fixed inset-0 z-50 mobile-menu-debug">
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-50"
+                        onClick={() => setMobileMenuOpen(false)}
+                        style={{
+                            display: 'block',
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 9999,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(4px)'
+                        }}
+                    />
+
+                    {/* Menu Panel */}
+                    <div
+                        className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col mobile-menu-container"
+                        style={{
+                            display: 'flex',
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            bottom: 0,
+                            zIndex: 10000,
+                            width: '320px',
+                            maxWidth: '20rem',
+                            background: 'white',
+                            transform: 'translateX(0)',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                        }}
+                    >
+                        {/* Visual Debug Header */}
+                        <div style={{
+                            background: 'purple',
+                            color: 'white',
+                            padding: '10px',
+                            textAlign: 'center',
+                            fontSize: '14px',
+                            fontWeight: 'bold'
+                        }}>
+                            🔍 MENU VISIBLE - iPad Debug Mode
+                        </div>
+
                         {/* Menu Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
                             <div className="flex items-center space-x-3">
