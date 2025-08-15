@@ -94,11 +94,33 @@ function SignInContent() {
         console.log('Is native platform:', isNative);
 
         try {
-            const result = await signIn('credentials', {
+            // Get CSRF token first for mobile platforms
+            let csrfToken = null;
+            if (isNative) {
+                try {
+                    const csrfResponse = await fetch('/api/auth/csrf', {
+                        credentials: 'include'
+                    });
+                    const csrfData = await csrfResponse.json();
+                    csrfToken = csrfData.csrfToken;
+                    console.log('✅ CSRF token obtained:', csrfToken ? 'success' : 'failed');
+                } catch (error) {
+                    console.error('❌ Failed to get CSRF token:', error);
+                }
+            }
+
+            const signInOptions = {
                 email: formData.email,
                 password: formData.password,
                 redirect: false,
-            });
+            };
+
+            // Add CSRF token if we have it
+            if (csrfToken) {
+                signInOptions.csrfToken = csrfToken;
+            }
+
+            const result = await signIn('credentials', signInOptions);
 
             console.log('SignIn result:', result);
 
