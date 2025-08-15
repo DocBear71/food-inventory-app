@@ -80,18 +80,8 @@ function SignInContent() {
         setMessage('');
         setShowResendVerification(false);
 
-        // Use dynamic import for Capacitor to avoid require() issues
-        let isNative = false;
-        try {
-            const { Capacitor } = await import('@capacitor/core');
-            isNative = Capacitor.isNativePlatform();
-        } catch (e) {
-            isNative = false;
-        }
-
         console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
-        console.log('Is native platform:', isNative);
 
         try {
             const result = await signIn('credentials', {
@@ -106,7 +96,6 @@ function SignInContent() {
             if (result?.error) {
                 console.log('Login failed with error:', result.error);
 
-                // Enhanced email verification error handling
                 if (result.error === 'email-not-verified' ||
                     result.error === 'EMAIL_NOT_VERIFIED' ||
                     result.error.includes('verify')) {
@@ -119,16 +108,13 @@ function SignInContent() {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
-                console.log('Login appears successful');
+                console.log('Login successful!');
                 setRedirecting(true);
 
-                // Simplified approach - let NextAuth handle the session
-                // Wait a moment for session to be established
-                await new Promise(resolve => setTimeout(resolve, 1000));
-
-                // Force redirect to dashboard - this works for both web and native
-                window.location.href = '/dashboard';
-                return;
+                // Simple redirect - let CapacitorAuthProvider handle session storage
+                setTimeout(() => {
+                    window.location.href = '/dashboard';
+                }, 1000);
             }
         } catch (error) {
             console.error('Login exception:', error);

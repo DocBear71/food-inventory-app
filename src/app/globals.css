@@ -2883,3 +2883,54 @@ div[style*="background-color: #f1f5f9"] {
     }
 }
 
+/* ===== RECIPE DETAIL PAGE RESPONSIVE IMPROVEMENTS ===== */
+
+/* Tablet and iPad specific improvements */
+@media (min-width: 768px) and (max-width: 1199px) {
+    .recipe-detail-container {
+        max-width: 95% !important;
+        padding-left: 2rem !important;
+        padding-right: 2rem !important;
+    }
+
+    .recipe-detail-grid {
+        grid-template-columns: 1fr !important;
+        gap: 2rem !important;
+    }
+
+    .recipe-main-content {
+        max-width: none !important;
+    }
+
+    .recipe-sidebar {
+        max-width: 600px !important;
+        margin: 0 auto !important;
+    }
+}
+
+/* Large screens - better space utilization */
+@media (min-width: 1200px) {
+    .recipe-detail-container {
+        max-width: 90% !important;
+        padding-left: 3rem !important;
+        padding-right: 3rem !important;
+    }
+
+    .recipe-detail-grid {
+        gap: 3rem !important;
+    }
+}
+
+/* Extra large screens */
+@media (min-width: 1400px) {
+    .recipe-detail-container {
+        max-width: 85% !important;
+        padding-left: 4rem !important;
+        padding-right: 4rem !important;
+    }
+
+    .recipe-detail-grid {
+        gap: 4rem !important;
+    }
+}
+

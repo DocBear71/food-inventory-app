@@ -1714,7 +1714,7 @@ export default function RecipeDetailPage() {
 
     return (
         <MobileOptimizedLayout>
-            <div className="max-w-6xl mx-auto px-4 py-8">
+            <div className="recipe-detail-container max-w-7xl mx-auto px-4 md:px-6 lg:px-8 xl:px-12 py-8">
                 {/* Header */}
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-6">
@@ -1887,9 +1887,9 @@ export default function RecipeDetailPage() {
                     )}
                 </div>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="recipe-detail-grid grid grid-cols-1 md:grid-cols-1 lg:grid-cols-5 xl:grid-cols-4 gap-8">
                     {/* LEFT COLUMN - Main Content */}
-                    <div className="lg:col-span-2 space-y-8">
+                    <div className="recipe-main-content lg:col-span-3 xl:col-span-3 space-y-8">
                         {/* Recipe Photos Section */}
                         <div className="bg-white rounded-lg border p-6">
                             <div className="flex items-center justify-between mb-4">
@@ -1965,7 +1965,7 @@ export default function RecipeDetailPage() {
                     </div>
 
                     {/* RIGHT COLUMN - Sidebar */}
-                    <div className="space-y-6">
+                    <div className="recipe-sidebar lg:col-span-2 xl:col-span-1 space-y-6">
                         {/* Recipe Info Card */}
                         <div className="bg-white rounded-lg border p-6">
                             <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Info</h3>
