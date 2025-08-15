@@ -1,13 +1,13 @@
 'use client'
 
-// file: /src/components/providers/CapacitorAuthProvider.js - v6 - FIXED: URL concatenation bug
+// file: /src/components/providers/CapacitorAuthProvider.js - v7 - FIXED: CSRF token handling
 
 import { useEffect } from 'react'
 import { Capacitor } from '@capacitor/core'
 
 export default function CapacitorAuthProvider({ children }) {
     useEffect(() => {
-        console.log('CapacitorAuthProvider v6 started')
+        console.log('CapacitorAuthProvider v7 started')
 
         if (Capacitor.isNativePlatform()) {
             console.log('Installing mobile auth override for native platform')
@@ -74,21 +74,70 @@ export default function CapacitorAuthProvider({ children }) {
                         return handleSignOut();
                     }
 
-                    // ENHANCED: Handle successful sign-in redirects
+                    // ENHANCED: Handle callback requests with CSRF token
                     if (url.includes('/api/auth/callback') || url.includes('/api/auth/signin')) {
-                        // FIXED: Proper URL handling
                         const newUrl = url.startsWith('/') ? `https://docbearscomfort.kitchen${url}` : url
                         console.log('Auth callback/signin redirect:', url, '→', newUrl)
 
-                        return originalFetch(newUrl, {
-                            ...options,
-                            credentials: 'include',
-                            headers: {
-                                'Origin': 'https://docbearscomfort.kitchen',
-                                'Content-Type': 'application/json',
-                                ...options?.headers
+                        // Get CSRF token first for callback requests
+                        const handleAuthCallback = async () => {
+                            try {
+                                // Get CSRF token
+                                const csrfResponse = await originalFetch('https://docbearscomfort.kitchen/api/auth/csrf', {
+                                    credentials: 'include',
+                                    headers: {
+                                        'Origin': 'https://docbearscomfort.kitchen',
+                                        'Content-Type': 'application/json'
+                                    }
+                                });
+                                const csrfData = await csrfResponse.json();
+                                console.log('✅ CSRF token obtained for callback:', csrfData.csrfToken ? 'success' : 'failed');
+
+                                // Prepare headers with CSRF token
+                                const authHeaders = {
+                                    'Origin': 'https://docbearscomfort.kitchen',
+                                    'Content-Type': 'application/json',
+                                    ...options?.headers
+                                };
+
+                                // Add CSRF token to request body if it's a POST
+                                let authBody = options?.body;
+                                if (options?.method === 'POST' && csrfData.csrfToken) {
+                                    if (typeof authBody === 'string') {
+                                        try {
+                                            const bodyData = JSON.parse(authBody);
+                                            bodyData.csrfToken = csrfData.csrfToken;
+                                            authBody = JSON.stringify(bodyData);
+                                        } catch (e) {
+                                            // If body is not JSON, append CSRF token differently
+                                            authBody = authBody + (authBody ? '&' : '') + `csrfToken=${encodeURIComponent(csrfData.csrfToken)}`;
+                                        }
+                                    }
+                                }
+
+                                return originalFetch(newUrl, {
+                                    ...options,
+                                    credentials: 'include',
+                                    headers: authHeaders,
+                                    body: authBody
+                                });
+
+                            } catch (csrfError) {
+                                console.error('Failed to get CSRF token for callback:', csrfError);
+                                // Fallback without CSRF token
+                                return originalFetch(newUrl, {
+                                    ...options,
+                                    credentials: 'include',
+                                    headers: {
+                                        'Origin': 'https://docbearscomfort.kitchen',
+                                        'Content-Type': 'application/json',
+                                        ...options?.headers
+                                    }
+                                });
                             }
-                        }).then(response => {
+                        };
+
+                        return handleAuthCallback().then(response => {
                             console.log('Auth response status:', response.status);
 
                             // If successful and it's a callback, log success but don't redirect
@@ -210,6 +259,22 @@ export default function CapacitorAuthProvider({ children }) {
                         let baseUrl = 'https://docbearscomfort.kitchen'; // Always use non-www
                         const newUrl = url.startsWith('/') ? `${baseUrl}${url}` : url
                         console.log('Auth redirect for:', url, '→', newUrl)
+                        return originalFetch(newUrl, {
+                            ...options,
+                            credentials: 'include',
+                            headers: {
+                                'Origin': 'https://docbearscomfort.kitchen',
+                                'Content-Type': 'application/json',
+                                ...options?.headers
+                            }
+                        })
+                    }
+
+                    // Handle CSRF requests
+                    if (url.includes('/api/auth/csrf')) {
+                        let baseUrl = 'https://docbearscomfort.kitchen';
+                        const newUrl = url.startsWith('/') ? `${baseUrl}${url}` : url
+                        console.log('CSRF request redirect:', url, '→', newUrl)
                         return originalFetch(newUrl, {
                             ...options,
                             credentials: 'include',

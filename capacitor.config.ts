@@ -5,8 +5,16 @@ const config: CapacitorConfig = {
     appName: "Doc Bear's Comfort Kitchen",
     webDir: 'out',
     server: {
+        url: 'https://docbearscomfort.kitchen',  // 🔧 ADD THIS LINE
         cleartext: true,
-        androidScheme: 'https'
+        androidScheme: 'https',
+        iosScheme: 'https',
+        allowNavigation: [
+            'https://docbearscomfort.kitchen',
+            'https://docbearscomfort.kitchen',
+            'https://*.docbearscomfort.kitchen'
+        ],
+        errorPath: 'index.html',
     },
     plugins: {
         StatusBar: {
