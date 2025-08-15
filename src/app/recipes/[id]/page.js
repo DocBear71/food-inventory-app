@@ -1968,7 +1968,8 @@ export default function RecipeDetailPage() {
                     <div className="recipe-sidebar lg:col-span-2 xl:col-span-1 space-y-6">
                         {/* Recipe Info Card */}
                         <div className="bg-white rounded-lg border p-6">
-                            <h3 className="text-lg font-semibold text-gray-900 mb-4">Recipe Info</h3>
+                            <h3 className="text-lg font-semibold text-gray-900 mb-2">Recipe Info</h3>
+                            <p className="text-sm text-gray-600 mb-4 font-medium">{recipe.title}</p>
                             <div className="space-y-3 text-sm">
                                 {/* Multi-part indicator */}
                                 {recipe.isMultiPart && (
@@ -2164,7 +2165,7 @@ export default function RecipeDetailPage() {
                         {/* RESTORED: Compact Nutrition Display with FDA-style label */}
                         {hasNutritionData && (
                             <div className="bg-white rounded-lg border p-6">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex justify-between items-center mb-2">
                                     <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
                                     <TouchEnhancedButton
                                         onClick={() => setShowNutritionModal(true)}
@@ -2173,6 +2174,7 @@ export default function RecipeDetailPage() {
                                         View Details
                                     </TouchEnhancedButton>
                                 </div>
+                                <p className="text-sm text-gray-600 mb-4 font-medium">{recipe.title}</p>
                                 <NutritionFacts
                                     nutrition={getNormalizedNutrition()}
                                     servings={recipe.servings || 1}
@@ -2186,9 +2188,10 @@ export default function RecipeDetailPage() {
                         {/* UpdateNutritionButton for recipes without nutrition data */}
                         {!hasNutritionData && (
                             <div className="bg-white rounded-lg border p-6">
-                                <div className="flex justify-between items-center mb-4">
+                                <div className="flex justify-between items-center mb-2">
                                     <h3 className="text-lg font-semibold text-gray-900">Nutrition Facts</h3>
                                 </div>
+                                <p className="text-sm text-gray-600 mb-4 font-medium">{recipe.title}</p>
 
                                 {/* FIXED: Use UpdateNutritionButton component with proper nutrition update handling */}
                                 <UpdateNutritionButton
