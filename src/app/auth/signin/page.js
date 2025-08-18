@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/auth/signin/page.js v5 - FIXED: Direct session storage for mobile
+// file: /src/app/auth/signin/page.js v6 - FIXED: URL construction error for iOS compatibility
 
 import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
@@ -9,7 +9,6 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { apiGet, apiPost } from '@/lib/api-config';
-import { MobileSession } from '@/lib/mobile-session-simple';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 function SignInContent() {
@@ -83,12 +82,50 @@ function SignInContent() {
         console.log('=== LOGIN ATTEMPT ===');
         console.log('Email:', formData.email);
 
+        // Validate email format before proceeding
+        if (!formData.email || !formData.email.includes('@')) {
+            setError('Please enter a valid email address.');
+            setLoading(false);
+            return;
+        }
+
+        // Enhanced validation and URL construction for iOS compatibility
+        if (typeof window === 'undefined') {
+            setError('Please try again in a moment.');
+            setLoading(false);
+            return;
+        }
+
         try {
+            // FIXED: More robust URL construction for iOS compatibility
+            const getCallbackUrl = () => {
+                if (typeof window === 'undefined') return '/dashboard';
+
+                try {
+                    // Try to construct a proper URL
+                    const origin = window.location.origin;
+                    if (!origin || origin === 'null') {
+                        // Fallback for edge cases
+                        return '/dashboard';
+                    }
+
+                    // Validate the origin is a proper URL
+                    new URL(origin); // This will throw if invalid
+                    return `${origin}/dashboard`;
+                } catch (urlError) {
+                    console.warn('URL construction error, using relative path:', urlError);
+                    return '/dashboard';
+                }
+            };
+
+            const callbackUrl = getCallbackUrl();
+            console.log('Using callback URL:', callbackUrl);
+
             const result = await signIn('credentials', {
                 email: formData.email,
                 password: formData.password,
                 redirect: false,
-                redirectTo: '/dashboard'
+                callbackUrl: callbackUrl
             });
 
             console.log('SignIn result:', result);
@@ -111,47 +148,30 @@ function SignInContent() {
                 console.log('Login successful!');
                 setRedirecting(true);
 
-                // Simple redirect - let CapacitorAuthProvider handle session storage
+                // FIXED: More reliable navigation for iOS
                 setTimeout(() => {
-                    window.location.href = '/dashboard';
-                }, 1000);
+                    try {
+                        // Try router first (preferred for Next.js)
+                        router.push('/dashboard');
+                    } catch (routerError) {
+                        console.warn('Router navigation failed, using window.location:', routerError);
+                        // Fallback to window.location
+                        if (typeof window !== 'undefined') {
+                            window.location.href = '/dashboard';
+                        }
+                    }
+                }, 500);
             }
         } catch (error) {
             console.error('Login exception:', error);
-            setError('Network error. Please try again.');
+            // More specific error handling
+            if (error.message && error.message.includes('URL')) {
+                setError('Navigation error. Please try again.');
+            } else {
+                setError('Network error. Please try again.');
+            }
         } finally {
             setLoading(false);
-        }
-    };
-
-    const handleFallbackSessionRetrieval = async (isNative) => {
-        console.log('🔄 Attempting fallback session retrieval...');
-
-        // Try to create a session based on the login credentials
-        // This is a fallback when direct session fetch fails
-        try {
-            // Create a minimal session object based on what we know
-            const fallbackSession = {
-                user: {
-                    email: formData.email,
-                    // We don't have all the user data, but we can redirect and let the app fetch it
-                },
-                expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-            };
-
-            if (isNative) {
-                await MobileSession.setSession(fallbackSession);
-            }
-
-            setTimeout(() => {
-                window.location.replace('/dashboard');
-            }, 1000);
-        } catch (error) {
-            console.error('❌ Fallback session retrieval failed:', error);
-            // Final fallback - just redirect and hope for the best
-            setTimeout(() => {
-                window.location.replace('/dashboard');
-            }, 1000);
         }
     };
 
@@ -179,27 +199,6 @@ function SignInContent() {
             setError('Network error. Please try again.');
         } finally {
             setResendLoading(false);
-        }
-    };
-
-    const handleWebSessionRetrieval = async () => {
-        // Wait a moment for session to be established
-        await new Promise(resolve => setTimeout(resolve, 500));
-
-        // Check if session was actually created
-        const { getSession } = await import('next-auth/react');
-        const session = await getSession();
-        console.log('Session after login:', session);
-
-        if (session) {
-            console.log('Session confirmed, redirecting...');
-            router.replace('/dashboard');
-        } else {
-            console.log('No session found after successful login');
-            // Try forcing a page reload to establish session
-            setTimeout(() => {
-                window.location.replace('/dashboard');
-            }, 1000);
         }
     };
 
@@ -278,6 +277,12 @@ function SignInContent() {
                         {message && (
                             <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
                                 {message}
+                            </div>
+                        )}
+
+                        {success && (
+                            <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
+                                {success}
                             </div>
                         )}
 

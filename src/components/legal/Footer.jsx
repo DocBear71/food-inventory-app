@@ -340,7 +340,7 @@ const Footer = () => {
                                                 alignItems: 'center'
                                             }}
                                     >
-                                        Terms of Use
+                                        Terms of Use (EULA)
                                     </TouchEnhancedButton>
 
                                     <span style={{ color: '#7f8c8d' }}>•</span>
