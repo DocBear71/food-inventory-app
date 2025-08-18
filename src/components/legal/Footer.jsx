@@ -1,4 +1,6 @@
-// file: src/components/legal/Footer.jsx v3 - Enhanced with international compliance
+'use client';
+
+// file: src/components/legal/Footer.jsx v4 - iOS App Store Compliant (removed Google Play references)
 
 import React, { useState, useEffect } from 'react';
 import PrivacyPolicy from './PrivacyPolicy';
@@ -7,12 +9,14 @@ import AboutUs from './AboutUs';
 import CookieConsent from './CookieConsent'; // You'll need to create this
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { useRouter } from 'next/navigation';
+import { usePlatform } from '@/hooks/usePlatform'; // Use unified platform detection
 
 const Footer = () => {
     const [activeModal, setActiveModal] = useState(null);
     const [showCookieConsent, setShowCookieConsent] = useState(false);
     const [isEUUser, setIsEUUser] = useState(false);
     const router = useRouter();
+    const platform = usePlatform();
 
     // Check if user is in EU/EEA and needs cookie consent
     useEffect(() => {
@@ -34,16 +38,20 @@ const Footer = () => {
                 setIsEUUser(isEU);
 
                 // Check if user has already consented to cookies
-                const hasConsented = localStorage.getItem('cookie-consent');
-                if (isEU && !hasConsented) {
-                    setShowCookieConsent(true);
+                if (typeof window !== 'undefined') {
+                    const hasConsented = localStorage.getItem('cookie-consent');
+                    if (isEU && !hasConsented) {
+                        setShowCookieConsent(true);
+                    }
                 }
             } catch (error) {
                 console.error('Error detecting region:', error);
                 // Default to showing cookie consent if detection fails
-                const hasConsented = localStorage.getItem('cookie-consent');
-                if (!hasConsented) {
-                    setShowCookieConsent(true);
+                if (typeof window !== 'undefined') {
+                    const hasConsented = localStorage.getItem('cookie-consent');
+                    if (!hasConsented) {
+                        setShowCookieConsent(true);
+                    }
                 }
             }
         };
@@ -153,7 +161,7 @@ const Footer = () => {
                             gap: '2rem',
                             marginBottom: '2rem'
                         }}>
-                            {/* About Section - Enhanced with international features */}
+                            {/* About Section */}
                             <div>
                                 <h3 style={{
                                     fontSize: '18px',
@@ -168,7 +176,7 @@ const Footer = () => {
                                     color: '#bdc3c7',
                                     margin: '0 0 1rem 0'
                                 }}>
-                                    Your AI-powered food inventory and recipe management solution with international support.
+                                    Your AI-powered food inventory and recipe management solution.
                                     Reduce waste, save money, and discover new meals with ingredients you already have.
                                 </p>
                                 <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
@@ -179,7 +187,7 @@ const Footer = () => {
                                         fontSize: '12px',
                                         color: '#ecf0f1'
                                     }}>
-                                        🌍 80+ Countries
+                                        🌍 International Support
                                     </span>
                                     <span style={{
                                         backgroundColor: '#34495e',
@@ -211,7 +219,7 @@ const Footer = () => {
                                 </div>
                             </div>
 
-                            {/* Enhanced Features */}
+                            {/* Features */}
                             <div>
                                 <h3 style={{
                                     fontSize: '18px',
@@ -246,7 +254,7 @@ const Footer = () => {
                                 </ul>
                             </div>
 
-                            {/* Contact Info - Enhanced with DPO contact for EU */}
+                            {/* Contact Info */}
                             <div>
                                 <h3 style={{
                                     fontSize: '18px',
@@ -289,7 +297,7 @@ const Footer = () => {
                             </div>
                         </div>
 
-                        {/* Enhanced Bottom Bar with International Compliance */}
+                        {/* Bottom Bar */}
                         <div style={{
                             borderTop: '1px solid #34495e',
                             paddingTop: '1.5rem',
@@ -365,13 +373,13 @@ const Footer = () => {
 
                                     <span style={{ color: '#7f8c8d' }}>•</span>
 
-                                    {/* NEW: Legal Information Page Link */}
+                                    {/* Legal Information Page Link */}
                                     <TouchEnhancedButton
                                             onClick={() => router.push('/legal')}
                                             style={{
                                                 background: 'none',
                                                 border: 'none',
-                                                color: '#e74c3c', // Highlighted in red to match your theme
+                                                color: '#e74c3c',
                                                 fontSize: '14px',
                                                 cursor: 'pointer',
                                                 textDecoration: 'underline',
@@ -411,7 +419,7 @@ const Footer = () => {
                                 </div>
                             </div>
 
-                            {/* Enhanced Copyright with International Notice */}
+                            {/* Copyright with compliance notice */}
                             <div style={{
                                 textAlign: 'center',
                                 color: '#7f8c8d',
@@ -423,9 +431,9 @@ const Footer = () => {
                                 <p style={{ margin: '0.5rem 0 0 0' }}>
                                     Making home cooking easier worldwide, one recipe at a time. 🍳🌍
                                 </p>
-                                {/* International compliance notice */}
+                                {/* Compliance notice */}
                                 <p style={{ margin: '0.5rem 0 0 0', fontSize: '11px', color: '#95a5a6' }}>
-                                    Serving users in 80+ countries with GDPR, COPPA, and international privacy compliance.
+                                    International privacy compliance including GDPR, COPPA, and accessibility standards.
                                     {isEUUser && ' EU users have additional data protection rights under GDPR.'}
                                 </p>
                             </div>
@@ -442,7 +450,7 @@ const Footer = () => {
                         />
                 )}
 
-                {/* Enhanced Modals */}
+                {/* Modals */}
                 <Modal
                         isOpen={activeModal === 'privacy'}
                         onClose={closeModal}
@@ -474,14 +482,14 @@ const Footer = () => {
                         outline-offset: 2px;
                         border-radius: 4px;
                     }
-                    
+
                     @media (max-width: 768px) {
                         .footer-legal-links > div {
                             flex-direction: column;
                             align-items: center;
                             gap: 0.25rem !important;
                         }
-                        
+
                         .footer-legal-links span {
                             display: none;
                         }

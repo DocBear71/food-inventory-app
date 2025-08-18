@@ -1,7 +1,7 @@
 'use client';
 
 // Modern Landing Page for Doc Bear's Comfort Kitchen
-// file: /app/page.js - Updated for v1.7.0 - FIXED: Hooks order to prevent conditional rendering error
+// file: /app/page.js - Platform-aware version that shows appropriate content based on context
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -10,7 +10,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import Footer from '@/components/legal/Footer'
 import {TouchEnhancedButton} from "@/components/mobile/TouchEnhancedButton.js";
-import { usePlatformDetection } from '@/hooks/usePlatformDetection';
+import { usePlatform } from '@/hooks/usePlatform';
 
 // Image Carousel Component
 function ImageCarousel({ images, alt, interval = 2000 }) {
@@ -41,13 +41,13 @@ function ImageCarousel({ images, alt, interval = 2000 }) {
 }
 
 export default function LandingPage() {
-    // FIXED: Move ALL hooks to the top before any conditional returns
+    // Move ALL hooks to the top before any conditional returns
     const [isScrolled, setIsScrolled] = useState(false);
     const { data: session, status } = useSession();
     const router = useRouter();
-    const platform = usePlatformDetection();
+    const platform = usePlatform();
 
-    // FIXED: Authentication redirect - moved before conditional returns
+    // Authentication redirect - moved before conditional returns
     useEffect(() => {
         if (status === 'authenticated' && session?.user) {
             console.log('🔄 Authenticated user detected, redirecting to dashboard');
@@ -55,7 +55,7 @@ export default function LandingPage() {
         }
     }, [status, session, router]);
 
-    // FIXED: Handle navbar scroll effect - moved before conditional returns
+    // Handle navbar scroll effect - moved before conditional returns
     useEffect(() => {
         const handleScroll = () => {
             setIsScrolled(window.scrollY > 50);
@@ -71,6 +71,19 @@ export default function LandingPage() {
         if (element) {
             element.scrollIntoView({ behavior: 'smooth' });
         }
+    };
+
+    // Platform-specific content logic
+    const shouldShowAppStoreBadges = () => {
+        // Show badges ONLY on web (not in native apps)
+        return platform.isWeb && !platform.isNative;
+    };
+
+    const shouldShowSpecificBadge = () => {
+        // If we're on a mobile device, show the relevant badge for that platform
+        if (platform.isIOS && platform.isWeb) return 'ios';
+        if (platform.isAndroid && platform.isWeb) return 'android';
+        return 'both'; // Desktop web users see both
     };
 
     // Show loading spinner while checking authentication
@@ -330,7 +343,7 @@ export default function LandingPage() {
                             </h2>
 
                             <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-                                Never waste food again. Create complex multi-part recipes, scan international barcodes, import recipes from TikTok, get voice nutrition analysis, and discover what you can cook with what you have.
+                                Never waste food again. Create complex multi-part recipes, scan international barcodes, import recipes from social media, get voice nutrition analysis, and discover what you can cook with what you have.
                             </p>
 
                             <div className="flex flex-col sm:flex-row gap-4 mb-8">
@@ -363,41 +376,72 @@ export default function LandingPage() {
                                 </div>
                             </div>
 
-                            {/* App Store Badges - Only show on web */}
-                            {platform.isWeb && !platform.loading && (
+                            {/* Platform-aware App Store Badges - ONLY show on web */}
+                            {shouldShowAppStoreBadges() && (
                                 <div className="flex flex-col sm:flex-row items-center gap-4">
-                                    <div className="text-sm text-gray-600 font-medium">Available on all platforms:</div>
+                                    <div className="text-sm text-gray-600 font-medium">
+                                        {shouldShowSpecificBadge() === 'both' && 'Available on all platforms:'}
+                                        {shouldShowSpecificBadge() === 'ios' && 'Get the iOS app:'}
+                                        {shouldShowSpecificBadge() === 'android' && 'Get the Android app:'}
+                                    </div>
                                     <div className="flex gap-3">
-                                        <TouchEnhancedButton
-                                            onClick={() => window.open('https://play.google.com/store/apps/details?id=kitchen.docbearscomfort', '_blank')}
-                                            className="block transition-transform hover:scale-105 active:scale-95"
-                                            aria-label="Download Doc Bear's Comfort Kitchen from Google Play Store"
-                                        >
-                                            <Image
-                                                src="/images/Google-Play-Store-Button.png"
-                                                alt="Available at the Google Play Store"
-                                                width={168}
-                                                height={56}
-                                                className="h-12 sm:h-14"
-                                                style={{ width: 'auto', height: 'auto' }}
-                                            />
-                                        </TouchEnhancedButton>
-                                        <TouchEnhancedButton
-                                            onClick={() => alert('Coming soon to Apple App Store!')}
-                                            className="block transition-transform hover:scale-105"
-                                        >
-                                            <Image
-                                                src="/images/app-store-badge-coming-soon1.png"
-                                                alt="Coming Soon to Apple App Store"
-                                                width={168}
-                                                height={56}
-                                                className="h-12 sm:h-14"
-                                                style={{ width: 'auto', height: 'auto' }}
-                                            />
-                                        </TouchEnhancedButton>
+                                        {/* Google Play - show for Android users or desktop */}
+                                        {(shouldShowSpecificBadge() === 'android' || shouldShowSpecificBadge() === 'both') && (
+                                            <TouchEnhancedButton
+                                                onClick={() => window.open('https://play.google.com/store/apps/details?id=kitchen.docbearscomfort', '_blank')}
+                                                className="block transition-transform hover:scale-105 active:scale-95"
+                                                aria-label="Download Doc Bear's Comfort Kitchen from Google Play Store"
+                                            >
+                                                <Image
+                                                    src="/images/Google-Play-Store-Button.png"
+                                                    alt="Available at the Google Play Store"
+                                                    width={168}
+                                                    height={56}
+                                                    className="h-12 sm:h-14"
+                                                    style={{ width: 'auto', height: 'auto' }}
+                                                />
+                                            </TouchEnhancedButton>
+                                        )}
+
+                                        {/* Apple App Store - show for iOS users or desktop */}
+                                        {(shouldShowSpecificBadge() === 'ios' || shouldShowSpecificBadge() === 'both') && (
+                                            <TouchEnhancedButton
+                                                onClick={() => alert('Coming soon to Apple App Store!')}
+                                                className="block transition-transform hover:scale-105"
+                                            >
+                                                <Image
+                                                    src="/images/app-store-badge-coming-soon1.png"
+                                                    alt="Coming Soon to Apple App Store"
+                                                    width={168}
+                                                    height={56}
+                                                    className="h-12 sm:h-14"
+                                                    style={{ width: 'auto', height: 'auto' }}
+                                                />
+                                            </TouchEnhancedButton>
+                                        )}
                                     </div>
                                 </div>
                             )}
+
+                            {/* Terms of Use link for Apple compliance - show regardless of platform */}
+                            <div className="text-sm text-gray-600 mt-4">
+                                <p>
+                                    By using this app, you agree to our{' '}
+                                    <Link
+                                        href="/legal/terms"
+                                        className="text-purple-600 hover:text-purple-700 underline"
+                                    >
+                                        Terms of Use (EULA)
+                                    </Link>
+                                    {' '}and{' '}
+                                    <Link
+                                        href="/legal/privacy"
+                                        className="text-purple-600 hover:text-purple-700 underline"
+                                    >
+                                        Privacy Policy
+                                    </Link>
+                                </p>
+                            </div>
                         </div>
                         <br/>
                         <br/>
@@ -586,7 +630,7 @@ export default function LandingPage() {
                             </div>
                             <h3 className="text-xl font-bold text-gray-900 mb-4">Social Media Recipe Import</h3>
                             <p className="text-gray-600 mb-6">
-                                Import recipes directly from TikTok, Instagram, and Facebook videos. AI analyzes content and can detect multi-part recipes automatically.
+                                Import recipes directly from social media videos. AI analyzes content and can detect multi-part recipes automatically.
                             </p>
                             <div className="bg-white rounded-xl p-4 shadow-sm">
                                 <ImageCarousel
@@ -804,39 +848,51 @@ export default function LandingPage() {
 
                     <div className="mt-8 text-gray-400 text-sm">
                         <p>✓ Free to start  ✓ No credit card required  ✓ Multi-part recipes  ✓ International support</p>
-                        {platform.isWeb && !platform.loading && (
-                            <div className="flex justify-center items-center gap-4 mt-4">
-                                <span className="text-xs">Also coming to:</span>
 
-                                <TouchEnhancedButton
-                                    onClick={() => window.open('https://play.google.com/store/apps/details?id=kitchen.docbearscomfort', '_blank')}
-                                    className="block transition-transform hover:scale-105 active:scale-95"
-                                    aria-label="Download Doc Bear's Comfort Kitchen from Google Play Store"
-                                >
-                                    <Image
-                                        src="/images/Google-Play-Store-Button.png"
-                                        alt="Available at the Google Play Store"
-                                        width={168}
-                                        height={56}
-                                        className="h-12 sm:h-14"
-                                        style={{ width: 'auto', height: 'auto' }}
-                                    />
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => alert('Coming soon to Apple App Store!')}
-                                    className="transition-transform hover:scale-105"
-                                >
-                                    <Image
-                                        src="/images/app-store-badge-coming-soon1.png"
-                                        alt="Coming Soon to Apple App Store"
-                                        width={120}
-                                        height={32}
-                                        className="h-8"
-                                        style={{ width: 'auto', height: 'auto' }}
-                                    />
-                                </TouchEnhancedButton>
+                        {/* Platform-aware download section for web users */}
+                        {shouldShowAppStoreBadges() && (
+                            <div className="flex justify-center items-center gap-4 mt-4">
+                                <span className="text-xs">
+                                    {shouldShowSpecificBadge() === 'both' && 'Also available on:'}
+                                    {shouldShowSpecificBadge() === 'ios' && 'Download for iOS:'}
+                                    {shouldShowSpecificBadge() === 'android' && 'Download for Android:'}
+                                </span>
+
+                                {(shouldShowSpecificBadge() === 'android' || shouldShowSpecificBadge() === 'both') && (
+                                    <TouchEnhancedButton
+                                        onClick={() => window.open('https://play.google.com/store/apps/details?id=kitchen.docbearscomfort', '_blank')}
+                                        className="block transition-transform hover:scale-105 active:scale-95"
+                                        aria-label="Download Doc Bear's Comfort Kitchen from Google Play Store"
+                                    >
+                                        <Image
+                                            src="/images/Google-Play-Store-Button.png"
+                                            alt="Available at the Google Play Store"
+                                            width={120}
+                                            height={32}
+                                            className="h-8"
+                                            style={{ width: 'auto', height: 'auto' }}
+                                        />
+                                    </TouchEnhancedButton>
+                                )}
+
+                                {(shouldShowSpecificBadge() === 'ios' || shouldShowSpecificBadge() === 'both') && (
+                                    <TouchEnhancedButton
+                                        onClick={() => alert('Coming soon to Apple App Store!')}
+                                        className="transition-transform hover:scale-105"
+                                    >
+                                        <Image
+                                            src="/images/app-store-badge-coming-soon1.png"
+                                            alt="Coming Soon to Apple App Store"
+                                            width={120}
+                                            height={32}
+                                            className="h-8"
+                                            style={{ width: 'auto', height: 'auto' }}
+                                        />
+                                    </TouchEnhancedButton>
+                                )}
                             </div>
                         )}
+
                     </div>
                 </div>
                 <br/>

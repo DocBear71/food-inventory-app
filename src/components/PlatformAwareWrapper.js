@@ -117,11 +117,7 @@ export default function PlatformAwareWrapper({ children }) {
         console.log('🌐 Rendering web app wrapper with PWA features');
         return (
             <>
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="fixed top-0 left-0 right-0 z-50 bg-green-100 text-green-800 text-xs p-1 text-center">
-                        🔧 Web/PWA Mode - {debugInfo}
-                    </div>
-                )}
+
                 <PWAWrapper>
                     {children}
                 </PWAWrapper>
