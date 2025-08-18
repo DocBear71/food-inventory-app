@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/auth/signin/page.js v6 - FIXED: URL construction error for iOS compatibility
+// file: /src/app/auth/signin/page.js v7 - FIXED: NextAuth URL parsing error and improved callback handling
 
 import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
@@ -89,43 +89,17 @@ function SignInContent() {
             return;
         }
 
-        // Enhanced validation and URL construction for iOS compatibility
-        if (typeof window === 'undefined') {
-            setError('Please try again in a moment.');
-            setLoading(false);
-            return;
-        }
-
         try {
-            // FIXED: More robust URL construction for iOS compatibility
-            const getCallbackUrl = () => {
-                if (typeof window === 'undefined') return '/dashboard';
-
-                try {
-                    // Try to construct a proper URL
-                    const origin = window.location.origin;
-                    if (!origin || origin === 'null') {
-                        // Fallback for edge cases
-                        return '/dashboard';
-                    }
-
-                    // Validate the origin is a proper URL
-                    new URL(origin); // This will throw if invalid
-                    return `${origin}/dashboard`;
-                } catch (urlError) {
-                    console.warn('URL construction error, using relative path:', urlError);
-                    return '/dashboard';
-                }
-            };
-
-            const callbackUrl = getCallbackUrl();
-            console.log('Using callback URL:', callbackUrl);
+            // FIXED: Simplified callback URL handling to avoid NextAuth URL parsing issues
+            // Let NextAuth handle the callback URL internally to prevent URL construction errors
+            console.log('Attempting sign in...');
 
             const result = await signIn('credentials', {
                 email: formData.email,
                 password: formData.password,
                 redirect: false,
-                callbackUrl: callbackUrl
+                // REMOVED: callbackUrl parameter to let NextAuth handle it internally
+                // This prevents the URL construction error in NextAuth's internal processing
             });
 
             console.log('SignIn result:', result);
@@ -148,30 +122,65 @@ function SignInContent() {
                 console.log('Login successful!');
                 setRedirecting(true);
 
-                // FIXED: More reliable navigation for iOS
-                setTimeout(() => {
+                // FIXED: Improved redirect handling with better error recovery
+                try {
+                    // Wait a bit for NextAuth to complete its internal processing
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                    // Use router.push with replace to avoid history stack issues
+                    router.replace('/dashboard');
+                } catch (routerError) {
+                    console.warn('Router navigation failed, using window.location:', routerError);
+                    // Fallback to window.location with better error handling
                     try {
-                        // Try router first (preferred for Next.js)
-                        router.push('/dashboard');
-                    } catch (routerError) {
-                        console.warn('Router navigation failed, using window.location:', routerError);
-                        // Fallback to window.location
                         if (typeof window !== 'undefined') {
-                            window.location.href = '/dashboard';
+                            window.location.replace('/dashboard');
+                        }
+                    } catch (locationError) {
+                        console.error('All navigation methods failed:', locationError);
+                        // Last resort: reload the page (user will be logged in)
+                        if (typeof window !== 'undefined') {
+                            window.location.reload();
                         }
                     }
-                }, 500);
+                }
+            } else {
+                // Handle unexpected result states
+                console.warn('Unexpected signIn result:', result);
+                setError('Authentication completed but redirect failed. Please refresh the page.');
             }
         } catch (error) {
             console.error('Login exception:', error);
-            // More specific error handling
+
+            // IMPROVED: Better error classification and handling
             if (error.message && error.message.includes('URL')) {
-                setError('Navigation error. Please try again.');
+                // This is likely the NextAuth URL parsing error
+                console.log('URL parsing error detected - login may have succeeded');
+                setRedirecting(true);
+                setError('');
+
+                // Try to navigate anyway, as the login might have succeeded
+                setTimeout(() => {
+                    try {
+                        router.replace('/dashboard');
+                    } catch (navError) {
+                        // If navigation fails, tell user to refresh
+                        setRedirecting(false);
+                        setError('Login completed but navigation failed. Please refresh the page.');
+                    }
+                }, 500);
+            } else if (error.message && error.message.includes('fetch')) {
+                setError('Network error. Please check your connection and try again.');
             } else {
-                setError('Network error. Please try again.');
+                setError('An unexpected error occurred. Please try again.');
             }
         } finally {
-            setLoading(false);
+            // Only set loading to false if we're not redirecting
+            setTimeout(() => {
+                if (!redirecting) {
+                    setLoading(false);
+                }
+            }, 100);
         }
     };
 
