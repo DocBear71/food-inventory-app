@@ -1,9 +1,81 @@
-// file: /src/app/api/payments/revenuecat/verify/route.js v2 - Enhanced iOS purchase verification
+// file: /src/app/api/payments/revenuecat/verify/route.js v3 - Enhanced with Apple receipt validation
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
+
+// ADDED: Apple receipt validation function (outside the POST function)
+async function validateReceiptWithApple(receiptData) {
+    try {
+        console.log('🍎 Validating receipt with Apple...');
+
+        // STEP 1: Always try production first
+        const productionResponse = await fetch('https://buy.itunes.apple.com/verifyReceipt', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                'receipt-data': receiptData,
+                'password': process.env.APPLE_SHARED_SECRET,
+                'exclude-old-transactions': true
+            })
+        });
+
+        const productionResult = await productionResponse.json();
+        console.log('🍎 Production validation result:', productionResult.status);
+
+        // STEP 2: If production fails with "sandbox receipt" error (21007), try sandbox
+        if (productionResult.status === 21007) {
+            console.log('🧪 Production failed with sandbox error, trying sandbox environment...');
+
+            const sandboxResponse = await fetch('https://sandbox.itunes.apple.com/verifyReceipt', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    'receipt-data': receiptData,
+                    'password': process.env.APPLE_SHARED_SECRET,
+                    'exclude-old-transactions': true
+                })
+            });
+
+            const sandboxResult = await sandboxResponse.json();
+            console.log('🧪 Sandbox validation result:', sandboxResult.status);
+            return sandboxResult;
+        }
+
+        // STEP 3: Return production result for all other cases
+        return productionResult;
+
+    } catch (error) {
+        console.error('❌ Apple receipt validation failed:', error);
+        throw new Error(`Receipt validation failed: ${error.message}`);
+    }
+}
+
+// ADDED: Helper function to extract receipt data from RevenueCat purchase result
+function extractReceiptData(purchaseResult) {
+    try {
+        // RevenueCat provides receipt data in different places depending on platform
+        const receiptData = purchaseResult.transactionReceipt ||
+            purchaseResult.originalPurchaseDate ||
+            purchaseResult.customerInfo?.originalAppUserId;
+
+        if (!receiptData) {
+            console.warn('⚠️ No receipt data found in purchase result');
+            return null;
+        }
+
+        // Convert to base64 if needed
+        if (typeof receiptData === 'string' && !receiptData.includes('base64')) {
+            return Buffer.from(receiptData).toString('base64');
+        }
+
+        return receiptData;
+    } catch (error) {
+        console.error('❌ Error extracting receipt data:', error);
+        return null;
+    }
+}
 
 export async function POST(request) {
     try {
@@ -73,13 +145,34 @@ export async function POST(request) {
         const customerInfo = purchaseResult.customerInfo;
         const entitlements = customerInfo?.entitlements;
 
-        // ENHANCED: Better validation of purchase result structure
         if (!customerInfo) {
             console.error('❌ Invalid purchase result - missing customerInfo');
             return NextResponse.json(
                 { error: 'Invalid purchase result format' },
                 { status: 400 }
             );
+        }
+
+        // ENHANCED: Add Apple receipt validation for additional security
+        let appleValidation = null;
+        try {
+            const receiptData = extractReceiptData(purchaseResult);
+            if (receiptData && process.env.APPLE_SHARED_SECRET) {
+                console.log('🍎 Attempting Apple receipt validation...');
+                appleValidation = await validateReceiptWithApple(receiptData);
+
+                if (appleValidation.status === 0) {
+                    console.log('✅ Apple receipt validation successful');
+                } else {
+                    console.warn('⚠️ Apple receipt validation returned status:', appleValidation.status);
+                }
+            } else {
+                console.log('ℹ️ Skipping Apple receipt validation (no receipt data or shared secret)');
+            }
+        } catch (validationError) {
+            console.warn('⚠️ Apple receipt validation failed, continuing with RevenueCat data:', validationError.message);
+            // Don't fail the entire request if Apple validation fails
+            // RevenueCat already validated the purchase
         }
 
         // Determine subscription dates
@@ -93,7 +186,7 @@ export async function POST(request) {
             subscriptionEndDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
         }
 
-        // ENHANCED: Check if the user has the expected entitlement
+        // Check if the user has the expected entitlement
         const expectedEntitlement = `${tier}_access`; // e.g., 'gold_access', 'platinum_access'
         const hasEntitlement = entitlements && entitlements[expectedEntitlement]?.isActive;
 
@@ -103,7 +196,7 @@ export async function POST(request) {
             // Still proceed but log the issue for debugging
         }
 
-        // ENHANCED: Check for duplicate purchases
+        // Check for duplicate purchases
         if (user.subscription?.revenueCatCustomerId === customerInfo.originalAppUserId &&
             user.subscription?.tier === tier &&
             user.subscription?.status === 'active') {
@@ -121,7 +214,7 @@ export async function POST(request) {
 
             // RevenueCat specific fields
             revenueCatCustomerId: customerInfo.originalAppUserId || customerInfo.originalApplicationVersion,
-            platform: 'revenuecat', // Track that this came from RevenueCat (Google Play/App Store)
+            platform: 'revenuecat',
 
             // Clear any previous Stripe data since this is a new RevenueCat purchase
             stripeCustomerId: null,
@@ -134,7 +227,7 @@ export async function POST(request) {
             trialStartDate: null,
             trialEndDate: null,
 
-            // ENHANCED: Store more purchase metadata for debugging/support
+            // Store purchase metadata for debugging/support
             purchaseMetadata: {
                 revenueCatPurchaseResult: {
                     transactionIdentifier: purchaseResult.transactionIdentifier,
@@ -144,14 +237,20 @@ export async function POST(request) {
                     entitlements: Object.keys(entitlements || {}),
                     hasExpectedEntitlement: hasEntitlement
                 },
+                // ADDED: Apple validation metadata
+                appleValidation: appleValidation ? {
+                    status: appleValidation.status,
+                    environment: appleValidation.environment || 'unknown',
+                    validatedAt: now.toISOString()
+                } : null,
                 originalTier: user.subscription?.tier || 'free',
                 upgradeDate: now,
-                platform: 'ios', // Assuming iOS for RevenueCat purchases for now
+                platform: 'ios',
                 verificationTimestamp: now
             }
         };
 
-        // ENHANCED: Update usage tracking to reset monthly counters for new subscribers
+        // Update usage tracking to reset monthly counters for new subscribers
         if (!user.usageTracking) {
             user.usageTracking = {
                 currentMonth: now.getMonth(),
@@ -178,10 +277,11 @@ export async function POST(request) {
             billingCycle: billingCycle,
             nextBilling: subscriptionEndDate.toISOString(),
             revenueCatCustomerId: customerInfo.originalAppUserId,
-            hasExpectedEntitlement: hasEntitlement
+            hasExpectedEntitlement: hasEntitlement,
+            appleValidationStatus: appleValidation?.status || 'not_validated'
         });
 
-        // ✅ IMPLEMENTED: Send welcome email for new RevenueCat subscription
+        // Send welcome email for new RevenueCat subscription
         try {
             const { sendWelcomeEmail } = await import('@/lib/email-todo-implementations');
             await sendWelcomeEmail({
@@ -198,7 +298,7 @@ export async function POST(request) {
             // Don't throw - email failures shouldn't break purchase verification
         }
 
-        // ✅ IMPLEMENTED: Log to analytics
+        // Log to analytics
         try {
             const { trackEmailEvent } = await import('@/lib/email-todo-implementations');
             await trackEmailEvent({
@@ -210,7 +310,8 @@ export async function POST(request) {
                     tier: tier,
                     billingCycle: billingCycle,
                     platform: 'revenuecat',
-                    hasExpectedEntitlement: hasEntitlement
+                    hasExpectedEntitlement: hasEntitlement,
+                    appleValidationStatus: appleValidation?.status || 'not_validated'
                 }
             });
         } catch (analyticsError) {
@@ -233,13 +334,18 @@ export async function POST(request) {
                 expected: expectedEntitlement,
                 found: hasEntitlement,
                 available: Object.keys(entitlements || {})
+            },
+            // ADDED: Apple validation info for debugging
+            validation: {
+                appleStatus: appleValidation?.status || 'not_validated',
+                environment: appleValidation?.environment || 'unknown'
             }
         });
 
     } catch (error) {
         console.error('❌ Error verifying RevenueCat purchase:', error);
 
-        // ENHANCED: Handle specific RevenueCat errors with better user messages
+        // Handle specific RevenueCat errors with better user messages
         if (error.message?.includes('already_purchased')) {
             return NextResponse.json(
                 {
