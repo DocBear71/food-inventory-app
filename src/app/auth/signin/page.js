@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/auth/signin/page.js v6 - FIXED: Mobile auth interceptor for production
+// file: /src/app/auth/signin/page.js v7 - FIXED: NextAuth URL parsing error and improved callback handling
 
 import { useState, useEffect, Suspense } from 'react';
 import { signIn } from 'next-auth/react';
@@ -9,8 +9,6 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { apiGet, apiPost } from '@/lib/api-config';
-import { MobileSession } from '@/lib/mobile-session-simple';
-import { mobileSignIn, mobileAuthInterceptor } from '@/lib/mobile-auth-interceptor';
 import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
 
 function SignInContent() {
@@ -55,9 +53,6 @@ function SignInContent() {
                 case 'CredentialsSignin':
                     setError('Invalid email or password. Please try again.');
                     break;
-                case 'MissingCSRF':
-                    setError('Authentication failed due to security settings. Please try again.');
-                    break;
                 default:
                     setError('An error occurred. Please try again.');
             }
@@ -78,111 +73,33 @@ function SignInContent() {
     }, [searchParams]);
 
     const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-    setMessage('');
-    setShowResendVerification(false);
+        e.preventDefault();
+        setLoading(true);
+        setError('');
+        setMessage('');
+        setShowResendVerification(false);
 
-    // Use dynamic import for Capacitor to avoid require() issues
-    let isNative = false;
-    try {
-        const { Capacitor } = await import('@capacitor/core');
-        isNative = Capacitor.isNativePlatform();
-    } catch (e) {
-        isNative = false;
-    }
+        console.log('=== LOGIN ATTEMPT ===');
+        console.log('Email:', formData.email);
 
-    console.log('=== LOGIN ATTEMPT ===');
-    console.log('Email:', formData.email);
-    console.log('Is native platform:', isNative);
+        // Validate email format before proceeding
+        if (!formData.email || !formData.email.includes('@')) {
+            setError('Please enter a valid email address.');
+            setLoading(false);
+            return;
+        }
 
-    try {
-        if (isNative) {
-            // Use mobile authentication interceptor for native apps
-            console.log('📱 Using mobile authentication flow to avoid CSRF issues');
-            
-            const result = await mobileSignIn(formData.email, formData.password);
-            
-            if (result.success) {
-                console.log('✅ Mobile sign in successful');
-                setRedirecting(true);
-                
-                try {
-                    // CRITICAL: Store session in ALL storage locations
-                    
-                    // 1. Store in mobile interceptor
-                    mobileAuthInterceptor.setSessionData(result.session);
-                    console.log('✅ Session stored in mobile interceptor');
-                    
-                    // 2. Store in MobileSession (Capacitor Preferences)
-                    await MobileSession.setSession(result.session);
-                    console.log('✅ Session stored in MobileSession');
-                    
-                    // 3. Store session data directly in Capacitor Preferences as backup
-                    const { Preferences } = await import('@capacitor/preferences');
-                    await Preferences.set({
-                        key: 'mobile_session',
-                        value: JSON.stringify(result.session)
-                    });
-                    await Preferences.set({
-                        key: 'mobile_session_expiry',
-                        value: result.session.expires
-                    });
-                    console.log('✅ Session stored directly in Capacitor Preferences');
-                    
-                    // 4. Store user data separately for easier access
-                    await Preferences.set({
-                        key: 'current_user',
-                        value: JSON.stringify(result.session.user)
-                    });
-                    console.log('✅ User data stored in Capacitor Preferences');
-                    
-                    // 5. Set a flag that user is authenticated
-                    await Preferences.set({
-                        key: 'is_authenticated',
-                        value: 'true'
-                    });
-                    console.log('✅ Authentication flag set');
-                    
-                    console.log('🎉 All session storage completed successfully');
-                    
-                    // Small delay to ensure storage completes
-                    setTimeout(() => {
-                        console.log('🔄 Redirecting to dashboard after session storage...');
-                        router.push('/dashboard');
-                    }, 1000);
-                    
-                    return;
-                    
-                } catch (storageError) {
-                    console.error('📱 Session storage error:', storageError);
-                    // Still redirect even if storage partially fails
-                    setTimeout(() => {
-                        router.push('/dashboard');
-                    }, 1000);
-                }
-            } else {
-                console.log('❌ Mobile sign in failed:', result.error);
-                
-                if (result.error === 'MissingCSRF') {
-                    setError('Authentication failed due to security settings. Please try again in a moment.');
-                } else if (result.error?.includes('verify') || result.error?.includes('email')) {
-                    setError('Please verify your email before signing in.');
-                    setShowResendVerification(true);
-                    setUnverifiedEmail(formData.email);
-                } else {
-                    setError(result.error || 'Sign in failed. Please check your credentials and try again.');
-                }
-            }
-        } else {
-            // Use standard NextAuth for web/PWA
-            console.log('🌐 Using web authentication flow');
-            
+        try {
+            // FIXED: Simplified callback URL handling to avoid NextAuth URL parsing issues
+            // Let NextAuth handle the callback URL internally to prevent URL construction errors
+            console.log('Attempting sign in...');
+
             const result = await signIn('credentials', {
                 email: formData.email,
                 password: formData.password,
                 redirect: false,
+                // REMOVED: callbackUrl parameter to let NextAuth handle it internally
+                // This prevents the URL construction error in NextAuth's internal processing
             });
 
             console.log('SignIn result:', result);
@@ -190,7 +107,6 @@ function SignInContent() {
             if (result?.error) {
                 console.log('Login failed with error:', result.error);
 
-                // Enhanced email verification error handling
                 if (result.error === 'email-not-verified' ||
                     result.error === 'EMAIL_NOT_VERIFIED' ||
                     result.error.includes('verify')) {
@@ -199,24 +115,75 @@ function SignInContent() {
                     setUnverifiedEmail(formData.email);
                 } else if (result.error === 'CredentialsSignin') {
                     setError('Invalid email or password. Please try again.');
-                } else if (result.error === 'MissingCSRF') {
-                    setError('Authentication failed due to security settings. Please try again.');
                 } else {
                     setError('Sign in failed. Please try again.');
                 }
             } else if (result?.ok) {
-                console.log('Login appears successful');
+                console.log('Login successful!');
                 setRedirecting(true);
-                await handleWebSessionRetrieval();
+
+                // FIXED: Improved redirect handling with better error recovery
+                try {
+                    // Wait a bit for NextAuth to complete its internal processing
+                    await new Promise(resolve => setTimeout(resolve, 100));
+
+                    // Use router.push with replace to avoid history stack issues
+                    router.replace('/dashboard');
+                } catch (routerError) {
+                    console.warn('Router navigation failed, using window.location:', routerError);
+                    // Fallback to window.location with better error handling
+                    try {
+                        if (typeof window !== 'undefined') {
+                            window.location.replace('/dashboard');
+                        }
+                    } catch (locationError) {
+                        console.error('All navigation methods failed:', locationError);
+                        // Last resort: reload the page (user will be logged in)
+                        if (typeof window !== 'undefined') {
+                            window.location.reload();
+                        }
+                    }
+                }
+            } else {
+                // Handle unexpected result states
+                console.warn('Unexpected signIn result:', result);
+                setError('Authentication completed but redirect failed. Please refresh the page.');
             }
+        } catch (error) {
+            console.error('Login exception:', error);
+
+            // IMPROVED: Better error classification and handling
+            if (error.message && error.message.includes('URL')) {
+                // This is likely the NextAuth URL parsing error
+                console.log('URL parsing error detected - login may have succeeded');
+                setRedirecting(true);
+                setError('');
+
+                // Try to navigate anyway, as the login might have succeeded
+                setTimeout(() => {
+                    try {
+                        router.replace('/dashboard');
+                    } catch (navError) {
+                        // If navigation fails, tell user to refresh
+                        setRedirecting(false);
+                        setError('Login completed but navigation failed. Please refresh the page.');
+                    }
+                }, 500);
+            } else if (error.message && error.message.includes('fetch')) {
+                setError('Network error. Please check your connection and try again.');
+            } else {
+                setError('An unexpected error occurred. Please try again.');
+            }
+        } finally {
+            // Only set loading to false if we're not redirecting
+            setTimeout(() => {
+                if (!redirecting) {
+                    setLoading(false);
+                }
+            }, 100);
         }
-    } catch (error) {
-        console.error('Login exception:', error);
-        setError('Network error. Please check your connection and try again.');
-    } finally {
-        setLoading(false);
-    }
-};
+    };
+
     const handleResendVerificationFromSignIn = async () => {
         if (resendLoading) return;
 
@@ -382,8 +349,7 @@ function SignInContent() {
                                 <Link
                                     href="/auth/verify-email"
                                     className="font-medium text-indigo-600 hover:text-indigo-500"
-                                    onClick={handleResendVerification}  
->
+                                >
                                     Resend verification
                                 </Link>
                             </div>

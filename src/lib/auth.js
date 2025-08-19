@@ -1,4 +1,4 @@
-// file: /src/lib/auth.js - NextAuth v5 configuration with working mobile CSRF bypass
+// file: /src/lib/auth.js - NextAuth v5 configuration
 
 import NextAuth from 'next-auth';
 import Credentials from 'next-auth/providers/credentials';
@@ -10,13 +10,13 @@ console.log('NextAuth v5 config loading...');
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
     providers: [
-        Credentials({
+        Credentials({  // Note: Credentials instead of CredentialsProvider in v5
             name: 'credentials',
             credentials: {
                 email: { label: 'Email', type: 'email' },
                 password: { label: 'Password', type: 'password' }
             },
-            async authorize(credentials, request) {
+            async authorize(credentials) {
                 if (!credentials?.email || !credentials?.password) {
                     return null;
                 }
@@ -115,15 +115,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         strategy: 'jwt',
         maxAge: 24 * 60 * 60, // 24 hours
     },
-    
     pages: {
         signIn: '/auth/signin',
         signUp: '/auth/signup',
         signOut: '/auth/signout',
     },
-    
     callbacks: {
-        async jwt({ token, user, account, profile, trigger }) {
+        async jwt({ token, user }) {
             if (user) {
                 token.id = user.id;
                 token.emailVerified = user.emailVerified;
@@ -149,7 +147,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
             return token;
         },
-        
         async session({ session, token }) {
             if (token) {
                 session.user.id = token.id;
@@ -194,36 +191,66 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
             return session;
         },
-        
         async redirect({ url, baseUrl }) {
             console.log('Auth redirect (v5):', url, '→', baseUrl);
 
-            // Handle mobile app redirects
-            if (url.includes('?error=MissingCSRF')) {
-                console.log('🔧 CSRF error detected, redirecting to sign in');
-                return `${baseUrl}/auth/signin`;
-            }
-
+            // Handle signout
             if (url.includes('signout') || url.includes('signOut')) {
-                return baseUrl;
+                return '/';
             }
 
+            // Handle dashboard redirects
             if (url === '/dashboard' || url.endsWith('/dashboard')) {
-                return `${baseUrl}/dashboard`;
+                return '/dashboard';
             }
 
+            // Handle relative URLs
             if (url.startsWith('/')) {
-                return `${baseUrl}${url}`;
-            }
-
-            if (url.startsWith(baseUrl)) {
                 return url;
             }
 
-            return `${baseUrl}/dashboard`;
+            // ADDED: Handle domain consistency (www vs non-www)
+            const normalizeUrl = (urlString) => {
+                try {
+                    const urlObj = new URL(urlString);
+                    // Normalize to your preferred domain (choose one)
+                    if (urlObj.hostname === 'docbearscomfort.kitchen') {
+                        urlObj.hostname = 'docbearscomfort.kitchen';
+                    }
+                    return urlObj.toString();
+                } catch {
+                    return urlString;
+                }
+            };
+
+            const normalizedUrl = normalizeUrl(url);
+            const normalizedBaseUrl = normalizeUrl(baseUrl);
+
+            // Check if URL starts with normalized base URL
+            if (normalizedUrl.startsWith(normalizedBaseUrl)) {
+                return normalizedUrl;
+            }
+
+            // ADDED: Handle cross-domain redirects more safely
+            try {
+                const urlObj = new URL(url);
+                const baseUrlObj = new URL(baseUrl);
+
+                // Allow redirects within the same domain (with or without www)
+                const urlDomain = urlObj.hostname.replace('www.', '');
+                const baseDomain = baseUrlObj.hostname.replace('www.', '');
+
+                if (urlDomain === baseDomain) {
+                    return normalizedUrl;
+                }
+            } catch (error) {
+                console.warn('Error parsing URLs in redirect:', error);
+            }
+
+            // Default fallback
+            return '/dashboard';
         },
-        
-        async signIn({ user, account, profile, email, credentials }) {
+        async signIn({ user, account, profile }) {
             console.log('SignIn callback (v5) - User:', {
                 id: user.id,
                 email: user.email,
@@ -231,28 +258,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 isAdmin: user.isAdmin
             });
             console.log('SignIn callback (v5) - Account:', account);
-            
-            // Additional mobile app validation can go here
             return true;
         },
     },
-    
     events: {
         async signOut({ token, session }) {
             console.log('SignOut event triggered (v5) - clearing all auth state');
-            
-            // Clear mobile session storage on sign out
-            if (typeof window !== 'undefined') {
-                try {
-                    const { MobileSession } = await import('@/lib/mobile-session-simple');
-                    await MobileSession.clearSession();
-                    console.log('📱 Mobile session cleared on sign out');
-                } catch (error) {
-                    console.error('Error clearing mobile session:', error);
-                }
-            }
         },
-        
         async session({ token, session }) {
             if (session && session.expires) {
                 const now = new Date();
@@ -264,11 +276,6 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             }
         }
     },
-    
-    // MOBILE PRODUCTION FIX: Enhanced configuration
     trustHost: true,
     useSecureCookies: process.env.NODE_ENV === 'production',
-    
-    // Add debug mode for development
-    debug: process.env.NODE_ENV === 'development',
 });

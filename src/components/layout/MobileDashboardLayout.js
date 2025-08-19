@@ -266,14 +266,24 @@ export default function MobileDashboardLayout({children}) {
     // Enhanced platform detection with StatusBar handling
     useEffect(() => {
         async function detectPlatform() {
+            console.log('🧪 MobileDashboardLayout DETAILED detection starting...');
+
             try {
                 let isNative = false;
                 let isPWA = false;
                 let statusBarHeight = 0;
 
+                // ADD THIS DEBUG SECTION:
+                console.log('🧪 Window.Capacitor exists:', typeof window.Capacitor !== 'undefined');
+                console.log('🧪 Window.Capacitor object:', window.Capacitor);
+
                 if (typeof window !== 'undefined' && window.Capacitor) {
                     try {
                         const { Capacitor } = await import('@capacitor/core');
+                        console.log('🧪 Capacitor import successful');
+                        console.log('🧪 Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
+                        console.log('🧪 Capacitor.getPlatform():', Capacitor.getPlatform());
+
                         isNative = Capacitor.isNativePlatform();
 
                         if (isNative) {
@@ -376,7 +386,18 @@ export default function MobileDashboardLayout({children}) {
     // Close mobile menu when route changes
     useEffect(() => {
         setMobileMenuOpen(false);
+        // Also clean up body scroll when navigating
+        document.body.classList.remove('menu-open');
+        document.body.style.overflow = '';
     }, [pathname, searchParams]);
+
+    useEffect(() => {
+        // Clean up body class when component unmounts or menu closes
+        return () => {
+            document.body.classList.remove('menu-open');
+            document.body.style.overflow = '';
+        };
+    }, []);
 
     // Memoized event handlers
     const handleNavigation = useCallback((href) => {
@@ -386,9 +407,59 @@ export default function MobileDashboardLayout({children}) {
     }, [router]);
 
     const toggleMobileMenu = useCallback(() => {
-        MobileHaptics.medium();
-        setMobileMenuOpen(!mobileMenuOpen);
+        MobileHaptics?.medium();
+        setMobileMenuOpen(prev => {
+            const newState = !prev;
+
+            // Force menu visibility on iPad if needed
+            setTimeout(() => {
+                if (newState) {
+                    const overlay = document.querySelector('.fixed.inset-0.z-50');
+                    const panel = document.querySelector('.fixed.top-0.left-0.bottom-0');
+
+                    if (overlay) {
+                        overlay.style.cssText = `
+                        display: block !important;
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        right: 0 !important;
+                        bottom: 0 !important;
+                        z-index: 9999 !important;
+                        background-color: rgba(0, 0, 0, 0.5) !important;
+                        backdrop-filter: blur(4px) !important;
+                    `;
+                    }
+
+                    if (panel) {
+                        panel.style.cssText = `
+                        display: flex !important;
+                        position: fixed !important;
+                        top: 0 !important;
+                        left: 0 !important;
+                        bottom: 0 !important;
+                        z-index: 10000 !important;
+                        background: white !important;
+                        width: 320px !important;
+                        transform: translateX(0) !important;
+                        box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25) !important;
+                    `;
+                    }
+
+                    // Add class to body to prevent scroll when menu is open
+                    document.body.classList.add('menu-open');
+                    document.body.style.overflow = 'hidden';
+                } else {
+                    // Remove class and restore scroll when menu is closed
+                    document.body.classList.remove('menu-open');
+                    document.body.style.overflow = '';
+                }
+            }, 50);
+
+            return newState;
+        });
     }, [mobileMenuOpen]);
+
 
     const handleSignOut = useCallback(async () => {
         if (isSigningOut) return;
@@ -442,59 +513,136 @@ export default function MobileDashboardLayout({children}) {
                 }`}
                 style={headerStyle}
             >
-                <div className="flex items-center justify-between px-4 py-3">
-                    <div className="flex items-center">
+                <div className="flex items-center justify-between px-4 py-3 h-16">
+                    {/* Left side - Hamburger Menu */}
+                    <div className="flex items-center flex-shrink-0">
                         <TouchEnhancedButton
                             onClick={toggleMobileMenu}
-                            className="p-2.5 rounded-lg bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all touch-friendly"
+                            className="flex items-center justify-center w-14 h-14 rounded-lg bg-indigo-600 text-white shadow-sm hover:bg-indigo-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Open menu"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '56px',
+                                minHeight: '56px'
+                            }}
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5}
-                                      d="M4 6h16M4 12h16M4 18h16"/>
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                style={{ display: 'block' }}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2.5}
+                                    d="M4 6h16M4 12h16M4 18h16"
+                                />
                             </svg>
                         </TouchEnhancedButton>
                     </div>
 
-                    <div className="flex items-center space-x-2">
+                    {/* Right side - Action buttons */}
+                    <div className="flex items-center space-x-2 flex-shrink-0">
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory/receipt-scan')}
-                            className="p-2.5 rounded-lg bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
+                            className="flex items-center justify-center w-14 h-14 rounded-lg bg-purple-600 text-white shadow-sm hover:bg-purple-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Scan receipt"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '56px',
+                                minHeight: '56px'
+                            }}
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                style={{ display: 'block' }}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                                />
                             </svg>
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/shopping/add-items')}
-                            className="p-2.5 rounded-lg bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all touch-friendly"
+                            className="flex items-center justify-center w-14 h-14 rounded-lg bg-blue-600 text-white shadow-sm hover:bg-blue-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Add to shopping list"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '56px',
+                                minHeight: '56px'
+                            }}
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5M7 13l-1.1 5m0 0h12.2M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z"/>
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                style={{ display: 'block' }}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M3 3h2l.4 2M7 13h10l4-8H5.4m0 0L7 13m0 0l-1.1 5M7 13l-1.1 5m0 0h12.2M17 21a2 2 0 100-4 2 2 0 000 4zM9 21a2 2 0 100-4 2 2 0 000 4z"
+                                />
                             </svg>
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/inventory?action=add&scroll=form')}
-                            className="p-2.5 rounded-lg bg-green-600 text-white shadow-sm hover:bg-green-700 active:scale-95 transition-all touch-friendly"
+                            className="flex items-center justify-center w-14 h-14 rounded-lg bg-green-600 text-white shadow-sm hover:bg-green-700 active:scale-95 transition-all touch-friendly"
                             aria-label="Quick add item"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '56px',
+                                minHeight: '56px'
+                            }}
                         >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"/>
+                            <svg
+                                className="w-6 h-6"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                                style={{ display: 'block' }}
+                            >
+                                <path
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    strokeWidth={2}
+                                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                                />
                             </svg>
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
                             onClick={() => handleNavigation('/profile')}
-                            className="w-10 h-10 bg-indigo-100 rounded-full flex items-center justify-center hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden relative"
+                            className="flex items-center justify-center w-14 h-14 bg-indigo-100 rounded-full hover:bg-indigo-200 active:scale-95 transition-all touch-friendly overflow-hidden relative"
                             aria-label="Go to profile"
                             title="Profile"
+                            style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                minWidth: '56px',
+                                minHeight: '56px'
+                            }}
                         >
                             {session?.user?.avatar ? (
                                 <img
@@ -508,12 +656,17 @@ export default function MobileDashboardLayout({children}) {
                                 />
                             ) : null}
                             <span
-                                className={`text-indigo-600 text-sm font-medium w-full h-full flex items-center justify-center ${
+                                className={`text-indigo-600 text-lg font-medium w-full h-full flex items-center justify-center ${
                                     session?.user?.avatar ? 'hidden' : 'block'
                                 }`}
+                                style={{
+                                    display: session?.user?.avatar ? 'none' : 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center'
+                                }}
                             >
-                                {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                            </span>
+                    {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                </span>
                         </TouchEnhancedButton>
                     </div>
                 </div>
@@ -526,9 +679,41 @@ export default function MobileDashboardLayout({children}) {
 
             {/* Mobile Menu */}
             {mobileMenuOpen && (
-                <div className="fixed inset-0 z-50 lg:hidden">
-                    <div className="fixed inset-0 bg-black bg-opacity-50" onClick={() => setMobileMenuOpen(false)}/>
-                    <div className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col">
+                <div className="fixed inset-0 z-50">
+                    {/* Backdrop */}
+                    <div
+                        className="fixed inset-0 bg-black bg-opacity-50"
+                        onClick={() => setMobileMenuOpen(false)}
+                        style={{
+                            display: 'block',
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            zIndex: 9999,
+                            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+                            backdropFilter: 'blur(4px)'
+                        }}
+                    />
+
+                    {/* Menu Panel */}
+                    <div
+                        className="fixed top-0 left-0 bottom-0 w-80 max-w-sm bg-white shadow-xl flex flex-col"
+                        style={{
+                            display: 'flex',
+                            position: 'fixed',
+                            top: 0,
+                            left: 0,
+                            bottom: 0,
+                            zIndex: 10000,
+                            width: '320px',
+                            maxWidth: '20rem',
+                            background: 'white',
+                            transform: 'translateX(0)',
+                            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+                        }}
+                    >
                         {/* Menu Header */}
                         <div className="flex items-center justify-between px-6 py-4 border-b bg-gray-50">
                             <div className="flex items-center space-x-3">
@@ -673,8 +858,8 @@ export default function MobileDashboardLayout({children}) {
                                                 />
                                             ) : (
                                                 <span className="text-indigo-600 text-sm font-medium">
-                                            {session?.user?.name?.[0]?.toUpperCase() || 'U'}
-                                        </span>
+                                        {session?.user?.name?.[0]?.toUpperCase() || 'U'}
+                                    </span>
                                             )}
                                         </div>
                                         <div className="flex-1 min-w-0">

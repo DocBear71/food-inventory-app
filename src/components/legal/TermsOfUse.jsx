@@ -37,21 +37,24 @@ const TermsOfUse = () => {
                         <div><a href="#international-terms" style={{color: '#3030F1', textDecoration: 'none'}}>6. INTERNATIONAL FEATURES AND BARCODE SCANNING</a></div>
                         <div><a href="#price-tracking-terms" style={{color: '#3030F1', textDecoration: 'none'}}>7. PRICE TRACKING AND CURRENCY FEATURES</a></div>
                         <div><a href="#ai-scaling-terms" style={{color: '#3030F1', textDecoration: 'none'}}>8. AI-POWERED RECIPE SCALING</a></div>
-                        <div><a href="#ugc" style={{color: '#3030F1', textDecoration: 'none'}}>9. USER GENERATED CONTRIBUTIONS</a></div>
-                        <div><a href="#license" style={{color: '#3030F1', textDecoration: 'none'}}>10. CONTRIBUTION LICENSE</a></div>
-                        <div><a href="#management" style={{color: '#3030F1', textDecoration: 'none'}}>11. SERVICES MANAGEMENT</a></div>
-                        <div><a href="#terms" style={{color: '#3030F1', textDecoration: 'none'}}>12. TERM AND TERMINATION</a></div>
-                        <div><a href="#modifications" style={{color: '#3030F1', textDecoration: 'none'}}>13. MODIFICATIONS AND INTERRUPTIONS</a></div>
-                        <div><a href="#law" style={{color: '#3030F1', textDecoration: 'none'}}>14. GOVERNING LAW</a></div>
-                        <div><a href="#disputes" style={{color: '#3030F1', textDecoration: 'none'}}>15. DISPUTE RESOLUTION</a></div>
-                        <div><a href="#corrections" style={{color: '#3030F1', textDecoration: 'none'}}>16. CORRECTIONS</a></div>
-                        <div><a href="#disclaimer" style={{color: '#3030F1', textDecoration: 'none'}}>17. DISCLAIMER</a></div>
-                        <div><a href="#liability" style={{color: '#3030F1', textDecoration: 'none'}}>18. LIMITATIONS OF LIABILITY</a></div>
-                        <div><a href="#indemnification" style={{color: '#3030F1', textDecoration: 'none'}}>19. INDEMNIFICATION</a></div>
-                        <div><a href="#userdata" style={{color: '#3030F1', textDecoration: 'none'}}>20. USER DATA</a></div>
-                        <div><a href="#electronic" style={{color: '#3030F1', textDecoration: 'none'}}>21. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES</a></div>
-                        <div><a href="#misc" style={{color: '#3030F1', textDecoration: 'none'}}>22. MISCELLANEOUS</a></div>
-                        <div><a href="#contact" style={{color: '#3030F1', textDecoration: 'none'}}>23. CONTACT US</a></div>
+                        <div><a href="#ugc" style={{color: '#3030F1', textDecoration: 'none'}}>9. CONTENT RATING AND REGIONAL COMPLIANCE</a></div>
+                        <div><a href="#ugc" style={{color: '#3030F1', textDecoration: 'none'}}>10. USER GENERATED CONTRIBUTIONS</a></div>
+                        <div><a href="#license" style={{color: '#3030F1', textDecoration: 'none'}}>11. CONTRIBUTION LICENSE</a></div>
+                        <div><a href="#management" style={{color: '#3030F1', textDecoration: 'none'}}>12. SERVICES MANAGEMENT</a></div>
+                        <div><a href="#terms" style={{color: '#3030F1', textDecoration: 'none'}}>13. TERM AND TERMINATION</a></div>
+                        <div><a href="#modifications" style={{color: '#3030F1', textDecoration: 'none'}}>14. MODIFICATIONS AND INTERRUPTIONS</a></div>
+                        <div><a href="#law" style={{color: '#3030F1', textDecoration: 'none'}}>15. GOVERNING LAW</a></div>
+                        <div><a href="#eu-geoblocking" style={{color: '#3030F1', textDecoration: 'none'}}>16. EU GEO-BLOCKING COMPLIANCE</a></div>
+                        <div><a href="#disputes" style={{color: '#3030F1', textDecoration: 'none'}}>17. DISPUTE RESOLUTION</a></div>
+                        <div><a href="#corrections" style={{color: '#3030F1', textDecoration: 'none'}}>18. CORRECTIONS</a></div>
+                        <div><a href="#disclaimer" style={{color: '#3030F1', textDecoration: 'none'}}>19. DISCLAIMER</a></div>
+                        <div><a href="#liability" style={{color: '#3030F1', textDecoration: 'none'}}>20. LIMITATIONS OF LIABILITY</a></div>
+                        <div><a href="#indemnification" style={{color: '#3030F1', textDecoration: 'none'}}>21. INDEMNIFICATION</a></div>
+                        <div><a href="#userdata" style={{color: '#3030F1', textDecoration: 'none'}}>22. USER DATA</a></div>
+                        <div><a href="#electronic" style={{color: '#3030F1', textDecoration: 'none'}}>23. ELECTRONIC COMMUNICATIONS, TRANSACTIONS, AND SIGNATURES</a></div>
+                        <div><a href="#misc" style={{color: '#3030F1', textDecoration: 'none'}}>24. MISCELLANEOUS</a></div>
+                        <div><a href="#contact" style={{color: '#3030F1', textDecoration: 'none'}}>25. CONTACT US</a></div>
+                        <div><a href="#ios-eula" style={{color: '#3030F1', textDecoration: 'none'}}>26. iOS APP STORE LICENSE AGREEMENT (EULA)</a></div>
                     </div>
                 </div>
 
@@ -820,6 +823,93 @@ const TermsOfUse = () => {
                         <div>United States</div>
                         <div>Phone: (319) 826-3463</div>
                         <div>Email: privacy@docbearscomfort.kitchen</div>
+                    </div>
+                </div>
+
+                <div id="ios-eula" style={{marginBottom: '2rem'}}>
+                    <h2 style={{fontSize: '19px', color: '#000000'}}>26. iOS APP STORE LICENSE AGREEMENT (EULA)</h2>
+
+                    <div style={{ backgroundColor: '#e3f2fd', padding: '1rem', borderRadius: '8px', border: '2px solid #2196f3', marginBottom: '1rem' }}>
+                        <p style={{ fontSize: '16px', color: '#1565c0', margin: '0', fontWeight: 'bold' }}>
+                            📱 This section applies specifically to users who download Doc Bear's Comfort Kitchen from the Apple App Store and is required by Apple's distribution terms.
+                        </p>
+                    </div>
+
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        If you download Doc Bear's Comfort Kitchen from the Apple App Store, the following additional terms apply to your use of the application:
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>1. Acknowledgement</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        You and Doc Bear Enterprises, LLC acknowledge that this End User License Agreement ("EULA") is concluded between you and Doc Bear Enterprises, LLC only, and not with Apple Inc. ("Apple"), and that Doc Bear Enterprises, LLC, not Apple, is solely responsible for the Licensed Application and the content thereof. Your use of the Licensed Application must comply with the App Store Terms of Service.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>2. Scope of License</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        The license granted to you for the Licensed Application is limited to a non-transferable license to use the Licensed Application on any Apple-branded Products that you own or control and as permitted by the Usage Rules set forth in the App Store Terms of Service, except that such Licensed Application may be accessed and used by other accounts associated with you via Family Sharing or volume purchasing.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>3. Maintenance and Support</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Doc Bear Enterprises, LLC is solely responsible for providing any maintenance and support services with respect to the Licensed Application, as specified in this EULA, or as required under applicable law. You and Doc Bear Enterprises, LLC acknowledge that Apple has no obligation whatsoever to furnish any maintenance and support services with respect to the Licensed Application.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>4. Warranty</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Doc Bear Enterprises, LLC is solely responsible for any product warranties, whether express or implied by law, to the extent not effectively disclaimed. In the event of any failure of the Licensed Application to conform to any applicable warranty, you may notify Apple, and Apple will refund the purchase price for the Licensed Application to you; and to the maximum extent permitted by applicable law, Apple will have no other warranty obligation whatsoever with respect to the Licensed Application, and any other claims, losses, liabilities, damages, costs or expenses attributable to any failure to conform to any warranty will be Doc Bear Enterprises, LLC's sole responsibility.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>5. Product Claims</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        You and Doc Bear Enterprises, LLC acknowledge that Doc Bear Enterprises, LLC, not Apple, is responsible for addressing any claims of you or any third party relating to the Licensed Application or your possession and/or use of that Licensed Application, including, but not limited to:
+                    </p>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>product liability claims;</li>
+                        <li>any claim that the Licensed Application fails to conform to any applicable legal or regulatory requirement; and</li>
+                        <li>claims arising under consumer protection or similar legislation.</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>6. Intellectual Property Rights</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        You and Doc Bear Enterprises, LLC acknowledge that, in the event of any third party claim that the Licensed Application or your possession and use of that Licensed Application infringes that third party's intellectual property rights, Doc Bear Enterprises, LLC, not Apple, will be solely responsible for the investigation, defense, settlement and discharge of any such intellectual property infringement claim.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>7. Legal Compliance</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        You represent and warrant that:
+                    </p>
+                    <ul style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <li>you are not located in a country that is subject to a U.S. Government embargo, or that has been designated by the U.S. Government as a "terrorist supporting" country; and</li>
+                        <li>you are not listed on any U.S. Government list of prohibited or restricted parties.</li>
+                    </ul>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>8. Developer Name and Address</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        Doc Bear Enterprises, LLC's contact information for any end-user questions, complaints or claims with respect to the Licensed Application:
+                    </p>
+                    <div style={{color: '#595959', fontSize: '15px', marginLeft: '20px'}}>
+                        <div><strong>Doc Bear Enterprises, LLC</strong></div>
+                        <div>5249 N Park Pl NE, PMB 4011</div>
+                        <div>Cedar Rapids, IA 52402</div>
+                        <div>United States</div>
+                        <div>Phone: (319) 826-3463</div>
+                        <div>Email: privacy@docbearscomfort.kitchen</div>
+                    </div>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>9. Third Party Terms of Agreement</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        You must comply with applicable third party terms of agreement when using the Licensed Application.
+                    </p>
+
+                    <h3 style={{fontSize: '17px', color: '#000000'}}>10. Third Party Beneficiary</h3>
+                    <p style={{color: '#595959', fontSize: '15px'}}>
+                        You and Doc Bear Enterprises, LLC acknowledge and agree that Apple, and Apple's subsidiaries, are third party beneficiaries of this EULA, and that, upon your acceptance of the terms and conditions of this EULA, Apple will have the right (and will be deemed to have accepted the right) to enforce this EULA against you as a third party beneficiary thereof.
+                    </p>
+
+                    <div style={{ backgroundColor: '#fff3cd', padding: '1rem', borderRadius: '8px', border: '1px solid #ffc107', marginTop: '1rem' }}>
+                        <p style={{ fontSize: '14px', color: '#856404', margin: '0' }}>
+                            <strong>Note:</strong> All other terms and conditions in this document continue to apply to your use of Doc Bear's Comfort Kitchen. This iOS EULA section supplements, but does not replace, the general Terms of Use above.
+                        </p>
                     </div>
                 </div>
 

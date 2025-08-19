@@ -75,7 +75,7 @@
 	<key>com.apple.developer.associated-domains</key>
 	<array>
 		<string>applinks:docbearscomfort.kitchen</string>
-		<string>applinks:docbearscomfort.kitchen</string>
+		<string>applinks:www.docbearscomfort.kitchen</string>
 	</array>
 
 	<!-- User Activity Types for Sharing -->
@@ -85,20 +85,6 @@
 		<string>com.edward.docbearscomfort2025.share</string>
 	</array>
 
-	<!-- Share Extension Support -->
-	<key>NSExtension</key>
-	<dict>
-		<key>NSExtensionAttributes</key>
-		<dict>
-			<key>NSExtensionActivationRule</key>
-			<dict>
-				<key>NSExtensionActivationSupportsWebURLWithMaxCount</key>
-				<integer>1</integer>
-				<key>NSExtensionActivationSupportsText</key>
-				<true/>
-			</dict>
-		</dict>
-	</dict>
 
 	<!-- Supported URL Schemes for Sharing -->
 	<key>LSApplicationQueriesSchemes</key>
