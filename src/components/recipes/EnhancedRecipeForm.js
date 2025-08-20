@@ -878,12 +878,91 @@ export default function EnhancedRecipeForm({
 
             } else {
                 console.error('❌ Video import failed:', data.error);
-                setVideoImportError(data.error || 'Failed to extract recipe from video');
+
+                // Check if Modal.com detected static content
+                if (data.error === 'static_content_detected') {
+                    console.log(`Modal.com detected static content for ${detectedPlatform}, trying standard URL scraper...`);
+
+                    try {
+                        // Update progress to show fallback attempt
+                        setVideoImportProgress({
+                            stage: 'processing',
+                            platform: detectedPlatform,
+                            message: `Trying standard URL scraper for ${detectedPlatform} content...`
+                        });
+
+                        // Call standard URL scraper
+                        const fallbackResponse = await apiPost('/api/recipes/scrape', {
+                            url: url.trim()
+                        });
+
+                        const fallbackData = await fallbackResponse.json();
+
+                        if (fallbackData.success) {
+                            console.log(`Standard URL scraper succeeded for ${detectedPlatform}`);
+
+                            // Format the recipe data for the form
+                            const scrapedRecipe = {
+                                title: fallbackData.recipe.title || '',
+                                description: fallbackData.recipe.description || '',
+                                ingredients: fallbackData.recipe.ingredients || [],
+                                instructions: fallbackData.recipe.instructions || [],
+                                prepTime: fallbackData.recipe.prepTime || '',
+                                cookTime: fallbackData.recipe.cookTime || '',
+                                servings: fallbackData.recipe.servings || '',
+                                difficulty: fallbackData.recipe.difficulty || 'medium',
+                                tags: fallbackData.recipe.tags || [],
+                                source: fallbackData.recipe.source || url,
+                                isPublic: false,
+                                category: fallbackData.recipe.category || 'entrees',
+                                _formMetadata: {
+                                    importedFrom: `${detectedPlatform} static content`,
+                                    extractionMethod: 'standard_url_scraper'
+                                }
+                            };
+
+                            setRecipe(scrapedRecipe);
+                            setTagsString(scrapedRecipe.tags.join(', '));
+                            setImportSource('website');
+                            setShowVideoImport(false);
+                            setInputMethod('manual');
+                            setVideoUrl('');
+
+                            // Update progress to show success
+                            setVideoImportProgress({
+                                stage: 'complete',
+                                platform: detectedPlatform,
+                                message: `Recipe extracted from ${detectedPlatform} using standard scraper!`
+                            });
+
+                            setTimeout(() => {
+                                scrollToBasicInfo();
+                            }, 100);
+
+                            return; // Exit successfully
+
+                        } else {
+                            throw new Error(fallbackData.error || 'Standard URL scraper also failed');
+                        }
+
+                    } catch (fallbackError) {
+                        console.error(`Both Modal.com and standard scraper failed for ${detectedPlatform}:`, fallbackError);
+                        setVideoImportError(`Failed to extract recipe from ${detectedPlatform}. Both video extraction and page scraping failed. Try copying the recipe text and using the Text Paste option.`);
+                    }
+                } else {
+                    setVideoImportError(data.error || 'Failed to extract recipe from video');
+                }
             }
 
         } catch (error) {
             console.error('💥 Video import error:', error);
-            setVideoImportError('Network error. Please check your connection and try again.');
+
+            // Check if this is the static content detection error from the API
+            if (error.message && error.message.includes('static_content_detected')) {
+                setVideoImportError(`${detectedPlatform} post contains static content. Please try using the Text Paste option to manually enter the recipe.`);
+            } else {
+                setVideoImportError('Network error. Please check your connection and try again.');
+            }
         }
 
         const elapsedTime = Date.now() - startTime;
