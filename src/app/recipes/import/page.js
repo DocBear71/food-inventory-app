@@ -118,22 +118,23 @@ export default function ImportRecipePage() {
         // Social media content patterns (includes text posts with recipe content)
         const contentPatterns = [
             // TikTok patterns - ENHANCED with www. support
-            /(www\.)?tiktok\.com\/@[^\/]+\/video\/\d+/,
-            /(www\.)?tiktok\.com\/t\/[a-zA-Z0-9]+/,  // ✅ NOW SUPPORTS www.
-            /vm\.tiktok\.com\/[a-zA-Z0-9]+/,
-            /(www\.)?tiktok\.com\/.*?\/video\/\d+/,
+            /(www\.)?tiktok\.com\/@[^\/]+\/video\/\d+(\?.*)?/,
+            /(www\.)?tiktok\.com\/t\/[a-zA-Z0-9]+(\?.*)?/,  // ✅ NOW SUPPORTS query params
+            /vm\.tiktok\.com\/[a-zA-Z0-9]+(\?.*)?/,
+            /(www\.)?tiktok\.com\/.*?\/video\/\d+(\?.*)?/,
 
             // Instagram patterns - ENHANCED with www. support
-            /(www\.)?instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
-            /(www\.)?instagram\.com\/p\/[a-zA-Z0-9_-]+/,
-            /(www\.)?instagram\.com\/tv\/[a-zA-Z0-9_-]+/,
+            /(www\.)?instagram\.com\/reel\/[a-zA-Z0-9_-]+(\?.*)?/,
+            /(www\.)?instagram\.com\/p\/[a-zA-Z0-9_-]+(\?.*)?/,  // ✅ NOW SUPPORTS ?igsh=... etc.
+            /(www\.)?instagram\.com\/tv\/[a-zA-Z0-9_-]+(\?.*)?/,
+
 
             // Facebook patterns - ENHANCED with www. support
-            /(www\.)?facebook\.com\/watch\?v=\d+/,
-            /(www\.)?facebook\.com\/[^\/]+\/videos\/\d+/,
-            /fb\.watch\/[a-zA-Z0-9_-]+/,
-            /(www\.)?facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
-            /(www\.)?facebook\.com\/reel\/\d+/,
+            /(www\.)?facebook\.com\/watch\/?\?v=\d+(&.*)?/,
+            /(www\.)?facebook\.com\/[^\/]+\/videos\/\d+(\?.*)?/,
+            /fb\.watch\/[a-zA-Z0-9_-]+(\?.*)?/,
+            /(www\.)?facebook\.com\/share\/r\/[a-zA-Z0-9_-]+(\?.*)?/,
+            /(www\.)?facebook\.com\/reel\/\d+(\?.*)?/,
 
             // ENHANCED: Social content patterns (includes text posts)
             /(www\.)?(twitter\.com|x\.com)\/[^\/]+\/status\/\d+/,  // Twitter/X posts (any content)

@@ -8,29 +8,36 @@ const UNIVERSAL_PLATFORMS = {
     // Social media with video content
     tiktok: {
         patterns: [
-            /(www\.)?tiktok\.com\/@([^/]+)\/video\/(\d+)/,
-            /(www\.)?tiktok\.com\/t\/([a-zA-Z0-9]+)/,  // ✅ NOW SUPPORTS www.
-            /vm\.tiktok\.com\/([a-zA-Z0-9]+)/,
-            /(www\.)?tiktok\.com\/.*?\/video\/(\d+)/
+            /(www\.)?tiktok\.com\/@([^/]+)\/video\/(\d+)(\?.*)?/,
+            /(www\.)?tiktok\.com\/t\/([a-zA-Z0-9]+)(\?.*)?/,  // ✅ NOW SUPPORTS query params
+            /vm\.tiktok\.com\/([a-zA-Z0-9]+)(\?.*)?/,
+            /(www\.)?tiktok\.com\/.*?\/video\/(\d+)(\?.*)?/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.tiktok.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[match.length - 1];
+                if (match) {
+                    // Find the last captured group that's not query params
+                    for (let i = match.length - 1; i >= 0; i--) {
+                        if (match[i] && !match[i].startsWith('?')) {
+                            return match[i];
+                        }
+                    }
+                }
             }
             return null;
         }
     },
     instagram: {
         patterns: [
-            /(www\.)?instagram\.com\/reel\/([a-zA-Z0-9_-]+)/,
-            /(www\.)?instagram\.com\/p\/([a-zA-Z0-9_-]+)/,
-            /(www\.)?instagram\.com\/tv\/([a-zA-Z0-9_-]+)/
+            /(www\.)?instagram\.com\/reel\/([a-zA-Z0-9_-]+)(\?.*)?/,
+            /(www\.)?instagram\.com\/p\/([a-zA-Z0-9_-]+)(\?.*)?/,  // ✅ NOW SUPPORTS ?igsh=... etc.
+            /(www\.)?instagram\.com\/tv\/([a-zA-Z0-9_-]+)(\?.*)?/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.instagram.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[match.length - 1];
+                if (match) return match[match.length - 2]; // Get the ID, not the query params
             }
             return null;
         }
