@@ -251,22 +251,24 @@ export default function EnhancedRecipeForm({
     useShareHandler((shareData) => {
         setSharedContent(shareData);
 
-        // Handle ALL social media platforms
-        if (shareData.type === 'facebook_video' || shareData.type === 'tiktok_video' || shareData.type === 'instagram_video') {
-            console.log(`🎯 ${shareData.platform} video shared:`, shareData.url);
+        console.log('📱 Share data received:', shareData);
 
-            // ADDED: Set the platform when video is shared
-            const platform = shareData.platform || detectPlatformFromUrl(shareData.url);
+        // ENHANCED: Handle ALL social media platforms, not just video types
+        const url = shareData.url || shareData.text || shareData.link;
+        if (url) {
+            const platform = shareData.platform || detectPlatformFromUrl(url);
             setVideoImportPlatform(platform);
+
+            console.log(`🎯 ${platform} content shared:`, url);
 
             // For import mode, continue with current behavior
             if (isImportMode) {
-                setVideoUrl(shareData.url);
+                setVideoUrl(url);
                 setShowVideoImport(true);
             } else {
                 // For regular add page, redirect to import page with platform info
                 setTimeout(() => {
-                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(shareData.url)}&source=share&platform=${platform}`);
+                    router.push(`/recipes/import?videoUrl=${encodeURIComponent(url)}&source=share&platform=${platform}`);
                 }, 0);
             }
         }
@@ -611,12 +613,23 @@ export default function EnhancedRecipeForm({
 
     // RESTORED: All helper functions
     const detectPlatformFromUrl = (url) => {
-        if (!url) return 'video';
+        if (!url) return 'unknown';
         const urlLower = url.toLowerCase();
-        if (urlLower.includes('facebook.com') || urlLower.includes('fb.com')) return 'facebook';
+
+        // Enhanced platform detection for ALL social media platforms
+        if (urlLower.includes('tiktok.com') || urlLower.includes('vm.tiktok.com')) return 'tiktok';
         if (urlLower.includes('instagram.com')) return 'instagram';
-        if (urlLower.includes('tiktok.com')) return 'tiktok';
-        return 'video';
+        if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch') || urlLower.includes('fb.com')) return 'facebook';
+        if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'twitter';
+        if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'youtube';
+        if (urlLower.includes('reddit.com') || urlLower.includes('redd.it')) return 'reddit';
+        if (urlLower.includes('bsky.app') || urlLower.includes('bluesky.app')) return 'bluesky';
+        if (urlLower.includes('pinterest.com')) return 'pinterest';
+        if (urlLower.includes('snapchat.com')) return 'snapchat';
+        if (urlLower.includes('linkedin.com')) return 'linkedin';
+        if (urlLower.includes('threads.net')) return 'threads';
+
+        return 'unknown';
     };
 
     // RESTORED: Enhanced URL import with smart parsing
@@ -754,9 +767,10 @@ export default function EnhancedRecipeForm({
             });
 
             const response = await apiPost('/api/recipes/video-extract', {
-                url: url.trim(),
+                video_url: url.trim(),  // ✅ FIXED: Changed from 'url' to 'video_url'
                 analysisType: 'ai_vision_enhanced',
-                extractImage: true
+                extractImage: true,
+                platform: detectPlatformFromUrl(url)
             });
 
             setVideoImportProgress({

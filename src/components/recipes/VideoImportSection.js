@@ -14,44 +14,79 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
 
     // Enhanced platform detection for ALL supported platforms
     const detectVideoPlatform = (url) => {
-        const platforms = {
-            tiktok: /tiktok\.com/i,
-            instagram: /instagram\.com/i,
-            facebook: /facebook\.com|fb\.watch|fb\.com/i
-        };
+        if (!url) return 'unknown';
+        const urlLower = url.toLowerCase();
 
-        for (const [platform, pattern] of Object.entries(platforms)) {
-            if (pattern.test(url)) {
-                return platform;
-            }
-        }
+        // Enhanced platform detection for ALL social media platforms
+        if (urlLower.includes('tiktok.com') || urlLower.includes('vm.tiktok.com')) return 'tiktok';
+        if (urlLower.includes('instagram.com')) return 'instagram';
+        if (urlLower.includes('facebook.com') || urlLower.includes('fb.watch') || urlLower.includes('fb.com')) return 'facebook';
+        if (urlLower.includes('twitter.com') || urlLower.includes('x.com')) return 'twitter';
+        if (urlLower.includes('youtube.com') || urlLower.includes('youtu.be')) return 'youtube';
+        if (urlLower.includes('reddit.com') || urlLower.includes('redd.it')) return 'reddit';
+        if (urlLower.includes('bsky.app') || urlLower.includes('bluesky.app')) return 'bluesky';
+        if (urlLower.includes('pinterest.com')) return 'pinterest';
+        if (urlLower.includes('snapchat.com')) return 'snapchat';
+        if (urlLower.includes('linkedin.com')) return 'linkedin';
+        if (urlLower.includes('threads.net')) return 'threads';
+
         return 'unknown';
     };
 
     // Comprehensive URL validation for ALL platforms
     const isValidVideoUrl = (url) => {
-        const videoPatterns = [
-            // TikTok patterns - ENHANCED
+        if (!url) return false;
+
+        const contentPatterns = [
+            // TikTok patterns
             /tiktok\.com\/@[^\/]+\/video\/\d+/,
             /tiktok\.com\/t\/[a-zA-Z0-9]+/,
             /vm\.tiktok\.com\/[a-zA-Z0-9]+/,
             /tiktok\.com\/.*?\/video\/\d+/,
 
-            // Instagram patterns - ENHANCED
+            // Instagram patterns
             /instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
             /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
             /instagram\.com\/tv\/[a-zA-Z0-9_-]+/,
 
-            // Facebook patterns - ENHANCED
+            // Facebook patterns
             /facebook\.com\/watch\/?\?v=\d+/,
             /facebook\.com\/[^\/]+\/videos\/\d+/,
             /fb\.watch\/[a-zA-Z0-9_-]+/,
             /facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
-            /facebook\.com\/reel\/\d+/
+            /facebook\.com\/reel\/\d+/,
+
+            // Twitter/X patterns
+            /(twitter\.com|x\.com)\/[^\/]+\/status\/\d+/,
+
+            // YouTube patterns
+            /youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/,
+            /youtu\.be\/[a-zA-Z0-9_-]+/,
+            /youtube\.com\/shorts\/[a-zA-Z0-9_-]+/,
+
+            // Reddit patterns
+            /reddit\.com\/r\/[^\/]+\/comments\/[a-zA-Z0-9]+/,
+            /redd\.it\/[a-zA-Z0-9]+/,
+
+            // Pinterest patterns
+            /pinterest\.com\/pin\/\d+/,
+
+            // Bluesky patterns
+            /bsky\.app\/profile\/[^\/]+\/post\/[a-zA-Z0-9]+/,
+
+            // LinkedIn patterns
+            /linkedin\.com\/posts\/[a-zA-Z0-9_-]+/,
+
+            // Threads patterns
+            /threads\.net\/@[^\/]+\/post\/[a-zA-Z0-9]+/,
+
+            // Direct video files
+            /\.(mp4|mov|avi|mkv|webm)(\?|$)/i
         ];
 
-        return videoPatterns.some(pattern => pattern.test(url));
+        return contentPatterns.some(pattern => pattern.test(url));
     };
+
 
     const handleVideoExtraction = async () => {
         if (!videoUrl.trim()) {
@@ -60,7 +95,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         }
 
         if (!isValidVideoUrl(videoUrl)) {
-            setError('Please enter a valid TikTok, Instagram, or Facebook video URL. For YouTube, use the Text Paste option.');
+            setError('Please enter a valid social media URL from TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads, or Snapchat.');
             return;
         }
 
@@ -73,8 +108,10 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
 
         try {
             const response = await apiPost('/api/recipes/video-extract', {
-                url: videoUrl.trim(),
-                analysisType: 'ai_vision_enhanced'
+                video_url: videoUrl.trim(),  // ✅ FIXED: Changed from 'url' to 'video_url'
+                analysisType: 'ai_vision_enhanced',
+                extractImage: true,
+                platform: detectVideoPlatform(videoUrl)
             });
 
             if (!response.ok) {
@@ -128,34 +165,58 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         if (extractionInfo) setExtractionInfo(null);
     };
 
-    const getPlatformIcon = (platform) => {
-        const icons = {
-            tiktok: '🎵',
-            instagram: '📸',
-            facebook: '👥',
-            unknown: '🎥'
-        };
-        return icons[platform] || icons.unknown;
-    };
-
-    const getPlatformColor = (platform) => {
-        const colors = {
-            tiktok: 'from-pink-50 to-purple-50 border-pink-200',
-            instagram: 'from-purple-50 to-pink-50 border-purple-200',
-            facebook: 'from-blue-50 to-indigo-50 border-blue-200',
-            unknown: 'from-gray-50 to-blue-50 border-gray-200'
-        };
-        return colors[platform] || colors.unknown;
-    };
-
     const getPlatformName = (platform) => {
         const names = {
             tiktok: 'TikTok',
             instagram: 'Instagram',
             facebook: 'Facebook',
-            unknown: 'Video'
+            twitter: 'Twitter/X',
+            youtube: 'YouTube',
+            reddit: 'Reddit',
+            pinterest: 'Pinterest',
+            bluesky: 'Bluesky',
+            linkedin: 'LinkedIn',
+            threads: 'Threads',
+            snapchat: 'Snapchat',
+            unknown: 'Social Media'
         };
-        return names[platform] || 'Video';
+        return names[platform] || 'Social Media';
+    };
+
+    const getPlatformIcon = (platform) => {
+        const icons = {
+            tiktok: '🎵',
+            instagram: '📷',
+            facebook: '📘',
+            twitter: '🐦',
+            youtube: '📺',
+            reddit: '🔴',
+            pinterest: '📌',
+            bluesky: '🦋',
+            linkedin: '💼',
+            threads: '🧵',
+            snapchat: '👻',
+            unknown: '🎥'
+        };
+        return icons[platform] || '🎥';
+    };
+
+    const getPlatformColor = (platform) => {
+        const colors = {
+            tiktok: 'from-pink-500 to-red-500',
+            instagram: 'from-purple-500 to-pink-500',
+            facebook: 'from-blue-600 to-blue-700',
+            twitter: 'from-sky-400 to-blue-500',
+            youtube: 'from-red-500 to-red-600',
+            reddit: 'from-orange-500 to-red-500',
+            pinterest: 'from-red-600 to-pink-600',
+            bluesky: 'from-blue-400 to-sky-500',
+            linkedin: 'from-blue-600 to-blue-800',
+            threads: 'from-gray-700 to-black',
+            snapchat: 'from-yellow-400 to-yellow-500',
+            unknown: 'from-purple-500 to-indigo-600'
+        };
+        return colors[platform] || 'from-purple-500 to-indigo-600';
     };
 
     const detectedPlatform = videoUrl ? detectVideoPlatform(videoUrl) : 'unknown';
@@ -195,7 +256,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                             id="video-url"
                             value={videoUrl}
                             onChange={handleUrlChange}
-                            placeholder="Paste TikTok, Instagram, or Facebook video URL here..."
+                            placeholder="Paste any social media URL (TikTok, Instagram, Facebook, Twitter, YouTube, Reddit, etc.)"
                             className="flex-1 border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-purple-500 focus:border-purple-500 text-sm"
                             disabled={disabled || extracting}
                             style={{fontSize: '16px'}} // Prevent zoom on mobile
