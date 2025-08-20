@@ -8,10 +8,10 @@ const UNIVERSAL_PLATFORMS = {
     // Social media with video content
     tiktok: {
         patterns: [
-            /tiktok\.com\/@([^/]+)\/video\/(\d+)/,
-            /tiktok\.com\/t\/([a-zA-Z0-9]+)/,
+            /(www\.)?tiktok\.com\/@([^/]+)\/video\/(\d+)/,
+            /(www\.)?tiktok\.com\/t\/([a-zA-Z0-9]+)/,  // ✅ NOW SUPPORTS www.
             /vm\.tiktok\.com\/([a-zA-Z0-9]+)/,
-            /tiktok\.com\/.*?\/video\/(\d+)/
+            /(www\.)?tiktok\.com\/.*?\/video\/(\d+)/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.tiktok.patterns) {
@@ -23,26 +23,26 @@ const UNIVERSAL_PLATFORMS = {
     },
     instagram: {
         patterns: [
-            /instagram\.com\/reel\/([a-zA-Z0-9_-]+)/,
-            /instagram\.com\/p\/([a-zA-Z0-9_-]+)/,
-            /instagram\.com\/tv\/([a-zA-Z0-9_-]+)/
+            /(www\.)?instagram\.com\/reel\/([a-zA-Z0-9_-]+)/,
+            /(www\.)?instagram\.com\/p\/([a-zA-Z0-9_-]+)/,
+            /(www\.)?instagram\.com\/tv\/([a-zA-Z0-9_-]+)/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.instagram.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[1];
+                if (match) return match[match.length - 1];
             }
             return null;
         }
     },
     facebook: {
         patterns: [
-            /facebook\.com\/watch\/?\?v=(\d+)/i,
-            /facebook\.com\/([^\/]+)\/videos\/(\d+)/i,
+            /(www\.)?facebook\.com\/watch\/?\?v=(\d+)/i,
+            /(www\.)?facebook\.com\/([^\/]+)\/videos\/(\d+)/i,
             /fb\.watch\/([a-zA-Z0-9_-]+)/i,
-            /facebook\.com\/share\/r\/([a-zA-Z0-9_-]+)/i,
-            /facebook\.com\/story\.php\?story_fbid=(\d+)/i,
-            /facebook\.com\/reel\/(\d+)/i
+            /(www\.)?facebook\.com\/share\/r\/([a-zA-Z0-9_-]+)/i,
+            /(www\.)?facebook\.com\/story\.php\?story_fbid=(\d+)/i,
+            /(www\.)?facebook\.com\/reel\/(\d+)/i
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.facebook.patterns) {
@@ -52,50 +52,50 @@ const UNIVERSAL_PLATFORMS = {
             return null;
         }
     },
-    // ENHANCED: New social platforms
+    // ENHANCED: New social platforms with www. support
     twitter: {
         patterns: [
-            /(twitter\.com|x\.com)\/[^\/]+\/status\/(\d+)/
+            /(www\.)?(twitter\.com|x\.com)\/[^\/]+\/status\/(\d+)/
         ],
         extractId: (url) => {
-            const match = url.match(/(twitter\.com|x\.com)\/[^\/]+\/status\/(\d+)/);
-            return match ? match[2] : null;
+            const match = url.match(/(www\.)?(twitter\.com|x\.com)\/[^\/]+\/status\/(\d+)/);
+            return match ? match[match.length - 1] : null;
         }
     },
     youtube: {
         patterns: [
-            /youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,
+            /(www\.)?youtube\.com\/watch\?v=([a-zA-Z0-9_-]+)/,
             /youtu\.be\/([a-zA-Z0-9_-]+)/,
-            /youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/
+            /(www\.)?youtube\.com\/shorts\/([a-zA-Z0-9_-]+)/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.youtube.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[1];
+                if (match) return match[match.length - 1];
             }
             return null;
         }
     },
     reddit: {
         patterns: [
-            /reddit\.com\/r\/[^\/]+\/comments\/([a-zA-Z0-9]+)/,
+            /(www\.)?reddit\.com\/r\/[^\/]+\/comments\/([a-zA-Z0-9]+)/,
             /redd\.it\/([a-zA-Z0-9]+)/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.reddit.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[1];
+                if (match) return match[match.length - 1];
             }
             return null;
         }
     },
     pinterest: {
         patterns: [
-            /pinterest\.com\/pin\/(\d+)/
+            /(www\.)?pinterest\.com\/pin\/(\d+)/
         ],
         extractId: (url) => {
-            const match = url.match(/pinterest\.com\/pin\/(\d+)/);
-            return match ? match[1] : null;
+            const match = url.match(/(www\.)?pinterest\.com\/pin\/(\d+)/);
+            return match ? match[match.length - 1] : null;
         }
     },
     bluesky: {
@@ -109,13 +109,13 @@ const UNIVERSAL_PLATFORMS = {
     },
     linkedin: {
         patterns: [
-            /linkedin\.com\/posts\/([a-zA-Z0-9_-]+)/,
-            /linkedin\.com\/feed\/update\/([a-zA-Z0-9_:-]+)/
+            /(www\.)?linkedin\.com\/posts\/([a-zA-Z0-9_-]+)/,
+            /(www\.)?linkedin\.com\/feed\/update\/([a-zA-Z0-9_:-]+)/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.linkedin.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[1];
+                if (match) return match[match.length - 1];
             }
             return null;
         }
@@ -131,13 +131,13 @@ const UNIVERSAL_PLATFORMS = {
     },
     snapchat: {
         patterns: [
-            /snapchat\.com\/discover\/[^\/]+\/(\d+)/,
-            /snapchat\.com\/spotlight\/([a-zA-Z0-9_-]+)/
+            /(www\.)?snapchat\.com\/discover\/[^\/]+\/(\d+)/,
+            /(www\.)?snapchat\.com\/spotlight\/([a-zA-Z0-9_-]+)/
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.snapchat.patterns) {
                 const match = url.match(pattern);
-                if (match) return match[1];
+                if (match) return match[match.length - 1];
             }
             return null;
         }

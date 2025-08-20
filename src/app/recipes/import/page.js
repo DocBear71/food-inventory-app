@@ -79,7 +79,7 @@ export default function ImportRecipePage() {
         if (!url) return 'unknown';
         const urlLower = url.toLowerCase();
 
-        // Social media platforms with recipe content
+        // Social media platforms with recipe content - ENHANCED with better pattern matching
         if (urlLower.includes('tiktok.com') || urlLower.includes('vm.tiktok.com')) return 'tiktok';
         if (urlLower.includes('instagram.com')) return 'instagram';
         if (urlLower.includes('facebook.com') || urlLower.includes('fb.com') || urlLower.includes('fb.watch')) return 'facebook';
@@ -117,26 +117,35 @@ export default function ImportRecipePage() {
     const isContentUrl = (url) => {
         // Social media content patterns (includes text posts with recipe content)
         const contentPatterns = [
-            // Video patterns (existing)
-            /tiktok\.com\/@[^\/]+\/video\/\d+/,
-            /tiktok\.com\/t\/[a-zA-Z0-9]+/,
+            // TikTok patterns - ENHANCED with www. support
+            /(www\.)?tiktok\.com\/@[^\/]+\/video\/\d+/,
+            /(www\.)?tiktok\.com\/t\/[a-zA-Z0-9]+/,  // ✅ NOW SUPPORTS www.
             /vm\.tiktok\.com\/[a-zA-Z0-9]+/,
-            /instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
-            /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
-            /facebook\.com\/watch\?v=\d+/,
-            /facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
+            /(www\.)?tiktok\.com\/.*?\/video\/\d+/,
+
+            // Instagram patterns - ENHANCED with www. support
+            /(www\.)?instagram\.com\/reel\/[a-zA-Z0-9_-]+/,
+            /(www\.)?instagram\.com\/p\/[a-zA-Z0-9_-]+/,
+            /(www\.)?instagram\.com\/tv\/[a-zA-Z0-9_-]+/,
+
+            // Facebook patterns - ENHANCED with www. support
+            /(www\.)?facebook\.com\/watch\?v=\d+/,
+            /(www\.)?facebook\.com\/[^\/]+\/videos\/\d+/,
+            /fb\.watch\/[a-zA-Z0-9_-]+/,
+            /(www\.)?facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
+            /(www\.)?facebook\.com\/reel\/\d+/,
 
             // ENHANCED: Social content patterns (includes text posts)
-            /(twitter\.com|x\.com)\/[^\/]+\/status\/\d+/,  // Twitter/X posts (any content)
-            /youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/,       // YouTube videos
-            /youtu\.be\/[a-zA-Z0-9_-]+/,                   // YouTube short links
-            /youtube\.com\/shorts\/[a-zA-Z0-9_-]+/,        // YouTube Shorts
-            /reddit\.com\/r\/[^\/]+\/comments\/[a-zA-Z0-9]+/, // Reddit posts
-            /redd\.it\/[a-zA-Z0-9]+/,                      // Reddit short links
-            /pinterest\.com\/pin\/\d+/,                    // Pinterest pins
-            /bsky\.app\/profile\/[^\/]+\/post\/[a-zA-Z0-9]+/, // Bluesky posts
-            /linkedin\.com\/posts\/[a-zA-Z0-9_-]+/,        // LinkedIn posts
-            /threads\.net\/@[^\/]+\/post\/[a-zA-Z0-9]+/,   // Threads posts
+            /(www\.)?(twitter\.com|x\.com)\/[^\/]+\/status\/\d+/,  // Twitter/X posts (any content)
+            /(www\.)?youtube\.com\/watch\?v=[a-zA-Z0-9_-]+/,       // YouTube videos
+            /youtu\.be\/[a-zA-Z0-9_-]+/,                           // YouTube short links
+            /(www\.)?youtube\.com\/shorts\/[a-zA-Z0-9_-]+/,        // YouTube Shorts
+            /(www\.)?reddit\.com\/r\/[^\/]+\/comments\/[a-zA-Z0-9]+/, // Reddit posts
+            /redd\.it\/[a-zA-Z0-9]+/,                              // Reddit short links
+            /(www\.)?pinterest\.com\/pin\/\d+/,                    // Pinterest pins
+            /bsky\.app\/profile\/[^\/]+\/post\/[a-zA-Z0-9]+/,      // Bluesky posts
+            /(www\.)?linkedin\.com\/posts\/[a-zA-Z0-9_-]+/,        // LinkedIn posts
+            /threads\.net\/@[^\/]+\/post\/[a-zA-Z0-9]+/,           // Threads posts
 
             // Direct video files
             /\.(mp4|mov|avi|mkv|webm)(\?|$)/i,
@@ -152,6 +161,7 @@ export default function ImportRecipePage() {
 
         return contentPatterns.some(pattern => pattern.test(url));
     };
+
 
     const handleUrlImport = async () => {
         if (!urlInput.trim()) {
