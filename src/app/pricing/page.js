@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/pricing/page.js v3 - Fixed with proper layout integration and improved structure
+// file: /src/app/pricing/page.js v4 - Added basic weekly test subscription
 
 import { useState, useEffect, Suspense } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -35,6 +35,7 @@ function PricingContent() {
         }));
     };
 
+    // UPDATED: Added basic weekly test tier
     const tiers = [
         {
             id: 'free',
@@ -54,17 +55,14 @@ function PricingContent() {
                 { name: 'Create 2 collections with a total of 10 saved recipes', included: true },
                 { name: 'Read recipe reviews', included: true },
                 { name: 'Mobile & desktop access', included: true },
-                // 🆕 ADD PRICE TRACKING FEATURES FOR FREE:
                 { name: 'Basic price tracking (10 items)', included: true },
                 { name: 'Price history (30 days)', included: true },
-                // EXISTING EXCLUDED FEATURES:
                 { name: 'Full meal planning capabilities', included: false },
                 { name: 'Nutritional information access', included: false },
                 { name: 'Email notifications & alerts', included: false },
                 { name: 'Common Items Wizard', included: false },
                 { name: 'Write recipe reviews', included: false },
                 { name: 'Make recipes public', included: false },
-                // 🆕 ADD EXCLUDED PRICE FEATURES:
                 { name: 'Extended price tracking & history', included: false },
                 { name: 'Price alerts & notifications', included: false }
             ],
@@ -75,6 +73,36 @@ function PricingContent() {
             borderColor: 'border-gray-200',
             textColor: 'text-gray-900',
             buttonStyle: 'bg-gray-600 hover:bg-gray-700 text-white'
+        },
+        {
+            id: 'basic',
+            name: 'Basic Weekly Access',
+            price: { weekly: 0.99 },
+            description: 'Essential kitchen management tools - weekly subscription',
+            badge: 'Test Plan',
+            features: [
+                { name: 'Essential tools access', included: true },
+                { name: 'Weekly billing cycle', included: true },
+                { name: 'All Free plan features', included: true },
+                { name: 'Enhanced inventory tracking', included: true },
+                { name: 'Basic meal planning (1 week)', included: true },
+                { name: 'Email notifications', included: true },
+                { name: 'UPC scanning (unlimited)', included: true },
+                { name: 'Receipt scanning (5 receipts/week)', included: true },
+                { name: 'Create 5 collections with 50 saved recipes', included: true },
+                { name: 'Write recipe reviews', included: true },
+                { name: 'Standard support', included: true },
+                { name: 'Advanced meal prep planning', included: false },
+                { name: 'Unlimited features', included: false },
+                { name: 'Priority support', included: false }
+            ],
+            cta: 'Try Basic Weekly',
+            popular: false,
+            trialAvailable: false,
+            bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50',
+            borderColor: 'border-green-300',
+            textColor: 'text-green-900',
+            buttonStyle: 'bg-green-600 hover:bg-green-700 text-white'
         },
         {
             id: 'gold',
@@ -98,15 +126,12 @@ function PricingContent() {
                 { name: 'Make up to 25 personal recipes public', included: true },
                 { name: 'Email notifications & expiration alerts', included: true },
                 { name: 'Recipe organization with custom categories', included: true },
-                // 🆕 ADD PRICE TRACKING FEATURES FOR GOLD:
                 { name: 'Enhanced price tracking (50 items)', included: true },
                 { name: 'Extended price history (6 months)', included: true },
                 { name: 'Price comparison across stores', included: true },
-                // EXCLUDED FEATURES:
                 { name: 'Advanced meal prep planning tools', included: false },
                 { name: 'Nutrition goal setting & tracking', included: false },
                 { name: 'Priority support & early access', included: false },
-                // 🆕 ADD EXCLUDED PREMIUM PRICE FEATURES:
                 { name: 'Unlimited price tracking & alerts', included: false },
                 { name: 'Price drop email notifications', included: false }
             ],
@@ -142,7 +167,6 @@ function PricingContent() {
                 { name: 'Priority support & fastest response times', included: true },
                 { name: 'Early access to all new features & recipes', included: true },
                 { name: 'Recipe backup & export functionality', included: true },
-                // 🆕 ADD PREMIUM PRICE TRACKING FEATURES:
                 { name: 'Unlimited price tracking for all items', included: true },
                 { name: 'Unlimited price history & analytics', included: true },
                 { name: 'Smart price alerts & email notifications', included: true },
@@ -162,7 +186,7 @@ function PricingContent() {
     const handleSignup = (tierId, isTrialSignup = false) => {
         const params = new URLSearchParams({
             tier: tierId,
-            billing: billingCycle
+            billing: tierId === 'basic' ? 'weekly' : billingCycle
         });
 
         if (isTrialSignup) {
@@ -268,7 +292,7 @@ function PricingContent() {
                 </div>
 
                 {/* Pricing Cards */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-9 mb-5">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-5">
                     {tiers.map((tier) => {
                         const savings = getSavingsPercentage(tier);
                         const isCurrentTier = currentTier === tier.id;
@@ -282,7 +306,9 @@ function PricingContent() {
                             >
                                 {tier.badge && (
                                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                                        <span className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                                        <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg ${
+                                            tier.id === 'basic' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                                        }`}>
                                             {tier.badge}
                                         </span>
                                     </div>
@@ -308,10 +334,24 @@ function PricingContent() {
 
                                         {/* Pricing */}
                                         <div className="mb-4">
-                                            {tier.price.monthly === 0 ? (
+                                            {tier.price.monthly === 0 && tier.id === 'free' ? (
                                                 <div>
                                                     <span className="text-3xl font-bold text-gray-900">Free</span>
                                                     <div className="text-xs text-gray-500 mt-1">Forever</div>
+                                                </div>
+                                            ) : tier.id === 'basic' ? (
+                                                <div>
+                                                    <div className="flex items-center justify-center">
+                                                        <span className="text-3xl font-bold text-gray-900">
+                                                            ${tier.price.weekly}
+                                                        </span>
+                                                        <span className="text-gray-600 ml-1 text-sm">
+                                                            /week
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-xs text-green-600 font-semibold mt-1">
+                                                        Test subscription
+                                                    </div>
                                                 </div>
                                             ) : (
                                                 <div>
@@ -353,6 +393,12 @@ function PricingContent() {
                                         {tier.trialAvailable && !isCurrentTier && (
                                             <p className="text-xs text-gray-500 mt-2">
                                                 No credit card required
+                                            </p>
+                                        )}
+
+                                        {tier.id === 'basic' && !isCurrentTier && (
+                                            <p className="text-xs text-gray-500 mt-2">
+                                                Perfect for testing our premium features
                                             </p>
                                         )}
                                     </div>
@@ -403,6 +449,30 @@ function PricingContent() {
                     })}
                 </div>
 
+                {/* Special Notice for Basic Weekly Plan */}
+                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
+                    <div className="text-center">
+                        <h3 className="text-green-900 font-semibold text-lg mb-2">New: Basic Weekly Access</h3>
+                        <p className="text-green-700 mb-4">
+                            Try our essential features with a low-commitment weekly subscription. Perfect for testing premium functionality before committing to a longer plan.
+                        </p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-green-600">
+                            <div className="text-center">
+                                <div className="font-semibold mb-1">Flexible Billing</div>
+                                <p>Pay weekly, cancel anytime</p>
+                            </div>
+                            <div className="text-center">
+                                <div className="font-semibold mb-1">Essential Features</div>
+                                <p>Core functionality included</p>
+                            </div>
+                            <div className="text-center">
+                                <div className="font-semibold mb-1">Easy Upgrade</div>
+                                <p>Switch to Gold or Platinum anytime</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 {/* FAQ/Additional Info */}
                 <div className="bg-white rounded-xl p-6 lg:p-8 shadow-lg">
                     <h3 className="text-xl font-bold text-gray-900 mb-6 text-center">
@@ -410,26 +480,26 @@ function PricingContent() {
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 text-sm text-gray-600 mb-6">
                         <div className="text-center">
-                            <div className="font-semibold text-gray-900 mb-2">✅ No Commitment</div>
+                            <div className="font-semibold text-gray-900 mb-2">No Commitment</div>
                             <p>Cancel anytime with no hidden fees or long-term contracts. Your data stays safe.</p>
                         </div>
                         <div className="text-center">
-                            <div className="font-semibold text-gray-900 mb-2">🔄 Easy Upgrades</div>
+                            <div className="font-semibold text-gray-900 mb-2">Easy Upgrades</div>
                             <p>Start free and upgrade when you're ready. Downgrade or change plans anytime.</p>
                         </div>
                         <div className="text-center">
-                            <div className="font-semibold text-gray-900 mb-2">📱 All Devices</div>
+                            <div className="font-semibold text-gray-900 mb-2">All Devices</div>
                             <p>Access your account on mobile, tablet, and desktop with automatic sync.</p>
                         </div>
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-sm text-gray-600 mb-6">
                         <div className="text-center">
-                            <div className="font-semibold text-gray-900 mb-2">🆓 Trial Period</div>
+                            <div className="font-semibold text-gray-900 mb-2">Trial Period</div>
                             <p>7-day free trials include full access to all tier features. No credit card required to start.</p>
                         </div>
                         <div className="text-center">
-                            <div className="font-semibold text-gray-900 mb-2">💳 Secure Payments</div>
+                            <div className="font-semibold text-gray-900 mb-2">Secure Payments</div>
                             <p>All payments processed securely. We never store your payment information.</p>
                         </div>
                     </div>

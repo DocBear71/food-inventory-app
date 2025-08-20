@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/pricing/PricingTiers.js v2 - Updated for consistency with main pricing page
+// file: /src/components/pricing/PricingTiers.js v3 - Added basic weekly test subscription
 
 import React, { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -11,7 +11,8 @@ const PricingTiers = ({
                           className = "",
                           compactMode = false,
                           showFAQ = true,
-                          initialBillingCycle = 'annual'
+                          initialBillingCycle = 'annual',
+                          showBasicPlan = true // New prop to control basic plan visibility
                       }) => {
     const [billingCycle, setBillingCycle] = useState(initialBillingCycle);
     const [expandedFeatures, setExpandedFeatures] = useState({});
@@ -23,7 +24,8 @@ const PricingTiers = ({
         }));
     };
 
-    const tiers = [
+    // UPDATED: Added basic weekly test tier
+    const allTiers = [
         {
             id: 'free',
             name: 'Free',
@@ -42,17 +44,14 @@ const PricingTiers = ({
                 { name: 'Create 2 collections with a total of 10 saved recipes', included: true },
                 { name: 'Read recipe reviews', included: true },
                 { name: 'Mobile & desktop access', included: true },
-                // 🆕 ADD PRICE TRACKING FEATURES FOR FREE:
                 { name: 'Basic price tracking (10 items)', included: true },
                 { name: 'Price history (30 days)', included: true },
-                // EXISTING EXCLUDED FEATURES:
                 { name: 'Full meal planning capabilities', included: false },
                 { name: 'Nutritional information access', included: false },
                 { name: 'Email notifications & alerts', included: false },
                 { name: 'Common Items Wizard', included: false },
                 { name: 'Write recipe reviews', included: false },
                 { name: 'Make recipes public', included: false },
-                // 🆕 ADD EXCLUDED PRICE FEATURES:
                 { name: 'Extended price tracking & history', included: false },
                 { name: 'Price alerts & notifications', included: false }
             ],
@@ -63,6 +62,36 @@ const PricingTiers = ({
             borderColor: 'border-gray-200',
             textColor: 'text-gray-900',
             buttonStyle: 'bg-gray-600 hover:bg-gray-700 text-white'
+        },
+        {
+            id: 'basic',
+            name: 'Basic Weekly Access',
+            price: { weekly: 0.99 },
+            description: 'Essential kitchen management tools - weekly subscription',
+            badge: 'Test Plan',
+            features: [
+                { name: 'Essential tools access', included: true },
+                { name: 'Weekly billing cycle', included: true },
+                { name: 'All Free plan features', included: true },
+                { name: 'Enhanced inventory tracking', included: true },
+                { name: 'Basic meal planning (1 week)', included: true },
+                { name: 'Email notifications', included: true },
+                { name: 'UPC scanning (unlimited)', included: true },
+                { name: 'Receipt scanning (5 receipts/week)', included: true },
+                { name: 'Create 5 collections with 50 saved recipes', included: true },
+                { name: 'Write recipe reviews', included: true },
+                { name: 'Standard support', included: true },
+                { name: 'Advanced meal prep planning', included: false },
+                { name: 'Unlimited features', included: false },
+                { name: 'Priority support', included: false }
+            ],
+            cta: 'Try Basic Weekly',
+            popular: false,
+            trialAvailable: false,
+            bgColor: 'bg-gradient-to-br from-green-50 to-emerald-50',
+            borderColor: 'border-green-300',
+            textColor: 'text-green-900',
+            buttonStyle: 'bg-green-600 hover:bg-green-700 text-white'
         },
         {
             id: 'gold',
@@ -86,15 +115,12 @@ const PricingTiers = ({
                 { name: 'Make up to 25 personal recipes public', included: true },
                 { name: 'Email notifications & expiration alerts', included: true },
                 { name: 'Recipe organization with custom categories', included: true },
-                // 🆕 ADD PRICE TRACKING FEATURES FOR GOLD:
                 { name: 'Enhanced price tracking (50 items)', included: true },
                 { name: 'Extended price history (6 months)', included: true },
                 { name: 'Price comparison across stores', included: true },
-                // EXCLUDED FEATURES:
                 { name: 'Advanced meal prep planning tools', included: false },
                 { name: 'Nutrition goal setting & tracking', included: false },
                 { name: 'Priority support & early access', included: false },
-                // 🆕 ADD EXCLUDED PREMIUM PRICE FEATURES:
                 { name: 'Unlimited price tracking & alerts', included: false },
                 { name: 'Price drop email notifications', included: false }
             ],
@@ -130,7 +156,6 @@ const PricingTiers = ({
                 { name: 'Priority support & fastest response times', included: true },
                 { name: 'Early access to all new features & recipes', included: true },
                 { name: 'Recipe backup & export functionality', included: true },
-                // 🆕 ADD PREMIUM PRICE TRACKING FEATURES:
                 { name: 'Unlimited price tracking for all items', included: true },
                 { name: 'Unlimited price history & analytics', included: true },
                 { name: 'Smart price alerts & email notifications', included: true },
@@ -147,14 +172,19 @@ const PricingTiers = ({
         }
     ];
 
+    // Filter tiers based on showBasicPlan prop
+    const tiers = showBasicPlan
+        ? allTiers
+        : allTiers.filter(tier => tier.id !== 'basic');
+
     const handleSignup = (tierId, isTrialSignup = false) => {
         if (onSignup) {
-            onSignup(tierId, isTrialSignup, billingCycle);
+            onSignup(tierId, isTrialSignup, tierId === 'basic' ? 'weekly' : billingCycle);
         } else {
             // Default behavior - construct signup URL with parameters
             const params = new URLSearchParams({
                 tier: tierId,
-                billing: billingCycle
+                billing: tierId === 'basic' ? 'weekly' : billingCycle
             });
 
             if (isTrialSignup) {
@@ -174,7 +204,7 @@ const PricingTiers = ({
 
     if (compactMode) {
         return (
-            <div className={`max-w-4xl mx-auto ${className}`}>
+            <div className={`max-w-5xl mx-auto ${className}`}>
                 {showHeader && (
                     <div className="text-center mb-8">
                         <h2 className="text-2xl font-bold text-gray-900 mb-2">Choose Your Plan</h2>
@@ -182,7 +212,9 @@ const PricingTiers = ({
                     </div>
                 )}
 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className={`grid grid-cols-1 gap-6 ${
+                    showBasicPlan ? 'md:grid-cols-2 lg:grid-cols-4' : 'md:grid-cols-3'
+                }`}>
                     {tiers.map((tier) => {
                         const isCurrentTier = currentTier === tier.id;
                         return (
@@ -194,7 +226,9 @@ const PricingTiers = ({
                             >
                                 {tier.badge && (
                                     <div className="absolute -top-3 left-1/2 transform -translate-x-1/2">
-                                        <span className="bg-blue-600 text-white px-3 py-1 rounded-full text-xs font-semibold">
+                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                            tier.id === 'basic' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                                        }`}>
                                             {tier.badge}
                                         </span>
                                     </div>
@@ -211,8 +245,15 @@ const PricingTiers = ({
                                 <div className="text-center mb-4">
                                     <h3 className={`text-xl font-bold ${tier.textColor}`}>{tier.name}</h3>
                                     <div className="mt-2">
-                                        {tier.price.monthly === 0 ? (
+                                        {tier.id === 'free' ? (
                                             <span className="text-3xl font-bold text-gray-900">Free</span>
+                                        ) : tier.id === 'basic' ? (
+                                            <div>
+                                                <span className="text-3xl font-bold text-gray-900">
+                                                    ${tier.price.weekly}
+                                                </span>
+                                                <span className="text-gray-600 ml-1">/week</span>
+                                            </div>
                                         ) : (
                                             <div>
                                                 <span className="text-3xl font-bold text-gray-900">
@@ -256,39 +297,43 @@ const PricingTiers = ({
                         Start with our free tier and upgrade anytime to unlock powerful features for serious home cooking and meal planning.
                     </p>
 
-                    {/* Billing Toggle */}
-                    <div className="flex items-center justify-center mb-8">
-                        <div className="bg-blue-50 p-1.5 rounded-xl border border-blue-200">
-                            <TouchEnhancedButton
-                                onClick={() => setBillingCycle('monthly')}
-                                className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                    billingCycle === 'monthly'
-                                        ? 'bg-blue-600 text-white shadow-md'
-                                        : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
-                                }`}
-                            >
-                                Monthly
-                            </TouchEnhancedButton>
-                            <TouchEnhancedButton
-                                onClick={() => setBillingCycle('annual')}
-                                className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all relative ${
-                                    billingCycle === 'annual'
-                                        ? 'bg-blue-600 text-white shadow-md'
-                                        : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
-                                }`}
-                            >
-                                Annual
-                                <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
-                                    Save 17%
-                                </span>
-                            </TouchEnhancedButton>
+                    {/* Billing Toggle - Hide if only showing basic plan */}
+                    {!showBasicPlan || tiers.some(t => t.id !== 'basic' && t.id !== 'free') && (
+                        <div className="flex items-center justify-center mb-8">
+                            <div className="bg-blue-50 p-1.5 rounded-xl border border-blue-200">
+                                <TouchEnhancedButton
+                                    onClick={() => setBillingCycle('monthly')}
+                                    className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all ${
+                                        billingCycle === 'monthly'
+                                            ? 'bg-blue-600 text-white shadow-md'
+                                            : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
+                                    }`}
+                                >
+                                    Monthly
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => setBillingCycle('annual')}
+                                    className={`px-6 py-2 rounded-lg text-sm font-semibold transition-all relative ${
+                                        billingCycle === 'annual'
+                                            ? 'bg-blue-600 text-white shadow-md'
+                                            : 'text-blue-600 hover:text-blue-700 hover:bg-blue-100'
+                                    }`}
+                                >
+                                    Annual
+                                    <span className="absolute -top-2 -right-2 bg-green-500 text-white text-xs px-2 py-1 rounded-full font-bold">
+                                        Save 17%
+                                    </span>
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
             )}
 
             {/* Pricing Cards */}
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div className={`grid grid-cols-1 gap-6 mb-8 ${
+                showBasicPlan ? 'lg:grid-cols-4' : 'lg:grid-cols-3'
+            }`}>
                 {tiers.map((tier) => {
                     const savings = getSavingsPercentage(tier);
                     const isCurrentTier = currentTier === tier.id;
@@ -302,7 +347,9 @@ const PricingTiers = ({
                         >
                             {tier.badge && (
                                 <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                                    <span className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-bold shadow-lg">
+                                    <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg ${
+                                        tier.id === 'basic' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
+                                    }`}>
                                         {tier.badge}
                                     </span>
                                 </div>
@@ -328,10 +375,22 @@ const PricingTiers = ({
 
                                     {/* Pricing */}
                                     <div className="mb-6">
-                                        {tier.price.monthly === 0 ? (
+                                        {tier.id === 'free' ? (
                                             <div>
                                                 <span className="text-4xl lg:text-5xl font-bold text-gray-900">Free</span>
                                                 <div className="text-sm text-gray-500 mt-1">Forever</div>
+                                            </div>
+                                        ) : tier.id === 'basic' ? (
+                                            <div>
+                                                <div className="flex items-center justify-center">
+                                                    <span className="text-4xl lg:text-5xl font-bold text-gray-900">
+                                                        ${tier.price.weekly}
+                                                    </span>
+                                                    <span className="text-gray-600 ml-2">/week</span>
+                                                </div>
+                                                <div className="text-sm text-green-600 font-semibold mt-2">
+                                                    Test subscription
+                                                </div>
                                             </div>
                                         ) : (
                                             <div>
@@ -373,6 +432,12 @@ const PricingTiers = ({
                                     {tier.trialAvailable && !isCurrentTier && (
                                         <p className="text-xs text-gray-500 mt-2">
                                             No credit card required • Cancel anytime
+                                        </p>
+                                    )}
+
+                                    {tier.id === 'basic' && !isCurrentTier && (
+                                        <p className="text-xs text-gray-500 mt-2">
+                                            Perfect for testing premium features
                                         </p>
                                     )}
                                 </div>
@@ -423,6 +488,30 @@ const PricingTiers = ({
                 })}
             </div>
 
+            {/* Special Notice for Basic Weekly Plan */}
+            {showBasicPlan && (
+                <div className="bg-green-50 border border-green-200 rounded-xl p-6 lg:p-8 text-center mb-8">
+                    <h3 className="text-green-900 font-semibold text-lg mb-2">New: Basic Weekly Access</h3>
+                    <p className="text-green-700 mb-4">
+                        Try our essential features with a low-commitment weekly subscription. Perfect for testing premium functionality before committing to a longer plan.
+                    </p>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-green-600">
+                        <div className="text-center">
+                            <div className="font-semibold text-green-900 mb-1">Flexible Billing</div>
+                            <p>Pay weekly, cancel anytime</p>
+                        </div>
+                        <div className="text-center">
+                            <div className="font-semibold text-green-900 mb-1">Essential Features</div>
+                            <p>Core functionality included</p>
+                        </div>
+                        <div className="text-center">
+                            <div className="font-semibold text-green-900 mb-1">Easy Upgrade</div>
+                            <p>Switch to Gold or Platinum anytime</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* FAQ/Additional Info */}
             {showFAQ && (
                 <div className="bg-gray-50 rounded-xl p-6 lg:p-8 text-center">
@@ -431,15 +520,15 @@ const PricingTiers = ({
                     </h3>
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm text-gray-600">
                         <div>
-                            <div className="font-semibold text-gray-900 mb-2">✅ No Commitment</div>
+                            <div className="font-semibold text-gray-900 mb-2">No Commitment</div>
                             <p>Cancel anytime with no hidden fees or long-term contracts.</p>
                         </div>
                         <div>
-                            <div className="font-semibold text-gray-900 mb-2">🔄 Easy Upgrades</div>
+                            <div className="font-semibold text-gray-900 mb-2">Easy Upgrades</div>
                             <p>Start free and upgrade when you're ready. Downgrade anytime.</p>
                         </div>
                         <div>
-                            <div className="font-semibold text-gray-900 mb-2">📱 All Devices</div>
+                            <div className="font-semibold text-gray-900 mb-2">All Devices</div>
                             <p>Access your account on mobile, tablet, and desktop with sync.</p>
                         </div>
                     </div>

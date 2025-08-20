@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/account/billing/page.js v3 - FIXED: iPad purchase flow and enhanced iOS billing
+// file: /src/app/account/billing/page.js v4 - Added basic weekly test subscription
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -85,13 +85,19 @@ function BillingContent() {
         return null;
     }
 
-    // Subscription plans configuration
+    // UPDATED: Subscription plans configuration with basic weekly test
     const plans = {
         free: {
             name: 'Free',
-            price: { monthly: 0, annual: 0 },
+            price: { monthly: 0, annual: 0, weekly: 0 },
             description: 'Basic inventory management',
             features: ['50 inventory items', '100 starter recipes', 'Basic matching', '2 receipt scans/month']
+        },
+        basic: {
+            name: 'Basic Weekly Access',
+            price: { weekly: 0.99 },
+            description: 'Essential kitchen management tools - weekly subscription',
+            features: ['Essential tools access', 'Weekly billing', 'Test functionality', 'Basic support']
         },
         gold: {
             name: 'Gold',
@@ -294,35 +300,31 @@ function BillingContent() {
                 });
             });
 
-            // ENHANCED: Better package matching with multiple strategies
-            const packageId = `${tier}_${billingCycle}_package`;
+            // UPDATED: Enhanced package matching with support for basic weekly tier
+            let packageId;
+            if (tier === 'basic') {
+                packageId = 'basic_weekly_test'; // Our test product
+            } else {
+                packageId = `${tier}_${billingCycle}`;
+            }
+
             addPurchaseStep('PACKAGE_SEARCH', { searchingFor: packageId });
 
             let packageToPurchase = packages.find(pkg => pkg.identifier === packageId);
 
             if (!packageToPurchase) {
-                // Strategy 1: Try without _package suffix
-                const altId1 = `${tier}_${billingCycle}`;
-                packageToPurchase = packages.find(pkg =>
-                    pkg.identifier === altId1 ||
-                    pkg.product?.identifier === altId1
-                );
-
-                if (packageToPurchase) {
-                    addPurchaseStep('PACKAGE_FOUND_ALT1', { identifier: packageToPurchase.identifier });
-                }
-            }
-
-            if (!packageToPurchase) {
-                // Strategy 2: Try with different naming patterns
+                // Strategy 1: Try without _package suffix or with alternative naming
                 const patterns = [
+                    `${tier}_${billingCycle}_package`,
                     `${tier}_${billingCycle}ly`,
-                    `${tier.toUpperCase()}_${billingCycle.toUpperCase()}`,
-                    `comfortkitchen_${tier}_${billingCycle}`
+                    tier === 'basic' ? 'basic_weekly' : `${tier.toUpperCase()}_${billingCycle.toUpperCase()}`,
+                    tier === 'basic' ? 'test_weekly' : `comfortkitchen_${tier}_${billingCycle}`
                 ];
 
                 for (const pattern of patterns) {
                     packageToPurchase = packages.find(pkg =>
+                        pkg.identifier === pattern ||
+                        pkg.product?.identifier === pattern ||
                         pkg.identifier.includes(pattern) ||
                         pkg.product?.identifier?.includes(pattern)
                     );
@@ -337,7 +339,7 @@ function BillingContent() {
             }
 
             if (!packageToPurchase) {
-                // Strategy 3: Fallback to first package that contains the tier name
+                // Strategy 2: Fallback to first package that contains the tier name
                 packageToPurchase = packages.find(pkg =>
                     pkg.identifier.toLowerCase().includes(tier.toLowerCase()) ||
                     pkg.product?.identifier?.toLowerCase().includes(tier.toLowerCase())
@@ -731,8 +733,9 @@ function BillingContent() {
                         <div className="flex items-center space-x-4">
                             <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                                 effectiveTier === 'free' ? 'bg-gray-100 text-gray-800' :
-                                    effectiveTier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-                                        'bg-purple-100 text-purple-800'
+                                    effectiveTier === 'basic' ? 'bg-green-100 text-green-800' :
+                                        effectiveTier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-purple-100 text-purple-800'
                             }`}>
                                 {currentPlan.name}
                                 {isOnTrial && ' (Trial)'}
@@ -754,11 +757,18 @@ function BillingContent() {
                                     <span className="text-2xl font-bold text-gray-900">
                                         ${subscription.billingCycle === 'annual'
                                         ? currentPlan.price.annual
-                                        : currentPlan.price.monthly}
+                                        : subscription.billingCycle === 'weekly'
+                                            ? currentPlan.price.weekly
+                                            : currentPlan.price.monthly}
                                     </span>
                                     <span className="text-gray-600 text-sm">
-                                        /{subscription.billingCycle === 'annual' ? 'year' : 'month'}
+                                        /{subscription.billingCycle === 'annual' ? 'year' :
+                                        subscription.billingCycle === 'weekly' ? 'week' : 'month'}
                                     </span>
+                                    <span className="text-gray-600 text-sm">
+                                /{subscription.billingCycle === 'annual' ? 'year' :
+                                        subscription.billingCycle === 'weekly' ? 'week' : 'month'}
+                            </span>
                                     {subscription.isAdmin && (
                                         <div className="text-xs text-purple-600 font-medium">Admin Access</div>
                                     )}
@@ -852,7 +862,7 @@ function BillingContent() {
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Plans</h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {Object.entries(plans).map(([tierKey, plan]) => {
                             const isCurrentPlan = effectiveTier === tierKey;
                             const savings = getSavings(plan);
@@ -871,14 +881,24 @@ function BillingContent() {
                                             {plan.name}
                                             {isCurrentPlan && (
                                                 <span className="ml-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-                                                    Current
-                                                </span>
+                                            Current
+                                        </span>
                                             )}
                                         </h3>
 
                                         <div className="mb-4">
-                                            {plan.price.monthly === 0 ? (
+                                            {tierKey === 'free' ? (
                                                 <span className="text-2xl font-bold text-gray-900">Free</span>
+                                            ) : tierKey === 'basic' ? (
+                                                <div>
+                                                    <div className="text-2xl font-bold text-gray-900">
+                                                        ${plan.price.weekly}
+                                                        <span className="text-base text-gray-600">/week</span>
+                                                    </div>
+                                                    <div className="text-xs text-green-600 font-medium">
+                                                        Test Subscription
+                                                    </div>
+                                                </div>
                                             ) : (
                                                 <div>
                                                     <div className="text-2xl font-bold text-gray-900">
@@ -911,14 +931,19 @@ function BillingContent() {
 
                                     {!isCurrentPlan && !subscription.isAdmin && (
                                         <TouchEnhancedButton
-                                            onClick={() => handleSubscriptionChange(tierKey, 'annual')}
+                                            onClick={() => handleSubscriptionChange(
+                                                tierKey,
+                                                tierKey === 'basic' ? 'weekly' : 'annual'
+                                            )}
                                             disabled={loading}
                                             className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
                                                 tierKey === 'free'
                                                     ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                                                    : tierKey === 'gold'
-                                                        ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                                                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                                    : tierKey === 'basic'
+                                                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                        : tierKey === 'gold'
+                                                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                                            : 'bg-purple-600 hover:bg-purple-700 text-white'
                                             }`}
                                         >
                                             {loading ? 'Processing...' :
