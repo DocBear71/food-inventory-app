@@ -224,8 +224,8 @@ export default function ImportRecipePage() {
             const response = await apiPost('/api/recipes/video-extract', {
                 video_url: url,
                 platform: platform,
-                analysis_type: processingMethod, // page_scraping_first, ai_vision_enhanced, etc.
-                extract_image: extractImages
+                analysis_type: processingMethod,
+                extractImage: extractImages
             });
 
             setVideoImportProgress({
@@ -260,8 +260,12 @@ export default function ImportRecipePage() {
                 throw new Error(data.error || `Failed to extract recipe from ${getPlatformName(platform)} content`);
             }
         } catch (error) {
-            console.error(`${platform} content import error:`, error);
-            setImportError(`${getPlatformName(platform)} content extraction failed: ${error.message}`);
+            console.error('Import error:', error);
+            setImportError(error.message);
+
+            // CRITICAL: Reset the modal state
+            setIsVideoImporting(false);
+            setVideoImportProgress({ stage: '', platform: '', message: '' });
         } finally {
             setTimeout(() => {
                 setIsVideoImporting(false);
