@@ -314,6 +314,7 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
         // After calling Modal, before returning to frontend
         console.log('🔍 RAW MODAL RESPONSE:', JSON.stringify(modalResponse, null, 2));
         console.log('🔍 Response has extracted_image:', !!modalResponse.extracted_image);
+        console.log('🔍 Image data length:', modalResponse.extracted_image?.data?.length);
 
         if (!modalResponse.ok) {
             const errorText = await modalResponse.text();
@@ -434,7 +435,8 @@ export async function POST(request) {
         // ENHANCED: Return comprehensive extraction info
         return NextResponse.json({
             success: true,
-            recipe: result.recipe, // Already transformed to match schema
+            recipe: result.recipe,
+            extractedImage: result.extracted_image, // ADD THIS LINE
             contentInfo: {
                 platform: contentInfo.platform,
                 contentId: contentInfo.contentId,
@@ -448,17 +450,15 @@ export async function POST(request) {
                 metadata: result.metadata || null,
                 hasTimestamps: result.recipe.instructions.some(i => i.videoTimestamp) ||
                     result.recipe.ingredients.some(i => i.videoTimestamp),
-                hasExtractedImage: !!(result.recipe.extractedImage),
+                hasExtractedImage: !!(result.extracted_image), // FIX THIS LINE
                 instructionCount: result.recipe.instructions.length,
                 ingredientCount: result.recipe.ingredients.length,
-
-                // ENHANCED: Universal extraction details
                 primaryExtractionMethod: result.metadata?.extraction_method || 'unknown',
                 fallbackUsed: result.metadata?.fallback_used || false,
                 contentAnalyzed: result.metadata?.content_analyzed || false,
                 processingTimeMs: result.metadata?.processing_time_ms || null
             },
-            message: `Recipe extracted from ${contentInfo.platform} using Universal AI processing${result.recipe.extractedImage ? ' with image' : ''}${result.metadata?.extraction_method ? ` via ${result.metadata.extraction_method}` : ''}`
+            message: `Recipe extracted from ${contentInfo.platform} using Universal AI processing${result.extracted_image ? ' with image' : ''}${result.metadata?.extraction_method ? ` via ${result.metadata.extraction_method}` : ''}`
         });
 
     } catch (error) {
