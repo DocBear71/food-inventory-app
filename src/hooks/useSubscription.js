@@ -341,6 +341,7 @@ export function SubscriptionProvider({ children }) {
         // 2. Session has subscription object - use it directly (for mobile/enhanced sessions)
         if (session?.user?.subscription?.tier && session?.user?.subscription?.status) {
             console.log('📋 Using session subscription object:', session.user.subscription);
+            console.log('📋 Session subscription status:', session.user.subscription.status);
             setSubscriptionData({
                 tier: session.user.subscription.tier,
                 isAdmin: session.user.isAdmin || false,
