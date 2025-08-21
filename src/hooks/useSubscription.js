@@ -433,6 +433,10 @@ export function useSubscription() {
 
     const { subscriptionData, loading, error, refetch, forceRefresh, clearCache, refreshFromDatabase } = context;
 
+    const isExpired = () => {
+        return subscriptionData?.status === 'expired';
+    };
+
     // Helper functions with better error handling
     const checkFeature = (feature) => {
         if (!subscriptionData) return false;
@@ -496,6 +500,10 @@ export function useSubscription() {
         if (subscriptionData?.isAdmin) {
             return 'admin';
         }
+        // Force expired users to free tier for feature purposes
+        if (isExpired()) {
+            return 'free';
+        }
         return subscriptionData?.tier || 'free';
     };
 
@@ -537,7 +545,9 @@ export function useSubscription() {
     return {
         // Data
         tier: getEffectiveTier(),
+        originalTier: subscriptionData?.tier || 'free', // Keep track of original tier
         status: subscriptionData?.status || (subscriptionData?.isAdmin ? 'active' : 'free'),
+        isExpired: isExpired(),
         billingCycle: subscriptionData?.billingCycle,
         isActive: subscriptionData?.isActive !== false,
         isTrialActive: subscriptionData?.isTrialActive || false,
@@ -576,17 +586,18 @@ export function useSubscription() {
         getCurrentUsageCount,
 
         // Feature helpers
-        canAddInventoryItem: checkLimit(FEATURE_GATES.INVENTORY_LIMIT, getCurrentUsageCount(FEATURE_GATES.INVENTORY_LIMIT)),
-        canScanUPC: checkLimit(FEATURE_GATES.UPC_SCANNING, getCurrentUsageCount(FEATURE_GATES.UPC_SCANNING)),
-        canScanReceipt: checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN)),
-        canAddPersonalRecipe: checkLimit(FEATURE_GATES.PERSONAL_RECIPES, getCurrentUsageCount(FEATURE_GATES.PERSONAL_RECIPES)),
-        canSaveRecipe: checkLimit(FEATURE_GATES.SAVE_RECIPE, getCurrentUsageCount(FEATURE_GATES.SAVE_RECIPE)),
-        canCreateCollection: checkLimit(FEATURE_GATES.RECIPE_COLLECTIONS, getCurrentUsageCount(FEATURE_GATES.RECIPE_COLLECTIONS)),
-        canWriteReviews: checkFeature(FEATURE_GATES.WRITE_REVIEW),
-        canMakeRecipesPublic: checkFeature(FEATURE_GATES.MAKE_RECIPE_PUBLIC),
-        hasNutritionAccess: checkFeature(FEATURE_GATES.NUTRITION_ACCESS),
-        hasMealPlanning: checkFeature(FEATURE_GATES.CREATE_MEAL_PLAN),
-        hasEmailNotifications: checkFeature(FEATURE_GATES.EMAIL_NOTIFICATIONS),
+        // Feature helpers - expired users get free tier access only
+        canAddInventoryItem: !isExpired() && checkLimit(FEATURE_GATES.INVENTORY_LIMIT, getCurrentUsageCount(FEATURE_GATES.INVENTORY_LIMIT)),
+        canScanUPC: !isExpired() && checkLimit(FEATURE_GATES.UPC_SCANNING, getCurrentUsageCount(FEATURE_GATES.UPC_SCANNING)),
+        canScanReceipt: !isExpired() && checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN)),
+        canAddPersonalRecipe: !isExpired() && checkLimit(FEATURE_GATES.PERSONAL_RECIPES, getCurrentUsageCount(FEATURE_GATES.PERSONAL_RECIPES)),
+        canSaveRecipe: !isExpired() && checkLimit(FEATURE_GATES.SAVE_RECIPE, getCurrentUsageCount(FEATURE_GATES.SAVE_RECIPE)),
+        canCreateCollection: !isExpired() && checkLimit(FEATURE_GATES.RECIPE_COLLECTIONS, getCurrentUsageCount(FEATURE_GATES.RECIPE_COLLECTIONS)),
+        canWriteReviews: !isExpired() && checkFeature(FEATURE_GATES.WRITE_REVIEW),
+        canMakeRecipesPublic: !isExpired() && checkFeature(FEATURE_GATES.MAKE_RECIPE_PUBLIC),
+        hasNutritionAccess: !isExpired() && checkFeature(FEATURE_GATES.NUTRITION_ACCESS),
+        hasMealPlanning: !isExpired() && checkFeature(FEATURE_GATES.CREATE_MEAL_PLAN),
+        hasEmailNotifications: !isExpired() && checkFeature(FEATURE_GATES.EMAIL_NOTIFICATIONS),
         hasEmailSharing: checkFeature(FEATURE_GATES.EMAIL_SHARING),
         hasCommonItemsWizard: checkFeature(FEATURE_GATES.COMMON_ITEMS_WIZARD),
         hasConsumptionHistory: checkFeature(FEATURE_GATES.CONSUMPTION_HISTORY),

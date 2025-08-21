@@ -657,7 +657,9 @@ function BillingContent() {
     const canStartTrial = subscription.tier === 'free' &&
         !subscription.isTrialActive &&
         !subscription.subscriptionData?.hasUsedFreeTrial;
-    const effectiveTier = subscription.isAdmin ? 'platinum' : subscription.tier;
+    const effectiveTier = subscription.isAdmin ? 'platinum' :
+        subscription.isExpired ? 'free' :
+            subscription.originalTier || subscription.tier;
 
     return (
         <MobileOptimizedLayout>

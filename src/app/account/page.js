@@ -355,10 +355,9 @@ export default function AccountPage() {
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="font-medium text-gray-900">Current Plan</h3>
                                 <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                                    subscription.status === 'expired'
-                                        ? 'bg-red-100 text-red-800 border-red-300'
-                                        : getTierColor(subscription.tier)
-                                }`}>
+                                    getTierColor(subscription.originalTier || 
+                                        subscription.tier, subscription.status)}`
+                                }>
             {subscription.status === 'expired'
                 ? `${subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)} (Expired)`
                 : subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)
