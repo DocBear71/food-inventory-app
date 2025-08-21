@@ -193,10 +193,14 @@ export default function AccountPage() {
         }
     }, []);
 
-    const getTierColor = useCallback((tier) => {
+    const getTierColor = useCallback((tier, status) => {
+        if (status === 'expired') {
+            return 'bg-red-100 text-red-800 border-red-300';
+        }
         switch (tier) {
             case 'platinum': return 'bg-purple-100 text-purple-800 border-purple-300';
             case 'gold': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+            case 'basic': return 'bg-green-100 text-green-800 border-green-300';
             case 'admin': return 'bg-red-100 text-red-800 border-red-300';
             default: return 'bg-gray-100 text-gray-800 border-gray-300';
         }
@@ -346,108 +350,203 @@ export default function AccountPage() {
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Subscription Overview</h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Current Plan */}
+                        {/* Enhanced Current Plan section for expired subscriptions */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="font-medium text-gray-900">Current Plan</h3>
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getTierColor(subscription.tier)}`}>
-                                    {subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)}
+                                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                                    subscription.status === 'expired'
+                                        ? 'bg-red-100 text-red-800 border-red-300'
+                                        : getTierColor(subscription.tier)
+                                }`}>
+            {subscription.status === 'expired'
+                ? `${subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)} (Expired)`
+                : subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)
+            }
                                     {subscription.isTrialActive && ' (Trial)'}
                                     {subscription.isAdmin && ' (Admin)'}
-                                </span>
+        </span>
                             </div>
+
+                            {/* Expired subscription alert */}
+                            {subscription.status === 'expired' && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                                    <div className="flex items-start">
+                                        <div className="text-red-500 text-lg mr-3">⚠️</div>
+                                        <div className="flex-1">
+                                            <h4 className="text-red-900 font-medium mb-1">Subscription Expired</h4>
+                                            <p className="text-red-700 text-sm mb-3">
+                                                Your {subscription.tier} subscription expired on {formatDate(subscription.endDate)}.
+                                                You now have access to free tier features only.
+                                            </p>
+                                            <div className="flex flex-col sm:flex-row gap-2">
+                                                <TouchEnhancedButton
+                                                    onClick={() => router.push('/pricing')}
+                                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+                                                >
+                                                    Reactivate Subscription
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={() => router.push('/account/billing')}
+                                                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm"
+                                                >
+                                                    View Billing
+                                                </TouchEnhancedButton>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Status:</span>
-                                    <span className="font-medium">
-                                        {subscription.isTrialActive ? 'Trial Active' : subscription.status || 'Active'}
-                                    </span>
+                                    <span className={`font-medium ${
+                                        subscription.status === 'expired' ? 'text-red-600' : ''
+                                    }`}>
+                {subscription.status === 'expired' ? 'Expired' :
+                    subscription.isTrialActive ? 'Trial Active' :
+                        subscription.status || 'Active'}
+            </span>
                                 </div>
 
-                                {subscription.billingCycle && (
+                                {subscription.status === 'expired' && subscription.endDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Expired on:</span>
+                                        <span className="font-medium text-red-600">{formatDate(subscription.endDate)}</span>
+                                    </div>
+                                )}
+
+                                {subscription.status === 'expired' && subscription.startDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Was active from:</span>
+                                        <span className="font-medium">{formatDate(subscription.startDate)}</span>
+                                    </div>
+                                )}
+
+                                {/* Show normal billing info for active subscriptions */}
+                                {subscription.status !== 'expired' && subscription.billingCycle && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Billing:</span>
                                         <span className="font-medium capitalize">{subscription.billingCycle}</span>
                                     </div>
                                 )}
 
-                                {subscription.endDate && (
+                                {subscription.status !== 'expired' && subscription.endDate && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Next billing:</span>
                                         <span className="font-medium">{formatDate(subscription.endDate)}</span>
                                     </div>
                                 )}
-
-                                {subscription.isTrialActive && subscription.daysUntilTrialEnd !== null && (
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-600">Trial ends:</span>
-                                        <span className="font-medium text-orange-600">
-                                            {subscription.daysUntilTrialEnd} day{subscription.daysUntilTrialEnd !== 1 ? 's' : ''} left
-                                        </span>
-                                    </div>
-                                )}
                             </div>
                         </div>
 
-                        {/* Plan Features */}
+                        // Update Plan Features section to reflect expired status:
                         <div>
-                            <h3 className="font-medium text-gray-900 mb-3">Plan Features</h3>
+                            <h3 className="font-medium text-gray-900 mb-3">
+                                {subscription.status === 'expired' ? 'Available Features (Free Tier)' : 'Plan Features'}
+                            </h3>
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className={`flex items-center ${subscription.canAddInventoryItem ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.canAddInventoryItem ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.canAddInventoryItem)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.canAddInventoryItem) ? '✅' : '❌'}
+            </span>
                                     Inventory Tracking
+                                    {subscription.status === 'expired' && (
+                                        <span className="ml-1 text-xs text-gray-500">(Limited)</span>
+                                    )}
                                 </div>
-                                <div className={`flex items-center ${subscription.canScanReceipt ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.canScanReceipt ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.canScanReceipt)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.canScanReceipt) ? '✅' : '❌'}
+            </span>
                                     Receipt Scanning
+                                    {subscription.status === 'expired' && (
+                                        <span className="ml-1 text-xs text-gray-500">(2/month)</span>
+                                    )}
                                 </div>
-                                <div className={`flex items-center ${subscription.hasMealPlanning ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.hasMealPlanning ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.hasMealPlanning)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.hasMealPlanning) ? '✅' : '❌'}
+            </span>
                                     Meal Planning
                                 </div>
-                                <div className={`flex items-center ${subscription.hasNutritionAccess ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.hasNutritionAccess ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.hasNutritionAccess)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.hasNutritionAccess) ? '✅' : '❌'}
+            </span>
                                     Nutrition Info
                                 </div>
-                                <div className={`flex items-center ${subscription.canWriteReviews ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.canWriteReviews ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.canWriteReviews)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.canWriteReviews) ? '✅' : '❌'}
+            </span>
                                     Write Reviews
                                 </div>
-                                <div className={`flex items-center ${subscription.hasEmailNotifications ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.hasEmailNotifications ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.hasEmailNotifications)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.hasEmailNotifications) ? '✅' : '❌'}
+            </span>
                                     Email Alerts
                                 </div>
                             </div>
                         </div>
-                    </div>
 
-                    {/* Action Buttons */}
-                    <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                        <TouchEnhancedButton
-                            onClick={() => router.push('/account/billing')}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                        >
-                            Manage Subscription
-                        </TouchEnhancedButton>
+                        // Update Action Buttons section:
+                        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                            {subscription.status === 'expired' ? (
+                                <>
+                                    <TouchEnhancedButton
+                                        onClick={() => router.push('/pricing')}
+                                        className="flex-1 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
+                                    >
+                                        Reactivate Subscription
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={() => router.push('/account/billing')}
+                                        className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                    >
+                                        View Billing History
+                                    </TouchEnhancedButton>
+                                </>
+                            ) : (
+                                <>
+                                    <TouchEnhancedButton
+                                        onClick={() => router.push('/account/billing')}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                    >
+                                        Manage Subscription
+                                    </TouchEnhancedButton>
 
-                        {subscription.tier === 'free' && (
-                            <TouchEnhancedButton
-                                onClick={() => router.push('/pricing')}
-                                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
-                            >
-                                Upgrade Plan
-                            </TouchEnhancedButton>
-                        )}
-
-                        {(subscription.tier === 'gold' || subscription.tier === 'platinum') && (
-                            <TouchEnhancedButton
-                                onClick={() => router.push('/pricing')}
-                                className="flex-1 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
-                            >
-                                View All Plans
-                            </TouchEnhancedButton>
-                        )}
+                                    {subscription.tier === 'free' && (
+                                        <TouchEnhancedButton
+                                            onClick={() => router.push('/pricing')}
+                                            className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
+                                        >
+                                            Upgrade Plan
+                                        </TouchEnhancedButton>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 
