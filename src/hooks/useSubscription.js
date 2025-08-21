@@ -344,6 +344,7 @@ export function SubscriptionProvider({ children }) {
             console.log('📋 Session subscription status:', session.user.subscription.status);
             setSubscriptionData({
                 tier: session.user.subscription.tier,
+                status: session.user.subscription.status,  // ADD THIS LINE
                 isAdmin: session.user.isAdmin || false,
                 isActive: session.user.subscription.status === 'active',
                 isTrialActive: session.user.subscription.status === 'trial',
