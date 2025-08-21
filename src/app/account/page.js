@@ -33,6 +33,13 @@ export default function AccountPage() {
         sessionInventory: session?.user?.usage?.totalInventoryItems
     });
 
+    console.log('🔍 Subscription status debug:', {
+        tier: subscription.tier,
+        status: subscription.status,
+        isExpired: subscription.isExpired,
+        originalTier: subscription.originalTier
+    });
+
     // FIXED: Memoize the pre-registration check to prevent re-creation on every render
     const checkForPreRegistrationReward = useCallback(async () => {
         if (typeof window === 'undefined') return;
@@ -403,10 +410,10 @@ export default function AccountPage() {
                                     <span className={`font-medium ${
                                         subscription.status === 'expired' ? 'text-red-600' : ''
                                     }`}>
-                {subscription.status === 'expired' ? 'Expired' :
-                    subscription.isTrialActive ? 'Trial Active' :
-                        subscription.status || 'Active'}
-            </span>
+        {subscription.status === 'expired' ? 'Expired' :
+            subscription.isTrialActive ? 'Trial Active' :
+                subscription.status || 'Active'}
+    </span>
                                 </div>
 
                                 {subscription.status === 'expired' && subscription.endDate && (
