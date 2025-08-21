@@ -440,8 +440,6 @@ export default function AccountPage() {
                                 )}
                             </div>
                         </div>
-
-                        // Update Plan Features section to reflect expired status:
                         <div>
                             <h3 className="font-medium text-gray-900 mb-3">
                                 {subscription.status === 'expired' ? 'Available Features (Free Tier)' : 'Plan Features'}
@@ -509,8 +507,6 @@ export default function AccountPage() {
                                 </div>
                             </div>
                         </div>
-
-                        // Update Action Buttons section:
                         <div className="mt-6 flex flex-col sm:flex-row gap-3">
                             {subscription.status === 'expired' ? (
                                 <>
