@@ -947,7 +947,20 @@ export default function EnhancedRecipeForm({
 
                     } catch (fallbackError) {
                         console.error(`Both Modal.com and standard scraper failed for ${detectedPlatform}:`, fallbackError);
-                        setVideoImportError(`Failed to extract recipe from ${detectedPlatform}. Both video extraction and page scraping failed. Try copying the recipe text and using the Text Paste option.`);
+
+                        // Platform-specific error messages
+                        if (detectedPlatform === 'instagram') {
+                            setVideoImportError(`Instagram blocks automated access to post content. Please copy the recipe text from the Instagram post description and use the "Text Paste" option for best results.`);
+                        } else if (detectedPlatform === 'facebook') {
+                            setVideoImportError(`Facebook restricts automated content access. Please copy the recipe text from the Facebook post and use the "Text Paste" option instead.`);
+                        } else {
+                            setVideoImportError(`${detectedPlatform} content extraction failed. Please copy the recipe text manually and use the "Text Paste" option.`);
+                        }
+
+                        // Show helpful instructions
+                        setTimeout(() => {
+                            setShowTextImportHint(true);
+                        }, 2000);
                     }
                 } else {
                     setVideoImportError(data.error || 'Failed to extract recipe from video');
@@ -959,10 +972,18 @@ export default function EnhancedRecipeForm({
 
             // Check if this is the static content detection error from the API
             if (error.message && error.message.includes('static_content_detected')) {
-                setVideoImportError(`${detectedPlatform} post contains static content. Please try using the Text Paste option to manually enter the recipe.`);
+                if (detectedPlatform === 'instagram') {
+                    setVideoImportError(`Instagram post detected as static content. Please copy the recipe text from the post description and use the "Text Paste" option for better results.`);
+                } else {
+                    setVideoImportError(`${detectedPlatform} post contains static content. Please try using the "Text Paste" option to manually enter the recipe.`);
+                }
             } else {
                 setVideoImportError('Network error. Please check your connection and try again.');
             }
+
+            // CRITICAL: Always reset UI state on error
+            setIsVideoImporting(false);
+            setVideoImportProgress({ stage: '', platform: '', message: '' });
         }
 
         const elapsedTime = Date.now() - startTime;
@@ -970,9 +991,11 @@ export default function EnhancedRecipeForm({
 
         if (remainingTime > 0) {
             setTimeout(() => {
+                setIsVideoImporting(false);  // ENSURE THIS IS ADDED
                 setVideoImportProgress({stage: '', platform: '', message: ''});
             }, remainingTime);
         } else {
+            setIsVideoImporting(false);  // ENSURE THIS IS ADDED
             setVideoImportProgress({stage: '', platform: '', message: ''});
         }
     };
