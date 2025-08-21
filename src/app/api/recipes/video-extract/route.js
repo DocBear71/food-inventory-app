@@ -48,8 +48,11 @@ const UNIVERSAL_PLATFORMS = {
             /(www\.)?facebook\.com\/([^\/]+)\/videos\/(\d+)/i,
             /fb\.watch\/([a-zA-Z0-9_-]+)/i,
             /(www\.)?facebook\.com\/share\/r\/([a-zA-Z0-9_-]+)/i,
+            /(www\.)?facebook\.com\/share\/v\/([a-zA-Z0-9_-]+)/i,  // 🚀 ADDED: Missing /share/v/ format!
             /(www\.)?facebook\.com\/story\.php\?story_fbid=(\d+)/i,
-            /(www\.)?facebook\.com\/reel\/(\d+)/i
+            /(www\.)?facebook\.com\/reel\/(\d+)/i,
+            /(www\.)?facebook\.com\/.*\/posts\/([a-zA-Z0-9_-]+)/i,  // 🚀 ADDED: Posts format
+            /(www\.)?facebook\.com\/.*\/photos\/([a-zA-Z0-9_-]+)/i  // 🚀 ADDED: Photos with videos
         ],
         extractId: (url) => {
             for (const pattern of UNIVERSAL_PLATFORMS.facebook.patterns) {

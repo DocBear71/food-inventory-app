@@ -49,12 +49,15 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
             /instagram\.com\/p\/[a-zA-Z0-9_-]+/,
             /instagram\.com\/tv\/[a-zA-Z0-9_-]+/,
 
-            // Facebook patterns
+            // Facebook patterns - ENHANCED
             /facebook\.com\/watch\/?\?v=\d+/,
             /facebook\.com\/[^\/]+\/videos\/\d+/,
             /fb\.watch\/[a-zA-Z0-9_-]+/,
             /facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
+            /facebook\.com\/share\/v\/[a-zA-Z0-9_-]+/,  // 🚀 ADDED: Missing /share/v/ format!
             /facebook\.com\/reel\/\d+/,
+            /facebook\.com\/.*\/posts\/[a-zA-Z0-9_-]+/,  // 🚀 ADDED: Posts format
+            /facebook\.com\/.*\/photos\/[a-zA-Z0-9_-]+/,  // 🚀 ADDED: Photos with videos
 
             // Twitter/X patterns
             /(twitter\.com|x\.com)\/[^\/]+\/status\/\d+/,
