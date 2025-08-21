@@ -853,6 +853,12 @@ export default function EnhancedRecipeForm({
                     }
                 };
 
+                console.log('🔍 Full Modal response structure:', JSON.stringify(data, null, 2));
+                console.log('🔍 Recipe data:', data.recipe);
+                console.log('🔍 Has extractedImage?', !!data.recipe?.extractedImage);
+                console.log('🔍 ExtractedImage data:', data.recipe?.extractedImage);
+
+
                 if (data.recipe.extractedImage) {
                     setImagePreview(`data:image/jpeg;base64,${data.recipe.extractedImage.data}`);
                     setImageSource('extracted');
