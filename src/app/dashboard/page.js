@@ -10,6 +10,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
+import { useSubscription } from '@/hooks/useSubscription';
 
 export default function Dashboard() {
     const {data: session, status} = useSafeSession();
@@ -19,6 +20,8 @@ export default function Dashboard() {
         expiringItems: 0,
         categories: {}
     });
+    const subscription = useSubscription();
+    const [showExpiredBanner, setShowExpiredBanner] = useState(false);
     const [loading, setLoading] = useState(true);
     const [showNotifications, setShowNotifications] = useState(false);
 
@@ -34,6 +37,25 @@ export default function Dashboard() {
             fetchInventoryStats();
         }
     }, [session]);
+
+    // Check if we should show the expired banner
+    useEffect(() => {
+        const dismissed = localStorage.getItem('dismissed-expired-banner');
+        const shouldShow = subscription.status === 'expired' && !dismissed;
+        setShowExpiredBanner(shouldShow);
+    }, [subscription.status]);
+
+// Reset banner dismissal when subscription status changes from expired
+    useEffect(() => {
+        if (subscription.status !== 'expired') {
+            localStorage.removeItem('dismissed-expired-banner');
+        }
+    }, [subscription.status]);
+
+    const dismissBanner = () => {
+        localStorage.setItem('dismissed-expired-banner', 'true');
+        setShowExpiredBanner(false);
+    };
 
     const fetchInventoryStats = async () => {
         try {
@@ -90,7 +112,48 @@ export default function Dashboard() {
 
     return (
         <MobileOptimizedLayout>
-            {/* FIXED: Removed the outer div with space-y-6 and dashboard-container class that was causing the double scrollbar */}
+            {/* Expired Subscription Banner */}
+            {showExpiredBanner && (
+                <div className="bg-red-50 border-l-4 border-red-400 p-4 mb-6">
+                    <div className="flex items-start justify-between">
+                        <div className="flex">
+                            <div className="text-red-400 text-xl mr-3">⚠️</div>
+                            <div className="flex-1">
+                                <h3 className="text-red-800 font-semibold text-lg">
+                                    Your subscription has expired
+                                </h3>
+                                <p className="text-red-700 mt-1">
+                                    Your premium features are no longer available. Reactivate your subscription to regain access to meal planning, unlimited scanning, and more.
+                                </p>
+                                <div className="mt-3 flex flex-col sm:flex-row gap-2">
+                                    <TouchEnhancedButton
+                                        onClick={() => router.push('/pricing')}
+                                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+                                    >
+                                        Reactivate Subscription
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={() => router.push('/account/billing')}
+                                        className="bg-white hover:bg-gray-50 text-red-600 border border-red-600 px-4 py-2 rounded-lg font-medium text-sm"
+                                    >
+                                        View Billing Details
+                                    </TouchEnhancedButton>
+                                </div>
+                            </div>
+                        </div>
+                        <TouchEnhancedButton
+                            onClick={dismissBanner}
+                            className="text-red-400 hover:text-red-600 ml-4"
+                            aria-label="Dismiss banner"
+                        >
+                            <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                                <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                            </svg>
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
+            )}
+
             {/* Welcome header */}
             <div className="bg-white overflow-hidden shadow rounded-lg mb-6">
                 <div className="px-4 py-5 sm:p-6">
