@@ -311,6 +311,10 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
             body: JSON.stringify(payload)
         });
 
+        // After calling Modal, before returning to frontend
+        console.log('🔍 RAW MODAL RESPONSE:', JSON.stringify(modalResponse, null, 2));
+        console.log('🔍 Response has extracted_image:', !!modalResponse.extracted_image);
+
         if (!modalResponse.ok) {
             const errorText = await modalResponse.text();
             throw new Error(`Modal API error (${modalResponse.status}): ${errorText}`);
