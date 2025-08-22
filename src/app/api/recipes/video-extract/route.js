@@ -302,12 +302,12 @@ function transformUniversalDataToSchema(modalData, contentInfo) {
         },
 
         // ENHANCED: Extracted image data (if present)
-        ...(recipe.extractedImage || result.extractedImage ? {
+        ...(recipe.extractedImage || modalData.extractedImage ? {
             extractedImage: {
-                data: (recipe.extractedImage || result.extractedImage).data,
-                extractionMethod: (recipe.extractedImage || result.extractedImage).extractionMethod || 'video_frame',
-                frameCount: (recipe.extractedImage || result.extractedImage).frameCount || 1,
-                source: (recipe.extractedImage || result.extractedImage).source || contentInfo.platform,
+                data: (recipe.extractedImage || modalData.extractedImage).data,
+                extractionMethod: (recipe.extractedImage || modalData.extractedImage).extractionMethod || 'video_frame',
+                frameCount: (recipe.extractedImage || modalData.extractedImage).frameCount || 1,
+                source: (recipe.extractedImage || modalData.extractedImage).source || contentInfo.platform,
                 extractedAt: new Date()
             }
         } : {}),
@@ -321,7 +321,7 @@ function transformUniversalDataToSchema(modalData, contentInfo) {
             extractionMethod: recipe.extraction_method || metadata?.processingMethod || 'universal-ai',
             importedFrom: `${contentInfo.platform} content via Universal AI`,
             socialMediaOptimized: recipe.socialMediaOptimized || false,
-            hasExtractedImage: !!(recipe.extractedImage),
+            hasExtractedImage: !!(recipe.extractedImage || modalData.extractedImage),
             processingTime: recipe.processingTime || metadata?.processingMethod || null,
 
             // ENHANCED: Content-specific metadata
@@ -376,13 +376,6 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
         console.log('🔍 Response has extracted_image:', !!modalResponse.extracted_image);
         console.log('🔍 Image data available:', !!modalResponse.extracted_image?.data);
 
-        console.log('📸 MODAL DEBUG: result.extracted_image exists:', !!result.extracted_image);
-        console.log('📸 MODAL DEBUG: result.recipe.extractedImage exists:', !!result.recipe.extractedImage);
-        if (result.extracted_image) {
-            console.log('📸 MODAL DEBUG: Image data keys:', Object.keys(result.extracted_image));
-            console.log('📸 MODAL DEBUG: Image data length:', result.extracted_image.data?.length);
-        }
-
         if (!modalResponse.ok) {
             const errorText = await modalResponse.text();
             throw new Error(`Modal API error (${modalResponse.status}): ${errorText}`);
@@ -390,6 +383,13 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
 
         const rawResult = await modalResponse.json();
         const result = transformSnakeCaseToCamelCase(rawResult);
+
+        console.log('📸 MODAL DEBUG: result.extracted_image exists:', !!result.extracted_image);
+        console.log('📸 MODAL DEBUG: result.recipe.extractedImage exists:', !!result.recipe.extractedImage);
+        if (result.extracted_image) {
+            console.log('📸 MODAL DEBUG: Image data keys:', Object.keys(result.extracted_image));
+            console.log('📸 MODAL DEBUG: Image data length:', result.extracted_image.data?.length);
+        }
 
         if (!result.success) {
             throw new Error(result.error || 'Universal Modal processing failed');
