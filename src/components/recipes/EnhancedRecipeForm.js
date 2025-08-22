@@ -849,21 +849,31 @@ export default function EnhancedRecipeForm({
                     _formMetadata: {
                         importedFrom: `${data.videoInfo?.platform || 'video'} video`,
                         extractionInfo: data.extractionInfo,
-                        hasTimestamps: data.extractionInfo?.hasTimestamps || false
+                        hasTimestamps: data.extractionInfo?.hasTimestamps || false,
+                        hasExtractedImage: Boolean(data.recipe?.extractedImage || data.extractedImage),
+                        extractionMethod: data.extractionInfo?.method || 'universal-ai'
                     }
                 };
 
                 console.log('🔍 Full Modal response structure:', JSON.stringify(data, null, 2));
                 console.log('🔍 Recipe data:', data.recipe);
-                console.log('🔍 Has extractedImage?', !!data.recipe?.extractedImage);
-                console.log('🔍 ExtractedImage data:', data.recipe?.extractedImage);
+                console.log('🔍 Has extractedImage in recipe?', !!data.recipe?.extractedImage);
+                console.log('🔍 Has extractedImage in root?', !!data.extractedImage);
+                console.log('🔍 ExtractedImage data:', data.recipe?.extractedImage || data.extractedImage);
 
-
-                if (data.recipe.extractedImage) {
-                    setImagePreview(`data:image/jpeg;base64,${data.recipe.extractedImage.data}`);
+                // SAFE IMAGE HANDLING - Check both possible locations
+                const extractedImageData = data.recipe?.extractedImage || data.extractedImage;
+                if (extractedImageData) {
+                    setImagePreview(`data:image/jpeg;base64,${extractedImageData.data}`);
                     setImageSource('extracted');
                     console.log('📸 Video image extracted successfully');
-                    videoRecipe.extractedImage = data.recipe.extractedImage;
+                    videoRecipe.extractedImage = extractedImageData;
+
+                    // Add to metadata for tracking
+                    videoRecipe._formMetadata.hasExtractedImage = true;
+                } else {
+                    console.log('⚠️ No extracted image found in response');
+                    videoRecipe._formMetadata.hasExtractedImage = false;
                 }
 
                 setRecipe(videoRecipe);

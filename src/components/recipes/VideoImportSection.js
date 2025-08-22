@@ -128,15 +128,22 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                 console.log(`✅ ${platform} video extraction successful:`, data.recipe.title);
 
                 setExtractionInfo({
-                    platform: data.videoInfo.platform,
-                    title: data.recipe.title,
-                    ingredients: data.recipe.ingredients.length,
-                    instructions: data.recipe.instructions.length,
-                    extractionMethod: data.extractionInfo.method,
-                    hasTimestamps: data.recipe.ingredients?.some(i => i.videoTimestamp) ||
-                        data.recipe.instructions?.some(i => i.videoTimestamp),
-                    cost: data.extractionInfo.cost?.total_usd || 0,
-                    videoDuration: data.recipe.videoMetadata?.videoDuration
+                    platform: data.videoInfo?.platform || platform,
+                    title: data.recipe?.title || 'Extracted Recipe',
+                    ingredients: data.recipe?.ingredients?.length || 0,
+                    instructions: data.recipe?.instructions?.length || 0,
+                    extractionMethod: data.extractionInfo?.method || 'universal-ai',
+                    hasTimestamps: Boolean(
+                        data.recipe?.ingredients?.some(i => i.videoTimestamp) ||
+                        data.recipe?.instructions?.some(i => i.videoTimestamp)
+                    ),
+                    hasExtractedImage: Boolean(
+                        data.recipe?.extractedImage ||
+                        data.extractedImage ||
+                        data.extractionInfo?.hasExtractedImage
+                    ),
+                    cost: data.extractionInfo?.cost?.total_usd || 0,
+                    videoDuration: data.recipe?.videoMetadata?.videoDuration || null
                 });
 
                 // Pass the extracted recipe to parent component

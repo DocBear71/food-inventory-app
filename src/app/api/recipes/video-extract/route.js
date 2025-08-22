@@ -154,6 +154,49 @@ const UNIVERSAL_PLATFORMS = {
     }
 };
 
+function safeTransformModalResponse(modalResponse) {
+    try {
+        // Ensure we have a valid response object
+        if (!modalResponse || typeof modalResponse !== 'object') {
+            console.error('❌ Invalid modal response:', modalResponse);
+            return {
+                success: false,
+                error: 'Invalid response from processing service'
+            };
+        }
+
+        // Transform snake_case to camelCase safely
+        const transformed = {
+            success: modalResponse.success || false,
+            extractionMethod: modalResponse.extraction_method || 'unknown',
+            urlVariant: modalResponse.url_variant || null,
+            videoTitle: modalResponse.video_title || null,
+            recipe: modalResponse.recipe || {},
+            source: modalResponse.source || null,
+            framesAnalyzed: modalResponse.frames_analyzed || 0,
+            extractedImage: modalResponse.extracted_image || null,
+            metadata: modalResponse.metadata || {}
+        };
+
+        // Debug logging
+        console.log('📸 TRANSFORM DEBUG: Original extracted_image exists:', !!modalResponse.extracted_image);
+        console.log('📸 TRANSFORM DEBUG: Transformed extractedImage exists:', !!transformed.extractedImage);
+
+        if (transformed.extractedImage) {
+            console.log('📸 TRANSFORM DEBUG: Image data length:', transformed.extractedImage.data?.length);
+        }
+
+        return transformed;
+
+    } catch (error) {
+        console.error('❌ Error transforming modal response:', error);
+        return {
+            success: false,
+            error: 'Failed to process response data'
+        };
+    }
+}
+
 function transformSnakeCaseToCamelCase(obj) {
     if (obj === null || typeof obj !== 'object' || obj instanceof Date) {
         return obj;
@@ -259,15 +302,15 @@ function transformUniversalDataToSchema(modalData, contentInfo) {
         },
 
         // ENHANCED: Extracted image data (if present)
-        ...(recipe.extractedImage && {
+        ...(recipe.extractedImage || result.extractedImage ? {
             extractedImage: {
-                data: recipe.extractedImage.data,
-                extractionMethod: recipe.extractedImage.extractionMethod,
-                frameCount: recipe.extractedImage.frameCount,
-                source: recipe.extractedImage.source || contentInfo.platform,
+                data: (recipe.extractedImage || result.extractedImage).data,
+                extractionMethod: (recipe.extractedImage || result.extractedImage).extractionMethod || 'video_frame',
+                frameCount: (recipe.extractedImage || result.extractedImage).frameCount || 1,
+                source: (recipe.extractedImage || result.extractedImage).source || contentInfo.platform,
                 extractedAt: new Date()
             }
-        }),
+        } : {}),
 
         // ENHANCED: Universal content metadata
         contentMetadata: {
