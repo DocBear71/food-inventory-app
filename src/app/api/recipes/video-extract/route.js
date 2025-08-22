@@ -154,6 +154,23 @@ const UNIVERSAL_PLATFORMS = {
     }
 };
 
+function transformSnakeCaseToCamelCase(obj) {
+    if (obj === null || typeof obj !== 'object' || obj instanceof Date) {
+        return obj;
+    }
+
+    if (Array.isArray(obj)) {
+        return obj.map(transformSnakeCaseToCamelCase);
+    }
+
+    const transformed = {};
+    for (const [key, value] of Object.entries(obj)) {
+        const camelKey = key.replace(/_([a-z])/g, (match, letter) => letter.toUpperCase());
+        transformed[camelKey] = transformSnakeCaseToCamelCase(value);
+    }
+    return transformed;
+}
+
 // ENHANCED: Universal platform detection
 function detectUniversalPlatform(url) {
     console.log('🌟 [VERCEL] Detecting universal platform for URL:', url);
@@ -314,14 +331,22 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
         // After calling Modal, before returning to frontend
         console.log('🔍 RAW MODAL RESPONSE:', JSON.stringify(modalResponse, null, 2));
         console.log('🔍 Response has extracted_image:', !!modalResponse.extracted_image);
-        console.log('🔍 Image data length:', modalResponse.extracted_image?.data?.length);
+        console.log('🔍 Image data available:', !!modalResponse.extracted_image?.data);
+
+        console.log('📸 MODAL DEBUG: result.extracted_image exists:', !!result.extracted_image);
+        console.log('📸 MODAL DEBUG: result.recipe.extractedImage exists:', !!result.recipe.extractedImage);
+        if (result.extracted_image) {
+            console.log('📸 MODAL DEBUG: Image data keys:', Object.keys(result.extracted_image));
+            console.log('📸 MODAL DEBUG: Image data length:', result.extracted_image.data?.length);
+        }
 
         if (!modalResponse.ok) {
             const errorText = await modalResponse.text();
             throw new Error(`Modal API error (${modalResponse.status}): ${errorText}`);
         }
 
-        const result = await modalResponse.json();
+        const rawResult = await modalResponse.json();
+        const result = transformSnakeCaseToCamelCase(rawResult);
 
         if (!result.success) {
             throw new Error(result.error || 'Universal Modal processing failed');
@@ -436,7 +461,7 @@ export async function POST(request) {
         return NextResponse.json({
             success: true,
             recipe: result.recipe,
-            extractedImage: result.extracted_image, // ADD THIS LINE
+            extractedImage: result.extracted_image || result.recipe.extractedImage,
             contentInfo: {
                 platform: contentInfo.platform,
                 contentId: contentInfo.contentId,
@@ -450,7 +475,7 @@ export async function POST(request) {
                 metadata: result.metadata || null,
                 hasTimestamps: result.recipe.instructions.some(i => i.videoTimestamp) ||
                     result.recipe.ingredients.some(i => i.videoTimestamp),
-                hasExtractedImage: !!(result.extracted_image), // FIX THIS LINE
+                hasExtractedImage: !!(result.recipe.extractedImage || result.extracted_image),
                 instructionCount: result.recipe.instructions.length,
                 ingredientCount: result.recipe.ingredients.length,
                 primaryExtractionMethod: result.metadata?.extraction_method || 'unknown',
