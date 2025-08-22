@@ -254,7 +254,9 @@ export default function ImportRecipePage() {
 
                 // Navigate to add page with the extracted recipe data
                 setTimeout(() => {
-                    router.push(`/recipes/add?imported=true&source=${platform}&data=${encodeURIComponent(JSON.stringify(data.recipe))}`);
+                    // Store recipe data in sessionStorage to avoid URL length limits
+                    sessionStorage.setItem('importedRecipe', JSON.stringify(data.recipe));
+                    router.push(`/recipes/add?imported=true&source=${platform}`);
                 }, 2000);
             } else {
                 throw new Error(data.error || `Failed to extract recipe from ${getPlatformName(platform)} content`);

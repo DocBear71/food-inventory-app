@@ -16,27 +16,47 @@ export default function AddRecipePage() {
     const [importSource, setImportSource] = useState(null);
 
     // Check for imported recipe data
+    // Check for imported recipe data
     useEffect(() => {
         const imported = searchParams.get('imported');
         const source = searchParams.get('source');
-        const dataParam = searchParams.get('data');
 
-        if (imported === 'true' && dataParam) {
-            try {
-                const decodedData = JSON.parse(decodeURIComponent(dataParam));
-                console.log('📥 Imported recipe data:', decodedData);
-                setImportedRecipeData(decodedData);
-                setImportSource(source || 'unknown');
+        if (imported === 'true') {
+            // Try sessionStorage first (for new method)
+            const storedRecipe = sessionStorage.getItem('importedRecipe');
+            if (storedRecipe) {
+                try {
+                    const decodedData = JSON.parse(storedRecipe);
+                    console.log('📥 Imported recipe data from sessionStorage:', decodedData);
+                    setImportedRecipeData(decodedData);
+                    setImportSource(source || 'unknown');
 
-                // Clean up URL parameters
-                const cleanUrl = new URL(window.location);
-                cleanUrl.searchParams.delete('imported');
-                cleanUrl.searchParams.delete('source');
-                cleanUrl.searchParams.delete('data');
-                window.history.replaceState({}, '', cleanUrl);
-            } catch (error) {
-                console.error('Error parsing imported recipe data:', error);
+                    // Clean up sessionStorage
+                    sessionStorage.removeItem('importedRecipe');
+                } catch (error) {
+                    console.error('Error parsing stored recipe data:', error);
+                }
+            } else {
+                // Fallback to URL parameter (for compatibility)
+                const dataParam = searchParams.get('data');
+                if (dataParam) {
+                    try {
+                        const decodedData = JSON.parse(decodeURIComponent(dataParam));
+                        console.log('📥 Imported recipe data from URL:', decodedData);
+                        setImportedRecipeData(decodedData);
+                        setImportSource(source || 'unknown');
+                    } catch (error) {
+                        console.error('Error parsing imported recipe data:', error);
+                    }
+                }
             }
+
+            // Clean up URL parameters
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('imported');
+            cleanUrl.searchParams.delete('source');
+            cleanUrl.searchParams.delete('data');
+            window.history.replaceState({}, '', cleanUrl);
         }
     }, [searchParams]);
 
