@@ -53,9 +53,11 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         isPWA: false
     });
 
-    // Enhanced barcode analysis state
+    // Enhanced barcode analysis state with debugging
     const [barcodeAnalysis, setBarcodeAnalysis] = useState(null);
     const [userRegion, setUserRegion] = useState('US');
+    const [debugInfo, setDebugInfo] = useState([]); // Debug information display
+    const [showDebug, setShowDebug] = useState(false); // Toggle debug visibility
 
     // State management refs
     const mountedRef = useRef(true);
@@ -100,18 +102,36 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         initializePlatformInfo();
     }, []);
 
-    // Load usage information
+    // Helper function to add debug information
+    const addDebugInfo = useCallback((message, data = null) => {
+        const timestamp = new Date().toLocaleTimeString();
+        const debugEntry = {
+            timestamp,
+            message,
+            data: data ? JSON.stringify(data, null, 2) : null
+        };
+
+        setDebugInfo(prev => [...prev.slice(-10), debugEntry]); // Keep last 10 entries
+        console.log(`DEBUG [${timestamp}]:`, message, data);
+    }, []);
+
+    // Load usage information with corrected API endpoint
     const loadUsageInfo = useCallback(async () => {
         try {
-            const response = await apiGet('/api/user/usage/barcode-scanning');
+            addDebugInfo('Loading usage info from corrected API endpoint');
+            const response = await apiGet('/api/upc/usage'); // Corrected endpoint
             if (response.ok) {
                 const data = await response.json();
                 setUsageInfo(data);
+                addDebugInfo('Usage info loaded successfully', data);
+            } else {
+                addDebugInfo('Usage API failed', { status: response.status, statusText: response.statusText });
             }
         } catch (error) {
+            addDebugInfo('Usage loading error', { error: error.message, stack: error.stack });
             console.log('Could not load usage info:', error);
         }
-    }, []);
+    }, [addDebugInfo]);
 
     useEffect(() => {
         loadUsageInfo();
@@ -586,31 +606,60 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, startCapacitorScan]);
 
-    // Choose the appropriate scanner function with proper permission handling
+    // FIXED: Enhanced startScan with comprehensive debugging and error handling
     const startScan = useCallback(async () => {
-        // FIXED: Check if we're actually in a native app context or web context
-        const isActuallyNative = platformInfo.isNative && window.Capacitor?.isNativePlatform;
+        addDebugInfo('START SCAN CALLED');
 
-        console.log('Starting scan - Environment check:', {
-            useNativeScanner,
-            isActuallyNative,
-            hasNativeScanner: !!nativeBarcodeScanner,
-            hasCapacitorScanner: !!capacitorBarcodeScanner
-        });
+        try {
+            // Environment check with detailed logging
+            const isActuallyNative = platformInfo.isNative && window.Capacitor?.isNativePlatform;
+            const environmentInfo = {
+                useNativeScanner,
+                isActuallyNative,
+                hasNativeScanner: !!nativeBarcodeScanner,
+                hasCapacitorScanner: !!capacitorBarcodeScanner,
+                windowCapacitor: !!window.Capacitor,
+                capacitorIsNative: window.Capacitor?.isNativePlatform,
+                platformInfo
+            };
 
-        if (useNativeScanner && isActuallyNative && nativeBarcodeScanner) {
-            console.log('Attempting native iOS scan...');
-            await startNativeScan();
-        } else {
-            console.log('Using Capacitor scanner for web/PWA context...');
-            if (capacitorBarcodeScanner) {
-                await startCapacitorScan();
+            addDebugInfo('Environment check before scan', environmentInfo);
+
+            // Set scanning state immediately
+            setIsScanning(true);
+            setError(null);
+            setScanFeedback('Initializing scanner...');
+            addDebugInfo('Scanner state set to scanning');
+
+            // Determine which scanner to use
+            if (useNativeScanner && isActuallyNative && nativeBarcodeScanner) {
+                addDebugInfo('Attempting native iOS scan');
+                setScanFeedback('Starting native iOS scanner...');
+                await startNativeScan();
             } else {
-                provideScanFeedback('error', 'No scanner available - camera permissions may be blocked');
-                setError('Camera not available. Please check browser permissions.');
+                addDebugInfo('Using Capacitor scanner for web/PWA context');
+                setScanFeedback('Starting camera scanner...');
+                if (capacitorBarcodeScanner) {
+                    await startCapacitorScan();
+                } else {
+                    const errorMsg = 'No scanner available - camera permissions may be blocked';
+                    addDebugInfo('Scanner error', errorMsg);
+                    provideScanFeedback('error', errorMsg);
+                    setError('Camera not available. Please check browser permissions.');
+                    setIsScanning(false);
+                }
             }
+        } catch (error) {
+            const errorInfo = {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            };
+            addDebugInfo('CRITICAL ERROR in startScan', errorInfo);
+            setError(`Scanner failed: ${error.message}`);
+            setIsScanning(false);
         }
-    }, [useNativeScanner, platformInfo, startNativeScan, startCapacitorScan, provideScanFeedback]);
+    }, [useNativeScanner, platformInfo, startNativeScan, startCapacitorScan, provideScanFeedback, addDebugInfo]);
 
     // FIXED: Scanner initialization with proper platform detection
     useEffect(() => {
@@ -754,7 +803,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             }
         >
             {/* Mobile Interface */}
-            <div className="fixed inset-0 bg-black z-50 flex flex-col" ref={scannerContainerRef}>
+            <div className="fixed inset-0 bg-black z-50 flex flex-col" ref={scannerContainerRef} data-scanner-modal="true">
                 {/* Enhanced Header */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div>
@@ -763,6 +812,53 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         </h3>
                         <div className="text-sm text-gray-300 mt-1">
                             {scanFeedback || `${useNativeScanner ? 'Native AVFoundation' : 'Capacitor'} optimized for ${userRegion} region`}
+
+                            {/* Debug Toggle Button */}
+                            <div className="mt-2">
+                                <TouchEnhancedButton
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setShowDebug(!showDebug);
+                                    }}
+                                    className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded"
+                                >
+                                    {showDebug ? 'Hide Debug' : 'Show Debug Info'}
+                                </TouchEnhancedButton>
+                            </div>
+
+                            {/* Debug Information Display */}
+                            {showDebug && (
+                                <div className="mt-3 bg-gray-800 text-gray-200 p-3 rounded text-xs max-h-48 overflow-y-auto">
+                                    <div className="font-bold mb-2">Debug Information:</div>
+                                    {debugInfo.slice(-5).map((entry, index) => (
+                                        <div key={index} className="mb-2 border-b border-gray-700 pb-1">
+                                            <div className="text-blue-300">[{entry.timestamp}] {entry.message}</div>
+                                            {entry.data && (
+                                                <pre className="text-gray-400 text-xs mt-1 whitespace-pre-wrap">
+                                                    {entry.data}
+                                                </pre>
+                                            )}
+                                        </div>
+                                    ))}
+
+                                    {/* Current State Display */}
+                                    <div className="mt-3 pt-2 border-t border-gray-700">
+                                        <div className="font-bold text-yellow-300">Current State:</div>
+                                        <div>isScanning: {isScanning ? 'true' : 'false'}</div>
+                                        <div>useNativeScanner: {useNativeScanner ? 'true' : 'false'}</div>
+                                        <div>hasError: {error ? 'true' : 'false'}</div>
+                                        <div>platformReady: {platformInfo ? 'true' : 'false'}</div>
+                                        {platformInfo && (
+                                            <div>
+                                                <div>isIOS: {platformInfo.isIOS ? 'true' : 'false'}</div>
+                                                <div>isNative: {platformInfo.isNative ? 'true' : 'false'}</div>
+                                                <div>isPWA: {platformInfo.isPWA ? 'true' : 'false'}</div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                         </div>
                         {/* Enhanced barcode analysis display */}
                         {barcodeAnalysis && (
@@ -788,17 +884,32 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
-                            // FORCE CLOSE: Always allow closing regardless of scanner state
-                            console.log('Force closing scanner - resetting all states');
+
+                            // ULTIMATE FORCE CLOSE - Reset everything and close immediately
+                            addDebugInfo('FORCE CLOSE X BUTTON - Resetting all states');
+
+                            // Reset all possible states
                             setIsScanning(false);
                             setError(null);
                             setScanFeedback('');
                             setBarcodeAnalysis(null);
-                            handleScannerClose();
+                            scanInProgressRef.current = false;
+
+                            // Force cleanup without waiting
+                            cleanupScanner().catch(err => {
+                                addDebugInfo('Cleanup error during force close', err);
+                            });
+
+                            // Close modal immediately - don't wait for cleanup
+                            if (onClose) {
+                                addDebugInfo('Calling onClose directly');
+                                onClose();
+                            }
                         }}
-                        className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
+                        className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-md font-bold"
+                        title="Force close scanner"
                     >
-                        ✕
+                        ✕ FORCE CLOSE
                     </TouchEnhancedButton>
                 </div>
 
@@ -913,18 +1024,38 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
-                                    // FORCE CLOSE: Always allow closing regardless of scanner state
-                                    console.log('Force closing scanner via footer - resetting all states');
+
+                                    // ULTIMATE FORCE CLOSE - Footer button
+                                    addDebugInfo('FORCE CLOSE FOOTER BUTTON - Emergency close');
+
+                                    // Nuclear option - reset everything immediately
                                     setIsScanning(false);
                                     setError(null);
                                     setScanFeedback('');
                                     setBarcodeAnalysis(null);
                                     scanInProgressRef.current = false;
-                                    handleScannerClose();
+
+                                    // Try cleanup but don't wait for it
+                                    cleanupScanner().catch(err => addDebugInfo('Footer cleanup error', err));
+
+                                    // Force close modal immediately
+                                    if (onClose) {
+                                        addDebugInfo('Footer: Calling onClose immediately');
+                                        onClose();
+                                    }
+
+                                    // Backup: try to remove modal from DOM after delay
+                                    setTimeout(() => {
+                                        const modal = document.querySelector('[data-scanner-modal]');
+                                        if (modal) {
+                                            addDebugInfo('Emergency DOM removal of modal');
+                                            modal.remove();
+                                        }
+                                    }, 100);
                                 }}
-                                className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
+                                className="w-full bg-red-600 hover:bg-red-700 text-white py-3 px-6 rounded-lg text-lg font-bold"
                             >
-                                {isScanning ? 'Force Close' : 'Close'}
+                                EMERGENCY CLOSE
                             </TouchEnhancedButton>
                         </div>
                     </>
