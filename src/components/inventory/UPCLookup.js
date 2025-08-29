@@ -1,4 +1,4 @@
-// file: /src/components/inventory/UPCLookup.js - v16 - Added iOS-specific barcode scanner support
+// file: /src/components/inventory/UPCLookup.js - v17 - Fixed Android camera reopening issue and iOS initialization
 
 'use client';
 
@@ -130,8 +130,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [aiClassification, setAiClassification] = useState(null);
     const [isAiClassifying, setIsAiClassifying] = useState(false);
 
-    // Platform detection
+    // FIXED: Platform detection state
     const [isIOS, setIsIOS] = useState(false);
+    const [isAndroid, setIsAndroid] = useState(false);
+    const [platformReady, setPlatformReady] = useState(false);
 
     // Add local UPC state to ensure input works properly
     const [localUPC, setLocalUPC] = useState(currentUPC);
@@ -151,9 +153,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const autocompleteTimeoutRef = useRef(null);
     const searchInputRef = useRef(null);
     const autocompleteRef = useRef(null);
+
+    // FIXED: Scanner state management refs
     const processingBarcodeRef = useRef(false);
     const lastProcessedBarcodeRef = useRef(null);
     const lastProcessedTimeRef = useRef(0);
+    const scannerClosingRef = useRef(false); // Prevent race conditions
 
     // Usage tracking state
     const subscription = useSubscription();
@@ -164,12 +169,21 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [userCurrencyInfo, setUserCurrencyInfo] = useState(null);
     const [isLoadingCurrency, setIsLoadingCurrency] = useState(true);
 
-    // Platform detection on mount
+    // FIXED: Platform detection on mount with proper state management
     useEffect(() => {
         const detectPlatform = () => {
             const iosDetected = PlatformDetection.isIOS();
+            const androidDetected = PlatformDetection.isAndroid();
+
             setIsIOS(iosDetected);
-            console.log('🔍 Platform detected:', iosDetected ? 'iOS' : 'Other', 'Platform info:', PlatformDetection.getPlatformInfo());
+            setIsAndroid(androidDetected);
+            setPlatformReady(true);
+
+            console.log('🔍 Platform detected:', {
+                iOS: iosDetected,
+                Android: androidDetected,
+                platformInfo: PlatformDetection.getPlatformInfo()
+            });
         };
 
         detectPlatform();
@@ -552,13 +566,13 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
-    // Barcode detected handler with enhanced validation
+    // FIXED: Barcode detected handler with race condition prevention
     const handleBarcodeDetectedWithImmediateUpdate = async (barcode) => {
-        console.log(`📱 Barcode scanned (${isIOS ? 'iOS' : 'Standard'}):`, barcode);
+        console.log(`📱 Barcode scanned (${isIOS ? 'iOS' : 'Android/Web'}):`, barcode);
 
-        // Prevent multiple rapid calls
-        if (processingBarcodeRef.current) {
-            console.log('Already processing a barcode, ignoring...');
+        // FIXED: Prevent multiple rapid calls and scanner closing race conditions
+        if (processingBarcodeRef.current || scannerClosingRef.current) {
+            console.log('Already processing a barcode or scanner is closing, ignoring...');
             return;
         }
 
@@ -588,7 +602,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
 
         const cleanBarcode = validation.cleanCode;
-        console.log(`✅ Valid barcode detected (${isIOS ? 'iOS' : 'Standard'}): ${cleanBarcode} (original: ${barcode})`);
+        console.log(`✅ Valid barcode detected: ${cleanBarcode} (original: ${barcode})`);
 
         // Update both local and parent state
         setLocalUPC(cleanBarcode);
@@ -596,38 +610,56 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             onUPCChange(cleanBarcode);
         }
 
+        // FIXED: Set closing flag and close scanner with proper cleanup
+        scannerClosingRef.current = true;
+        console.log('🔄 Closing scanner after successful scan...');
+
+        // Close scanner immediately
         setShowScanner(false);
 
-        // Scroll to UPC input after scanner closes
-        setTimeout(() => {
-            const upcInput = document.querySelector('input[name="upc"]') ||
-                document.querySelector('input[id="upc"]') ||
-                document.querySelector('#upc');
-
-            if (upcInput) {
-                console.log('📍 Scrolling to UPC input after scan');
-                upcInput.scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center',
-                    inline: 'nearest'
-                });
-                upcInput.focus();
+        // FIXED: Wait for scanner to fully close before processing
+        setTimeout(async () => {
+            if (!processingBarcodeRef.current) {
+                console.log('Processing was cancelled, skipping lookup');
+                scannerClosingRef.current = false;
+                return;
             }
-        }, 500);
 
-        // Process the barcode
-        try {
-            console.log('🔍 Starting auto-lookup for scanned barcode:', cleanBarcode);
-            await handleUPCLookupWithImmediateUpdate(cleanBarcode);
-        } catch (error) {
-            console.error('Auto-lookup failed:', error);
-            // Silently fail - UPC is already in the input field
-        } finally {
-            setTimeout(() => {
-                processingBarcodeRef.current = false;
-                console.log('✅ Ready for next barcode scan');
-            }, 1000);
-        }
+            // Scroll to UPC input after scanner closes
+            const scrollToInput = () => {
+                const upcInput = document.querySelector('input[name="upc"]') ||
+                    document.querySelector('input[id="upc"]') ||
+                    document.querySelector('#upc');
+
+                if (upcInput) {
+                    console.log('📍 Scrolling to UPC input after scan');
+                    upcInput.scrollIntoView({
+                        behavior: 'smooth',
+                        block: 'center',
+                        inline: 'nearest'
+                    });
+                    upcInput.focus();
+                }
+            };
+
+            scrollToInput();
+
+            // Process the barcode
+            try {
+                console.log('🔍 Starting auto-lookup for scanned barcode:', cleanBarcode);
+                await handleUPCLookupWithImmediateUpdate(cleanBarcode);
+            } catch (error) {
+                console.error('Auto-lookup failed:', error);
+                // Silently fail - UPC is already in the input field
+            } finally {
+                // FIXED: Proper cleanup with timing
+                setTimeout(() => {
+                    processingBarcodeRef.current = false;
+                    scannerClosingRef.current = false;
+                    console.log('✅ Ready for next barcode scan');
+                }, 1000);
+            }
+        }, 800); // Increased delay to ensure scanner fully closes
     };
 
     // AI classification function
@@ -686,14 +718,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 <div className="flex items-center justify-between">
                     <div>
                         <h4 className="text-sm font-medium text-blue-900">
-                            📊 UPC Scan Usage
+                            UPC Scan Usage
                             {isUpdatingUsage && (
                                 <span className="ml-2 text-xs text-blue-600">(Updating...)</span>
                             )}
                         </h4>
                         <p className="text-sm text-blue-700">
                             {currentUsageData.monthlyLimit === 'unlimited' ? (
-                                <span className="font-medium text-green-700">✨ Unlimited scans available</span>
+                                <span className="font-medium text-green-700">Unlimited scans available</span>
                             ) : (
                                 <>
                                     <strong>{currentUsageData.remaining} scans remaining</strong> this month
@@ -708,8 +740,8 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                         </p>
                         {userCurrencyInfo && !isLoadingCurrency && (
                             <p className="text-xs text-blue-600 mt-1">
-                                🌍 Enhanced for {userCurrencyInfo.currency} region
-                                {isIOS && <span className="ml-2">🍎 iOS-optimized scanner</span>}
+                                Enhanced for {userCurrencyInfo.currency} region
+                                {isIOS && <span className="ml-2">iOS-optimized scanner</span>}
                             </p>
                         )}
                     </div>
@@ -739,7 +771,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const loadUsageInfo = async () => {
         try {
             setIsLoadingUsage(true);
-            console.log('📊 Loading UPC usage information...');
+            console.log('Loading UPC usage information...');
 
             const response = await apiGet('/api/upc/usage');
 
@@ -747,7 +779,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 const data = await response.json();
                 setUsageInfo(data);
 
-                console.log('📊 UPC usage loaded:', {
+                console.log('UPC usage loaded:', {
                     remaining: data.remaining,
                     used: data.currentMonth,
                     limit: data.monthlyLimit,
@@ -806,21 +838,32 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
     // Check if camera is available
     const checkCameraAvailability = () => {
-        console.log('🔍 Checking camera availability...');
+        console.log('Checking camera availability...');
 
         if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-            console.log('❌ Camera API not supported');
+            console.log('Camera API not supported');
             setCameraAvailable(false);
             return false;
         }
 
-        console.log('✅ Camera API supported');
+        console.log('Camera API supported');
         setCameraAvailable(true);
         return true;
     };
 
-    // Scanner click with usage check
+    // FIXED: Scanner click with proper platform detection and cleanup
     const handleScannerClick = async () => {
+        // FIXED: Wait for platform detection to complete
+        if (!platformReady) {
+            console.log('Platform detection not ready, waiting...');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Initializing',
+                message: 'Initializing scanner, please wait...'
+            });
+            return;
+        }
+
         if (!checkCameraAvailability()) {
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showAlert({
@@ -834,7 +877,11 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             return;
         }
 
-        console.log(`🔄 Opening ${isIOS ? 'iOS' : 'standard'} barcode scanner...`);
+        // FIXED: Reset scanner state before opening
+        scannerClosingRef.current = false;
+        processingBarcodeRef.current = false;
+
+        console.log(`Opening ${isIOS ? 'iOS' : 'Android/Web'} barcode scanner...`);
         setShowScanner(true);
     };
 
@@ -842,7 +889,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const handleUPCInput = async (e) => {
         let upc = e.target.value.replace(/[^0-9]/g, '');
 
-        // 🍎 Native iOS input haptic
+        // Native iOS input haptic
         try {
             const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
             await MobileHaptics.selection();
@@ -868,15 +915,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         // Auto-lookup when UPC looks complete with better validation
         const validation = validateAndCleanUPC(upc);
         if (validation.valid && validation.cleanCode.length >= 8) {
-            console.log('🔍 Auto-triggering lookup for complete UPC:', validation.cleanCode);
+            console.log('Auto-triggering lookup for complete UPC:', validation.cleanCode);
             handleUPCLookupWithImmediateUpdate(validation.cleanCode);
         }
     };
 
-
     // Manual lookup handler
     const handleManualLookup = async () => {
-        // 🍎 Native iOS button haptic
+        // Native iOS button haptic
         try {
             const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
             await MobileHaptics.buttonTap();
@@ -903,17 +949,19 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
     // Rest of the component (autocomplete and search functions)...
     const debugAPIEndpoint = () => {
-        console.log('🔍 UPC API Debug:', {
+        console.log('UPC API Debug:', {
             currentURL: window.location.href,
             apiEndpoint: '/api/upc',
             userCurrency: userCurrencyInfo?.currency || 'Loading...',
-            platform: isIOS ? 'iOS' : 'Other'
+            platform: isIOS ? 'iOS' : isAndroid ? 'Android' : 'Other'
         });
     };
 
     useEffect(() => {
-        debugAPIEndpoint();
-    }, [isIOS]);
+        if (platformReady) {
+            debugAPIEndpoint();
+        }
+    }, [platformReady, isIOS, isAndroid]);
 
     // Handle clicks outside autocomplete to close it
     useEffect(() => {
@@ -939,10 +987,11 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
     // Add function to clear barcode memory
     const clearBarcodeMemory = () => {
-        console.log('🧹 Clearing barcode memory');
+        console.log('Clearing barcode memory');
         lastProcessedBarcodeRef.current = null;
         lastProcessedTimeRef.current = 0;
         processingBarcodeRef.current = false;
+        scannerClosingRef.current = false;
     };
 
     useEffect(() => {
@@ -964,6 +1013,26 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         };
     }, []);
 
+    // FIXED: Scanner close handler with proper cleanup
+    const handleScannerClose = useCallback(() => {
+        console.log('Scanner close requested');
+
+        // Set closing flag to prevent race conditions
+        scannerClosingRef.current = true;
+
+        // Reset processing state
+        processingBarcodeRef.current = false;
+
+        // Close scanner
+        setShowScanner(false);
+
+        // Reset flags after a delay
+        setTimeout(() => {
+            scannerClosingRef.current = false;
+            console.log('Scanner close completed');
+        }, 500);
+    }, []);
+
     // Autocomplete functionality with rate limiting protection
     const performAutocomplete = async (query) => {
         if (!query.trim() || query.length < 3) {
@@ -973,7 +1042,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
 
         try {
-            console.log('🔍 Starting autocomplete for:', query);
+            console.log('Starting autocomplete for:', query);
 
             const params = new URLSearchParams({
                 query: query.trim(),
@@ -983,7 +1052,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
             const response = await apiGet(`/api/upc/search?${params}`);
 
-            console.log('🔍 Autocomplete response status:', response.status);
+            console.log('Autocomplete response status:', response.status);
 
             if (response.ok) {
                 const responseText = await response.text();
@@ -992,13 +1061,13 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 try {
                     data = JSON.parse(responseText);
                 } catch (parseError) {
-                    console.log('❌ Autocomplete JSON parse error:', parseError);
+                    console.log('Autocomplete JSON parse error:', parseError);
                     setAutocompleteResults([]);
                     setShowAutocomplete(false);
                     return;
                 }
 
-                console.log('🔍 Autocomplete response:', {
+                console.log('Autocomplete response:', {
                     success: data.success,
                     resultsCount: data.results?.length || 0
                 });
@@ -1012,27 +1081,27 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
                     setAutocompleteResults(suggestions);
                     setShowAutocomplete(suggestions.length > 0);
-                    console.log(`✅ Autocomplete: ${suggestions.length} suggestions`);
+                    console.log(`Autocomplete: ${suggestions.length} suggestions`);
                 } else {
                     setAutocompleteResults([]);
                     setShowAutocomplete(false);
                 }
             } else {
                 // Silently fail for autocomplete
-                console.log('❌ Autocomplete failed, status:', response.status);
+                console.log('Autocomplete failed, status:', response.status);
                 setAutocompleteResults([]);
                 setShowAutocomplete(false);
             }
 
         } catch (error) {
             // Silently handle autocomplete errors
-            console.log('❌ Autocomplete error (silent):', error.message);
+            console.log('Autocomplete error (silent):', error.message);
             setAutocompleteResults([]);
             setShowAutocomplete(false);
         }
     };
 
-// Handle search input changes with better rate limiting
+    // Handle search input changes with better rate limiting
     const handleSearchInputChange = (e) => {
         const query = e.target.value;
         setSearchQuery(query);
@@ -1064,14 +1133,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         // Debounced search
         searchTimeoutRef.current = setTimeout(() => {
             if (query.trim() && query.length >= 3) {
-                console.log('🔍 Triggering search for:', query);
+                console.log('Triggering search for:', query);
                 setSearchPage(1);
                 performTextSearchWithImmediateUpdate(query, 1);
             }
         }, 1000);
     };
 
-// Handle autocomplete selection
+    // Handle autocomplete selection
     const handleAutocompleteSelect = (suggestion) => {
         setSearchQuery(suggestion.name);
         setShowAutocomplete(false);
@@ -1080,13 +1149,13 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         performTextSearchWithImmediateUpdate(suggestion.name, 1);
     };
 
-// Handle search result selection
+    // Handle search result selection
     const handleSearchResultSelect = async (product) => {
         setLookupResult({success: true, product});
         onProductFound(product);
 
         if (product.name && (!product.category || product.category === 'Other' || product.category === 'Unknown')) {
-            console.log('🤖 Enhancing search result with AI classification...');
+            console.log('Enhancing search result with AI classification...');
             await performAiClassification(product.name, product);
         }
 
@@ -1105,23 +1174,23 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         setAutocompleteResults([]);
 
         // Refresh usage after search result selection
-        console.log('🔄 Refreshing usage info after search result selection...');
+        console.log('Refreshing usage info after search result selection...');
         await loadUsageInfo();
     };
 
-// Handle pagination
+    // Handle pagination
     const handlePageChange = (newPage) => {
         setSearchPage(newPage);
         performTextSearchWithImmediateUpdate(searchQuery, newPage);
     };
 
-// Manual close function for autocomplete
+    // Manual close function for autocomplete
     const handleCloseAutocomplete = () => {
         setShowAutocomplete(false);
         setAutocompleteResults([]);
     };
 
-// Handle input focus to show autocomplete again if there are results
+    // Handle input focus to show autocomplete again if there are results
     const handleSearchInputFocus = () => {
         if (autocompleteResults.length > 0 && searchQuery.length >= 3) {
             setShowAutocomplete(true);
@@ -1152,7 +1221,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                     >
-                        📷 UPC/Barcode {isIOS && '(iOS)'}
+                        UPC/Barcode {isIOS && '(iOS)'}
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
                         type="button"
@@ -1168,7 +1237,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                         }`}
                     >
-                        🔍 Search by Name
+                        Search by Name
                     </TouchEnhancedButton>
                 </nav>
             </div>
@@ -1178,7 +1247,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
-                            {isIOS ? '🍎 iOS UPC/Barcode Scanner (Enhanced for US Products)' : '🇺🇸 UPC/Barcode Scanner (Enhanced for US Products)'}
+                            {isIOS ? 'iOS UPC/Barcode Scanner (Enhanced for US Products)' : 'UPC/Barcode Scanner (Enhanced for US Products)'}
                         </label>
 
                         <NativeTextInput
@@ -1204,13 +1273,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={handleScannerClick}
-                                disabled={isLooking}
+                                disabled={isLooking || !platformReady}
                                 className={`flex-1 px-4 py-2 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-400 ${
-                                    cameraAvailable ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
+                                    cameraAvailable && platformReady ? 'bg-blue-600 hover:bg-blue-700' : 'bg-gray-500 cursor-not-allowed'
                                 }`}
                                 title={cameraAvailable ? `Scan barcode with ${isIOS ? 'iOS' : 'standard'} camera` : 'Camera not available on this device'}
                             >
-                                📷 {cameraAvailable ? (isIOS ? 'iOS Scan' : 'Scan Barcode') : 'No Camera'}
+                                {!platformReady ? 'Initializing...' :
+                                    cameraAvailable ? (isIOS ? 'iOS Scan' : 'Scan Barcode') : 'No Camera'}
                             </TouchEnhancedButton>
 
                             <TouchEnhancedButton
@@ -1219,7 +1289,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 disabled={!localUPC || isLooking}
                                 className="flex-1 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500 disabled:bg-gray-400"
                             >
-                                {isLooking ? '🔍 Looking up...' : '🔍 Lookup Product'}
+                                {isLooking ? 'Looking up...' : 'Lookup Product'}
                             </TouchEnhancedButton>
 
                             <TouchEnhancedButton
@@ -1233,18 +1303,18 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                                 disabled={!localUPC || localUPC.length < 8 || isAiClassifying}
                                 className="flex-1 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 focus:outline-none focus:ring-2 focus:ring-purple-500 disabled:bg-gray-400"
                             >
-                                {isAiClassifying ? '🤖 AI Analyzing...' : '🤖 AI Classify'}
+                                {isAiClassifying ? 'AI Analyzing...' : 'AI Classify'}
                             </TouchEnhancedButton>
                         </div>
 
                         {/* Enhanced help text with platform-specific info */}
                         <div className="mt-2 text-xs text-gray-500 space-y-1">
-                            <div>💡 <strong>{isIOS ? 'iOS-Enhanced' : 'Enhanced'} Barcode Support:</strong></div>
+                            <div><strong>{isIOS ? 'iOS-Enhanced' : 'Enhanced'} Barcode Support:</strong></div>
                             <div>• UPC-A (12 digits, US standard): 046000861210</div>
                             <div>• Enhanced validation for US domestic products</div>
                             <div>• Auto-detection and cleanup of common UPC formats</div>
                             <div>• International barcode support with regional optimization</div>
-                            {isIOS && <div>• 🍎 iOS-optimized scanner using ZXing technology</div>}
+                            {isIOS && <div>• iOS-optimized scanner using native technology</div>}
                             {userCurrencyInfo && !isLoadingCurrency && (
                                 <div>• Currently optimized for {userCurrencyInfo.currency} products</div>
                             )}
@@ -1252,24 +1322,20 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     </div>
 
                     {/* Platform-Specific Scanner Component */}
-                    {isIOS ? (
-                        <BarcodeScannerIOS
-                            isActive={showScanner}
-                            onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
-                            onClose={() => {
-                                console.log('🍎 Closing iOS barcode scanner...');
-                                setShowScanner(false);
-                            }}
-                        />
-                    ) : (
-                        <BarcodeScanner
-                            isActive={showScanner}
-                            onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
-                            onClose={() => {
-                                console.log('🔄 Closing standard barcode scanner...');
-                                setShowScanner(false);
-                            }}
-                        />
+                    {showScanner && platformReady && (
+                        isIOS ? (
+                            <BarcodeScannerIOS
+                                isActive={showScanner}
+                                onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
+                                onClose={handleScannerClose}
+                            />
+                        ) : (
+                            <BarcodeScanner
+                                isActive={showScanner}
+                                onBarcodeDetected={handleBarcodeDetectedWithImmediateUpdate}
+                                onClose={handleScannerClose}
+                            />
+                        )
                     )}
                 </div>
             )}
