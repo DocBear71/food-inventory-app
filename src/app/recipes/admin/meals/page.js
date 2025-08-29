@@ -8,7 +8,12 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 const MEAL_CATEGORIES = [
     { value: 'protein', label: 'Protein', icon: '🥩' },
@@ -165,11 +170,19 @@ export default function CuratedMealsAdmin() {
                 resetForm();
                 showToast(data.message || 'Meal saved successfully!');
             } else {
-                alert('Error: ' + data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Save Failed',
+                    message: data.error || 'Failed to save meal. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error saving meal:', error);
-            alert('Error saving meal');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Save Error',
+                message: 'Unable to save meal. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -202,7 +215,15 @@ export default function CuratedMealsAdmin() {
     };
 
     const handleDelete = async (mealId) => {
-        if (!confirm('Are you sure you want to delete this meal?')) return;
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete Meal',
+            message: 'Are you sure you want to delete this meal? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+
+        if (!confirmed) return;
 
         try {
             const response = await apiDelete(`/api/admin/meals?mealId=${mealId}`);
@@ -213,11 +234,19 @@ export default function CuratedMealsAdmin() {
                 await fetchMeals();
                 showToast('Meal deleted successfully');
             } else {
-                alert('Error: ' + data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: data.error || 'Failed to delete meal. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error deleting meal:', error);
-            alert('Error deleting meal');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Error',
+                message: 'Unable to delete meal. Please try again.'
+            });
         }
     };
 
@@ -231,7 +260,11 @@ export default function CuratedMealsAdmin() {
                 await fetchMeals();
                 showToast('Meal approved successfully');
             } else {
-                alert('Error: ' + data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Approval Failed',
+                    message: data.error || 'Failed to approve meal. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error approving meal:', error);
@@ -239,7 +272,15 @@ export default function CuratedMealsAdmin() {
     };
 
     const handleReject = async (mealId) => {
-        const reason = prompt('Please provide a reason for rejection:');
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const reason = await NativeDialog.showPrompt({
+            title: 'Reject Meal',
+            message: 'Please provide a reason for rejection:',
+            placeholder: 'Enter rejection reason...',
+            confirmText: 'Reject',
+            cancelText: 'Cancel'
+        });
+
         if (!reason) return;
 
         try {
@@ -249,9 +290,17 @@ export default function CuratedMealsAdmin() {
 
             if (data.success) {
                 await fetchMeals();
-                alert('Meal rejected');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Meal Rejected',
+                    message: 'The meal has been rejected successfully.'
+                });
             } else {
-                alert('Error: ' + data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Rejection Failed',
+                    message: data.error || 'Failed to reject meal. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error rejecting meal:', error);
@@ -470,13 +519,17 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Meal Name *
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="text"
                                         required
                                         value={formData.name}
                                         onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Grilled Chicken Dinner"
+                                        autoComplete="off"
+                                        validation={ValidationPatterns.required}
+                                        errorMessage="Please enter a meal name"
+                                        successMessage="Meal name looks good!"
                                     />
                                 </div>
 
@@ -484,13 +537,16 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Description *
                                     </label>
-                                    <textarea
+                                    <NativeTextarea
                                         required
-                                        rows="3"
+                                        rows={3}
                                         value={formData.description}
                                         onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
-                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="Describe this meal and what makes it special..."
+                                        validation={ValidationPatterns.required}
+                                        errorMessage="Please enter a description"
+                                        successMessage="Description looks great!"
+                                        autoExpand={false}
                                     />
                                 </div>
 
@@ -498,14 +554,24 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Estimated Time (minutes) *
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         min="5"
                                         max="300"
                                         required
                                         value={formData.estimatedTime}
                                         onChange={(e) => setFormData(prev => ({ ...prev, estimatedTime: parseInt(e.target.value) }))}
-                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="30"
+                                        autoComplete="off"
+                                        validation={(value) => {
+                                            const num = parseInt(value);
+                                            if (!num || num < 5 || num > 300) return { isValid: false, message: 'Time must be between 5-300 minutes' };
+                                            return { isValid: true, message: 'Time looks good!' };
+                                        }}
+                                        errorMessage="Please enter a valid time (5-300 minutes)"
+                                        successMessage="Time looks good!"
                                     />
                                 </div>
 
@@ -513,13 +579,23 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Servings
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         min="1"
                                         max="20"
                                         value={formData.servings}
                                         onChange={(e) => setFormData(prev => ({ ...prev, servings: parseInt(e.target.value) }))}
-                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="4"
+                                        autoComplete="off"
+                                        validation={(value) => {
+                                            const num = parseInt(value);
+                                            if (!num || num < 1 || num > 20) return { isValid: false, message: 'Servings must be between 1-20' };
+                                            return { isValid: true, message: 'Servings look good!' };
+                                        }}
+                                        errorMessage="Please enter valid servings (1-20)"
+                                        successMessage="Servings look good!"
                                     />
                                 </div>
 
@@ -578,12 +654,17 @@ export default function CuratedMealsAdmin() {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Source (optional)
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="text"
                                         value={formData.source}
                                         onChange={(e) => setFormData(prev => ({ ...prev, source: e.target.value }))}
-                                        className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Family Recipe, Doc Bear's Volume 1"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value ? 'Source noted' : ''
+                                        })}
                                     />
                                 </div>
                             </div>
@@ -700,13 +781,18 @@ export default function CuratedMealsAdmin() {
                                     ))}
                                 </div>
                                 <div className="flex gap-2">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="text"
                                         value={newTag}
                                         onChange={(e) => setNewTag(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
-                                        className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Add tag (e.g., comfort-food, quick, family-friendly)"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 2 ? 'Press Add to include this tag' : ''
+                                        })}
                                     />
                                     <TouchEnhancedButton
                                         type="button"
@@ -738,13 +824,18 @@ export default function CuratedMealsAdmin() {
                                     ))}
                                 </div>
                                 <div className="flex gap-2">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="text"
                                         value={newTip}
                                         onChange={(e) => setNewTip(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addCookingTip())}
-                                        className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Add cooking tip..."
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 5 ? 'Press Add to include this tip' : ''
+                                        })}
                                     />
                                     <TouchEnhancedButton
                                         type="button"
@@ -779,13 +870,18 @@ export default function CuratedMealsAdmin() {
                                     ))}
                                 </div>
                                 <div className="flex gap-2">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="text"
                                         value={newNutritionTag}
                                         onChange={(e) => setNewNutritionTag(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addNutritionTag())}
-                                        className="flex-1 border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Add nutrition tag (e.g., high-protein, low-carb, heart-healthy)"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 3 ? 'Press Add to include this nutrition tag' : ''
+                                        })}
                                     />
                                     <TouchEnhancedButton
                                         type="button"

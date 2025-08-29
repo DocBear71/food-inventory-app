@@ -387,8 +387,15 @@ export default function UnifiedShoppingListModal({
         console.log(`🔄 Reordered ${draggedItemName} in ${targetCategory}:`, newOrder);
     };
 
-    const resetCustomOrder = () => {
-        if (confirm('Reset custom order to default? This cannot be undone.')) {
+    const resetCustomOrder = async () => {
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Reset Custom Order',
+            message: 'Reset custom order to default? This cannot be undone.',
+            confirmText: 'Reset',
+            cancelText: 'Cancel'
+        });
+        if (confirmed) {
             localStorage.removeItem('shopping-list-custom-order');
             setCustomOrder({});
             console.log('🔄 Reset custom order to default');
@@ -1359,9 +1366,16 @@ export default function UnifiedShoppingListModal({
                                     Categories organized using your custom order for {selectedStore}
                                 </span>
                                 <TouchEnhancedButton
-                                    onClick={() => {
+                                    onClick={async () => {
                                         // Open stores page to manage category order
-                                        if (confirm('Would you like to edit the category order for this store?')) {
+                                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                                        const confirmed = await NativeDialog.showConfirm({
+                                            title: 'Edit Category Order',
+                                            message: 'Would you like to edit the category order for this store?',
+                                            confirmText: 'Edit',
+                                            cancelText: 'Cancel'
+                                        });
+                                        if (confirmed) {
                                             window.open('/stores', '_blank');
                                         }
                                     }}

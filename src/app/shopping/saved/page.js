@@ -9,7 +9,10 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 export default function SavedShoppingListsPage() {
     let session = null;
@@ -85,15 +88,23 @@ export default function SavedShoppingListsPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to fetch saved lists');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Fetch Failed',
+                    message: result.error || 'Failed to fetch saved lists'
+                });
+                return;
             }
 
             setSavedLists(result.lists || []);
             setStats(result.stats || {});
-            setError('');
         } catch (error) {
             console.error('Error fetching saved lists:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Fetch Error',
+                message: error.message
+            });
         } finally {
             setLoading(false);
         }
@@ -111,7 +122,12 @@ export default function SavedShoppingListsPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to load shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Load Failed',
+                    message: result.error || 'Failed to load shopping list'
+                });
+                return;
             }
 
             setShowingListData(result.shoppingList);
@@ -122,7 +138,11 @@ export default function SavedShoppingListsPage() {
 
         } catch (error) {
             console.error('Error loading shopping list:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: error.message
+            });
         }
     };
 
@@ -153,7 +173,12 @@ export default function SavedShoppingListsPage() {
             console.log('🗑️ Frontend - Response data:', result);
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to delete lists');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: result.error || 'Failed to delete lists'
+                });
+                return;
             }
 
             setSelectedLists([]);
@@ -169,7 +194,11 @@ export default function SavedShoppingListsPage() {
 
         } catch (error) {
             console.error('🗑️ Frontend - Error deleting lists:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Error',
+                message: error.message
+            });
             showToast('Failed to delete lists: ' + error.message, 'error');
         }
     };
@@ -181,7 +210,12 @@ export default function SavedShoppingListsPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to unarchive lists');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Unarchive Failed',
+                    message: result.error || 'Failed to unarchive lists'
+                });
+                return;
             }
 
             setSelectedLists([]);
@@ -191,7 +225,11 @@ export default function SavedShoppingListsPage() {
 
         } catch (error) {
             console.error('Error unarchiving lists:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Unarchive Error',
+                message: error.message
+            });
         }
     };
 
@@ -313,12 +351,17 @@ export default function SavedShoppingListsPage() {
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Filter by Tags
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 type="text"
-                                value={filters.tags}
-                                onChange={(e) => setFilters({ ...filters, tags: e.target.value })}
-                                placeholder="weekly, healthy, quick..."
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm bg-white focus:ring-indigo-500 focus:border-indigo-500"
+                                inputMode="search"
+                                value={filters.searchTerm || ''}
+                                onChange={(e) => setFilters(prev => ({ ...prev, searchTerm: e.target.value }))}
+                                placeholder="Weekly Healthy Quick..."
+                                autoComplete="off"
+                                validation={(value) => ({
+                                    isValid: true,
+                                    message: value && value.length > 2 ? `Searching for "${value}"` : ''
+                                })}
                             />
                         </div>
 

@@ -200,7 +200,12 @@ function PWAInstallBannerContent() {
                 document.querySelector('.fixed').remove();
                 window.location.reload();
             } else {
-                throw new Error('Failed to disable banner');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Banner Disable Failed',
+                    message: 'Failed to disable banner'
+                });
+                return;
             }
         } catch (error) {
             console.error('Failed to disable PWA banner:', error);
@@ -267,9 +272,13 @@ function PWAInstallBannerContent() {
         window.disablePWABanner = disablePWABanner;
     }
 
-    const showManualInstructions = () => {
+    const showManualInstructions = async () => {
         if (typeof window !== 'undefined') {
-            alert('Look for an "Add to Home Screen" or "Install" option in your browser menu.');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Install App',
+                message: 'Look for an "Add to Home Screen" or "Install" option in your browser menu.'
+            });
         }
     };
 

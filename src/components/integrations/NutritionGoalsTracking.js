@@ -70,7 +70,12 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate, onProfile
                     }
                 }
             } else {
-                throw new Error(result.error || 'Failed to save goals');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Save Failed',
+                    message: result.error || 'Failed to save goals'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error saving goals:', error);
@@ -152,7 +157,12 @@ export function NutritionGoalsTracking({ data, loading, onGoalsUpdate, onProfile
                     3000
                 );
             } else {
-                throw new Error(result.error || 'Failed to save template');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Template Save Failed',
+                    message: result.error || 'Failed to save template'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error saving template:', error);

@@ -111,6 +111,8 @@ export const TextInput = forwardRef(({
             style={{
                 fontSize: '16px', // Prevent iOS zoom
                 WebkitAppearance: 'none',
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
                 ...props.style
             }}
             {...props}
@@ -151,6 +153,8 @@ export const Checkbox = forwardRef(({
                     // Ensure proper touch target size on mobile
                     minWidth: '44px',
                     minHeight: '44px',
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
                     ...props.style
                 }}
                 {...props}
@@ -202,6 +206,8 @@ export const Radio = forwardRef(({
                     // Ensure proper touch target size on mobile
                     minWidth: '44px',
                     minHeight: '44px',
+                    WebkitTapHighlightColor: 'transparent',
+                    touchAction: 'manipulation',
                     ...props.style
                 }}
                 {...props}
@@ -251,6 +257,9 @@ export const Select = forwardRef(({
             className={`${baseClasses} ${className}`}
             style={{
                 fontSize: '16px', // Prevent iOS zoom
+                WebkitAppearance: 'none',
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
                 ...props.style
             }}
             {...props}
@@ -310,6 +319,9 @@ export const TextArea = forwardRef(({
             autoCapitalize="sentences"
             style={{
                 fontSize: '16px', // Prevent iOS zoom
+                WebkitAppearance: 'none',
+                WebkitTapHighlightColor: 'transparent',
+                touchAction: 'manipulation',
                 minHeight: '80px',
                 ...props.style
             }}

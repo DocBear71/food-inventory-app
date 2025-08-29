@@ -1091,18 +1091,23 @@ export function exportAIData(userId) {
     }
 }
 
-export function importAIData(userId, importData) {
+export async function importAIData(userId, importData) {
     try {
         if (importData.userId !== userId) {
-            throw new Error('User ID mismatch');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'ID Mismatch',
+                message: 'User ID mismatch'
+            });
+            return;
         }
 
         localStorage.setItem(`shopping-behavior-${userId}`, JSON.stringify(importData.behaviorData));
         console.log('🔄 AI data imported successfully');
-        return { success: true };
+        return {success: true};
     } catch (error) {
         console.error('Import error:', error);
-        return { success: false, error: error.message };
+        return {success: false, error: error.message};
     }
 }
 

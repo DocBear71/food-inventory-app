@@ -9,7 +9,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 function VerifyParentalConsentContent() {
     const router = useRouter();
@@ -142,7 +142,7 @@ function VerifyParentalConsentContent() {
 
                                 <div className="space-y-3">
                                     <TouchEnhancedButton
-                                        onClick={() => router.push('/auth/signin')}
+                                        onClick={() => NativeNavigation.routerPush(router, '/auth/signin')}
                                         className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                     >
                                         Continue to Sign In

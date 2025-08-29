@@ -8,7 +8,10 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { formatInventoryDisplayText } from '@/lib/inventoryDisplayUtils';
 import {apiPost, apiPut} from "@/lib/api-config.js";
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 export default function AddItemsPage() {
     const [activeTab, setActiveTab] = useState('inventory');
@@ -69,7 +72,11 @@ export default function AddItemsPage() {
             }
         } catch (error) {
             console.error('Error loading inventory:', error);
-            setError('Failed to load inventory');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Failed',
+                message: 'Failed to load inventory'
+            });
         } finally {
             setLoading(false);
         }
@@ -82,7 +89,14 @@ export default function AddItemsPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to load consumption history');
+                if (!response.ok) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Load Failed',
+                        message: result.error || 'Failed to load consumption history'
+                    });
+                    return;
+                }
             }
 
             // Filter by date range and group by item
@@ -131,7 +145,11 @@ export default function AddItemsPage() {
             setConsumedItems(items);
         } catch (error) {
             console.error('Error loading consumed items:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: error.message
+            });
         } finally {
             setLoading(false);
         }
@@ -271,7 +289,11 @@ export default function AddItemsPage() {
         }
 
         if (itemsToAdd.length === 0) {
-            setError('Please select or add at least one item');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'No Items Selected',
+                message: 'Please select or add at least one item to continue.'
+            });
             return;
         }
 
@@ -382,7 +404,11 @@ export default function AddItemsPage() {
             }
 
             if (itemsToAdd.length === 0) {
-                setError('Please select or add at least one item');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Items Selected',
+                    message: 'Please select or add at least one item to create a shopping list.'
+                });
                 return;
             }
 
@@ -402,7 +428,14 @@ export default function AddItemsPage() {
                 });
 
                 const result = await response.json();
-                if (!response.ok) throw new Error(result.error);
+                if (!response.ok) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Creation Failed',
+                        message: result.error
+                    });
+                    return;
+                }
 
                 showToast(`✅ Created new shopping list: "${newListName}" with ${itemsToAdd.length} items!`);
 
@@ -411,7 +444,14 @@ export default function AddItemsPage() {
                 const getResponse = await apiGet(`/api/shopping/saved/${selectedExistingList}`);
                 const getResult = await getResponse.json();
 
-                if (!getResponse.ok) throw new Error(getResult.error);
+                if (!getResponse.ok) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Get List Failed',
+                        message: getResult.error
+                    });
+                    return;
+                }
 
                 const existingList = getResult.savedList;
 
@@ -426,7 +466,14 @@ export default function AddItemsPage() {
                 });
 
                 const updateResult = await updateResponse.json();
-                if (!updateResponse.ok) throw new Error(updateResult.error);
+                if (!updateResponse.ok) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Update Failed',
+                        message: updateResult.error
+                    });
+                    return;
+                }
 
                 showToast(`✅ Added ${newItems.length} new items to existing shopping list!`);
             }
@@ -435,8 +482,17 @@ export default function AddItemsPage() {
             setSelectedItems(new Set());
             setShowListChoice(false);
 
-            if (confirm('Shopping list updated! Would you like to view your saved lists?')) {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            const viewLists = await NativeDialog.showConfirm({
+                title: 'Shopping List Created!',
+                message: 'Your shopping list has been updated successfully. Would you like to view your saved lists?',
+                confirmText: 'View Lists',
+                cancelText: 'Stay Here'
+            });
+
+            if (viewLists) {
                 window.location.href = '/shopping/saved';
+
             } else {
                 // Reset the form
                 if (activeTab === 'manual') {
@@ -446,7 +502,11 @@ export default function AddItemsPage() {
 
         } catch (error) {
             console.error('Error creating shopping list:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Creation Failed',
+                message: error.message
+            });
             showToast(`Error: ${error.message}`, 'error');
         } finally {
             setLoading(false);
@@ -548,12 +608,17 @@ export default function AddItemsPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         🔍 Search Items
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="search"
                                         value={inventorySearch}
                                         onChange={(e) => setInventorySearch(e.target.value)}
                                         placeholder="Search by name or brand..."
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 1 ? `Searching inventory for "${value}"` : ''
+                                        })}
                                     />
                                 </div>
 
@@ -657,12 +722,17 @@ export default function AddItemsPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         🔍 Search Items
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="search"
                                         value={consumedSearch}
                                         onChange={(e) => setConsumedSearch(e.target.value)}
                                         placeholder="Search by item name..."
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 text-sm"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 1 ? `Searching consumed items for "${value}"` : ''
+                                        })}
                                     />
                                 </div>
                             </div>

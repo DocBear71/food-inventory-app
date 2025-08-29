@@ -52,7 +52,12 @@ export class ModalNutritionService {
             }
 
             if (allIngredients.length === 0) {
-                throw new Error('No valid ingredients found for analysis');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Ingredients Failed',
+                    message: 'No valid ingredients found for analysis'
+                });
+                return;
             }
 
             // Prepare data for Modal service
@@ -81,7 +86,12 @@ export class ModalNutritionService {
             const modalResult = await modalBridge.analyzeNutrition(modalData);
 
             if (!modalResult.success) {
-                throw new Error(modalResult.error || 'Modal nutrition analysis failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Nutrition Failed',
+                    message: modalResult.error || 'Modal nutrition analysis failed'
+                });
+                return;
             }
 
             const processingTime = Date.now() - startTime;

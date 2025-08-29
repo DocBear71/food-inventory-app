@@ -2,6 +2,7 @@
 
 import { Capacitor } from '@capacitor/core';
 import { Preferences } from '@capacitor/preferences';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export class MobileAuthStorage {
     static async setSession(session) {
@@ -49,7 +50,6 @@ export class MobileAuthStorage {
 // Enhanced sign-in handler that stores session in mobile storage
 export const handleMobileSignIn = async (credentials, { setLoading, setError, setRedirecting, router }) => {
     setLoading(true);
-    setError('');
 
     try {
         // Import signIn dynamically to avoid SSR issues
@@ -63,7 +63,11 @@ export const handleMobileSignIn = async (credentials, { setLoading, setError, se
         console.log('SignIn result:', result);
 
         if (result?.error) {
-            setError('Invalid email or password. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Authentication Failed',
+                message: 'Invalid email or password. Please try again.'
+            });
             return false;
         }
 
@@ -82,20 +86,28 @@ export const handleMobileSignIn = async (credentials, { setLoading, setError, se
                 if (Capacitor.isNativePlatform()) {
                     setTimeout(() => {
                         // Force a full page reload to ensure session is recognized
-                        router.push('/dashboard');
+                        window.location.replace('/dashboard');
                     }, 500);
                 } else {
-                    router.push('/dashboard');
+                    await NativeNavigation.routerPush(router, '/dashboard');
                 }
                 return true;
             } else {
-                setError('Authentication failed. Please try again.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Authentication Failed',
+                    message: 'Authentication failed. Please try again.'
+                });
                 return false;
             }
         }
     } catch (error) {
         console.error('Login exception:', error);
-        setError('Network error. Please try again.');
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Network Error',
+            message: 'Network error. Please try again.'
+        });
         return false;
     } finally {
         setLoading(false);

@@ -7,6 +7,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import {apiPost} from "@/lib/api-config.js";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function RecipeScalingWidget({
                                                 recipe,
@@ -45,19 +46,26 @@ export default function RecipeScalingWidget({
 
         // FIXED: Validate input before proceeding
         if (!inputValue || inputValue === '' || parseInt(inputValue) < 1) {
-            setError('Please enter a valid number of servings (1 or more)');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Invalid Input',
+                message: 'Please enter a valid number of servings (1 or more)'
+            });
             return;
         }
 
         const servingsToUse = parseInt(inputValue);
 
         if (servingsToUse === recipe.servings) {
-            setError('Target servings same as original');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Change Needed',
+                message: 'Target servings same as original'
+            });
             return;
         }
 
         setIsScaling(true);
-        setError('');
         setSuccess('');
 
         try {
@@ -123,11 +131,19 @@ export default function RecipeScalingWidget({
                 fetchTransformationLimits();
             } else {
                 console.error('❌ Transformation failed:', data);
-                setError(data.error || 'Scaling failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Scaling Failed',
+                    message: data.error || 'Scaling failed'
+                });
             }
         } catch (error) {
             console.error('❌ Request failed:', error);
-            setError('Failed to scale recipe. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Failed to scale recipe. Please try again.'
+            });
         } finally {
             setIsScaling(false);
         }
@@ -141,7 +157,7 @@ export default function RecipeScalingWidget({
         if (success || error) {
             const timer = setTimeout(() => {
                 setSuccess('');
-                setError('');
+                ;
             }, 5000);
             return () => clearTimeout(timer);
         }
@@ -254,7 +270,7 @@ export default function RecipeScalingWidget({
                                     <p className="text-xs text-yellow-700">Get intelligent scaling with cooking time adjustments</p>
                                 </div>
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=recipe-scaling'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=recipe-scaling', router })}
                                     className="ml-auto px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
                                 >
                                     Upgrade
@@ -426,7 +442,7 @@ export default function RecipeScalingWidget({
                             setTargetServings(originalServings);
                             setInputValue(String(originalServings));
                             setScaledRecipe(null);
-                            setError('');
+                            ;
                             setSuccess('');
                             // FIXED: Call parent's revert function instead of trying to handle it here
                             if (window.handleRevertFromWidget) {

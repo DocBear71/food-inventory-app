@@ -43,11 +43,19 @@ export default function ReviewDisplay({
                     userVote: data.userVote
                 });
             } else {
-                alert(data.error || 'Failed to record vote');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Vote Failed',
+                    message: data.error || 'Failed to record vote'
+                });
             }
         } catch (error) {
             console.error('Error voting on review:', error);
-            alert('Error recording vote');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Vote Error',
+                message: 'Error recording vote'
+            });
         } finally {
             setIsVoting(false);
         }

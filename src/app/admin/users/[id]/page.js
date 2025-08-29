@@ -7,6 +7,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {apiPost} from "@/lib/api-config.js";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function AdminUserDetailPage({ params }) {
     const { data: session, status } = useSession();
@@ -44,7 +45,7 @@ export default function AdminUserDetailPage({ params }) {
         if (status === 'loading') return;
 
         if (!session?.user?.isAdmin) {
-            router.push('/');
+            NativeNavigation.routerPush(router, '/');
             return;
         }
     }, [session, status, router]);
@@ -64,7 +65,12 @@ export default function AdminUserDetailPage({ params }) {
             const response = await fetch(`/api/admin/users/${userId}`);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: `HTTP ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -72,7 +78,11 @@ export default function AdminUserDetailPage({ params }) {
 
         } catch (err) {
             console.error('Error fetching user data:', err);
-            setError(err.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Fetch Failed',
+                message: err.message
+            });
         } finally {
             setLoading(false);
         }
@@ -90,18 +100,31 @@ export default function AdminUserDetailPage({ params }) {
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Upgrade failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Upgrade Failed',
+                    message: errorData.error || 'Upgrade failed'
+                });
+                return;
             }
 
             const result = await response.json();
-            alert(`User successfully upgraded to ${upgradeData.tier}!`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Upgrade Successful',
+                message: `User successfully upgraded to ${upgradeData.tier}!`
+            });
 
             setShowUpgradeModal(false);
             fetchUserData(); // Refresh data
 
         } catch (err) {
             console.error('Upgrade error:', err);
-            alert('Error upgrading user: ' + err.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Upgrade Failed',
+                message: 'Error upgrading user: ' + err.message
+            });
         } finally {
             setActionLoading(false);
         }
@@ -118,18 +141,31 @@ export default function AdminUserDetailPage({ params }) {
             });
 
             if (!response.ok) {
-                throw new Error(`${action} failed`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Action Failed',
+                    message: `${action} failed`
+                });
+                return;
             }
 
             const result = await response.json();
-            alert(`User successfully ${action}ed!`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Action Successful',
+                message: `User successfully ${action}ed!`
+            });
 
             setShowSuspendModal(false);
             fetchUserData(); // Refresh data
 
         } catch (err) {
             console.error(`${action} error:`, err);
-            alert(`Error ${action}ing user: ` + err.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Action Failed',
+                message: `Error ${action}ing user: ` + err.message
+            });
         } finally {
             setActionLoading(false);
         }
@@ -180,7 +216,7 @@ export default function AdminUserDetailPage({ params }) {
                         <p className="mt-1 text-sm text-gray-500">{error}</p>
                         <div className="mt-6">
                             <button
-                                onClick={() => router.back()}
+                                onClick={() => NativeNavigation.routerBack(router)}
                                 className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                             >
                                 Go Back
@@ -198,7 +234,7 @@ export default function AdminUserDetailPage({ params }) {
                 <div className="text-center">
                     <h3 className="text-sm font-medium text-gray-900">User not found</h3>
                     <button
-                        onClick={() => router.back()}
+                        onClick={() => NativeNavigation.routerBack(router)}
                         className="mt-2 inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700"
                     >
                         Go Back
@@ -225,7 +261,7 @@ export default function AdminUserDetailPage({ params }) {
                         <ol className="flex items-center space-x-4">
                             <li>
                                 <button
-                                    onClick={() => router.push('/admin/users')}
+                                    onClick={() => NativeNavigation.routerPush(router, '/admin/users')}
                                     className="text-gray-400 hover:text-gray-500"
                                 >
                                     Users
@@ -623,10 +659,21 @@ export default function AdminUserDetailPage({ params }) {
                             </p>
                             <div className="space-y-3">
                                 <button
-                                    onClick={() => {
-                                        if (confirm('Are you sure you want to reset this user\'s monthly usage counters?')) {
+                                    onClick={async () => {
+                                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                        const confirmed = await NativeDialog.showConfirm({
+                                            title: 'Reset Usage Counters',
+                                            message: 'Are you sure you want to reset this user\'s monthly usage counters?',
+                                            confirmText: 'Reset',
+                                            cancelText: 'Cancel'
+                                        });
+                                        if (confirmed) {
                                             // Handle reset monthly usage
-                                            alert('This feature is not yet implemented.');
+                                            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                                            await NativeDialog.showAlert({
+                                                title: 'Coming Soon',
+                                                message: 'This feature is not yet implemented.'
+                                            });
                                         }
                                     }}
                                     className="inline-flex items-center px-4 py-2 border border-red-300 shadow-sm text-sm font-medium rounded-md text-red-700 bg-white hover:bg-red-50"

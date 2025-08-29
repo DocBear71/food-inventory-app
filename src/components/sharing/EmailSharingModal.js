@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/sharing/EmailSharingModal.js v1 - Email sharing with subscription gates
+// file: /src/components/sharing/EmailSharingModal.js v2 - iOS Native Enhancements with Native Form Components
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
@@ -7,7 +7,12 @@ import { apiPost } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 export default function EmailSharingModal({
                                               isOpen,
@@ -28,7 +33,17 @@ export default function EmailSharingModal({
     const subscription = useSubscription();
     const emailGate = useFeatureGate(FEATURE_GATES.EMAIL_SHARING);
 
-    const addRecipient = () => {
+    const isIOS = PlatformDetection.isIOS();
+
+    const addRecipient = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Add recipient haptic failed:', error);
+            }
+        }
         setRecipients([...recipients, '']);
     };
 
@@ -38,23 +53,71 @@ export default function EmailSharingModal({
         setRecipients(newRecipients);
     };
 
-    const removeRecipient = (index) => {
+    const removeRecipient = async (index) => {
         if (recipients.length > 1) {
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.buttonTap();
+                } catch (error) {
+                    console.log('Remove recipient haptic failed:', error);
+                }
+            }
             setRecipients(recipients.filter((_, i) => i !== index));
         }
     };
 
-    const validateEmails = () => {
+    const validateEmails = async () => {
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const validRecipients = recipients.filter(email => email.trim() && emailRegex.test(email.trim()));
 
         if (validRecipients.length === 0) {
-            setError('Please enter at least one valid email address');
+            if (isIOS) {
+                try {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Invalid Email',
+                        message: 'Please enter at least one valid email address'
+                    });
+                } catch (error) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Invalid Email',
+                        message: 'Please enter at least one valid email address'
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Invalid Email',
+                    message: 'Please enter at least one valid email address'
+                });
+            }
             return false;
         }
 
         if (!senderName.trim()) {
-            setError('Please enter your name');
+            if (isIOS) {
+                try {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Name Required',
+                        message: 'Please enter your name'
+                    });
+                } catch (error) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Name Required',
+                        message: 'Please enter your name'
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Name Required',
+                    message: 'Please enter your name'
+                });
+            }
             return false;
         }
 
@@ -63,12 +126,22 @@ export default function EmailSharingModal({
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        setError('');
+        ;
         setSuccess('');
 
-        if (!validateEmails()) return;
+        if (!(await validateEmails())) return;
 
         setIsSubmitting(true);
+
+        // iOS form submit haptic
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Form submit haptic failed:', error);
+            }
+        }
 
         try {
             const validEmails = recipients.filter(email => email.trim());
@@ -85,10 +158,29 @@ export default function EmailSharingModal({
             const data = await response.json();
 
             if (data.success) {
-                setSuccess(`Shopping list sent successfully to ${data.recipientCount} recipient${data.recipientCount !== 1 ? 's' : ''}!`);
+                const successMessage = `Shopping list sent successfully to ${data.recipientCount} recipient${data.recipientCount !== 1 ? 's' : ''}!`;
+
+                if (isIOS) {
+                    try {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.success();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Email Sent!',
+                            message: successMessage
+                        });
+                    } catch (error) {
+                        setSuccess(successMessage);
+                    }
+                } else {
+                    setSuccess(successMessage);
+                }
+
                 if (onEmailSent) {
                     onEmailSent(data);
                 }
+
                 // Reset form after successful send
                 setTimeout(() => {
                     onClose();
@@ -97,11 +189,61 @@ export default function EmailSharingModal({
                     setSuccess('');
                 }, 2000);
             } else {
-                setError(data.error || 'Failed to send email');
+                const errorMessage = data.error || 'Failed to send email';
+
+                if (isIOS) {
+                    try {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.error();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Send Failed',
+                            message: errorMessage
+                        });
+                    } catch (error) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Send Failed',
+                            message: errorMessage
+                        });
+                    }
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Send Failed',
+                        message: errorMessage
+                    });
+                }
             }
         } catch (error) {
             console.error('Email sharing error:', error);
-            setError('Network error. Please try again.');
+            const errorMessage = 'Network error. Please try again.';
+
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Network Error',
+                        message: errorMessage
+                    });
+                } catch (dialogError) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Network Error',
+                        message: errorMessage
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: errorMessage
+                });
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -220,12 +362,18 @@ export default function EmailSharingModal({
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Your Name *
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="text"
                                     value={senderName}
                                     onChange={(e) => setSenderName(e.target.value)}
                                     placeholder="Enter your name"
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    validation={(value) => ({
+                                        isValid: value.trim().length >= 2,
+                                        message: value.trim().length >= 2 ? 'Name looks good!' : 'Please enter your name'
+                                    })}
+                                    errorMessage="Name is required"
+                                    successMessage="Name looks good!"
                                     required
                                 />
                             </div>
@@ -237,12 +385,23 @@ export default function EmailSharingModal({
                                 </label>
                                 {recipients.map((email, index) => (
                                     <div key={index} className="flex gap-2 mb-2">
-                                        <input
+                                        <NativeTextInput
                                             type="email"
+                                            inputMode="email"
                                             value={email}
                                             onChange={(e) => updateRecipient(index, e.target.value)}
                                             placeholder="Enter email address"
                                             className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                            validation={(value) => {
+                                                if (!value) return { isValid: index > 0, message: '' };
+                                                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                                return {
+                                                    isValid: emailRegex.test(value),
+                                                    message: emailRegex.test(value) ? 'Valid email' : 'Please enter a valid email'
+                                                };
+                                            }}
+                                            errorMessage="Please enter a valid email address"
+                                            successMessage="Valid email address"
                                             required={index === 0}
                                         />
                                         {recipients.length > 1 && (
@@ -270,13 +429,14 @@ export default function EmailSharingModal({
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Personal Message (Optional)
                                 </label>
-                                <textarea
+                                <NativeTextarea
                                     value={personalMessage}
                                     onChange={(e) => setPersonalMessage(e.target.value)}
                                     placeholder="Add a personal note..."
                                     rows={3}
                                     maxLength={500}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                                    autoExpand={true}
                                 />
                                 <div className="text-xs text-gray-500 mt-1">
                                     {personalMessage.length}/500 characters

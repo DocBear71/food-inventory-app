@@ -12,6 +12,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar';
 import {apiGet, apiPost} from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function EnhancedMealPlanningPage() {
     const { data: session, status } = useSafeSession();
@@ -425,7 +426,7 @@ export default function EnhancedMealPlanningPage() {
                                 {/* Enhanced Upgrade CTA */}
                                 <div className="text-center">
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=smart-meal-planning'}
+                                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=smart-meal-planning', router })}
                                         className="bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:via-purple-700 hover:to-green-700 transition-all transform hover:scale-105 shadow-xl"
                                     >
                                         🚀 Upgrade to Gold - Start Smart Planning!
@@ -516,7 +517,7 @@ export default function EnhancedMealPlanningPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="text-center">
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/recipes'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/recipes', router })}
                                             className="w-full bg-blue-100 text-blue-700 py-3 px-4 rounded-lg hover:bg-blue-200 transition-colors"
                                         >
                                             Browse Recipes
@@ -525,7 +526,7 @@ export default function EnhancedMealPlanningPage() {
                                     </div>
                                     <div className="text-center">
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/inventory'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/inventory', router })}
                                             className="w-full bg-green-100 text-green-700 py-3 px-4 rounded-lg hover:bg-green-200 transition-colors"
                                         >
                                             Check Inventory
@@ -534,7 +535,7 @@ export default function EnhancedMealPlanningPage() {
                                     </div>
                                     <div className="text-center">
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/pricing'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/pricing', router })}
                                             className="w-full bg-purple-100 text-purple-700 py-3 px-4 rounded-lg hover:bg-purple-200 transition-colors"
                                         >
                                             View Pricing

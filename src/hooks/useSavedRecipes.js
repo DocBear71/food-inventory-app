@@ -120,7 +120,12 @@ export function useSavedRecipes() {
                         globalCacheTimestamp = Date.now();
                         return [];
                     }
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'HTTP Error',
+                        message: `HTTP ${response.status}: ${response.statusText}`
+                    });
+                    return;
                 }
 
                 const data = await response.json();
@@ -146,11 +151,19 @@ export function useSavedRecipes() {
                     notifySubscribers([]);
                     return [];
                 } else {
-                    throw new Error('Unexpected API response format');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'API Response Error',
+                        message: 'Unexpected API response format'
+                    });
                 }
             } catch (error) {
                 console.warn('⚠️ useSavedRecipes - Error fetching saved recipes:', error.message);
-                setError(error.message);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Saved Recipes Error',
+                    message: error.message
+                });
                 globalSavedRecipes = [];
                 globalCacheTimestamp = Date.now();
                 notifySubscribers([]);

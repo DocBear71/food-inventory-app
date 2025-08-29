@@ -229,7 +229,12 @@ async function performScaling(recipe, options, useAI) {
                     method: 'ai_scaling'
                 };
             } else {
-                throw new Error(modalResult?.error || 'AI scaling failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'AI Scaling Failed',
+                    message: modalResult?.error || 'AI scaling failed'
+                });
+                return;
             }
         } catch (modalError) {
             console.warn('⚠️ AI scaling failed, falling back to basic math:', modalError.message);
@@ -263,7 +268,12 @@ async function performConversion(recipe, options, useAI) {
                     method: 'ai_conversion'
                 };
             } else {
-                throw new Error(modalResult?.error || 'AI conversion failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'AI Conversion Failed',
+                    message: modalResult?.error || 'AI conversion failed'
+                });
+                return;
             }
         } catch (modalError) {
             console.warn('⚠️ AI conversion failed, falling back to basic math:', modalError.message);
@@ -300,7 +310,12 @@ async function performCombinedTransformation(recipe, options, useAI) {
                     method: 'ai_combined_transformation'
                 };
             } else {
-                throw new Error(modalResult?.error || 'AI combined transformation failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'AI Combined Failed',
+                    message: modalResult?.error || 'AI combined transformation failed'
+                });
+                return;
             }
         } catch (modalError) {
             console.warn('⚠️ AI combined transformation failed, falling back to basic math:', modalError.message);

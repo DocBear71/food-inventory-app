@@ -6,7 +6,11 @@ import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost, apiDelete } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 export default function MealPlanTemplateLibrary({
                                                     mealPlanId,
@@ -42,7 +46,6 @@ export default function MealPlanTemplateLibrary({
 
     const fetchTemplates = async () => {
         setLoading(true);
-        setError('');
 
         try {
             const params = new URLSearchParams();
@@ -60,11 +63,19 @@ export default function MealPlanTemplateLibrary({
             if (data.success) {
                 setTemplates(data.templates);
             } else {
-                setError(data.error || 'Failed to load templates');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Load Failed',
+                    message: data.error || 'Failed to load templates'
+                });
             }
         } catch (error) {
             console.error('Error fetching templates:', error);
-            setError('Failed to load templates');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: 'Failed to load templates'
+            });
         } finally {
             setLoading(false);
         }
@@ -85,18 +96,32 @@ export default function MealPlanTemplateLibrary({
                 }
                 onClose();
             } else {
-                alert(result.error || 'Failed to apply template');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Apply Failed',
+                    message: result.error || 'Failed to apply template'
+                });
             }
         } catch (error) {
             console.error('Error applying template:', error);
-            alert('Error applying template');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Apply Error',
+                message: 'Error applying template'
+            });
         }
     };
 
     const handleDeleteTemplate = async (templateId) => {
-        if (!confirm('Are you sure you want to delete this template?')) {
-            return;
-        }
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete Template',
+            message: 'Are you sure you want to delete this template? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Keep Template'
+        });
+
+        if (!confirmed) return;
 
         try {
             const response = await apiDelete(`/api/meal-plan-templates/${templateId}`);
@@ -105,11 +130,19 @@ export default function MealPlanTemplateLibrary({
                 setTemplates(prev => prev.filter(t => t._id !== templateId));
             } else {
                 const data = await response.json();
-                alert(data.error || 'Failed to delete template');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: data.error || 'Failed to delete template. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error deleting template:', error);
-            alert('Error deleting template');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Error',
+                message: 'Error deleting template'
+            });
         }
     };
 
@@ -121,11 +154,19 @@ export default function MealPlanTemplateLibrary({
             if (data.success) {
                 setPreviewTemplate(data);
             } else {
-                alert(data.error || 'Failed to load template preview');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Preview Failed',
+                    message: data.error || 'Failed to load template preview. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error previewing template:', error);
-            alert('Error loading template preview');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Preview Error',
+                message: 'Error loading template preview'
+            });
         }
     };
 
@@ -457,11 +498,19 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
             if (result.success) {
                 onCreated(result.template);
             } else {
-                alert(result.error || 'Failed to create template');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Create Failed',
+                    message: result.error || 'Failed to create template'
+                });
             }
         } catch (error) {
             console.error('Error creating template:', error);
-            alert('Error creating template');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Create Error',
+                message: 'Error creating template'
+            });
         } finally {
             setLoading(false);
         }
@@ -479,13 +528,16 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Template Name *
                         </label>
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             type="text"
+                            inputMode="text"
                             value={formData.name}
                             onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
                             placeholder="e.g., Family Favorites Week"
-                            required
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500"
+                            autoComplete="off"
+                            validation={ValidationPatterns.required}
+                            errorMessage="Please enter a template name"
+                            successMessage="Template name looks good!"
                         />
                     </div>
 
@@ -493,12 +545,17 @@ function CreateTemplateModal({ mealPlanId, onClose, onCreated }) {
                         <label className="block text-sm font-medium text-gray-700 mb-1">
                             Description
                         </label>
-                        <textarea
+                        <NativeTextarea
                             value={formData.description}
                             onChange={(e) => setFormData(prev => ({ ...prev, description: e.target.value }))}
                             placeholder="Describe this meal plan template..."
                             rows={3}
-                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 resize-vertical"
+                            validation={(value) => ({
+                                isValid: true,
+                                message: value && value.length > 10 ? 'Great description!' : ''
+                            })}
+                            autoExpand={false}
+                            maxLength={500}
                         />
                     </div>
 

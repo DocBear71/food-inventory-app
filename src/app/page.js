@@ -1,7 +1,7 @@
 'use client';
 
 // Modern Landing Page for Doc Bear's Comfort Kitchen
-// file: /app/page.js - Platform-aware version that shows appropriate content based on context
+// file: /app/page.js - iOS Native Dialog version - Platform-aware version that shows appropriate content based on context
 
 import { useState, useEffect } from 'react';
 import { useSession } from 'next-auth/react';
@@ -11,6 +11,7 @@ import Image from 'next/image';
 import Footer from '@/components/legal/Footer'
 import {TouchEnhancedButton} from "@/components/mobile/TouchEnhancedButton.js";
 import { usePlatform } from '@/hooks/usePlatform';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Image Carousel Component
 function ImageCarousel({ images, alt, interval = 2000 }) {
@@ -49,10 +50,14 @@ export default function LandingPage() {
 
     // Authentication redirect - moved before conditional returns
     useEffect(() => {
-        if (status === 'authenticated' && session?.user) {
-            console.log('🔄 Authenticated user detected, redirecting to dashboard');
-            router.replace('/dashboard');
-        }
+        const handleAuthRedirect = async () => {
+            if (status === 'authenticated' && session?.user) {
+                console.log('🔄 Authenticated user detected, redirecting to dashboard');
+                await NativeNavigation.routerReplace(router, '/dashboard');
+            }
+        };
+
+        handleAuthRedirect();
     }, [status, session, router]);
 
     // Handle navbar scroll effect - moved before conditional returns
@@ -84,6 +89,15 @@ export default function LandingPage() {
         if (platform.isIOS && platform.isWeb) return 'ios';
         if (platform.isAndroid && platform.isWeb) return 'android';
         return 'both'; // Desktop web users see both
+    };
+
+    // UPDATED: iOS Native Dialog for coming soon alert
+    const handleComingSoonAlert = async () => {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showAlert({
+            title: 'Coming Soon',
+            message: 'Coming soon to Apple App Store!'
+        });
     };
 
     // Show loading spinner while checking authentication
@@ -406,7 +420,7 @@ export default function LandingPage() {
                                         {/* Apple App Store - show for iOS users or desktop */}
                                         {(shouldShowSpecificBadge() === 'ios' || shouldShowSpecificBadge() === 'both') && (
                                             <TouchEnhancedButton
-                                                onClick={() => alert('Coming soon to Apple App Store!')}
+                                                onClick={handleComingSoonAlert}
                                                 className="block transition-transform hover:scale-105"
                                             >
                                                 <Image
@@ -820,7 +834,7 @@ export default function LandingPage() {
                 <br/>
             </section>
 
-            {/* Final CTA Section */}
+            {/* Final CTA Section - Updated with iOS Dialog */}
             <section className="py-20 bg-gray-900">
                 <br/>
                 <div className="max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
@@ -877,7 +891,7 @@ export default function LandingPage() {
 
                                 {(shouldShowSpecificBadge() === 'ios' || shouldShowSpecificBadge() === 'both') && (
                                     <TouchEnhancedButton
-                                        onClick={() => alert('Coming soon to Apple App Store!')}
+                                        onClick={handleComingSoonAlert}
                                         className="transition-transform hover:scale-105"
                                     >
                                         <Image

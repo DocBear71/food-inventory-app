@@ -1,4 +1,4 @@
-// file: /src/components/stores/AdvancedStoreManager.js - Community-driven store management for Doc Bear's
+// file: /src/components/stores/AdvancedStoreManager.js v2 - iOS Native Enhancements with Native Form Components
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -6,7 +6,12 @@ import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { MobileHaptics } from '@/components/mobile/MobileHaptics';
 import {apiPost} from "@/lib/api-config.js";
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 export default function AdvancedStoreManager() {
     const { data: session } = useSafeSession();
@@ -16,6 +21,8 @@ export default function AdvancedStoreManager() {
     const [filterChain, setFilterChain] = useState('all');
     const [view, setView] = useState('grid'); // 'grid' or 'list'
     const [showAddStore, setShowAddStore] = useState(false);
+
+    const isIOS = PlatformDetection.isIOS();
 
     // Load stores
     useEffect(() => {
@@ -31,9 +38,54 @@ export default function AdvancedStoreManager() {
             }
         } catch (error) {
             console.error('Failed to load stores:', error);
+
+            if (isIOS) {
+                try {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Load Failed',
+                        message: 'Could not load your stores. Please try again.'
+                    });
+                } catch (dialogError) {
+                    console.log('Dialog failed:', dialogError);
+                }
+            }
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleViewToggle = async (newView) => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('View toggle haptic failed:', error);
+            }
+        }
+        setView(newView);
+    };
+
+    const handleFilterChange = async (newFilter) => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Filter change haptic failed:', error);
+            }
+        }
+        setFilterChain(newFilter);
+    };
+
+    const handleAddStoreClick = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Add store haptic failed:', error);
+            }
+        }
+        setShowAddStore(true);
     };
 
     // Filter stores
@@ -71,35 +123,38 @@ export default function AdvancedStoreManager() {
                     {/* Search and Filter */}
                     <div className="flex flex-col sm:flex-row gap-3 flex-1">
                         <div className="relative flex-1 max-w-sm">
-                            <input
+                            <NativeTextInput
                                 type="text"
                                 placeholder="Search stores..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
                                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                validation={(value) => ({
+                                    isValid: true,
+                                    message: value ? `Searching for "${value}"` : ''
+                                })}
                             />
                             <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                 <span className="text-gray-400">🔍</span>
                             </div>
                         </div>
 
-                        <select
+                        <NativeSelect
                             value={filterChain}
-                            onChange={(e) => setFilterChain(e.target.value)}
+                            onChange={(e) => handleFilterChange(e.target.value)}
                             className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                        >
-                            <option value="all">All Chains</option>
-                            {chains.map(chain => (
-                                <option key={chain} value={chain}>{chain}</option>
-                            ))}
-                        </select>
+                            options={[
+                                { value: 'all', label: 'All Chains' },
+                                ...chains.map(chain => ({ value: chain, label: chain }))
+                            ]}
+                        />
                     </div>
 
                     {/* View Toggle and Add Button */}
                     <div className="flex items-center gap-3">
                         <div className="flex border border-gray-300 rounded-lg overflow-hidden">
                             <TouchEnhancedButton
-                                onClick={() => setView('grid')}
+                                onClick={() => handleViewToggle('grid')}
                                 className={`px-3 py-2 text-sm ${
                                     view === 'grid'
                                         ? 'bg-indigo-600 text-white'
@@ -109,7 +164,7 @@ export default function AdvancedStoreManager() {
                                 <span className="mr-1">⊞</span> Grid
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
-                                onClick={() => setView('list')}
+                                onClick={() => handleViewToggle('list')}
                                 className={`px-3 py-2 text-sm border-l ${
                                     view === 'list'
                                         ? 'bg-indigo-600 text-white'
@@ -121,7 +176,7 @@ export default function AdvancedStoreManager() {
                         </div>
 
                         <TouchEnhancedButton
-                            onClick={() => setShowAddStore(true)}
+                            onClick={handleAddStoreClick}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 flex items-center gap-2"
                         >
                             <span>➕</span> Add Store
@@ -142,7 +197,7 @@ export default function AdvancedStoreManager() {
                         }
                     </p>
                     <TouchEnhancedButton
-                        onClick={() => setShowAddStore(true)}
+                        onClick={handleAddStoreClick}
                         className="bg-indigo-600 text-white px-6 py-3 rounded-lg hover:bg-indigo-700"
                     >
                         Add Your First Store
@@ -180,6 +235,29 @@ export default function AdvancedStoreManager() {
 // Store Card Component
 function StoreCard({ store, onUpdate }) {
     const [showDetails, setShowDetails] = useState(false);
+    const isIOS = PlatformDetection.isIOS();
+
+    const handleDetailsClick = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Details click haptic failed:', error);
+            }
+        }
+        setShowDetails(true);
+    };
+
+    const handleAIShopClick = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('AI shop click haptic failed:', error);
+            }
+        }
+        // Navigate to AI shopping with this store
+    };
 
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition-shadow">
@@ -227,13 +305,13 @@ function StoreCard({ store, onUpdate }) {
             <div className="p-4 pt-0">
                 <div className="flex gap-2">
                     <TouchEnhancedButton
-                        onClick={() => setShowDetails(true)}
+                        onClick={handleDetailsClick}
                         className="flex-1 bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 text-sm font-medium"
                     >
                         View Details
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
-                        onClick={() => {/* Navigate to AI shopping with this store */}}
+                        onClick={handleAIShopClick}
                         className="flex-1 bg-indigo-600 text-white py-2 px-3 rounded-lg hover:bg-indigo-700 text-sm font-medium"
                     >
                         🤖 AI Shop
@@ -255,6 +333,28 @@ function StoreCard({ store, onUpdate }) {
 
 // Store List Item Component
 function StoreListItem({ store, onUpdate }) {
+    const isIOS = PlatformDetection.isIOS();
+
+    const handleDetailsClick = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Details click haptic failed:', error);
+            }
+        }
+    };
+
+    const handleAIShopClick = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('AI shop click haptic failed:', error);
+            }
+        }
+    };
+
     return (
         <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
             <div className="flex items-center justify-between">
@@ -275,11 +375,13 @@ function StoreListItem({ store, onUpdate }) {
 
                 <div className="flex items-center gap-2 ml-4">
                     <TouchEnhancedButton
+                        onClick={handleDetailsClick}
                         className="bg-gray-100 text-gray-700 py-2 px-3 rounded-lg hover:bg-gray-200 text-sm"
                     >
                         Details
                     </TouchEnhancedButton>
                     <TouchEnhancedButton
+                        onClick={handleAIShopClick}
                         className="bg-indigo-600 text-white py-2 px-3 rounded-lg hover:bg-indigo-700 text-sm"
                     >
                         🤖 AI Shop
@@ -335,11 +437,21 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
         website: ''
     });
     const [loading, setLoading] = useState(false);
+    const [error, setError] = useState('');
+
+    const isIOS = PlatformDetection.isIOS();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        MobileHaptics?.medium();
+
+        if (isIOS) {
+            try {
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Form submit haptic failed:', error);
+            }
+        }
 
         try {
             const response = await apiPost('/api/stores', {
@@ -348,18 +460,68 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
 
             const data = await response.json();
             if (data.success) {
+                if (isIOS) {
+                    try {
+                        await MobileHaptics.success();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Store Added!',
+                            message: `${formData.name} has been added to your store list`
+                        });
+                    } catch (error) {
+                        console.log('Success feedback failed:', error);
+                    }
+                }
                 onSuccess();
-                MobileHaptics?.success();
             } else {
-                throw new Error(data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Store Failed',
+                    message: data.error
+                });
+                return;
             }
         } catch (error) {
             console.error('Failed to add store:', error);
-            alert('Failed to add store. Please try again.');
-            MobileHaptics?.error();
+
+            if (isIOS) {
+                try {
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Add Store Failed',
+                        message: 'Failed to add store. Please try again.'
+                    });
+                } catch (dialogError) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Add Store Failed',
+                        message: 'Failed to add store. Please try again.'
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Store Failed',
+                    message: 'Failed to add store. Please try again.'
+                });
+            }
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleClose = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Close haptic failed:', error);
+            }
+        }
+        onClose();
     };
 
     if (!isOpen) return null;
@@ -367,32 +529,44 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen p-4">
-                <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+                <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleClose} />
 
                 <div className="relative bg-white rounded-lg shadow-xl max-w-md w-full">
                     <div className="p-6">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="text-lg font-semibold text-gray-900">Add New Store</h3>
                             <TouchEnhancedButton
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="text-gray-400 hover:text-gray-600"
                             >
                                 <span className="text-xl">×</span>
                             </TouchEnhancedButton>
                         </div>
 
+                        {error && (
+                            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+                                {error}
+                            </div>
+                        )}
+
                         <form onSubmit={handleSubmit} className="space-y-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Store Name *
                                 </label>
-                                <input
+                                <NativeTextInput
                                     type="text"
                                     required
                                     value={formData.name}
                                     onChange={(e) => setFormData({...formData, name: e.target.value})}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="e.g., Walmart Supercenter"
+                                    validation={(value) => ({
+                                        isValid: value.trim().length >= 3,
+                                        message: value.trim().length >= 3 ? 'Store name looks good!' : 'Store name should be at least 3 characters'
+                                    })}
+                                    errorMessage="Store name is required (min 3 characters)"
+                                    successMessage="Store name looks good!"
                                 />
                             </div>
 
@@ -400,12 +574,16 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Chain/Brand
                                 </label>
-                                <input
+                                <NativeTextInput
                                     type="text"
                                     value={formData.chain}
                                     onChange={(e) => setFormData({...formData, chain: e.target.value})}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="e.g., Walmart"
+                                    validation={(value) => ({
+                                        isValid: true,
+                                        message: value ? 'Chain name added' : ''
+                                    })}
                                 />
                             </div>
 
@@ -413,13 +591,15 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                     Address *
                                 </label>
-                                <textarea
+                                <NativeTextarea
                                     required
                                     value={formData.address}
                                     onChange={(e) => setFormData({...formData, address: e.target.value})}
                                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                    rows="2"
+                                    rows={2}
                                     placeholder="1234 Main St, City, State 12345"
+                                    autoExpand={true}
+                                    maxLength={200}
                                 />
                             </div>
 
@@ -428,12 +608,21 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Phone
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="tel"
+                                        inputMode="tel"
                                         value={formData.phone}
                                         onChange={(e) => setFormData({...formData, phone: e.target.value})}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="(555) 123-4567"
+                                        validation={(value) => {
+                                            if (!value) return { isValid: true, message: '' };
+                                            const phoneRegex = /^\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}$/;
+                                            return {
+                                                isValid: phoneRegex.test(value),
+                                                message: phoneRegex.test(value) ? 'Valid phone format' : 'Please enter a valid phone number'
+                                            };
+                                        }}
                                     />
                                 </div>
 
@@ -441,12 +630,16 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Hours
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
                                         value={formData.hours}
                                         onChange={(e) => setFormData({...formData, hours: e.target.value})}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="9 AM - 9 PM"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value ? 'Hours added' : ''
+                                        })}
                                     />
                                 </div>
                             </div>
@@ -454,17 +647,24 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
                             <div className="flex gap-3 pt-4">
                                 <TouchEnhancedButton
                                     type="button"
-                                    onClick={onClose}
+                                    onClick={handleClose}
                                     className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
                                 >
                                     Cancel
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
                                     type="submit"
-                                    disabled={loading}
-                                    className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                                    disabled={loading || !formData.name.trim() || !formData.address.trim()}
+                                    className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700 disabled:bg-indigo-400 flex items-center justify-center gap-2"
                                 >
-                                    {loading ? 'Adding...' : 'Add Store'}
+                                    {loading ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            Adding...
+                                        </>
+                                    ) : (
+                                        'Add Store'
+                                    )}
                                 </TouchEnhancedButton>
                             </div>
                         </form>
@@ -475,9 +675,10 @@ function AddStoreModal({ isOpen, onClose, onSuccess }) {
     );
 }
 
-// Store Details Modal Component
+// Store Details Modal Component (keeping existing for brevity - would follow same pattern)
 function StoreDetailsModal({ store, onClose, onUpdate }) {
     const [activeTab, setActiveTab] = useState('info');
+    const isIOS = PlatformDetection.isIOS();
 
     const tabs = [
         { id: 'info', name: 'Info', icon: 'ℹ️' },
@@ -486,12 +687,34 @@ function StoreDetailsModal({ store, onClose, onUpdate }) {
         { id: 'prices', name: 'Prices', icon: '💰' }
     ];
 
+    const handleTabChange = async (tabId) => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Tab change haptic failed:', error);
+            }
+        }
+        setActiveTab(tabId);
+    };
+
+    const handleClose = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Close haptic failed:', error);
+            }
+        }
+        onClose();
+    };
+
     if (!store) return null;
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto">
             <div className="flex items-center justify-center min-h-screen p-4">
-                <div className="fixed inset-0 bg-black bg-opacity-50" onClick={onClose} />
+                <div className="fixed inset-0 bg-black bg-opacity-50" onClick={handleClose} />
 
                 <div className="relative bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
                     {/* Header */}
@@ -502,7 +725,7 @@ function StoreDetailsModal({ store, onClose, onUpdate }) {
                                 <p className="text-indigo-100">{store.chain} • {store.address}</p>
                             </div>
                             <TouchEnhancedButton
-                                onClick={onClose}
+                                onClick={handleClose}
                                 className="text-white hover:text-indigo-200"
                             >
                                 <span className="text-2xl">×</span>
@@ -516,7 +739,7 @@ function StoreDetailsModal({ store, onClose, onUpdate }) {
                             {tabs.map(tab => (
                                 <TouchEnhancedButton
                                     key={tab.id}
-                                    onClick={() => setActiveTab(tab.id)}
+                                    onClick={() => handleTabChange(tab.id)}
                                     className={`flex-1 py-3 px-4 text-sm font-medium border-b-2 ${
                                         activeTab === tab.id
                                             ? 'border-indigo-500 text-indigo-600'
@@ -542,13 +765,31 @@ function StoreDetailsModal({ store, onClose, onUpdate }) {
                     <div className="border-t border-gray-200 p-4">
                         <div className="flex gap-3">
                             <TouchEnhancedButton
-                                onClick={() => {/* Edit store */}}
+                                onClick={async () => {
+                                    if (isIOS) {
+                                        try {
+                                            await MobileHaptics.buttonTap();
+                                        } catch (error) {
+                                            console.log('Edit haptic failed:', error);
+                                        }
+                                    }
+                                    /* Edit store functionality */
+                                }}
                                 className="flex-1 bg-gray-100 text-gray-700 py-2 px-4 rounded-lg hover:bg-gray-200"
                             >
                                 Edit Store
                             </TouchEnhancedButton>
                             <TouchEnhancedButton
-                                onClick={() => {/* Navigate to AI shopping */}}
+                                onClick={async () => {
+                                    if (isIOS) {
+                                        try {
+                                            await MobileHaptics.buttonTap();
+                                        } catch (error) {
+                                            console.log('Start shopping haptic failed:', error);
+                                        }
+                                    }
+                                    /* Navigate to AI shopping */
+                                }}
                                 className="flex-1 bg-indigo-600 text-white py-2 px-4 rounded-lg hover:bg-indigo-700"
                             >
                                 🎯 Start Smart Shopping
@@ -595,6 +836,18 @@ function StoreInfoTab({ store }) {
 
 // Store Layout Tab
 function StoreLayoutTab({ store }) {
+    const isIOS = PlatformDetection.isIOS();
+
+    const handleLayoutAction = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Layout action haptic failed:', error);
+            }
+        }
+    };
+
     return (
         <div className="space-y-4">
             <div className="text-center py-8">
@@ -606,7 +859,10 @@ function StoreLayoutTab({ store }) {
                         : 'Using standard layout template'
                     }
                 </p>
-                <TouchEnhancedButton className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                <TouchEnhancedButton
+                    onClick={handleLayoutAction}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                >
                     {store.hasCustomLayout ? 'View Layout' : 'Create Layout'}
                 </TouchEnhancedButton>
             </div>
@@ -616,6 +872,18 @@ function StoreLayoutTab({ store }) {
 
 // Store Reviews Tab
 function StoreReviewsTab({ store }) {
+    const isIOS = PlatformDetection.isIOS();
+
+    const handleReviewAction = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Review action haptic failed:', error);
+            }
+        }
+    };
+
     return (
         <div className="space-y-4">
             <div className="text-center py-8">
@@ -627,7 +895,10 @@ function StoreReviewsTab({ store }) {
                         : 'No reviews yet - be the first!'
                     }
                 </p>
-                <TouchEnhancedButton className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                <TouchEnhancedButton
+                    onClick={handleReviewAction}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                >
                     Write Review
                 </TouchEnhancedButton>
             </div>
@@ -637,6 +908,18 @@ function StoreReviewsTab({ store }) {
 
 // Store Prices Tab
 function StorePricesTab({ store }) {
+    const isIOS = PlatformDetection.isIOS();
+
+    const handlePriceAction = async () => {
+        if (isIOS) {
+            try {
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Price action haptic failed:', error);
+            }
+        }
+    };
+
     return (
         <div className="space-y-4">
             <div className="text-center py-8">
@@ -645,7 +928,10 @@ function StorePricesTab({ store }) {
                 <p className="text-gray-500 mb-4">
                     Track and compare prices for items at this store
                 </p>
-                <TouchEnhancedButton className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700">
+                <TouchEnhancedButton
+                    onClick={handlePriceAction}
+                    className="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700"
+                >
                     View Price History
                 </TouchEnhancedButton>
             </div>

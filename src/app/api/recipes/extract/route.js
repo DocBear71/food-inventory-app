@@ -118,7 +118,12 @@ async function extractTextFromDOCX(file) {
                 console.log('Mammoth extraction successful, text length:', result.value.length);
                 return result.value;
             } else {
-                throw new Error('Mammoth returned empty text');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Mammoth Failed',
+                    message: 'Mammoth returned empty text'
+                });
+                return;
             }
         } catch (mammothError) {
             console.log('Mammoth extraction failed:', mammothError.message);

@@ -1,9 +1,16 @@
-// file: src/components/support/ContactSupportModal.jsx v1 - Contact support modal with form
+'use client';
+// file: src/components/support/ContactSupportModal.jsx v2 - iOS Native Enhancements
 
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import {apiPost} from '@/lib/api-config.js';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import { apiPost } from '@/lib/api-config.js';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
     const [formData, setFormData] = useState({
@@ -17,6 +24,8 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [showSuccess, setShowSuccess] = useState(false);
     const [error, setError] = useState('');
+
+    const isIOS = PlatformDetection.isIOS();
 
     // Determine priority options based on subscription
     const getPriorityOptions = () => {
@@ -49,41 +58,167 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
         { value: 'other', label: 'Other' }
     ];
 
-    const handleInputChange = (e) => {
+    // iOS Native Category Selection Action Sheet
+    const showCategoryActionSheet = async () => {
+        if (!isIOS) return;
+
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+
+            const buttons = categoryOptions.map(option => ({
+                text: formData.category === option.value ? `${option.label} ✓` : option.label,
+                style: 'default',
+                action: () => {
+                    setFormData({ ...formData, category: option.value });
+                    return option.value;
+                }
+            }));
+
+            buttons.push({
+                text: 'Cancel',
+                style: 'cancel',
+                action: () => null
+            });
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showActionSheet({
+                title: 'Support Category',
+                message: 'What type of support do you need?',
+                buttons
+            });
+
+        } catch (error) {
+            console.error('Category action sheet error:', error);
+        }
+    };
+
+    // iOS Native Priority Selection Action Sheet
+    const showPriorityActionSheet = async () => {
+        if (!isIOS) return;
+
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+
+            const priorityOptions = getPriorityOptions();
+            const buttons = priorityOptions.map(option => ({
+                text: formData.priority === option.value ? `${option.label} ✓` : option.label,
+                style: 'default',
+                action: () => {
+                    setFormData({ ...formData, priority: option.value });
+                    return option.value;
+                }
+            }));
+
+            buttons.push({
+                text: 'Cancel',
+                style: 'cancel',
+                action: () => null
+            });
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showActionSheet({
+                title: 'Priority Level',
+                message: 'How urgent is this issue?',
+                buttons
+            });
+
+        } catch (error) {
+            console.error('Priority action sheet error:', error);
+        }
+    };
+
+    const handleInputChange = async (e) => {
         const { name, value } = e.target;
+
+        // iOS haptic feedback for input changes
+        if (isIOS && name !== 'message') { // Don't fire for every character in message
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.selection();
+            } catch (error) {
+                console.log('Input haptic failed:', error);
+            }
+        }
+
         setFormData(prev => ({
             ...prev,
             [name]: value
         }));
-        setError('');
+        ;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // iOS-specific form validation
+        if (isIOS) {
+            const activeElement = document.activeElement;
+            if (activeElement && activeElement.blur) {
+                activeElement.blur();
+            }
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // iOS form submit haptic
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Form submit haptic failed:', error);
+            }
+        }
+
         setIsSubmitting(true);
-        setError('');
 
         try {
             // Validate form
             if (!formData.subject.trim() || !formData.message.trim() || !formData.email.trim() || !formData.name.trim()) {
-                throw new Error('Please fill in all required fields.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Fill Fields Failed',
+                    message: 'Please fill in all required fields.'
+                });
+                return;
             }
 
             if (!formData.category) {
-                throw new Error('Please select a category.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Category Failed',
+                    message: 'Please select a category.'
+                });
+                return;
             }
 
             // Send support request
             const response = await apiPost('/api/support/contact', {
-                    ...formData,
-                    userTier: userSubscription?.tier || 'free',
-                    timestamp: new Date().toISOString()
+                ...formData,
+                userTier: userSubscription?.tier || 'free',
+                timestamp: new Date().toISOString()
             });
 
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to send support request');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Support Request Failed',
+                    message: result.error || 'Failed to send support request'
+                });
+                return;
+            }
+
+            // iOS success haptic and feedback
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } catch (error) {
+                    console.log('Success haptic failed:', error);
+                }
             }
 
             setShowSuccess(true);
@@ -103,10 +238,41 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
 
         } catch (error) {
             console.error('Support request error:', error);
-            setError(error.message);
+
+            // iOS error haptic and feedback
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Support Request Failed',
+                        message: error.message || 'Could not send your support request. Please try again.'
+                    });
+                } catch (dialogError) {
+                    console.log('Native error dialog failed:', dialogError);
+                    setError(error.message);
+                }
+            } else {
+                setError(error.message);
+            }
         } finally {
             setIsSubmitting(false);
         }
+    };
+
+    // Handle modal close
+    const handleClose = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Close haptic failed:', error);
+            }
+        }
+        onClose();
     };
 
     if (!isOpen) return null;
@@ -145,7 +311,7 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                         <div className="flex items-center justify-between">
                             <h2 className="text-xl font-semibold text-gray-900">Contact Support</h2>
                             <TouchEnhancedButton
-                                    onClick={onClose}
+                                    onClick={handleClose}
                                     className="text-gray-400 hover:text-gray-600 p-2"
                             >
                                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -169,7 +335,8 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                     </div>
 
                     <form onSubmit={handleSubmit} className="p-6 space-y-4">
-                        {error && (
+                        {/* Error message for non-iOS */}
+                        {!isIOS && error && (
                                 <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                                     <div className="flex">
                                         <div className="text-red-400">
@@ -189,14 +356,16 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                                 <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                                     Your Name *
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                         type="text"
                                         id="name"
                                         name="name"
                                         value={formData.name}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         required
+                                        validation={ValidationPatterns.required}
+                                        errorMessage="Your name is required"
+                                        successMessage="Name entered"
                                 />
                             </div>
 
@@ -204,14 +373,16 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                                 <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                                     Email Address *
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                         type="email"
                                         id="email"
                                         name="email"
                                         value={formData.email}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         required
+                                        validation={ValidationPatterns.email}
+                                        errorMessage="Please enter a valid email address"
+                                        successMessage="Email format is correct"
                                 />
                             </div>
                         </div>
@@ -221,40 +392,59 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                                 <label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
                                     Category *
                                 </label>
-                                <select
-                                        id="category"
-                                        name="category"
-                                        value={formData.category}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        required
-                                >
-                                    <option value="">Select a category...</option>
-                                    {categoryOptions.map(option => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                    ))}
-                                </select>
+                                {/* iOS uses action sheet, others use native select */}
+                                {isIOS ? (
+                                        <TouchEnhancedButton
+                                                type="button"
+                                                onClick={showCategoryActionSheet}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        >
+                                            <span>{formData.category ? categoryOptions.find(opt => opt.value === formData.category)?.label : 'Select a category...'}</span>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </TouchEnhancedButton>
+                                ) : (
+                                        <NativeSelect
+                                                id="category"
+                                                name="category"
+                                                value={formData.category}
+                                                onChange={handleInputChange}
+                                                required
+                                                placeholder="Select a category..."
+                                                options={categoryOptions}
+                                                validation={ValidationPatterns.required}
+                                                errorMessage="Please select a support category"
+                                                successMessage="Category selected"
+                                        />
+                                )}
                             </div>
 
                             <div>
                                 <label htmlFor="priority" className="block text-sm font-medium text-gray-700 mb-1">
                                     Priority
                                 </label>
-                                <select
-                                        id="priority"
-                                        name="priority"
-                                        value={formData.priority}
-                                        onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                >
-                                    {getPriorityOptions().map(option => (
-                                            <option key={option.value} value={option.value}>
-                                                {option.label}
-                                            </option>
-                                    ))}
-                                </select>
+                                {/* iOS uses action sheet, others use native select */}
+                                {isIOS ? (
+                                        <TouchEnhancedButton
+                                                type="button"
+                                                onClick={showPriorityActionSheet}
+                                                className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-white text-left flex items-center justify-between focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        >
+                                            <span>{getPriorityOptions().find(opt => opt.value === formData.priority)?.label}</span>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </TouchEnhancedButton>
+                                ) : (
+                                        <NativeSelect
+                                                id="priority"
+                                                name="priority"
+                                                value={formData.priority}
+                                                onChange={handleInputChange}
+                                                options={getPriorityOptions()}
+                                        />
+                                )}
                                 <p className="text-xs text-gray-500 mt-1">
                                     {getPriorityOptions().find(opt => opt.value === formData.priority)?.description}
                                 </p>
@@ -265,15 +455,25 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                             <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
                                 Subject *
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                     type="text"
                                     id="subject"
                                     name="subject"
                                     value={formData.subject}
                                     onChange={handleInputChange}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     placeholder="Brief description of your issue"
                                     required
+                                    maxLength={200}
+                                    validation={(value) => ({
+                                        isValid: value && value.length >= 5 && value.length <= 200,
+                                        message: value && value.length >= 5 && value.length <= 200
+                                                ? 'Good subject line'
+                                                : value && value.length < 5
+                                                        ? 'Subject should be more descriptive'
+                                                        : 'Subject too long (max 200 characters)'
+                                    })}
+                                    errorMessage="Please enter a descriptive subject (5-200 characters)"
+                                    successMessage="Clear subject line"
                             />
                         </div>
 
@@ -281,22 +481,33 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                             <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
                                 Message *
                             </label>
-                            <textarea
+                            <NativeTextarea
                                     id="message"
                                     name="message"
                                     value={formData.message}
                                     onChange={handleInputChange}
                                     rows={6}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     placeholder="Please provide detailed information about your issue, including any error messages or steps to reproduce the problem..."
                                     required
+                                    maxLength={2000}
+                                    autoExpand={false}
+                                    validation={(value) => ({
+                                        isValid: value && value.length >= 20 && value.length <= 2000,
+                                        message: value && value.length >= 20 && value.length <= 2000
+                                                ? 'Detailed message provided'
+                                                : value && value.length < 20
+                                                        ? 'Please provide more details (at least 20 characters)'
+                                                        : 'Message too long (max 2000 characters)'
+                                    })}
+                                    errorMessage="Please provide detailed information (20-2000 characters)"
+                                    successMessage="Detailed message provided"
                             />
                             <div className="flex justify-between mt-1">
                                 <p className="text-xs text-gray-500">
                                     Include as much detail as possible to help us assist you quickly.
                                 </p>
                                 <p className="text-xs text-gray-500">
-                                    {formData.message.length} characters
+                                    {formData.message.length}/2000 characters
                                 </p>
                             </div>
                         </div>
@@ -304,7 +515,7 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                         <div className="flex flex-col sm:flex-row gap-3 pt-4">
                             <TouchEnhancedButton
                                     type="button"
-                                    onClick={onClose}
+                                    onClick={handleClose}
                                     className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50 font-medium transition-colors"
                             >
                                 Cancel
@@ -312,9 +523,16 @@ const ContactSupportModal = ({ isOpen, onClose, userSubscription = null }) => {
                             <TouchEnhancedButton
                                     type="submit"
                                     disabled={isSubmitting}
-                                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors"
+                                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
                             >
-                                {isSubmitting ? 'Sending...' : 'Send Support Request'}
+                                {isSubmitting ? (
+                                        <>
+                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                            Sending...
+                                        </>
+                                ) : (
+                                        'Send Support Request'
+                                )}
                             </TouchEnhancedButton>
                         </div>
                     </form>

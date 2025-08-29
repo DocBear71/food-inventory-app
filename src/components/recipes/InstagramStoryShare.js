@@ -67,11 +67,20 @@ export default function InstagramStoryShare({ recipe, onClose }) {
                 URL.revokeObjectURL(url);
 
                 // Show success message
-                alert('Instagram story image downloaded! You can now upload it to your Instagram story.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Download Complete',
+                    message: 'Instagram story image downloaded! You can now upload it to your Instagram story.'
+                });
 
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to generate story');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Story Generation Failed',
+                    message: errorData.error || 'Failed to generate story'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error generating story:', error);

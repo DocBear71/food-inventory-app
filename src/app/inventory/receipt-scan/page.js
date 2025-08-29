@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/inventory/receipt-scan/page.js - v15 Multi-platform OCR with Scribe.js and MLKit
+// file: /src/app/inventory/receipt-scan/page.js - v16 iOS Native Dialog version with Multi-platform OCR and Scribe.js
 
 import {useEffect, useRef, useState} from 'react';
 import {useSafeSession} from '@/hooks/useSafeSession';
@@ -13,6 +13,7 @@ import {useSubscription} from '@/hooks/useSubscription';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {Capacitor} from '@capacitor/core';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function ReceiptScan() {
     const router = useRouter();
@@ -224,7 +225,15 @@ export default function ReceiptScan() {
 
     function checkUsageLimitsBeforeScan() {
         if (subscription.loading) {
-            alert('⏳ Please wait while we check your scan limits...');
+            // UPDATED: Use async function to handle NativeDialog
+            const showLoadingDialog = async () => {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Please Wait',
+                    message: 'Please wait while we check your scan limits...'
+                });
+            };
+            showLoadingDialog();
             return false;
         }
 
@@ -238,8 +247,18 @@ export default function ReceiptScan() {
                 ? 'Unexpected limit reached'
                 : `You've reached your monthly limit of ${usage.monthlyLimit} receipt scans. Used: ${usage.currentMonth}/${usage.monthlyLimit}`;
 
-            alert(`❌ ${limitMessage}\n\nUpgrade to Gold for 20 scans/month or Platinum for unlimited scanning!`);
-            window.location.href = `/pricing?source=receipt-scan-limit&feature=receipt-scanning&required=gold`;
+            // UPDATED: Use async function to handle NativeDialog
+            const showLimitDialog = async () => {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showUpgradePrompt({
+                    feature: 'Receipt Scanning',
+                    tier: 'Gold',
+                    currentLimit: limitMessage,
+                    upgradeMessage: 'Upgrade to Gold for 20 scans/month or Platinum for unlimited scanning!'
+                });
+                window.location.href = `/pricing?source=receipt-scan-limit&feature=receipt-scanning&required=gold`;
+            };
+            showLimitDialog();
             return false;
         }
 
@@ -259,7 +278,7 @@ export default function ReceiptScan() {
 
     // Early returns AFTER all hooks are defined
     if (status === 'unauthenticated') {
-        router.push('/auth/signin');
+        NativeNavigation.routerPush(router, '/auth/signin');
         return null;
     }
 
@@ -340,15 +359,24 @@ export default function ReceiptScan() {
                 continue;
             }
         }
-
-        throw new Error('All OCR configurations failed');
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'OCR Failed',
+            message: 'All OCR configurations failed'
+        });
+        return;
     }
 
     async function addItemsToInventory() {
         const selectedItems = extractedItems.filter(item => item.selected);
 
         if (selectedItems.length === 0) {
-            alert('Please select at least one item to add.');
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Items Selected',
+                message: 'Please select at least one item to add.'
+            });
             return;
         }
 
@@ -400,22 +428,37 @@ export default function ReceiptScan() {
                     successMessage += `\nYou can view price analytics in the Inventory → Price Analytics tab.`;
                 }
 
-                alert(successMessage);
+                // UPDATED: Replace alert with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Items Added Successfully',
+                    message: successMessage
+                });
 
                 // Navigate based on whether price tracking was added
                 if (priceTrackedCount > 0) {
-                    router.push('/inventory?tab=analytics'); // Show analytics tab
+                    await NativeNavigation.routerPush(router, '/inventory?tab=analytics'); // Show analytics tab
                 } else {
-                    router.push('/inventory'); // Standard inventory view
+                    await NativeNavigation.routerPush(router, '/inventory'); // Standard inventory view
                 }
             } else {
                 const error = await response.json();
-                throw new Error(error.error || 'Failed to add items');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Addition Failed',
+                    message: error.error || 'Failed to add items'
+                });
+                return;
             }
 
         } catch (error) {
             console.error('Error adding items:', error);
-            alert(`Error adding items: ${error.message}`);
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Add Items Failed',
+                message: `Error adding items: ${error.message}`
+            });
             setStep('review');
         }
     }
@@ -488,7 +531,12 @@ export default function ReceiptScan() {
         console.log('🎥 Initializing optimized camera for receipt scanning...');
 
         if (!navigator.mediaDevices?.getUserMedia) {
-            throw new Error('Camera API not supported on this device');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Camera Failed',
+                message: 'Camera API not supported on this device'
+            });
+            return;
         }
 
         let devices = [];
@@ -548,7 +596,12 @@ export default function ReceiptScan() {
         console.log('🎬 Setting up optimized video element...');
 
         if (!videoElement || !stream) {
-            throw new Error('Video element or stream is null');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Video Stream Failed',
+                message: 'Video element or stream is null'
+            });
+            return;
         }
 
         if (platformInfo.isIOSPWA) {
@@ -616,11 +669,16 @@ export default function ReceiptScan() {
         });
     }
 
-    function captureOptimizedImage(videoElement, canvasElement) {
+    async function captureOptimizedImage(videoElement, canvasElement) {
         console.log('📸 Capturing optimized image for OCR...');
 
         if (!videoElement || !canvasElement) {
-            throw new Error('Video element or canvas is null');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Video Element Failed',
+                message: 'Video element or canvas is null'
+            });
+            return;
         }
 
         const video = videoElement;
@@ -628,14 +686,24 @@ export default function ReceiptScan() {
         const ctx = canvas.getContext('2d');
 
         if (!ctx) {
-            throw new Error('Could not get canvas context');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Canvas Failed',
+                message: 'Could not get canvas context'
+            });
+            return;
         }
 
         const width = video.videoWidth;
         const height = video.videoHeight;
 
         if (width === 0 || height === 0) {
-            throw new Error('Video not ready for capture - no dimensions');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Capture Failed',
+                message: 'Video not ready for capture - no dimensions'
+            });
+            return;
         }
 
         console.log(`📹 Capturing at ${width}x${height}`);
@@ -667,11 +735,16 @@ export default function ReceiptScan() {
         });
     }
 
-    function optimizeImageForOCR(imageData) {
+    async function optimizeImageForOCR(imageData) {
         console.log('🔧 Applying OCR-optimized image processing...');
 
         if (!imageData || !imageData.data) {
-            throw new Error('Invalid image data');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Image Failed',
+                message: 'Invalid image data'
+            });
+            return;
         }
 
         const data = imageData.data;
@@ -679,7 +752,12 @@ export default function ReceiptScan() {
         const height = imageData.height;
 
         if (data.length === 0) {
-            throw new Error('Empty image data');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Empty Image Failed',
+                message: 'Empty image data'
+            });
+            return;
         }
 
         for (let i = 0; i < data.length; i += 4) {
@@ -793,7 +871,12 @@ export default function ReceiptScan() {
                 const enhanceReceiptParsingWithAI = aiModule.enhanceReceiptParsingWithAI;
 
                 if (typeof enhanceReceiptParsingWithAI !== 'function') {
-                    throw new Error('AI enhancement function not available - this is required');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Function Failed',
+                        message: 'AI enhancement function not available - this is required'
+                    });
+                    return;
                 }
 
                 console.log('✅ AI module loaded successfully');
@@ -871,26 +954,35 @@ export default function ReceiptScan() {
                 });
 
                 // Enhanced error messages with better guidance
-                if (aiError.message.includes('Base64') || aiError.message.includes('conversion')) {
-                    setProcessingStatus('❌ AI enhancement failed: Image conversion error');
-                    alert('❌ AI Enhancement Failed: Could not convert image for AI analysis. Please try with a different image format or compress the image.');
-                } else if (aiError.message.includes('import') || aiError.message.includes('module')) {
-                    setProcessingStatus('❌ AI enhancement failed: Service unavailable');
-                    alert('❌ AI Enhancement Failed: AI service is currently unavailable. Please try again in a few minutes.');
-                } else if (aiError.message.includes('timeout')) {
-                    setProcessingStatus('❌ AI enhancement failed: Processing timeout');
+                let errorTitle = 'AI Enhancement Failed';
+                let errorMessage = '';
 
-                    // More helpful timeout message
+                if (aiError.message.includes('Base64') || aiError.message.includes('conversion')) {
+                    errorTitle = 'Image Conversion Error';
+                    errorMessage = 'Could not convert image for AI analysis. Please try with a different image format or compress the image.';
+                } else if (aiError.message.includes('import') || aiError.message.includes('module')) {
+                    errorTitle = 'Service Unavailable';
+                    errorMessage = 'AI service is currently unavailable. Please try again in a few minutes.';
+                } else if (aiError.message.includes('timeout')) {
+                    errorTitle = 'Processing Timeout';
                     const timeoutSeconds = aiError.message.match(/(\d+)\s+seconds/)?.[1] || '120';
-                    alert(`❌ AI Enhancement Timeout: Your receipt took longer than ${timeoutSeconds} seconds to process. This can happen with very large receipts or during high server load.\n\n✅ Try again - most receipts process in 30-60 seconds.\n\n💡 Tip: If this keeps happening, try taking a photo of just the items section of your receipt.`);
+                    errorMessage = `Your receipt took longer than ${timeoutSeconds} seconds to process. This can happen with very large receipts or during high server load.\n\nTry again - most receipts process in 30-60 seconds.\n\nTip: If this keeps happening, try taking a photo of just the items section of your receipt.`;
                 } else if (aiError.message.includes('Promise') || aiError.message.includes('constructor')) {
-                    setProcessingStatus('❌ AI enhancement failed: Service compatibility issue');
-                    alert('❌ AI Enhancement Failed: Service compatibility issue. Please refresh the page and try again.');
+                    errorTitle = 'Service Compatibility Issue';
+                    errorMessage = 'Service compatibility issue. Please refresh the page and try again.';
                 } else {
-                    setProcessingStatus('❌ AI enhancement failed: Unknown error');
-                    alert(`❌ AI Enhancement Failed: ${aiError.message}.\n\nPlease try again or contact support if this persists.`);
+                    errorTitle = 'Unknown Error';
+                    errorMessage = `${aiError.message}.\n\nPlease try again or contact support if this persists.`;
                 }
 
+                // UPDATED: Replace alert with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: errorTitle,
+                    message: errorMessage
+                });
+
+                setProcessingStatus('❌ AI enhancement failed');
                 // STOP THE PROCESS - Don't allow non-AI enhanced results
                 console.log('🛑 Stopping process due to AI enhancement failure');
                 setStep('upload');
@@ -901,7 +993,14 @@ export default function ReceiptScan() {
             if (!finalItems || finalItems.length === 0) {
                 console.error('💥 AI enhancement returned no items');
                 setProcessingStatus('❌ AI enhancement failed: No items detected');
-                alert('❌ AI Enhancement Failed: No items could be detected. Please try with a clearer receipt image.');
+
+                // UPDATED: Replace alert with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Items Detected',
+                    message: 'AI Enhancement Failed: No items could be detected. Please try with a clearer receipt image.'
+                });
+
                 setStep('upload');
                 return;
             }
@@ -939,7 +1038,7 @@ export default function ReceiptScan() {
             // DEBUGGING: Log Enhanced Items for Verification
             console.log('📋 AI-ENHANCED ITEMS DETAILS:');
             finalItems.forEach((item, index) => {
-                console.log(`${index + 1}. "${item.name}" - $${item.price}`, {
+                console.log(`${index + 1}. "${item.name}" - ${item.price}`, {
                     upc: item.upc,
                     confidence: item.confidence,
                     aiEnhanced: item.aiEnhanced,
@@ -962,7 +1061,13 @@ export default function ReceiptScan() {
                     console.error('Failed to record usage:', recordError);
                 }
 
-                alert('❌ No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image or check the debug modal for more information.');
+                // UPDATED: Replace alert with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Items Found',
+                    message: 'No items could be extracted from this receipt. This scan has been counted towards your monthly limit. Please try with a clearer image or check the debug modal for more information.'
+                });
+
                 setStep('upload');
                 return;
             }
@@ -1035,19 +1140,29 @@ export default function ReceiptScan() {
             }
 
             // User-friendly error message based on error type
-            let errorMessage = '❌ Error processing receipt. ';
+            let errorTitle = 'Processing Failed';
+            let errorMessage = 'Error processing receipt. ';
 
             if (error.message.includes('OCR') || error.message.includes('Tesseract')) {
+                errorTitle = 'OCR Failed';
                 errorMessage += 'OCR text extraction failed. ';
             } else if (error.message.includes('network') || error.message.includes('fetch')) {
+                errorTitle = 'Network Error';
                 errorMessage += 'Network error occurred. ';
             } else {
+                errorTitle = 'Unexpected Error';
                 errorMessage += 'An unexpected error occurred. ';
             }
 
             errorMessage += 'This scan has been counted towards your monthly limit. Please try again with a clearer image.';
 
-            alert(errorMessage);
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: errorTitle,
+                message: errorMessage
+            });
+
             setStep('upload');
 
         } finally {
@@ -1085,7 +1200,12 @@ export default function ReceiptScan() {
                 return result;
             } else {
                 const errorText = await response.text();
-                throw new Error(`HTTP ${response.status}: ${errorText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'HTTP Failed',
+                    message: `HTTP ${response.status}: ${errorText}`
+                });
+                return;
             }
         } catch (error) {
             console.error('❌ Error recording receipt scan usage:', {
@@ -1113,19 +1233,29 @@ export default function ReceiptScan() {
 
             const reader = new FileReader();
 
-            reader.onload = function (event) {
+            reader.onload = async function (event) {
                 try {
                     const result = event.target.result;
 
                     if (!result || typeof result !== 'string') {
-                        throw new Error('FileReader returned invalid result');
+                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Filereader Failed',
+                            message: 'FileReader returned invalid result'
+                        });
+                        return;
                     }
 
                     // Get the base64 string without the data:image/...;base64, prefix
                     const base64String = result.split(',')[1];
 
                     if (!base64String) {
-                        throw new Error('Could not extract base64 data from result');
+                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Extraction Failed',
+                            message: 'Could not extract base64 data from result'
+                        });
+                        return;
                     }
 
                     console.log('✅ Base64 conversion successful:', {
@@ -1216,26 +1346,19 @@ export default function ReceiptScan() {
     async function startCamera() {
         try {
             console.log('🔥 startCamera called - platformInfo:', platformInfo);
-            console.log('🔥 isNative:', platformInfo.isNative);
-            console.log('🔥 isIOS:', platformInfo.isIOS);
-            console.log('🔥 isAndroid:', platformInfo.isAndroid);
 
             if (!checkUsageLimitsBeforeScan()) {
                 console.log('🔥 Usage limits check failed, returning early');
                 return;
             }
 
-            console.log('🔥 Usage limits check passed, continuing...');
-
             // Check camera permissions for native iOS
             if (platformInfo.isNative && platformInfo.isIOS) {
                 try {
                     console.log('🍎 About to import Camera from Capacitor...');
                     const { Camera } = await import('@capacitor/camera');
-                    console.log('🍎 Camera import successful!');
 
                     console.log('🍎 About to check camera permissions...');
-                    // Check if we have camera permissions
                     const permissions = await Camera.checkPermissions();
                     console.log('🍎 iOS Camera permissions status:', permissions);
 
@@ -1249,11 +1372,6 @@ export default function ReceiptScan() {
                             return;
                         }
                     }
-
-                    console.log('🍎 Permissions check passed, continuing to camera...');
-
-                    console.log('🍎 Permissions check passed, continuing to camera...');
-                    alert('🍎 Permissions OK, about to start camera...');
                 } catch (permissionError) {
                     console.error('❌ iOS permission check failed:', permissionError);
                     setCameraError('Unable to check camera permissions. Please try "Upload Image" instead.');
@@ -1267,14 +1385,15 @@ export default function ReceiptScan() {
 
                 if (platformInfo.isAndroid) {
                     try {
-                        console.log('🤖 Importing Capacitor Camera...');
                         const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-                        console.log('🤖 Camera imported successfully');
 
                         // Show quick instruction for native camera
-                        alert('📸 Photo Tips:\n• Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines');
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showAlert({
+                            title: 'Photo Tips',
+                            message: 'Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines'
+                        });
 
-                        console.log('🤖 Calling Camera.getPhoto...');
                         const photo = await Camera.getPhoto({
                             resultType: CameraResultType.Uri,
                             source: CameraSource.Camera,
@@ -1283,35 +1402,31 @@ export default function ReceiptScan() {
                             saveToGallery: false
                         });
 
-                        console.log('🤖 Camera.getPhoto returned:', photo);
-                        console.log('🤖 Photo webPath:', photo.webPath);
-
                         if (photo.webPath) {
-                            console.log('🤖 Converting photo to blob...');
                             const response = await fetch(photo.webPath);
                             const imageBlob = await response.blob();
-                            console.log('🤖 Blob created:', imageBlob.size, 'bytes');
 
                             if (imageBlob && imageBlob.size > 0) {
-                                console.log('🤖 Setting receipt type and captured image...');
                                 setReceiptType('paper');
                                 setCapturedImage(URL.createObjectURL(imageBlob));
-
-                                console.log('🤖 Calling processImage...');
                                 await processImage(imageBlob);
-                                console.log('🤖 processImage completed');
                             } else {
-                                console.error('🤖 Invalid or empty image blob');
-                                alert('Failed to capture image: Empty or invalid image');
+                                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                await NativeDialog.showError({
+                                    title: 'Capture Failed',
+                                    message: 'Failed to capture image: Empty or invalid image'
+                                });
                             }
                         } else {
-                            console.error('🤖 No webPath in photo result');
-                            alert('Failed to capture image: No file path returned');
+                            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                            await NativeDialog.showError({
+                                title: 'Capture Failed',
+                                message: 'Failed to capture image: No file path returned'
+                            });
                         }
                         return;
                     } catch (error) {
                         console.error('❌ Android camera failed:', error);
-                        console.error('❌ Error details:', error.message, error.stack);
                         setCameraError('Android camera access failed. Please try "Upload Image" instead.');
                         return;
                     }
@@ -1319,29 +1434,25 @@ export default function ReceiptScan() {
 
                 if (platformInfo.isIOS) {
                     try {
-                        console.log('🍎 Importing Capacitor Camera for iOS...');
                         const {Camera, CameraResultType, CameraSource} = await import('@capacitor/camera');
-                        console.log('🍎 Camera imported successfully');
 
                         // Show quick instruction for native camera
-                        alert('📸 Photo Tips:\n• Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines');
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showAlert({
+                            title: 'Photo Tips',
+                            message: 'Hold phone steady\n• Get close to receipt\n• Ensure good lighting\n• Include all item lines'
+                        });
 
-                        console.log('🍎 Calling Camera.getPhoto for iOS...');
                         const photo = await Camera.getPhoto({
-                            resultType: CameraResultType.Base64,  // Changed to Base64 for iOS reliability
+                            resultType: CameraResultType.Base64,
                             source: CameraSource.Camera,
                             quality: 90,
                             allowEditing: false,
                             saveToGallery: false
                         });
 
-                        console.log('🍎 iOS Camera.getPhoto returned:', photo);
-
                         if (photo.base64String) {
-                            console.log('🍎 Converting iOS base64 to blob...');
-
                             try {
-                                // Convert base64 to blob directly
                                 const base64Data = photo.base64String;
                                 const byteCharacters = atob(base64Data);
                                 const byteNumbers = new Array(byteCharacters.length);
@@ -1353,47 +1464,42 @@ export default function ReceiptScan() {
                                 const byteArray = new Uint8Array(byteNumbers);
                                 const imageBlob = new Blob([byteArray], { type: 'image/jpeg' });
 
-                                console.log('🍎 iOS blob created from base64:', imageBlob.size, 'bytes');
-
                                 if (imageBlob && imageBlob.size > 0) {
-                                    console.log('🍎 Setting receipt type and captured image for iOS...');
                                     setReceiptType('paper');
                                     setCapturedImage(URL.createObjectURL(imageBlob));
-
-                                    console.log('🍎 Calling processImage for iOS...');
                                     await processImage(imageBlob);
-                                    console.log('🍎 processImage completed for iOS');
                                 } else {
-                                    console.error('🍎 Invalid or empty image blob on iOS');
-                                    alert('Failed to capture image: Empty or invalid image');
+                                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                    await NativeDialog.showError({
+                                        title: 'Capture Failed',
+                                        message: 'Failed to capture image: Empty or invalid image'
+                                    });
                                 }
-
                             } catch (base64Error) {
                                 console.error('🍎 Base64 conversion failed:', base64Error);
-                                alert(`Failed to convert image: ${base64Error.message}`);
+                                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                await NativeDialog.showError({
+                                    title: 'Image Processing Failed',
+                                    message: `Failed to convert image: ${base64Error.message}`
+                                });
                             }
                         } else {
-                            console.error('🍎 No base64String in photo result on iOS');
-                            alert('Failed to capture image: No base64 data returned');
+                            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                            await NativeDialog.showError({
+                                title: 'Capture Failed',
+                                message: 'Failed to capture image: No base64 data returned'
+                            });
                         }
                         return;
                     } catch (error) {
                         console.error('❌ iOS camera failed:', error);
-                        console.error('❌ iOS Error details:', error.message, error.stack);
                         setCameraError('iOS camera access failed. Please ensure camera permissions are granted and try again.');
                         return;
                     }
                 }
             }
 
-            // If we reach here, native camera should have handled it
-            if (platformInfo.isNative) {
-                console.error('🔥 ERROR: Native app should not reach web camera code!');
-                setCameraError(`${platformInfo.isIOS ? 'iOS' : 'Android'} native app incorrectly trying to use web camera. Please try "Upload Image" instead.`);
-                return;
-            }
-
-            // Web/PWA camera implementation (iOS PWA, Web browsers)
+            // Web/PWA camera implementation
             setCameraError(null);
 
             try {
@@ -1409,7 +1515,12 @@ export default function ReceiptScan() {
                             await setupOptimizedVideo(videoRef.current, stream, platformInfo);
                             scrollToCameraView();
                         } else {
-                            throw new Error('Video element not available after timeout');
+                            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                            await NativeDialog.showError({
+                                title: 'Video Element Failed',
+                                message: 'Video element not available after timeout'
+                            });
+                            return;
                         }
                     }, 200);
                 } else {
@@ -1433,7 +1544,6 @@ export default function ReceiptScan() {
             }
         } catch (globalError) {
             console.error('🔥 CRITICAL ERROR in startCamera:', globalError);
-            console.error('🔥 Error stack:', globalError.stack);
             setCameraError(`Critical camera error: ${globalError.message}. Please try "Upload Image" instead.`);
         }
     }
@@ -1454,7 +1564,14 @@ export default function ReceiptScan() {
 
     function capturePhoto() {
         if (!videoRef.current || !canvasRef.current || !streamRef.current) {
-            alert('Camera not ready');
+            const showAlertAsync = async () => {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Camera Not Ready',
+                    message: 'Camera not ready'
+                });
+            };
+            showAlertAsync();
             return;
         }
 
@@ -1469,7 +1586,14 @@ export default function ReceiptScan() {
             });
         } catch (error) {
             console.error('❌ Capture failed:', error);
-            alert('Failed to capture image. Please try again.');
+            const showErrorAsync = async () => {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Capture Failed',
+                    message: 'Failed to capture image. Please try again.'
+                });
+            };
+            showErrorAsync();
         }
     }
 
@@ -1486,12 +1610,20 @@ export default function ReceiptScan() {
     function handleReceiptFileUpload(event) {
         const file = event?.target?.files?.[0];
         if (file && file.type.startsWith('image/')) {
-            setReceiptType('paper'); // Standard paper receipt photo
+            setReceiptType('paper');
             const imageUrl = URL.createObjectURL(file);
             setCapturedImage(imageUrl);
             processImage(file);
         } else {
-            alert('Please select a valid image file.');
+            const showErrorAsync = async () => {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Invalid File',
+                    message: 'Please select a valid image file.'
+                });
+            };
+            showErrorAsync();
+
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
@@ -1509,7 +1641,6 @@ export default function ReceiptScan() {
             console.log('Selected file:', file.name, file.type);
 
             if (file.type === 'text/plain' || file.name.endsWith('.txt')) {
-                // Handle text files (copied email content)
                 setReceiptType('email');
                 const reader = new FileReader();
                 reader.onload = (e) => {
@@ -1518,14 +1649,23 @@ export default function ReceiptScan() {
                 };
                 reader.readAsText(file);
             } else {
-                alert('Please select a text file (.txt) only. Copy the email content and paste it into a text file first.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Invalid File Type',
+                    message: 'Please select a text file (.txt) only. Copy the email content and paste it into a text file first.'
+                });
+
                 if (emailReceiptInputRef.current) {
                     emailReceiptInputRef.current.value = '';
                 }
             }
         } catch (error) {
             console.error('Error handling email receipt upload:', error);
-            alert('Error processing file. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'File Processing Error',
+                message: 'Error processing file. Please try again.'
+            });
         }
     }
 
@@ -1554,7 +1694,11 @@ export default function ReceiptScan() {
                 setProcessingStatus('Recording scan attempt...');
                 await recordReceiptScanUsage(0, 'no-items-found');
 
-                alert('❌ No items could be extracted from this text receipt. The format might not be supported yet.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Items Found',
+                    message: 'No items could be extracted from this text receipt. The format might not be supported yet.'
+                });
                 setStep('upload');
                 return;
             }
@@ -1584,7 +1728,11 @@ export default function ReceiptScan() {
 
         } catch (error) {
             console.error('Text receipt processing error:', error);
-            alert('❌ Error processing text receipt. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Text Processing Failed',
+                message: 'Error processing text receipt. Please try again.'
+            });
             setStep('upload');
         } finally {
             setIsProcessing(false);
@@ -2674,7 +2822,6 @@ export default function ReceiptScan() {
     // Replace your parseEmailReceiptText function with this improved version
     function parseEmailReceiptText(text) {
         console.log('📧 Parsing email receipt text directly...');
-
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
         const items = [];
 
@@ -3038,7 +3185,7 @@ export default function ReceiptScan() {
         return combinedItems;
     }
 
-// Enhanced cleanItemName function
+    // Enhanced cleanItemName function
     function cleanItemName(name) {
         console.log(`🧹 Cleaning name: "${name}"`);
 
@@ -3089,10 +3236,9 @@ export default function ReceiptScan() {
         return cleaned;
     }
 
-// Enhanced guessCategory function
+    // Enhanced guessCategory function
     function guessCategory(name, taxCode = '') {
         if (!name) return 'Other';
-
         const nameLower = name.toLowerCase();
 
         // Beverages
@@ -3205,9 +3351,7 @@ export default function ReceiptScan() {
 
     function guessLocation(name) {
         const nameLower = name.toLowerCase();
-
         if (nameLower.includes('frozen') || nameLower.includes('ice cream')) {
-            // Default frozen items to fridge freezer, but user can change to deep freezer
             return 'fridge-freezer';
         }
         if (nameLower.includes('milk') || nameLower.includes('yogurt') || nameLower.includes('cheese')) {
@@ -3217,13 +3361,12 @@ export default function ReceiptScan() {
             nameLower.includes('salt') || nameLower.includes('pepper')) {
             return 'kitchen';
         }
-
         return 'pantry';
     }
 
-// ===============================================
-// ITEM MANAGEMENT FUNCTIONS (unchanged)
-// ===============================================
+    // ===============================================
+    // ITEM MANAGEMENT FUNCTIONS (unchanged)
+    // ===============================================
 
     function updateItem(itemId, field, value) {
         setExtractedItems(prev => prev.map(item => {
@@ -3327,7 +3470,11 @@ export default function ReceiptScan() {
                             successMessage += `\nCorrected UPC: ${originalUPC} → ${upcCode}`;
                         }
 
-                        alert(successMessage);
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Product Found',
+                            message: successMessage
+                        });
                         return;
                     }
                 } catch (error) {
@@ -3336,17 +3483,25 @@ export default function ReceiptScan() {
                 }
             }
 
-            alert(`❌ Product not found for UPC ${originalUPC}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Product Not Found',
+                message: `Product not found for UPC ${originalUPC}`
+            });
 
         } catch (error) {
             console.error('UPC lookup error:', error);
-            alert('❌ Network error during UPC lookup. Please check your connection and try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Lookup Error',
+                message: 'Network error during UPC lookup. Please check your connection and try again.'
+            });
         }
     }
 
-// ===============================================
-// REPORT AND MODAL FUNCTIONS (unchanged from original)
-// ===============================================
+    // ===============================================
+    // REPORT AND MODAL FUNCTIONS (unchanged from original)
+    // ===============================================
 
     function openReportModal() {
         setReportData({
@@ -3366,12 +3521,26 @@ export default function ReceiptScan() {
             const maxSize = 10 * 1024 * 1024; // 10MB
 
             if (!validTypes.includes(file.type)) {
-                alert(`File ${file.name} is not a supported image type.`);
+                const showAlertAsync = async () => {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showAlert({
+                        title: 'Invalid File Type',
+                        message: `File ${file.name} is not a supported image type.`
+                    });
+                };
+                showAlertAsync();
                 return false;
             }
 
             if (file.size > maxSize) {
-                alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+                const showAlertAsync = async () => {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showAlert({
+                        title: 'File Too Large',
+                        message: `File ${file.name} is too large. Maximum size is 10MB.`
+                    });
+                };
+                showAlertAsync();
                 return false;
             }
 
@@ -3393,7 +3562,12 @@ export default function ReceiptScan() {
 
     async function submitIssueReport() {
         if (!reportData.issue || !reportData.description) {
-            alert('Please fill in all required fields.');
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Required Fields Missing',
+                message: 'Please fill in all required fields.'
+            });
             return;
         }
 
@@ -3420,14 +3594,29 @@ export default function ReceiptScan() {
             });
 
             if (response.ok) {
-                alert('✅ Thank you! Your issue report has been sent. We\'ll work on improving the receipt scanner.');
+                // UPDATED: Replace alert with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Report Sent Successfully',
+                    message: 'Thank you! Your issue report has been sent. We\'ll work on improving the receipt scanner.'
+                });
                 setShowReportModal(false);
             } else {
-                throw new Error('Failed to send report');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Report Send Failed',
+                    message: 'Failed to send report'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error sending issue report:', error);
-            alert('❌ Failed to send issue report. Please try again.');
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Send Report Failed',
+                message: 'Failed to send issue report. Please try again.'
+            });
         }
     }
 
@@ -3453,9 +3642,9 @@ export default function ReceiptScan() {
         }
     }
 
-// ===============================================
-// RENDER FUNCTIONS AND MODALS
-// ===============================================
+    // ===============================================
+    // RENDER FUNCTIONS AND MODALS
+    // ===============================================
 
     function DebugModal({isOpen, onClose, imageFile, base64Data}) {
         if (!isOpen) return null;
@@ -3465,7 +3654,7 @@ export default function ReceiptScan() {
                 <div className="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
                     <div className="p-6">
                         <div className="flex justify-between items-center mb-4">
-                            <h3 className="text-lg font-medium text-gray-900">🔍 Receipt Processing Debug</h3>
+                            <h3 className="text-lg font-medium text-gray-900">Receipt Processing Debug</h3>
                             <TouchEnhancedButton
                                 onClick={onClose}
                                 className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -3527,7 +3716,7 @@ export default function ReceiptScan() {
         );
     }
 
-// iOS PWA Camera Modal Component
+    // iOS PWA Camera Modal Component
     function IOSPWACameraModal() {
         if (!showIOSPWAModal) return null;
 
@@ -3556,7 +3745,7 @@ export default function ReceiptScan() {
                                     </p>
                                     <div className="space-y-4">
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/pricing?source=receipt-scan-limit&feature=receipt-scanning'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=receipt-scan-limit&feature=receipt-scanning', router })}
                                             className="bg-orange-600 hover:bg-orange-700 text-white px-6 py-3 rounded-lg font-semibold"
                                         >
                                             Upgrade for More Scans
@@ -3577,7 +3766,7 @@ export default function ReceiptScan() {
                 feature={FEATURE_GATES.RECEIPT_SCAN}
                 fallback={
                     <div className="space-y-6">
-                        {/* Feature gate fallback content (unchanged from original) */}
+                        {/* Feature gate fallback content */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
                                 <div>
@@ -3585,7 +3774,7 @@ export default function ReceiptScan() {
                                     <p className="text-gray-600">Scan your receipt to quickly add items to inventory</p>
                                 </div>
                                 <TouchEnhancedButton
-                                    onClick={() => router.push('/inventory')}
+                                    onClick={() => NativeNavigation.routerPush(router, '/inventory')}
                                     className="px-4 py-2 text-gray-600 hover:text-gray-800"
                                 >
                                     ← Back to Inventory
@@ -3609,7 +3798,7 @@ export default function ReceiptScan() {
 
                             <div className="text-center">
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=receipt-scanner'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=receipt-scanner', router })}
                                     className="bg-gradient-to-r from-purple-600 to-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-purple-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
                                 >
                                     Upgrade to Gold - Start Scanning!
@@ -3639,7 +3828,7 @@ export default function ReceiptScan() {
                                 )}
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/inventory')}
+                                onClick={() => NativeNavigation.routerPush(router, '/inventory')}
                                 className="px-4 py-2 text-gray-600 hover:text-gray-800"
                             >
                                 ← Back to Inventory
@@ -3694,7 +3883,26 @@ export default function ReceiptScan() {
                     {/* Main Content */}
                     <div className="bg-white shadow rounded-lg">
                         <div className="px-4 py-5 sm:p-6">
-                            {/* Step 1: Upload/Capture */}
+                            {/* Display camera error if exists */}
+                            {cameraError && (
+                                <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                                    <div className="flex">
+                                        <div className="flex-shrink-0">
+                                            <svg className="w-5 h-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd"/>
+                                            </svg>
+                                        </div>
+                                        <div className="ml-3">
+                                            <h3 className="text-sm font-medium text-red-800">Camera Error</h3>
+                                            <div className="mt-2 text-sm text-red-700">
+                                                <p>{cameraError}</p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Step 1: Upload/Capture - Complete UI from earlier completion */}
                             {step === 'upload' && (
                                 <div className="space-y-6">
                                     <div className="text-center">
@@ -3733,7 +3941,7 @@ export default function ReceiptScan() {
                                             )}
                                         </TouchEnhancedButton>
 
-                                        {/* Upload Image Option - Available on all platforms */}
+                                        {/* Upload Image Option */}
                                         <TouchEnhancedButton
                                             onClick={handleUploadButtonClick}
                                             className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-green-300 rounded-lg hover:border-green-400 hover:bg-green-50 transition-colors"
@@ -3746,7 +3954,7 @@ export default function ReceiptScan() {
                                             <div className="text-xs text-gray-500 mt-1">From gallery/files</div>
                                         </TouchEnhancedButton>
 
-                                        {/* Email Receipt Option - Available on all platforms */}
+                                        {/* Email Receipt Option */}
                                         <TouchEnhancedButton
                                             onClick={handleEmailReceiptUpload}
                                             className="flex flex-col items-center justify-center p-6 border-2 border-dashed border-purple-300 rounded-lg hover:border-purple-400 hover:bg-purple-50 transition-colors"
@@ -3777,15 +3985,12 @@ export default function ReceiptScan() {
                                         className="hidden"
                                     />
 
-                                    {/* Platform-Specific Guidance */}
+                                    {/* Platform guidance and tips sections from earlier completion */}
                                     {platformInfo.isAndroid && (
                                         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                                            <h4 className="text-sm font-medium text-green-900 mb-2">
-                                                🤖 Android Native App
-                                            </h4>
+                                            <h4 className="text-sm font-medium text-green-900 mb-2">Android Native App</h4>
                                             <p className="text-sm text-green-800 mb-3">
-                                                You're using Google's native ML Kit for optimal performance and
-                                                accuracy.
+                                                You're using Google's native ML Kit for optimal performance and accuracy.
                                                 All three options work great on Android!
                                             </p>
                                             <ul className="text-sm text-green-700 space-y-1">
@@ -3801,9 +4006,7 @@ export default function ReceiptScan() {
 
                                     {platformInfo.isIOSPWA && (
                                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                            <h4 className="text-sm font-medium text-blue-900 mb-2">
-                                                📱 iOS PWA
-                                            </h4>
+                                            <h4 className="text-sm font-medium text-blue-900 mb-2">iOS PWA</h4>
                                             <p className="text-sm text-blue-800 mb-3">
                                                 <strong>Tip:</strong> If camera doesn't work, "Upload Image" and "Email
                                                 Receipt"
@@ -3908,7 +4111,7 @@ export default function ReceiptScan() {
 
                                     {/* Report Issue Section - Keep your existing one */}
                                     <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
-                                        <h4 className="text-sm font-medium text-yellow-900 mb-2">🐛 Having Issues?</h4>
+                                        <h4 className="text-sm font-medium text-yellow-900 mb-2">Having Issues?</h4>
                                         <p className="text-sm text-yellow-800 mb-3">
                                             If the receipt scanner isn't working properly with your receipt, you can
                                             report the issue to help us improve it.
@@ -3917,19 +4120,19 @@ export default function ReceiptScan() {
                                             onClick={openReportModal}
                                             className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
                                         >
-                                            📧 Report Receipt Issue
+                                            Report Receipt Issue
                                         </TouchEnhancedButton>
                                     </div>
-                                    {/* 🆕 ADD THIS DEBUG SECTION HERE */}
+
+                                    {/* Debug section for development */}
                                     {process.env.NODE_ENV === 'development' && (
                                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mt-4">
-                                            <h4 className="text-sm font-medium text-yellow-900 mb-2">🔧 Development Debug
-                                                Tools</h4>
+                                            <h4 className="text-sm font-medium text-yellow-900 mb-2">Development Debug Tools</h4>
                                             <TouchEnhancedButton
                                                 onClick={() => setShowDebugModal(true)}
                                                 className="px-4 py-2 bg-yellow-600 text-white rounded-md hover:bg-yellow-700 text-sm"
                                             >
-                                                🔍 Debug Last Upload
+                                                Debug Last Upload
                                             </TouchEnhancedButton>
                                         </div>
                                     )}
@@ -3940,12 +4143,7 @@ export default function ReceiptScan() {
                             {showCamera && !platformInfo.isNative && (
                                 <div ref={cameraContainerRef} className="space-y-4">
                                     <div className="text-center">
-                                        <h3 className="text-lg font-medium mb-4">📷 Camera View</h3>
-                                        {platformInfo.isIOSPWA && (
-                                            <p className="text-sm text-yellow-600 mb-2">
-                                                iOS PWA detected - using optimized camera settings
-                                            </p>
-                                        )}
+                                        <h3 className="text-lg font-medium mb-4">Camera View</h3>
                                     </div>
 
                                     {/* Photo Taking Instructions */}
@@ -3969,10 +4167,7 @@ export default function ReceiptScan() {
                                             playsInline
                                             muted
                                             className="w-full h-96 object-cover bg-black"
-                                            style={{
-                                                display: 'block',
-                                                minHeight: '400px'
-                                            }}
+                                            style={{ display: 'block', minHeight: '400px' }}
                                             webkit-playsinline="true"
                                         />
 
@@ -4009,8 +4204,7 @@ export default function ReceiptScan() {
                                     </div>
                                 </div>
                             )}
-
-                            {/* Step 2: Processing - Enhanced for AI */}
+                            {/* Step 2: Processing */}
                             {step === 'processing' && (
                                 <div className="text-center space-y-6">
                                     <div className="text-6xl mb-4">
@@ -4028,7 +4222,6 @@ export default function ReceiptScan() {
                                         ></div>
                                     </div>
 
-                                    {/* AI Processing Indicator */}
                                     {processingStatus.includes('AI') && (
                                         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mx-auto max-w-md">
                                             <div className="flex items-center justify-center space-x-2 mb-2">
@@ -4056,31 +4249,25 @@ export default function ReceiptScan() {
                                 </div>
                             )}
 
-                            {/* Step 3: Review Items */}
+                            {/* Step 3: Review Items - Complete from earlier */}
                             {step === 'review' && (
                                 <div className="space-y-6">
-                                    {/* Header */}
                                     <div className="flex items-center justify-between">
                                         <div>
-                                            <h3 className="text-lg font-medium text-gray-900">Review AI-Enhanced
-                                                Items</h3>
+                                            <h3 className="text-lg font-medium text-gray-900">Review AI-Enhanced Items</h3>
                                             <p className="text-gray-600">
-                                                {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items
-                                                selected
-                                                {' '}- Enhanced with AI analysis
+                                                {extractedItems.filter(item => item.selected).length} of {extractedItems.length} items selected - Enhanced with AI analysis
                                             </p>
                                         </div>
                                         <div className="flex space-x-2">
                                             <TouchEnhancedButton
-                                                onClick={() => {
-                                                    const confirmed = window.confirm(
-                                                        "⚠️ Are you sure you want to start over?\n\n" +
-                                                        "This will delete all extracted items and you'll need to scan the receipt again.\n\n" +
-                                                        "Any edits you've made will be lost."
-                                                    );
-                                                    if (confirmed) {
-                                                        resetScan();
-                                                    }
+                                                onClick={async () => {
+                                                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                                    const confirmed = await NativeDialog.showConfirm({
+                                                        title: 'Start Over?',
+                                                        message: "Are you sure you want to start over? This will delete all extracted items and you'll need to scan the receipt again."
+                                                    });
+                                                    if (confirmed) resetScan();
                                                 }}
                                                 className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                                             >
@@ -4475,14 +4662,11 @@ export default function ReceiptScan() {
 
                     {/* Report Issue Modal */}
                     {showReportModal && (
-                        <div
-                            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                            <div
-                                className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
+                        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+                            <div className="bg-white rounded-lg max-w-md w-full max-h-screen overflow-y-auto">
                                 <div className="p-6">
                                     <div className="flex justify-between items-center mb-4">
-                                        <h3 className="text-lg font-medium text-gray-900">📧 Report
-                                            Receipt Issue</h3>
+                                        <h3 className="text-lg font-medium text-gray-900">Report Receipt Issue</h3>
                                         <TouchEnhancedButton
                                             onClick={() => setShowReportModal(false)}
                                             className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
@@ -4493,57 +4677,32 @@ export default function ReceiptScan() {
 
                                     <div className="space-y-4">
                                         <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 What type of issue are you experiencing? *
                                             </label>
                                             <select
                                                 value={reportData.issue}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    issue: e.target.value
-                                                }))}
+                                                onChange={(e) => setReportData(prev => ({...prev, issue: e.target.value}))}
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             >
                                                 <option value="">Select an issue...</option>
-                                                <option value="android-mlkit-not-working">Android ML Kit
-                                                    Not Working
-                                                </option>
-                                                <option value="tesseractjs-poor-accuracy">Tesseract.js
-                                                    Poor Accuracy
-                                                </option>
-                                                <option value="ios-pwa-camera-not-working">iOS PWA
-                                                    Camera Not Working
-                                                </option>
-                                                <option value="camera-not-working">Camera not working
-                                                </option>
-                                                <option value="wrong-items-detected">Wrong items
-                                                    detected
-                                                </option>
-                                                <option value="missing-items">Items not detected
-                                                </option>
-                                                <option value="categories-wrong">Wrong categories
-                                                    assigned
-                                                </option>
-                                                <option value="upc-lookup-failed">UPC lookup not
-                                                    working
-                                                </option>
-                                                <option value="app-crash">App crashed/froze</option>
+                                                <option value="android-mlkit-not-working">Android ML Kit Not Working</option>
+                                                <option value="tesseractjs-poor-accuracy">Tesseract.js Poor Accuracy</option>
+                                                <option value="ios-pwa-camera-not-working">iOS PWA Camera Not Working</option>
+                                                <option value="camera-not-working">Camera not working</option>
+                                                <option value="wrong-items-detected">Wrong items detected</option>
+                                                <option value="missing-items">Items not detected</option>
                                                 <option value="other">Other issue</option>
                                             </select>
                                         </div>
 
                                         <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Please describe the issue in detail *
                                             </label>
                                             <textarea
                                                 value={reportData.description}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    description: e.target.value
-                                                }))}
+                                                onChange={(e) => setReportData(prev => ({...prev, description: e.target.value}))}
                                                 placeholder="Describe what happened, what you expected, and any steps to reproduce the issue..."
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                                 rows={4}
@@ -4551,17 +4710,13 @@ export default function ReceiptScan() {
                                         </div>
 
                                         <div>
-                                            <label
-                                                className="block text-sm font-medium text-gray-700 mb-1">
+                                            <label className="block text-sm font-medium text-gray-700 mb-1">
                                                 Your email (for follow-up)
                                             </label>
                                             <input
                                                 type="email"
                                                 value={reportData.email}
-                                                onChange={(e) => setReportData(prev => ({
-                                                    ...prev,
-                                                    email: e.target.value
-                                                }))}
+                                                onChange={(e) => setReportData(prev => ({...prev, email: e.target.value}))}
                                                 placeholder="your.email@example.com"
                                                 className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                             />
@@ -4569,8 +4724,7 @@ export default function ReceiptScan() {
 
                                         {capturedImage && (
                                             <div>
-                                                <label
-                                                    className="block text-sm font-medium text-gray-700 mb-2">
+                                                <label className="block text-sm font-medium text-gray-700 mb-2">
                                                     Receipt Image (will be included)
                                                 </label>
                                                 <img
@@ -4679,8 +4833,6 @@ export default function ReceiptScan() {
 
                     <Footer/>
                 </div>
-
-
             </FeatureGate>
         </MobileOptimizedLayout>
     );

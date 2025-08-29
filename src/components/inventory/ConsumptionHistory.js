@@ -7,6 +7,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet, apiDelete } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function ConsumptionHistory({onClose}) {
     const {data: session} = useSafeSession();
@@ -26,7 +27,6 @@ export default function ConsumptionHistory({onClose}) {
 
     const fetchHistory = async () => {
         setLoading(true);
-        setError('');
 
         try {
             const params = new URLSearchParams({
@@ -40,11 +40,19 @@ export default function ConsumptionHistory({onClose}) {
             if (result.success) {
                 setHistory(result.history || []);
             } else {
-                setError(result.error || 'Failed to fetch consumption history');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Fetch Failed',
+                    message: result.error || 'Failed to fetch consumption history'
+                });
             }
         } catch (error) {
             console.error('Error fetching consumption history:', error);
-            setError('Failed to load consumption history');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: 'Failed to load consumption history'
+            });
         } finally {
             setLoading(false);
         }
@@ -181,7 +189,11 @@ export default function ConsumptionHistory({onClose}) {
 
         // Check if we have a valid ID
         if (!consumptionRecord._id) {
-            alert('Cannot undo this consumption - missing record ID. This may be an older record from before the undo feature was implemented.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Cannot Undo',
+                message: 'Cannot undo this consumption - missing record ID. This may be an older record from before the undo feature was implemented.'
+            });
             return;
         }
 
@@ -190,24 +202,43 @@ export default function ConsumptionHistory({onClose}) {
         const hoursSinceConsumption = (Date.now() - consumptionDate.getTime()) / (1000 * 60 * 60);
 
         if (hoursSinceConsumption > 24) {
-            alert('Cannot undo consumptions older than 24 hours');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Cannot Undo',
+                message: 'Cannot undo consumptions older than 24 hours'
+            });
             return;
         }
 
         if (consumptionRecord.isReversed) {
-            alert('This consumption has already been reversed');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Already Reversed',
+                message: 'This consumption has already been reversed'
+            });
             return;
         }
 
         if (consumptionRecord.isReversal) {
-            alert('Cannot undo a reversal record');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Cannot Undo',
+                message: 'Cannot undo a reversal record'
+            });
             return;
         }
 
         const confirmMessage = `Are you sure you want to undo this consumption?\n\n` +
             `This will restore ${consumptionRecord.quantityConsumed} ${consumptionRecord.unitConsumed} of ${consumptionRecord.itemName} back to your inventory.`;
 
-        if (!confirm(confirmMessage)) {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Undo Consumption',
+            message: confirmMessage,
+            confirmText: 'Undo',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -221,7 +252,11 @@ export default function ConsumptionHistory({onClose}) {
             console.log('Undo response:', result);
 
             if (result.success) {
-                alert(result.message);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Undo Successful',
+                    message: result.message
+                });
                 // Refresh the history and trigger inventory refresh in parent
                 await fetchHistory();
 
@@ -230,11 +265,19 @@ export default function ConsumptionHistory({onClose}) {
                     window.dispatchEvent(new CustomEvent('inventoryUpdated'));
                 }
             } else {
-                alert(result.error || 'Failed to undo consumption');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Undo Failed',
+                    message: result.error || 'Failed to undo consumption'
+                });
             }
         } catch (error) {
             console.error('Error undoing consumption:', error);
-            alert('Error undoing consumption: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Undo Error',
+                message: 'Error undoing consumption: ' + error.message
+            });
         }
     };
 
@@ -315,7 +358,7 @@ export default function ConsumptionHistory({onClose}) {
 
                             <div className="space-y-3">
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=consumption-history'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=consumption-history', router })}
                                     className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-lg font-medium hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
                                 >
                                     🚀 Upgrade to Gold - $4.99/month

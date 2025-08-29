@@ -7,7 +7,10 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 export default function ForgotPasswordPage() {
     const [email, setEmail] = useState('');
@@ -18,20 +21,37 @@ export default function ForgotPasswordPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Add iOS form submission haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
         setLoading(true);
         setError('');
         setSuccess('');
 
         // Client-side validation
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+
         if (!email) {
-            setError('Email is required');
+            await NativeDialog.showError({
+                title: 'Email Required',
+                message: 'Email is required'
+            });
             setLoading(false);
             return;
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         if (!emailRegex.test(email)) {
-            setError('Please enter a valid email address');
+            await NativeDialog.showError({
+                title: 'Invalid Email',
+                message: 'Please enter a valid email address'
+            });
             setLoading(false);
             return;
         }
@@ -42,13 +62,22 @@ export default function ForgotPasswordPage() {
             const data = await response.json();
 
             if (response.ok) {
-                setSuccess(data.message);
+                await NativeDialog.showSuccess({
+                    title: 'Reset Email Sent',
+                    message: data.message
+                });
                 setSubmitted(true);
             } else {
-                setError(data.error || 'An error occurred');
+                await NativeDialog.showError({
+                    title: 'Reset Failed',
+                    message: data.error || 'An error occurred'
+                });
             }
         } catch (error) {
-            setError('Network error. Please try again.');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -140,15 +169,19 @@ export default function ForgotPasswordPage() {
                         <label htmlFor="email" className="block text-sm font-medium text-gray-700">
                             Email Address
                         </label>
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             id="email"
                             name="email"
                             type="email"
-                            required
+                            inputMode="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                             placeholder="Enter your email address"
+                            autoComplete="email"
+                            validation={ValidationPatterns.email}
+                            errorMessage="Please enter a valid email address"
+                            successMessage="Email looks good"
+                            required
                         />
                     </div>
 
@@ -178,3 +211,4 @@ export default function ForgotPasswordPage() {
             </MobileOptimizedLayout>
     );
 }
+

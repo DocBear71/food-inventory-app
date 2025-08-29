@@ -37,10 +37,17 @@ export function registerServiceWorker() {
     }
 }
 
-function showUpdateNotification() {
-    if (confirm('A new version is available. Refresh to update?')) {
+async function showUpdateNotification() {
+    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+    const confirmed = await NativeDialog.showConfirm({
+        title: 'Update Available',
+        message: 'A new version is available. Refresh to update?',
+        confirmText: 'Update',
+        cancelText: 'Later'
+    });
+    if (confirmed) {
         if (navigator.serviceWorker.controller) {
-            navigator.serviceWorker.controller.postMessage({ command: 'skipWaiting' });
+            navigator.serviceWorker.controller.postMessage({command: 'skipWaiting'});
         }
     }
 }

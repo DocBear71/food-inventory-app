@@ -1,3 +1,5 @@
+// file: /src/capacitor.config.ts v3 - Added native iOS navigation support
+
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
@@ -36,12 +38,49 @@ const config: CapacitorConfig = {
             splashImmersive: true
         },
         
-        // CRITICAL: Add App plugin configuration for routing
+        // ENHANCED: App plugin configuration for native iOS navigation
         App: {
             launchUrl: 'index.html',
             handleUrl: (url: string) => {
                 console.log('📱 iOS handling shared URL:', url);
                 return { url };
+            },
+            // Enable native iOS back button handling
+            enableBackButtonHandler: true,
+            // Enable iOS swipe gestures  
+            enableSwipeGestures: true
+        },
+        
+        // ENHANCED: Dialog plugin for native iOS alerts/confirmations
+        Dialog: {
+            // Native iOS styling
+            iosStyle: 'actionSheet',
+            androidTheme: 'THEME_DEVICE_DEFAULT_LIGHT'
+        },
+        
+        // ENHANCED: ActionSheet plugin for native iOS action sheets
+        ActionSheet: {
+            // Native iOS action sheet styling
+            style: 'automatic'
+        },
+        
+        // ENHANCED: Browser plugin for external links
+        Browser: {
+            iosOptions: {
+                modalPresentationStyle: 'overFullScreen',
+                modalTransitionStyle: 'coverVertical',
+                enableViewportScale: true,
+                allowOverScroll: true,
+                enableBarsCollapsing: true,
+                toolbarColor: '#4f46e5',
+                closeButtonColor: '#ffffff'
+            },
+            androidOptions: {
+                showTitle: true,
+                toolbarColor: '#4f46e5',
+                secondaryToolbarColor: '#ffffff',
+                enableUrlBarHiding: true,
+                enableDefaultShare: true
             }
         },
                 
@@ -49,7 +88,7 @@ const config: CapacitorConfig = {
             permissions: ['camera', 'photos']
         },
         
-        // NEW: Official Capacitor Barcode Scanner (iOS optimized)
+        // KEEP: Native Barcode Scanner (iOS optimized)
         BarcodeScanner: {
             targetedFormats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39', 'QR_CODE'],
             cameraDirection: 'back',
@@ -108,7 +147,7 @@ const config: CapacitorConfig = {
         contentInset: 'automatic',
         allowsLinkPreview: false,
         webContentsDebuggingEnabled: true,
-        scheme: 'App',
+        scheme: 'App'
     }
 };
 

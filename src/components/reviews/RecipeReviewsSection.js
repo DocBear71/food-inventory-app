@@ -119,7 +119,11 @@ function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
         e.preventDefault();
 
         if (rating === 0) {
-            alert('Please select a rating');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Rating Required',
+                message: 'Please select a rating'
+            });
             return;
         }
 
@@ -150,11 +154,19 @@ function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
                 setModifications('');
                 setWouldMakeAgain(null);
             } else {
-                alert(data.error || 'Failed to add review');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Review Failed',
+                    message: data.error || 'Failed to add review'
+                });
             }
         } catch (error) {
             console.error('Error adding review:', error);
-            alert('Error adding review');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Review Error',
+                message: 'Error adding review'
+            });
         } finally {
             setSubmitting(false);
         }

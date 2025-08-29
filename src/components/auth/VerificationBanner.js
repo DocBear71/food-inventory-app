@@ -64,14 +64,26 @@ export default function VerificationBanner({ user }) {
                 setCooldown(60); // 1 minute cooldown
 
                 // Better success message
-                alert('✅ Verification email sent successfully!\n\n📧 Please check:\n• Your inbox\n• Spam/Junk folder\n• Promotions tab (Gmail)\n\nThe email should arrive within 2-3 minutes.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Email Sent Successfully',
+                    message: 'Verification email sent successfully!\n\nPlease check:\n• Your inbox\n• Spam/Junk folder\n• Promotions tab (Gmail)\n\nThe email should arrive within 2-3 minutes.'
+                });
             } else {
                 console.error('Resend verification failed:', data);
-                alert(`❌ Failed to send verification email:\n\n${data.error || 'Unknown error occurred'}\n\nPlease try again in a few minutes or contact support if the problem persists.`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Email Send Failed',
+                    message: `Failed to send verification email:\n\n${data.error || 'Unknown error occurred'}\n\nPlease try again in a few minutes or contact support if the problem persists.`
+                });
             }
         } catch (error) {
             console.error('Resend verification network error:', error);
-            alert('🌐 Network error occurred.\n\nPlease check your internet connection and try again.\n\nIf the problem persists, please contact support.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error occurred.\n\nPlease check your internet connection and try again.\n\nIf the problem persists, please contact support.'
+            });
         } finally {
             setLoading(false);
         }

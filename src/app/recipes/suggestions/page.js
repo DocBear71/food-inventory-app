@@ -1650,9 +1650,13 @@ export default function RecipeSuggestions() {
                                                             </TouchEnhancedButton>
                                                             {(recipe.analysis.matchPercentage * 100) < 100 && (
                                                                 <TouchEnhancedButton
-                                                                    onClick={() => {
+                                                                    onClick={async () => {
                                                                         if (!recipe || !recipe.analysis) {
-                                                                            alert('Recipe analysis not available');
+                                                                            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                                                                            await NativeDialog.showError({
+                                                                                title: 'Analysis Unavailable',
+                                                                                message: 'Recipe analysis not available'
+                                                                            });
                                                                             return;
                                                                         }
 

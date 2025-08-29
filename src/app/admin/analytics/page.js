@@ -7,6 +7,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function AdminAnalyticsPage() {
     const { data: session, status } = useSession();
@@ -23,7 +24,7 @@ export default function AdminAnalyticsPage() {
         if (status === 'loading') return;
 
         if (!session?.user?.isAdmin) {
-            router.push('/');
+            NativeNavigation.routerPush(router, '/');
             return;
         }
     }, [session, status, router]);
@@ -43,7 +44,12 @@ export default function AdminAnalyticsPage() {
             const response = await fetch(`/api/admin/analytics?timeframe=${timeframe}`);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Request Failed',
+                    message: `HTTP ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -51,7 +57,11 @@ export default function AdminAnalyticsPage() {
 
         } catch (err) {
             console.error('Error fetching analytics:', err);
-            setError(err.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Analytics Error',
+                message: err.message
+            });
         } finally {
             setLoading(false);
         }

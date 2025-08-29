@@ -1,7 +1,7 @@
 // file: /src/app/api/shopping/saved/[id]/route.js v1
 
 import { NextResponse } from 'next/server';
-import { auth } from '@/lib/auth';
+import { getEnhancedSession } from '@/lib/api-auth';
 
 import connectDB from '@/lib/mongodb';
 import { SavedShoppingList } from '@/lib/models';
@@ -9,7 +9,7 @@ import { SavedShoppingList } from '@/lib/models';
 // GET - Fetch a specific saved shopping list
 export async function GET(request, { params }) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -64,7 +64,7 @@ export async function GET(request, { params }) {
 // PUT - Update a saved shopping list
 export async function PUT(request, { params }) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -89,14 +89,19 @@ export async function PUT(request, { params }) {
             'isTemplate', 'isArchived'
         ];
 
-        allowedUpdates.forEach(field => {
+        for (const field of allowedUpdates) {
             if (updates[field] !== undefined) {
                 if (field === 'name' && updates[field].length > 100) {
-                    throw new Error('Name must be 100 characters or less');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Name Error',
+                        message: 'Name must be 100 characters or less'
+                    });
+                    continue;
                 }
                 savedList[field] = updates[field];
             }
-        });
+        }
 
         // Handle special updates
         if (updates.markPurchased) {
@@ -141,7 +146,7 @@ export async function PUT(request, { params }) {
 // DELETE - Delete a specific saved shopping list
 export async function DELETE(request, { params }) {
     try {
-        const session = await auth();
+        const session = await getEnhancedSession(request);
         if (!session?.user?.id) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }

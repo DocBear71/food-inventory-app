@@ -1,11 +1,16 @@
 'use client';
-// file: /src/components/shared/SaveShoppingListModal.js v1
+// file: /src/components/shared/SaveShoppingListModal.js v2 - iOS Native Enhancements with Native Form Components
 
 
 import { useState } from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 export default function SaveShoppingListModal({
                                                   isOpen,
@@ -27,6 +32,8 @@ export default function SaveShoppingListModal({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
+    const isIOS = PlatformDetection.isIOS();
+
     // Generate suggested name based on context
     const getSuggestedName = () => {
         const now = new Date();
@@ -47,7 +54,16 @@ export default function SaveShoppingListModal({
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
+
+        // iOS form submit haptic
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Form submit haptic failed:', error);
+            }
+        }
 
         try {
             // Prepare items for saving
@@ -91,7 +107,28 @@ export default function SaveShoppingListModal({
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to save shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Save Failed',
+                    message: result.error || 'Failed to save shopping list'
+                });
+                return;
+            }
+
+            // iOS success feedback
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'List Saved!',
+                        message: `"${saveData.name}" has been saved to your collection`
+                    });
+                } catch (error) {
+                    console.log('Success feedback failed:', error);
+                }
             }
 
             // Call the onSave callback with the saved list info
@@ -109,10 +146,66 @@ export default function SaveShoppingListModal({
 
         } catch (error) {
             console.error('Error saving shopping list:', error);
-            setError(error.message);
+
+            // iOS error feedback
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Save Failed',
+                        message: error.message || 'Could not save the shopping list. Please try again.'
+                    });
+                } catch (dialogError) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Dialog Error',
+                        message: error.message
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: error.message
+                });
+            }
         } finally {
             setLoading(false);
         }
+    };
+
+    const handleQuickTagClick = async (tag) => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Tag click haptic failed:', error);
+            }
+        }
+
+        const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
+        if (!currentTags.includes(tag)) {
+            setFormData({
+                ...formData,
+                tags: [...currentTags, tag].join(', ')
+            });
+        }
+    };
+
+    const handleColorSelect = async (color) => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Color select haptic failed:', error);
+            }
+        }
+        setFormData({ ...formData, color });
     };
 
     const predefinedColors = [
@@ -236,7 +329,7 @@ export default function SaveShoppingListModal({
                         }}>
                             List Name
                         </label>
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             type="text"
                             value={formData.name}
                             onChange={(e) => setFormData({ ...formData, name: e.target.value })}
@@ -250,6 +343,14 @@ export default function SaveShoppingListModal({
                                 fontSize: '0.875rem',
                                 boxSizing: 'border-box'
                             }}
+                            validation={(value) => ({
+                                isValid: value.length === 0 || (value.length >= 3 && value.length <= 100),
+                                message: value.length === 0 ? '' :
+                                    value.length >= 3 && value.length <= 100 ? 'List name looks good!' :
+                                        value.length < 3 ? 'Name should be at least 3 characters' : 'Name too long'
+                            })}
+                            errorMessage="List name should be 3-100 characters"
+                            successMessage="Perfect list name!"
                         />
                         <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
                             Leave blank to use suggested name
@@ -267,7 +368,7 @@ export default function SaveShoppingListModal({
                         }}>
                             Description (Optional)
                         </label>
-                        <textarea
+                        <NativeTextarea
                             value={formData.description}
                             onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                             placeholder="Add notes about this shopping list..."
@@ -279,10 +380,13 @@ export default function SaveShoppingListModal({
                                 border: '1px solid #d1d5db',
                                 borderRadius: '6px',
                                 fontSize: '0.875rem',
-                                resize: 'vertical',
                                 boxSizing: 'border-box'
                             }}
+                            autoExpand={true}
                         />
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: '0.25rem' }}>
+                            {formData.description.length}/500 characters
+                        </div>
                     </div>
 
                     {/* Tags Field */}
@@ -296,7 +400,7 @@ export default function SaveShoppingListModal({
                         }}>
                             Tags (Optional)
                         </label>
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             type="text"
                             value={formData.tags}
                             onChange={(e) => setFormData({ ...formData, tags: e.target.value })}
@@ -309,6 +413,10 @@ export default function SaveShoppingListModal({
                                 fontSize: '0.875rem',
                                 boxSizing: 'border-box'
                             }}
+                            validation={(value) => ({
+                                isValid: true,
+                                message: value ? `${value.split(',').filter(t => t.trim()).length} tags added` : ''
+                            })}
                         />
                         <div style={{ marginTop: '0.5rem' }}>
                             <div style={{ fontSize: '0.75rem', color: '#6b7280', marginBottom: '0.25rem' }}>
@@ -319,15 +427,7 @@ export default function SaveShoppingListModal({
                                     <TouchEnhancedButton
                                         key={tag}
                                         type="button"
-                                        onClick={() => {
-                                            const currentTags = formData.tags.split(',').map(t => t.trim()).filter(Boolean);
-                                            if (!currentTags.includes(tag)) {
-                                                setFormData({
-                                                    ...formData,
-                                                    tags: [...currentTags, tag].join(', ')
-                                                });
-                                            }
-                                        }}
+                                        onClick={() => handleQuickTagClick(tag)}
                                         style={{
                                             backgroundColor: '#f3f4f6',
                                             border: 'none',
@@ -361,7 +461,7 @@ export default function SaveShoppingListModal({
                                 <TouchEnhancedButton
                                     key={color}
                                     type="button"
-                                    onClick={() => setFormData({ ...formData, color })}
+                                    onClick={() => handleColorSelect(color)}
                                     style={{
                                         width: '2rem',
                                         height: '2rem',

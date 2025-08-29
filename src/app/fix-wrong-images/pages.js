@@ -40,7 +40,14 @@ export default function EnhancedFixWrongImages() {
     };
 
     const runEnhancedFix = async () => {
-        if (!confirm('This will replace images for the 5 problematic recipes. Continue?')) return;
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Replace Recipe Images',
+            message: 'This will replace images for the 5 problematic recipes. Continue?',
+            confirmText: 'Continue',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) return;
 
         setLoading(true);
         try {
@@ -83,7 +90,14 @@ export default function EnhancedFixWrongImages() {
     };
 
     const fixAllImages = async () => {
-        if (!confirm('This will reprocess ALL recipe images with the enhanced algorithm. This may take a while. Continue?')) return;
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Reprocess All Images',
+            message: 'This will reprocess ALL recipe images with the enhanced algorithm. This may take a while. Continue?',
+            confirmText: 'Continue',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) return;
 
         setLoading(true);
         try {

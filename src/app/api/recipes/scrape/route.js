@@ -80,7 +80,7 @@ function parseInstructionText(text, stepNumber) {
 }
 
 // Clean and normalize recipe data with enhanced parsing
-function normalizeRecipeData(jsonLdData) {
+async function normalizeRecipeData(jsonLdData) {
     console.log('Raw JSON-LD data received:', JSON.stringify(jsonLdData, null, 2));
 
     // Handle arrays - some sites return arrays of recipes
@@ -96,7 +96,12 @@ function normalizeRecipeData(jsonLdData) {
 
     if (!recipe || !recipe.name) {
         console.log('No recipe found, available properties:', Object.keys(recipe || {}));
-        throw new Error('No valid recipe data found in structured data');
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Recipe Data Failed',
+            message: 'No valid recipe data found in structured data'
+        });
+        return;
     }
 
     console.log('Found recipe:', recipe.name);
@@ -266,11 +271,11 @@ function normalizeRecipeData(jsonLdData) {
                 name: 'Sugars'
             }
         } : {
-            calories: { value: 0, unit: 'kcal', name: 'Calories' },
-            protein: { value: 0, unit: 'g', name: 'Protein' },
-            fat: { value: 0, unit: 'g', name: 'Fat' },
-            carbs: { value: 0, unit: 'g', name: 'Carbohydrates' },
-            fiber: { value: 0, unit: 'g', name: 'Fiber' }
+            calories: {value: 0, unit: 'kcal', name: 'Calories'},
+            protein: {value: 0, unit: 'g', name: 'Protein'},
+            fat: {value: 0, unit: 'g', name: 'Fat'},
+            carbs: {value: 0, unit: 'g', name: 'Carbohydrates'},
+            fiber: {value: 0, unit: 'g', name: 'Fiber'}
         }
     };
 
@@ -333,7 +338,7 @@ function normalizeRecipeData(jsonLdData) {
 }
 
 // Extract JSON-LD structured data from HTML
-function extractJSONLD(html) {
+async function extractJSONLD(html) {
     console.log('Extracting JSON-LD from HTML');
 
     // Find all JSON-LD script tags
@@ -392,7 +397,12 @@ function extractJSONLD(html) {
         }
     }
 
-    throw new Error('No recipe found in JSON-LD structured data');
+    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+    await NativeDialog.showError({
+        title: 'Recipe JSON-LED Failed',
+        message: 'No recipe found in JSON-LD structured data'
+    });
+    return;
 }
 
 // Main scraping function with enhanced parsing
@@ -416,7 +426,12 @@ async function scrapeRecipeFromUrl(url) {
         }
 
     } catch (error) {
-        throw new Error('Invalid URL provided');
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'URL Failed',
+            message: 'Invalid URL provided'
+        });
+        return;
     }
 
     // Fetch the webpage
@@ -431,7 +446,12 @@ async function scrapeRecipeFromUrl(url) {
     });
 
     if (!response.ok) {
-        throw new Error(`Failed to fetch recipe page: ${response.status} ${response.statusText}`);
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Fetch Failed',
+            message: `Failed to fetch recipe page: ${response.status} ${response.statusText}`
+        });
+        return;
     }
 
     const html = await response.text();

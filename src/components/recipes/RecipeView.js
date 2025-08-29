@@ -35,7 +35,11 @@ export function RecipeView({ recipe, canEdit = false }) {
             });
 
             if (response.ok) {
-                alert('Items added to shopping list!');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Items Added',
+                    message: 'Items added to shopping list!'
+                });
             }
         } catch (error) {
             console.error('Error adding to shopping list:', error);

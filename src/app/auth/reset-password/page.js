@@ -7,7 +7,11 @@ import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 function ResetPasswordContent() {
     const router = useRouter();
@@ -29,12 +33,20 @@ function ResetPasswordContent() {
 
     // Verify token on component mount
     useEffect(() => {
-        if (token) {
-            verifyToken();
-        } else {
-            setError('Invalid reset link');
-            setVerifying(false);
-        }
+        const handleTokenVerification = async () => {
+            if (token) {
+                verifyToken();
+            } else {
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Invalid Link',
+                    message: 'Invalid reset link'
+                });
+                setVerifying(false);
+            }
+        };
+
+        handleTokenVerification();
     }, [token]);
 
     const verifyToken = async () => {
@@ -46,7 +58,12 @@ function ResetPasswordContent() {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ Token verification failed:', response.status, errorText);
-                throw new Error(`Server returned ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Verification Failed',
+                    message: `Server returned ${response.status}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -56,11 +73,19 @@ function ResetPasswordContent() {
                 setUserEmail(data.email);
                 console.log('✅ Token verified for email:', data.email);
             } else {
-                setError(data.error || 'Invalid or expired reset token');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Invalid Reset Link',
+                    message: data.error || 'This reset link is invalid or has expired. Please request a new one.'
+                });
             }
         } catch (error) {
-            console.error('❌ Token verification error:', error);
-            setError(`Network error: ${error.message}. Please check your connection and try again.`);
+            console.error('❌ Password reset error:', error);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Unable to reset password. Please check your connection and try again.'
+            });
         } finally {
             setVerifying(false);
         }
@@ -106,27 +131,46 @@ function ResetPasswordContent() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Add iOS form submission haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
         setLoading(true);
-        setError('');
         setSuccess('');
 
-        // Client-side validation
         if (!formData.password || !formData.confirmPassword) {
-            setError('All fields are required');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Missing Information',
+                message: 'Please fill in both password fields'
+            });
             setLoading(false);
             return;
         }
 
         if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Passwords Don\'t Match',
+                message: 'Please make sure both password fields match'
+            });
             setLoading(false);
             return;
         }
 
-        // UPDATED: Strong password validation
+// UPDATED: Strong password validation
         const passwordErrors = validatePassword(formData.password);
         if (passwordErrors.length > 0) {
-            setError(`Password must contain ${passwordErrors.join(', ')}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Weak Password',
+                message: `Password must contain ${passwordErrors.join(', ')}`
+            });
             setLoading(false);
             return;
         }
@@ -143,7 +187,12 @@ function ResetPasswordContent() {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ Password reset failed:', response.status, errorText);
-                throw new Error(`Server returned ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Password Reset Failed',
+                    message: `Server returned ${response.status}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -151,15 +200,23 @@ function ResetPasswordContent() {
             if (data.success !== false) {
                 setSuccess(data.message || 'Password reset successfully!');
                 console.log('✅ Password reset successful');
-                setTimeout(() => {
-                    router.push('/auth/signin');
+                setTimeout( () => {
+                    NativeNavigation.routerPush(router, '/auth/signin');
                 }, 3000);
             } else {
-                setError(data.error || 'Failed to reset password');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Reset Failed',
+                    message: data.error || 'Failed to reset password. Please try again.'
+                });
             }
         } catch (error) {
             console.error('❌ Password reset error:', error);
-            setError(`Network error: ${error.message}. Please check your connection and try again.`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Unable to reset password. Please check your connection and try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -212,7 +269,7 @@ function ResetPasswordContent() {
 
                             <div className="space-y-4">
                                 <TouchEnhancedButton
-                                    onClick={() => router.push('/auth/forgot-password')}
+                                    onClick={() => NativeNavigation.routerPush(router, '/auth/forgot-password')}
                                     className="w-full bg-indigo-600 text-white py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                 >
                                     Request New Reset Link
@@ -314,17 +371,28 @@ function ResetPasswordContent() {
                                 <label htmlFor="password" className="block text-sm font-medium text-gray-700">
                                     New Password
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     id="password"
                                     name="password"
                                     type="password"
-                                    required
+                                    inputMode="text"
                                     value={formData.password}
                                     onChange={handleChange}
                                     onFocus={() => setPasswordFocused(true)}
                                     onBlur={() => setPasswordFocused(false)}
-                                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                     placeholder="Create a secure password"
+                                    autoComplete="new-password"
+                                    validation={(value) => {
+                                        const passwordReqs = getPasswordRequirements(value);
+                                        const isValid = Object.values(passwordReqs).every(req => req);
+                                        return {
+                                            isValid: isValid,
+                                            message: isValid ? 'Strong password!' : 'Password requirements not met'
+                                        };
+                                    }}
+                                    errorMessage="Password must meet all requirements"
+                                    successMessage="Strong password!"
+                                    required
                                 />
                             </div>
 
@@ -381,15 +449,24 @@ function ResetPasswordContent() {
                                 <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                                     Confirm New Password
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     id="confirmPassword"
                                     name="confirmPassword"
                                     type="password"
-                                    required
+                                    inputMode="text"
                                     value={formData.confirmPassword}
                                     onChange={handleChange}
-                                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                     placeholder="Confirm your new password"
+                                    autoComplete="new-password"
+                                    validation={(value) => ({
+                                        isValid: value && formData.password && value === formData.password,
+                                        message: value && formData.password && value === formData.password
+                                            ? 'Passwords match!'
+                                            : value ? 'Passwords do not match' : ''
+                                    })}
+                                    errorMessage="Passwords must match"
+                                    successMessage="Passwords match!"
+                                    required
                                 />
 
                                 {/* Password Match Indicator */}

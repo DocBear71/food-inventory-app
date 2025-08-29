@@ -24,7 +24,10 @@ import FeatureGate from "@/components/subscription/FeatureGate";
 import { apiGet, apiDelete, getRecipeUrl } from '@/lib/api-config';
 import { RecipeSearchEngine } from '@/lib/recipeSearch';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 
 const getDailySeed = () => {
@@ -436,7 +439,12 @@ function RecipesContent() {
             const response = await apiGet('/api/recipes');
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'HTTP Failed',
+                    message: `HTTP ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -613,9 +621,15 @@ function RecipesContent() {
     };
 
     const handleDelete = async (recipeId) => {
-        if (!confirm('Are you sure you want to delete this recipe?')) {
-            return;
-        }
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete Recipe',
+            message: 'Are you sure you want to delete this recipe? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+
+        if (!confirmed) return;
 
         try {
             const response = await apiDelete(`/api/recipes?recipeId=${recipeId}`);
@@ -623,11 +637,19 @@ function RecipesContent() {
             if (response.ok) {
                 setRecipes(prev => Array.isArray(prev) ? prev.filter(recipe => recipe._id !== recipeId) : []);
             } else {
-                alert('Failed to delete recipe');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: 'Failed to delete recipe. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error deleting recipe:', error);
-            alert('Error deleting recipe');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Error',
+                message: 'Unable to delete recipe. Please try again.'
+            });
         }
     };
 
@@ -672,17 +694,25 @@ function RecipesContent() {
             setVoiceSearchResults('');
 
             const searchType = parsedCriteria.query ? 'search' : 'filter';
-            alert(`✅ Applied voice ${searchType}: "${transcript}"`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Voice Search Applied',
+                message: `Applied voice ${searchType}: "${transcript}"`
+            });
 
         } catch (error) {
             console.error('Error processing voice search:', error);
-            alert('❌ Error processing voice search. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Voice Search Error',
+                message: 'Error processing voice search. Please try again.'
+            });
         } finally {
             setProcessingVoiceSearch(false);
         }
     };
 
-    const handleVoiceSearchError = (error) => {
+    const handleVoiceSearchError = async (error) => {
         console.error('🎤 Voice search error:', error);
         setProcessingVoiceSearch(false);
 
@@ -695,7 +725,11 @@ function RecipesContent() {
             userMessage += 'Please try again.';
         }
 
-        alert(`🎤 ${userMessage}`);
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Voice Input Error',
+            message: userMessage
+        });
     };
 
     const getSortIndicator = (recipe, sortBy) => {
@@ -1188,13 +1222,17 @@ function RecipesContent() {
                                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                                 </svg>
                                             </div>
-                                            <KeyboardOptimizedInput
+                                            <NativeTextInput
                                                 type="text"
+                                                inputMode="search"
                                                 value={searchFilters.query}
                                                 onChange={(e) => setSearchFilters(prev => ({ ...prev, query: e.target.value }))}
                                                 placeholder="Search 650+ recipes..."
-                                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg text-base focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
-                                                style={{ fontSize: '16px' }}
+                                                autoComplete="off"
+                                                validation={(value) => ({
+                                                    isValid: true,
+                                                    message: value && value.length > 2 ? `Searching recipes for "${value}"` : ''
+                                                })}
                                             />
                                         </div>
                                         <div className="mt-2 text-center">

@@ -203,7 +203,12 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             console.log('🔍 Plugin availability check:', availability);
 
             if (!availability.available) {
-                throw new Error('Speech recognition not available on this device');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Speech Recognition Failed',
+                    message: 'Speech recognition not available on this device'
+                });
+                return;
             }
 
             // Request permissions explicitly
@@ -211,7 +216,12 @@ export function VoiceInput({ onResult, onError, placeholder = "Say something..."
             console.log('🔍 Permission check:', permissions);
 
             if (permissions.speechRecognition !== 'granted') {
-                throw new Error('Microphone permission denied');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Microphone Failed',
+                    message: 'Microphone permission denied'
+                });
+                return;
             }
 
             // Use minimal configuration for better compatibility

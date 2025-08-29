@@ -4,7 +4,10 @@
 import {useState, useEffect} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiGet } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 const MEAL_CATEGORIES = [
     {id: 'protein', name: 'Protein', icon: '🥩', color: 'bg-red-50 border-red-200 text-red-700'},
@@ -481,9 +484,13 @@ export default function SimpleMealBuilder({
         return 'other';
     };
 
-    const suggestRandomMeal = () => {
+    const suggestRandomMeal = async () => {
         if (filteredInventory.length === 0) {
-            alert('No inventory items available to create a meal suggestion');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Items Available',
+                message: 'No inventory items available to create a meal suggestion'
+            });
             return;
         }
 
@@ -693,14 +700,22 @@ export default function SimpleMealBuilder({
 
     const handleSave = async () => {
         if (mealData.items.length === 0) {
-            alert('Please add at least one item to your meal');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'No Items Added',
+                message: 'Please add at least one item to your meal before saving.'
+            });
             return;
         }
 
         if (dietaryConflicts.length > 0) {
-            const confirmSave = window.confirm(
-                `This meal has potential dietary conflicts:\n\n${dietaryConflicts.join('\n')}\n\nDo you want to save it anyway?`
-            );
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            const confirmSave = await NativeDialog.showConfirm({
+                title: 'Dietary Conflicts Detected',
+                message: `This meal has potential dietary conflicts:\n\n${dietaryConflicts.join('\n')}\n\nDo you want to save it anyway?`,
+                confirmText: 'Save Anyway',
+                cancelText: 'Cancel'
+            });
             if (!confirmSave) return;
         }
 
@@ -726,7 +741,11 @@ export default function SimpleMealBuilder({
             onClose();
         } catch (error) {
             console.error('Error saving simple meal:', error);
-            alert('Error saving meal. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Save Failed',
+                message: 'Error saving meal. Please try again.'
+            });
         } finally {
             setSaving(false);
         }
@@ -824,12 +843,17 @@ export default function SimpleMealBuilder({
                                     <div className="h-full flex flex-col min-h-0">
                                         {/* MINIMAL Filters */}
                                         <div className="p-2 border-b border-gray-100 flex-shrink-0">
-                                            <KeyboardOptimizedInput
+                                            <NativeTextInput
                                                 type="text"
+                                                inputMode="search"
                                                 placeholder="Search inventory..."
                                                 value={searchQuery}
                                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
+                                                autoComplete="off"
+                                                validation={(value) => ({
+                                                    isValid: true,
+                                                    message: value && value.length > 1 ? `Searching inventory for "${value}"` : ''
+                                                })}
                                             />
                                             <select
                                                 value={selectedCategory}
@@ -1017,12 +1041,18 @@ export default function SimpleMealBuilder({
                             <div className="w-1/2 border-r border-gray-200 flex flex-col min-h-0">
                                 {/* MINIMAL search area */}
                                 <div className="p-2 border-b border-gray-100 flex-shrink-0">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="search"
                                         placeholder="Search inventory..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm mb-2"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 1 ? `Searching inventory for "${value}"` : ''
+                                        })}
+                                        style={{ marginBottom: '8px' }}
                                     />
                                     <select
                                         value={selectedCategory}

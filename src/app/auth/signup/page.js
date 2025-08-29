@@ -10,7 +10,13 @@ import TermsOfUse from '@/components/legal/TermsOfUse';
 import Footer from '@/components/legal/Footer';
 import {apiPost} from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
-import KeyboardOptimizedInput from "@/components/forms/KeyboardOptimizedInput";
+import {
+    NativeTextInput,
+    NativeSelect,
+    NativeCheckbox,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from "@/utils/PlatformDetection.js";
 
 // Separate component for search params to wrap in Suspense
 function SignUpContent() {
@@ -261,86 +267,110 @@ function SignUpContent() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
         setSuccess('');
 
-        // Client-side validation
+        // iOS-specific form validation
+        if (PlatformDetection.isIOS()) {
+            // Force iOS to complete any pending input
+            const activeElement = document.activeElement;
+            if (activeElement && activeElement.blur) {
+                activeElement.blur();
+            }
+
+            // Wait for iOS to process input changes
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // 🍎 Native iOS form submit haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
+        // Validate required fields
+        if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Form Incomplete',
+                message: 'Please fill in all required fields.'
+            });
+
+            // Error haptic feedback
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
+
+            setLoading(false);
+            return;
+        }
+
+        // Validate password match
         if (formData.password !== formData.confirmPassword) {
-            setError('Passwords do not match');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Password Mismatch',
+                message: 'Passwords do not match. Please check and try again.'
+            });
+
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
+
             setLoading(false);
             return;
         }
 
-        const passwordErrors = validatePassword(formData.password);
-        if (passwordErrors.length > 0) {
-            setError(`Password must contain ${passwordErrors.join(', ')}`);
-            setLoading(false);
-            return;
-        }
+        // Validate password requirements
+        if (!passwordReqs.length || !passwordReqs.uppercase || !passwordReqs.lowercase || !passwordReqs.number) {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Password Requirements',
+                message: 'Password does not meet the requirements.'
+            });
 
-        if (!acceptedTerms || !acceptedPrivacy) {
-            setError('You must accept both the Terms of Use and Privacy Policy to create an account');
-            setLoading(false);
-            return;
-        }
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
 
-        // NEW: Enhanced validation for international compliance
-        if (isEUUser && !acceptedDataProcessing) {
-            setError('EU users must consent to data processing under GDPR');
-            setLoading(false);
-            return;
-        }
-
-        if (isMinor && !acceptedMinorConsent) {
-            setError('Parental consent is required for users under 18');
-            setLoading(false);
-            return;
-        }
-
-        if (isMinor && !parentEmail) {
-            setError('Parent/guardian email is required for users under 18');
             setLoading(false);
             return;
         }
 
         try {
-            const response = await apiPost('/api/auth/register', {
-                name: formData.name,
-                email: formData.email,
-                password: formData.password,
-                country: formData.country,
-                acceptedTerms: true,
-                acceptedPrivacy: true,
-                acceptanceDate: new Date().toISOString(),
-
-                // NEW: Enhanced consent tracking
-                isEUUser,
-                acceptedDataProcessing: isEUUser ? acceptedDataProcessing : null,
-                acceptedVoiceProcessing,
-                acceptedInternationalTransfers,
-                isMinor,
-                parentEmail: isMinor ? parentEmail : null,
-                acceptedMinorConsent: isMinor ? acceptedMinorConsent : null,
-
-                // Subscription details
-                selectedTier,
-                billingCycle: selectedTier === 'free' ? null : billingCycle,
-                startTrial: selectedTier !== 'free',
+            const response = await apiPost('/api/auth/signup', {
+                ...formData,
+                tier: urlTier,
+                billing: urlBilling,
+                trial: urlTrial,
                 source: urlSource
             });
 
             const data = await response.json();
 
-            if (response.ok) {
-                let successMessage = 'Account created successfully! Please check your email to verify your account before signing in.';
-
-                if (isMinor) {
-                    successMessage += ' A separate verification email has been sent to your parent/guardian.';
+            if (response.ok && data.success) {
+                // 🍎 Success haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } catch (error) {
+                    console.log('Success haptic failed:', error);
                 }
 
-                setSuccess(successMessage);
+                setSuccess(data.message || 'Account created successfully! Please check your email to verify your account.');
+                setShowSuccessMessage(true);
 
-                // Reset form data after successful registration
+                // Clear form
                 setFormData({
                     name: '',
                     email: '',
@@ -348,21 +378,43 @@ function SignUpContent() {
                     confirmPassword: '',
                     country: '',
                 });
-                setBirthDate('');
-                setParentEmail('');
-                setIsMinor(false);
-                setAcceptedTerms(false);
-                setAcceptedPrivacy(false);
-                setAcceptedDataProcessing(false);
-                setAcceptedVoiceProcessing(false);
-                setAcceptedInternationalTransfers(false);
-                setAcceptedMinorConsent(false);
-                setAcceptedMarketing(false);
+
+                // Scroll to success message
+                if (successMessageRef.current) {
+                    successMessageRef.current.scrollIntoView({ behavior: 'smooth' });
+                }
+
             } else {
-                setError(data.error || 'An error occurred');
+                // 🍎 Error haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+                } catch (error) {
+                    console.log('Error haptic failed:', error);
+                }
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Account Creation Failed',
+                    message: data.error || 'Failed to create account. Please try again.'
+                });
             }
         } catch (error) {
-            setError('Network error. Please try again.');
+            console.error('Signup error:', error);
+
+            // 🍎 Error haptic feedback
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please check your connection and try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -669,59 +721,67 @@ function SignUpContent() {
 
                             <div className="space-y-4">
                                 <div>
-                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-2">
                                         Full Name
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         id="name"
                                         name="name"
                                         type="text"
                                         required
-                                        className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Enter your full name"
                                         value={formData.name}
                                         onChange={handleChange}
+                                        validation={(value) => ({
+                                            isValid: value.length >= 2 && value.length <= 50,
+                                            message: value.length >= 2 ? 'Name looks good!' : 'Name should be at least 2 characters'
+                                        })}
+                                        errorMessage="Please enter your full name"
+                                        successMessage="Name looks good!"
                                     />
                                 </div>
 
                                 <div>
-                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                                         Email Address
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         id="email"
                                         name="email"
                                         type="email"
+                                        inputMode="email"
+                                        autoComplete="email"
                                         required
-                                        className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                        placeholder="Enter your email"
+                                        placeholder="Enter your email address"
                                         value={formData.email}
                                         onChange={handleChange}
+                                        validation={ValidationPatterns.email}
+                                        errorMessage="Please enter a valid email address"
+                                        successMessage="Email format is correct"
                                     />
                                 </div>
 
                                 {/* NEW: Country Selection for International Compliance */}
                                 <div>
-                                    <label htmlFor="country" className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-2">
                                         Country/Region
                                         {isEUUser && <span className="text-blue-600 ml-1">(GDPR Protected)</span>}
                                     </label>
-                                    <select
+                                    <NativeSelect
                                         id="country"
                                         name="country"
-                                        required
                                         value={formData.country}
                                         onChange={handleChange}
-                                        className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    >
-                                        <option value="">Select your country</option>
-                                        {countries.map(country => (
-                                            <option key={country} value={country}>
-                                                {country}
-                                                {euCountries.includes(country) ? ' 🇪🇺' : ''}
-                                            </option>
-                                        ))}
-                                    </select>
+                                        placeholder="Select your country"
+                                        required
+                                        validation={ValidationPatterns.required}
+                                        errorMessage="Please select your country"
+                                        successMessage="Country selected"
+                                        options={countries.map(country => ({
+                                            value: country,
+                                            label: `${country}${euCountries.includes(country) ? ' 🇪🇺' : ''}`
+                                        }))}
+                                    />
                                     {isEUUser && (
                                         <p className="mt-1 text-xs text-blue-600">
                                             EU/EEA residents have additional data protection rights under GDPR
@@ -732,18 +792,12 @@ function SignUpContent() {
                                 {/* NEW: Age Verification for Minor Protection */}
                                 <div className="border border-gray-200 rounded-lg p-3">
                                     <h4 className="text-sm font-medium text-gray-700 mb-2">Age Verification</h4>
-                                    <div className="flex items-center mb-2">
-                                        <input
-                                            id="isMinor"
-                                            type="checkbox"
-                                            checked={isMinor}
-                                            onChange={(e) => setIsMinor(e.target.checked)}
-                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded"
-                                        />
-                                        <label htmlFor="isMinor" className="ml-2 text-sm text-gray-700">
-                                            I am under 18 years of age
-                                        </label>
-                                    </div>
+                                    <NativeCheckbox
+                                        id="isMinor"
+                                        checked={isMinor}
+                                        onChange={(e) => setIsMinor(e.target.checked)}
+                                        label="I am under 18 years of age"
+                                    />
 
                                     {isMinor && (
                                         <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded">
@@ -759,14 +813,16 @@ function SignUpContent() {
                                                        className="block text-sm font-medium text-yellow-800">
                                                     Parent/Guardian Email Address *
                                                 </label>
-                                                <KeyboardOptimizedInput
+                                                <NativeTextInput
                                                     id="parentEmail"
                                                     type="email"
                                                     required={isMinor}
                                                     value={parentEmail}
                                                     onChange={(e) => setParentEmail(e.target.value)}
-                                                    className="mt-1 w-full px-3 py-2 border border-yellow-300 rounded-md focus:ring-yellow-500 focus:border-yellow-500 sm:text-sm"
                                                     placeholder="parent@example.com"
+                                                    validation={ValidationPatterns.email}
+                                                    errorMessage="Please enter a valid parent/guardian email"
+                                                    successMessage="Email format is correct"
                                                 />
                                                 <p className="mt-1 text-xs text-yellow-600">
                                                     Your parent/guardian will receive a separate email to verify consent
@@ -777,20 +833,21 @@ function SignUpContent() {
                                 </div>
 
                                 <div>
-                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                                         Password
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         id="password"
                                         name="password"
                                         type="password"
+                                        autoComplete="new-password"
                                         required
-                                        className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Create a secure password"
                                         value={formData.password}
                                         onChange={handleChange}
-                                        onFocus={() => setPasswordFocused(true)}
-                                        onBlur={() => setPasswordFocused(false)}
+                                        validation={ValidationPatterns.password}
+                                        errorMessage="Password does not meet requirements"
+                                        successMessage="Strong password!"
                                     />
                                 </div>
 
@@ -823,37 +880,24 @@ function SignUpContent() {
                                 )}
 
                                 <div>
-                                    <label htmlFor="confirmPassword"
-                                           className="block text-sm font-medium text-gray-700">
+                                    <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700 mb-2">
                                         Confirm Password
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         id="confirmPassword"
                                         name="confirmPassword"
                                         type="password"
                                         required
-                                        className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                         placeholder="Confirm your password"
                                         value={formData.confirmPassword}
                                         onChange={handleChange}
+                                        validation={(value) => ({
+                                            isValid: value === formData.password && value.length > 0,
+                                            message: value === formData.password && value.length > 0 ? 'Passwords match!' : 'Passwords do not match'
+                                        })}
+                                        errorMessage="Passwords do not match"
+                                        successMessage="Passwords match!"
                                     />
-
-                                    {/* Password Match Indicator */}
-                                    {formData.confirmPassword && (
-                                        <div className="mt-2">
-                                            {passwordsMatch ? (
-                                                <div className="flex items-center text-xs text-green-600">
-                                                    <span className="mr-2">✓</span>
-                                                    <span>Passwords match</span>
-                                                </div>
-                                            ) : passwordsDontMatch ? (
-                                                <div className="flex items-center text-xs text-red-600">
-                                                    <span className="mr-2">✗</span>
-                                                    <span>Passwords do not match</span>
-                                                </div>
-                                            ) : null}
-                                        </div>
-                                    )}
                                 </div>
                             </div>
 
@@ -870,47 +914,35 @@ function SignUpContent() {
 
                                     <div className="space-y-3">
                                         {/* Basic Terms and Privacy */}
-                                        <div className="flex items-start">
-                                            <input
-                                                id="acceptPrivacy"
-                                                type="checkbox"
-                                                checked={acceptedPrivacy}
-                                                onChange={(e) => setAcceptedPrivacy(e.target.checked)}
-                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
-                                            />
-                                            <label htmlFor="acceptPrivacy"
-                                                   className="ml-3 text-sm text-gray-700 leading-5">
-                                                I have read and accept the{' '}
-                                                <TouchEnhancedButton
-                                                    type="button"
-                                                    onClick={openPrivacyModal}
-                                                    className="text-indigo-600 hover:text-indigo-500 underline font-medium"
-                                                >
-                                                    Privacy Policy
-                                                </TouchEnhancedButton>
-                                            </label>
-                                        </div>
+                                        <NativeCheckbox
+                                            id="acceptPrivacy"
+                                            checked={acceptedPrivacy}
+                                            onChange={(e) => setAcceptedPrivacy(e.target.checked)}
+                                        >
+                                            I have read and accept the{' '}
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={openPrivacyModal}
+                                                className="text-indigo-600 hover:text-indigo-500 underline font-medium"
+                                            >
+                                                Privacy Policy
+                                            </TouchEnhancedButton>
+                                        </NativeCheckbox>
 
-                                        <div className="flex items-start">
-                                            <input
-                                                id="acceptTerms"
-                                                type="checkbox"
-                                                checked={acceptedTerms}
-                                                onChange={(e) => setAcceptedTerms(e.target.checked)}
-                                                className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
-                                            />
-                                            <label htmlFor="acceptTerms"
-                                                   className="ml-3 text-sm text-gray-700 leading-5">
-                                                I have read and accept the{' '}
-                                                <TouchEnhancedButton
-                                                    type="button"
-                                                    onClick={openTermsModal}
-                                                    className="text-indigo-600 hover:text-indigo-500 underline font-medium"
-                                                >
-                                                    Terms of Use
-                                                </TouchEnhancedButton>
-                                            </label>
-                                        </div>
+                                        <NativeCheckbox
+                                            id="acceptTerms"
+                                            checked={acceptedTerms}
+                                            onChange={(e) => setAcceptedTerms(e.target.checked)}
+                                        >
+                                            I have read and accept the{' '}
+                                            <TouchEnhancedButton
+                                                type="button"
+                                                onClick={openTermsModal}
+                                                className="text-indigo-600 hover:text-indigo-500 underline font-medium"
+                                            >
+                                                Terms of Use
+                                            </TouchEnhancedButton>
+                                        </NativeCheckbox>
 
                                         {isEUUser && (
                                             <div className="mt-3 p-3 bg-blue-50 border border-blue-200 rounded">
@@ -933,23 +965,19 @@ function SignUpContent() {
                                                     🇪🇺 Additional EU/GDPR Consents
                                                 </h4>
                                                 <div className="space-y-2">
-                                                    <div className="flex items-start">
-                                                        <input
-                                                            id="acceptDataProcessing"
-                                                            type="checkbox"
-                                                            checked={acceptedDataProcessing}
-                                                            onChange={(e) => setAcceptedDataProcessing(e.target.checked)}
-                                                            className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
-                                                        />
-                                                        <label htmlFor="acceptDataProcessing"
-                                                               className="ml-3 text-xs text-blue-800 leading-4">
-                                                            <strong>Data Processing Consent (Required):</strong> I
-                                                            consent to the processing of my personal data as described
+                                                    <NativeCheckbox
+                                                        id="acceptDataProcessing"
+                                                        checked={acceptedDataProcessing}
+                                                        onChange={(e) => setAcceptedDataProcessing(e.target.checked)}
+                                                    >
+                                                        <span className="text-xs text-blue-800 leading-4">
+                                                            <strong>Data Processing Consent (Required):</strong>
+                                                            I consent to the processing of my personal data as described
                                                             in the Privacy Policy, including for account management,
                                                             service provision, and legitimate business interests under
                                                             GDPR Article 6.
-                                                        </label>
-                                                    </div>
+                                                        </span>
+                                                    </NativeCheckbox>
                                                 </div>
                                             </div>
                                         )}
@@ -960,58 +988,45 @@ function SignUpContent() {
                                                 🎤 Optional Feature Consents
                                             </h4>
                                             <div className="space-y-2">
-                                                <div className="flex items-start">
-                                                    <input
-                                                        id="acceptVoiceProcessing"
-                                                        type="checkbox"
-                                                        checked={acceptedVoiceProcessing}
-                                                        onChange={(e) => setAcceptedVoiceProcessing(e.target.checked)}
-                                                        className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
-                                                    />
-                                                    <label htmlFor="acceptVoiceProcessing"
-                                                           className="ml-3 text-xs text-gray-700 leading-4">
-                                                        <strong>Voice Input Features (Optional):</strong> I consent to
-                                                        using voice input features. Voice is processed locally in my
-                                                        browser and not stored on servers. I can disable this anytime in
-                                                        my account settings.
-                                                    </label>
-                                                </div>
+                                                <NativeCheckbox
+                                                    id="acceptVoiceProcessing"
+                                                    checked={acceptedVoiceProcessing}
+                                                    onChange={(e) => setAcceptedVoiceProcessing(e.target.checked)}
+                                                >
+                                                    <span className="text-xs text-gray-700 leading-4">
+                                                        <strong>Voice Input Features (Optional):</strong>
+                                                        I consent to using voice input features. Voice is processed
+                                                        locally in my browser and not stored on servers. I can disable
+                                                        this anytime in my account settings.
+                                                    </span>
+                                                </NativeCheckbox>
 
-                                                <div className="flex items-start">
-                                                    <input
-                                                        id="acceptInternationalTransfers"
-                                                        type="checkbox"
-                                                        checked={acceptedInternationalTransfers}
-                                                        onChange={(e) => setAcceptedInternationalTransfers(e.target.checked)}
-                                                        className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
-                                                    />
-                                                    <label htmlFor="acceptInternationalTransfers"
-                                                           className="ml-3 text-xs text-gray-700 leading-4">
-                                                        <strong>International Features (Optional):</strong> I consent to
-                                                        using international barcode scanning and product databases.
-                                                        Product codes may be shared with international databases for
-                                                        identification.
-                                                    </label>
-                                                </div>
+                                                <NativeCheckbox
+                                                    id="acceptInternationalTransfers"
+                                                    checked={acceptedInternationalTransfers}
+                                                    onChange={(e) => setAcceptedInternationalTransfers(e.target.checked)}
+                                                >
+                                                    <span className="text-xs text-gray-700 leading-4">
+                                                        <strong>International Features (Optional):</strong>
+                                                        I consent to using international barcode scanning and product
+                                                        databases. Product codes may be shared with international
+                                                        databases for identification.
+                                                    </span>
+                                                </NativeCheckbox>
                                             </div>
                                         </div>
 
-                                        <div className="flex items-start">
-                                            <input
-                                                id="acceptMarketing"
-                                                type="checkbox"
-                                                checked={acceptedMarketing}
-                                                onChange={(e) => setAcceptedMarketing(e.target.checked)}
-                                                className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300 rounded flex-shrink-0 mt-0.5"
-                                            />
-                                            <label htmlFor="acceptMarketing"
-                                                   className="ml-3 text-xs text-gray-700 leading-4">
-                                                <strong>Marketing Communications (Optional):</strong> I would like to
-                                                receive
-                                                newsletters, product updates, and promotional offers. You can
-                                                unsubscribe anytime.
-                                            </label>
-                                        </div>
+                                        <NativeCheckbox
+                                            id="acceptMarketing"
+                                            checked={acceptedMarketing}
+                                            onChange={(e) => setAcceptedMarketing(e.target.checked)}
+                                        >
+                                            <span className="text-xs text-gray-700 leading-4">
+                                                <strong>Marketing Communications (Optional):</strong>
+                                                I would like to receive newsletters, product updates,
+                                                and promotional offers. You can unsubscribe anytime.
+                                            </span>
+                                        </NativeCheckbox>
 
                                         {showCookieConsent && (
                                             <div

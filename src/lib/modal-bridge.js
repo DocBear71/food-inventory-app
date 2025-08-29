@@ -38,7 +38,12 @@ class ModalServiceBridge {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`❌ Modal service error: ${response.status} ${response.statusText}`, errorText);
-                throw new Error(`Modal service error: ${response.status} ${response.statusText} - ${errorText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Modal Service Failed',
+                    message: `Modal service error: ${response.status} ${response.statusText} - ${errorText}`
+                });
+                return;
             }
 
             const result = await response.json();

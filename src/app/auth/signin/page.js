@@ -9,7 +9,11 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import { apiGet, apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from "@/utils/PlatformDetection.js";
 
 function SignInContent() {
     const router = useRouter();
@@ -33,154 +37,204 @@ function SignInContent() {
         const urlError = searchParams.get('error');
         const urlMessage = searchParams.get('message');
 
-        if (urlError) {
-            switch (urlError) {
-                case 'missing-token':
-                    setError('No verification token provided. Please check your email for the verification link.');
-                    break;
-                case 'invalid-token':
-                    setError('Invalid or expired verification token. Please request a new verification email.');
-                    setShowResendVerification(true);
-                    break;
-                case 'verification-failed':
-                    setError('Email verification failed. Please try again or request a new verification email.');
-                    setShowResendVerification(true);
-                    break;
-                case 'email-not-verified':
-                    setError('Please verify your email address before signing in.');
-                    setShowResendVerification(true);
-                    break;
-                case 'CredentialsSignin':
-                    setError('Invalid email or password. Please try again.');
-                    break;
-                default:
-                    setError('An error occurred. Please try again.');
-            }
-        }
+        const handleUrlErrorsAndMessages = async () => {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
 
-        if (urlMessage) {
-            switch (urlMessage) {
-                case 'email-verified':
-                    setMessage('Email verified successfully! You can now sign in to your account.');
-                    break;
-                case 'already-verified':
-                    setMessage('Your email is already verified. You can sign in below.');
-                    break;
-                default:
-                    setMessage(urlMessage);
+            if (urlError) {
+                switch (urlError) {
+                    case 'missing-token':
+                        await NativeDialog.showError({
+                            title: 'Missing Token',
+                            message: 'No verification token provided. Please check your email for the verification link.'
+                        });
+                        break;
+                    case 'invalid-token':
+                        await NativeDialog.showError({
+                            title: 'Invalid Token',
+                            message: 'Invalid or expired verification token. Please request a new verification email.'
+                        });
+                        setShowResendVerification(true);
+                        break;
+                    case 'verification-failed':
+                        await NativeDialog.showError({
+                            title: 'Verification Failed',
+                            message: 'Email verification failed. Please try again or request a new verification email.'
+                        });
+                        setShowResendVerification(true);
+                        break;
+                    case 'email-not-verified':
+                        await NativeDialog.showError({
+                            title: 'Email Not Verified',
+                            message: 'Please verify your email address before signing in.'
+                        });
+                        setShowResendVerification(true);
+                        break;
+                    case 'CredentialsSignin':
+                        await NativeDialog.showError({
+                            title: 'Sign In Failed',
+                            message: 'Invalid email or password. Please try again.'
+                        });
+                        break;
+                    default:
+                        await NativeDialog.showError({
+                            title: 'Error',
+                            message: 'An error occurred. Please try again.'
+                        });
+                }
             }
+
+            if (urlMessage) {
+                switch (urlMessage) {
+                    case 'email-verified':
+                        await NativeDialog.showSuccess({
+                            title: 'Email Verified',
+                            message: 'Email verified successfully! You can now sign in to your account.'
+                        });
+                        break;
+                    case 'already-verified':
+                        await NativeDialog.showSuccess({
+                            title: 'Already Verified',
+                            message: 'Your email is already verified. You can sign in below.'
+                        });
+                        break;
+                    default:
+                        await NativeDialog.showAlert({
+                            title: 'Message',
+                            message: urlMessage
+                        });
+                }
+            }
+        };
+
+        if (urlError || urlMessage) {
+            handleUrlErrorsAndMessages();
         }
     }, [searchParams]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
-        setError('');
-        setMessage('');
-        setShowResendVerification(false);
 
-        console.log('=== LOGIN ATTEMPT ===');
-        console.log('Email:', formData.email);
+        // iOS-specific form validation
+        if (PlatformDetection.isIOS()) {
+            // Force iOS to complete any pending input
+            const activeElement = document.activeElement;
+            if (activeElement && activeElement.blur) {
+                activeElement.blur();
+            }
 
-        // Validate email format before proceeding
-        if (!formData.email || !formData.email.includes('@')) {
-            setError('Please enter a valid email address.');
+            // Wait for iOS to process input changes
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // 🍎 Native iOS form submit haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
+        // Basic validation
+        if (!formData.email || !formData.password) {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Missing Credentials',
+                message: 'Please enter both email and password.'
+            });
+
+            // Error haptic feedback
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
+
             setLoading(false);
             return;
         }
 
         try {
-            // FIXED: Simplified callback URL handling to avoid NextAuth URL parsing issues
-            // Let NextAuth handle the callback URL internally to prevent URL construction errors
-            console.log('Attempting sign in...');
+            console.log('Attempting sign in with:', { email: formData.email });
 
             const result = await signIn('credentials', {
                 email: formData.email,
                 password: formData.password,
                 redirect: false,
-                // REMOVED: callbackUrl parameter to let NextAuth handle it internally
-                // This prevents the URL construction error in NextAuth's internal processing
             });
 
-            console.log('SignIn result:', result);
+            console.log('Sign in result:', result);
 
             if (result?.error) {
-                console.log('Login failed with error:', result.error);
+                // 🍎 Error haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+                } catch (error) {
+                    console.log('Error haptic failed:', error);
+                }
 
-                if (result.error === 'email-not-verified' ||
-                    result.error === 'EMAIL_NOT_VERIFIED' ||
-                    result.error.includes('verify')) {
-                    setError('Please verify your email before signing in.');
-                    setShowResendVerification(true);
-                    setUnverifiedEmail(formData.email);
-                } else if (result.error === 'CredentialsSignin') {
-                    setError('Invalid email or password. Please try again.');
+                if (result.error === 'CredentialsSignin') {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Sign In Failed',
+                        message: 'Invalid email or password. Please try again.'
+                    });
+                } else if (result.error === 'email-not-verified') {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showVerificationRequired({
+                        email: formData.email,
+                        onResend: async () => {
+                            await handleResendVerificationFromSignIn();
+                        }
+                    });
                 } else {
-                    setError('Sign in failed. Please try again.');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Sign In Failed',
+                        message: 'Sign in failed. Please try again.'
+                    });
                 }
             } else if (result?.ok) {
-                console.log('Login successful!');
+                // 🍎 Success haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } catch (error) {
+                    console.log('Success haptic failed:', error);
+                }
+
+                console.log('Sign in successful, redirecting...');
                 setRedirecting(true);
 
-                // FIXED: Improved redirect handling with better error recovery
-                try {
-                    // Wait a bit for NextAuth to complete its internal processing
-                    await new Promise(resolve => setTimeout(resolve, 100));
+                // Determine redirect URL
+                const callbackUrl = searchParams.get('callbackUrl') || '/inventory';
+                const cleanCallbackUrl = callbackUrl.startsWith('/') ? callbackUrl : '/inventory';
 
-                    // Use router.push with replace to avoid history stack issues
-                    router.replace('/dashboard');
-                } catch (routerError) {
-                    console.warn('Router navigation failed, using window.location:', routerError);
-                    // Fallback to window.location with better error handling
-                    try {
-                        if (typeof window !== 'undefined') {
-                            window.location.replace('/dashboard');
-                        }
-                    } catch (locationError) {
-                        console.error('All navigation methods failed:', locationError);
-                        // Last resort: reload the page (user will be logged in)
-                        if (typeof window !== 'undefined') {
-                            window.location.reload();
-                        }
-                    }
-                }
-            } else {
-                // Handle unexpected result states
-                console.warn('Unexpected signIn result:', result);
-                setError('Authentication completed but redirect failed. Please refresh the page.');
+                // Redirect after short delay for user feedback
+                setTimeout(() => {
+                    router.push(cleanCallbackUrl);
+                }, 500);
             }
         } catch (error) {
-            console.error('Login exception:', error);
+            console.error('Sign in error:', error);
 
-            // IMPROVED: Better error classification and handling
-            if (error.message && error.message.includes('URL')) {
-                // This is likely the NextAuth URL parsing error
-                console.log('URL parsing error detected - login may have succeeded');
-                setRedirecting(true);
-                setError('');
-
-                // Try to navigate anyway, as the login might have succeeded
-                setTimeout(() => {
-                    try {
-                        router.replace('/dashboard');
-                    } catch (navError) {
-                        // If navigation fails, tell user to refresh
-                        setRedirecting(false);
-                        setError('Login completed but navigation failed. Please refresh the page.');
-                    }
-                }, 500);
-            } else if (error.message && error.message.includes('fetch')) {
-                setError('Network error. Please check your connection and try again.');
-            } else {
-                setError('An unexpected error occurred. Please try again.');
+            // 🍎 Error haptic feedback
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
             }
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please check your connection and try again.'
+            });
         } finally {
-            // Only set loading to false if we're not redirecting
-            setTimeout(() => {
-                if (!redirecting) {
-                    setLoading(false);
-                }
-            }, 100);
+            setLoading(false);
         }
     };
 
@@ -196,47 +250,94 @@ function SignInContent() {
 
             const data = await response.json();
 
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             if (response.ok) {
-                setError('');
-                setSuccess('Verification email sent! Please check your inbox and spam folder, then try signing in again.');
+                await NativeDialog.showSuccess({
+                    title: 'Verification Email Sent',
+                    message: 'Verification email sent! Please check your inbox and spam folder, then try signing in again.'
+                });
                 setShowResendVerification(false);
             } else {
-                setError(data.error || 'Failed to resend verification email');
+                await NativeDialog.showError({
+                    title: 'Resend Failed',
+                    message: data.error || 'Failed to resend verification email'
+                });
             }
         } catch (error) {
             console.error('Resend verification error:', error);
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setResendLoading(false);
         }
     };
 
     const handleResendVerification = async () => {
-        if (!formData.email) {
-            setError('Please enter your email address first.');
-            return;
+        setResendLoading(true);
+        setSuccess('');
+
+        // 🍎 Native iOS action haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+        } catch (error) {
+            console.log('Button haptic failed:', error);
         }
 
-        setLoading(true);
-        setError('');
-        setMessage('');
-
         try {
-            const response = await apiPost('/api/auth/resend-verification', { email: formData.email });
+            const response = await apiPost('/api/auth/resend-verification', {
+                email: unverifiedEmail || formData.email
+            });
 
             const data = await response.json();
 
-            if (response.ok) {
-                setMessage(data.message);
+            if (data.success) {
+                // 🍎 Success haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } catch (error) {
+                    console.log('Success haptic failed:', error);
+                }
+
+                setSuccess('Verification email sent! Please check your inbox.');
                 setShowResendVerification(false);
             } else {
-                setError(data.error || 'Failed to resend verification email');
+                // 🍎 Error haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+                } catch (error) {
+                    console.log('Error haptic failed:', error);
+                }
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Send Failed',
+                    message: data.error || 'Failed to send verification email.'
+                });
             }
         } catch (error) {
             console.error('Resend verification error:', error);
-            setError('Network error. Please try again.');
+
+            // 🍎 Error haptic feedback
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
-            setLoading(false);
+            setResendLoading(false);
         }
     };
 
@@ -303,34 +404,42 @@ function SignInContent() {
 
                         <div className="space-y-4">
                             <div>
-                                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                                <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                                     Email address
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     id="email"
                                     name="email"
                                     type="email"
+                                    autoComplete="email"
                                     required
-                                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    placeholder="Email address"
+                                    placeholder="Enter your email address"
                                     value={formData.email}
                                     onChange={handleChange}
+                                    validation={ValidationPatterns.email}
+                                    errorMessage="Please enter a valid email address"
+                                    successMessage="Email format is correct"
                                 />
                             </div>
 
                             <div>
-                                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                                <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-2">
                                     Password
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     id="password"
                                     name="password"
                                     type="password"
+                                    autoComplete="current-password"
                                     required
-                                    className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-                                    placeholder="Password"
+                                    placeholder="Enter your password"
                                     value={formData.password}
                                     onChange={handleChange}
+                                    validation={(value) => ({
+                                        isValid: value.length >= 1,
+                                        message: value.length >= 1 ? '' : 'Password is required'
+                                    })}
+                                    errorMessage="Password is required"
                                 />
                             </div>
                         </div>

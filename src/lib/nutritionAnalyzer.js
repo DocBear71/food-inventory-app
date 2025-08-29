@@ -21,7 +21,12 @@ export class NutritionAnalyzer {
             ]);
 
             if (!mealPlan || !user) {
-                throw new Error('Meal plan or user not found');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Meal Plan Failed',
+                    message: 'Meal plan or user not found'
+                });
+                return;
             }
 
             // Calculate daily nutrition for each day

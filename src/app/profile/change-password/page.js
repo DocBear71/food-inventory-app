@@ -10,7 +10,11 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function ChangePasswordPage() {
     let session = null;
@@ -45,10 +49,14 @@ export default function ChangePasswordPage() {
 
     // Redirect if not authenticated
     useEffect(() => {
-        if (status === 'loading') return;
-        if (!session) {
-            router.push('/auth/signin');
-        }
+        const handleAuthCheck = async () => {
+            if (status === 'loading') return;
+            if (!session) {
+                await NativeNavigation.routerPush(router, '/auth/signin');
+            }
+        };
+
+        handleAuthCheck();
     }, [session, status, router]);
 
     // Check password strength
@@ -116,31 +124,55 @@ export default function ChangePasswordPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Add iOS form submission haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
         setLoading(true);
-        setError('');
         setSuccess('');
 
         // Client-side validation
         if (!formData.currentPassword || !formData.newPassword || !formData.confirmPassword) {
-            setError('All fields are required');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Missing Information',
+                message: 'Please fill in all password fields'
+            });
             setLoading(false);
             return;
         }
 
         if (formData.newPassword !== formData.confirmPassword) {
-            setError('New passwords do not match');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Passwords Don\'t Match',
+                message: 'Please make sure both new password fields match'
+            });
             setLoading(false);
             return;
         }
 
         if (formData.newPassword.length < 6) {
-            setError('New password must be at least 6 characters long');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Password Too Short',
+                message: 'New password must be at least 6 characters long'
+            });
             setLoading(false);
             return;
         }
 
         if (formData.newPassword === formData.currentPassword) {
-            setError('New password must be different from current password');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Password Not Changed',
+                message: 'New password must be different from your current password'
+            });
             setLoading(false);
             return;
         }
@@ -159,14 +191,22 @@ export default function ChangePasswordPage() {
                 });
 
                 // Redirect after success
-                setTimeout(() => {
-                    router.push('/profile');
+                setTimeout(async () => {
+                    await NativeNavigation.routerPush(router, '/profile');
                 }, 2000);
             } else {
-                setError(data.error || 'Failed to change password');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Password Change Failed',
+                    message: data.error || 'Failed to change password. Please try again.'
+                });
             }
         } catch (error) {
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Unable to change password. Please check your connection and try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -227,15 +267,22 @@ export default function ChangePasswordPage() {
                             <label htmlFor="currentPassword" className="block text-sm font-medium text-gray-700">
                                 Current Password
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 id="currentPassword"
                                 name="currentPassword"
                                 type="password"
-                                required
+                                inputMode="text"
                                 value={formData.currentPassword}
                                 onChange={handleChange}
-                                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                 placeholder="Enter your current password"
+                                autoComplete="current-password"
+                                validation={(value) => ({
+                                    isValid: value && value.length > 0,
+                                    message: value ? 'Current password entered' : ''
+                                })}
+                                errorMessage="Please enter your current password"
+                                successMessage="Current password entered"
+                                required
                             />
                         </div>
 
@@ -243,15 +290,24 @@ export default function ChangePasswordPage() {
                             <label htmlFor="newPassword" className="block text-sm font-medium text-gray-700">
                                 New Password
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 id="newPassword"
                                 name="newPassword"
                                 type="password"
-                                required
+                                inputMode="text"
                                 value={formData.newPassword}
                                 onChange={handleChange}
-                                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                 placeholder="Enter your new password"
+                                autoComplete="new-password"
+                                validation={(value) => {
+                                    if (!value) return { isValid: false, message: '' };
+                                    if (value.length < 6) return { isValid: false, message: 'At least 6 characters required' };
+                                    if (value === formData.currentPassword) return { isValid: false, message: 'Must be different from current password' };
+                                    return { isValid: true, message: 'New password looks good!' };
+                                }}
+                                errorMessage="Password must be at least 6 characters and different from current"
+                                successMessage="New password looks good!"
+                                required
                             />
 
                             {/* Password Strength Indicator */}
@@ -294,15 +350,24 @@ export default function ChangePasswordPage() {
                             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
                                 Confirm New Password
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 id="confirmPassword"
                                 name="confirmPassword"
                                 type="password"
-                                required
+                                inputMode="text"
                                 value={formData.confirmPassword}
                                 onChange={handleChange}
-                                className="mt-1 appearance-none relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                 placeholder="Confirm your new password"
+                                autoComplete="new-password"
+                                validation={(value) => ({
+                                    isValid: value && formData.newPassword && value === formData.newPassword,
+                                    message: value && formData.newPassword && value === formData.newPassword
+                                        ? 'Passwords match!'
+                                        : value ? 'Passwords do not match' : ''
+                                })}
+                                errorMessage="Please confirm your new password"
+                                successMessage="Passwords match!"
+                                required
                             />
 
                             {/* Password Match Indicator */}
@@ -351,7 +416,7 @@ export default function ChangePasswordPage() {
                         <div className="flex space-x-4">
                             <TouchEnhancedButton
                                 type="button"
-                                onClick={() => router.push('/profile')}
+                                onClick={() => NativeNavigation.routerPush(router, '/profile')}
                                 className="flex-1 bg-gray-300 text-gray-700 py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium hover:bg-gray-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-500"
                             >
                                 Cancel

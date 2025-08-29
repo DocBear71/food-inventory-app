@@ -1,14 +1,19 @@
 'use client';
-// file: /src/components/recipes/RecipeCollections.js v4 - FIXED: session is not defined error
+// file: /src/components/recipes/RecipeCollections.js v5 - iOS Native Enhancements
 
-import React, { useState, useEffect } from 'react';
-import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import React, {useState, useEffect} from 'react';
+import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
-import { FEATURE_GATES } from '@/lib/subscription-config';
-import { useSubscription } from '@/hooks/useSubscription';
-import { useSafeSession } from '@/hooks/useSafeSession'; // ADD: Import useSafeSession
-import { apiGet, apiPost, apiDelete } from '@/lib/api-config'; // ADD: Import API helpers
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {FEATURE_GATES} from '@/lib/subscription-config';
+import {useSubscription} from '@/hooks/useSubscription';
+import {useSafeSession} from '@/hooks/useSafeSession';
+import {apiGet, apiPost, apiDelete} from '@/lib/api-config';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeCheckbox
+} from '@/components/forms/NativeIOSFormComponents';
+import {PlatformDetection} from '@/utils/PlatformDetection';
 
 const RecipeCollections = ({
                                selectedRecipeId = null,
@@ -17,7 +22,7 @@ const RecipeCollections = ({
                                onCountChange = null
                            }) => {
     const subscription = useSubscription();
-    const { data: session } = useSafeSession(); // ADD: Get session properly
+    const {data: session} = useSafeSession();
     const [collections, setCollections] = useState([]);
     const [loading, setLoading] = useState(true);
     const [showCreateForm, setShowCreateForm] = useState(false);
@@ -30,23 +35,25 @@ const RecipeCollections = ({
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
 
+    const isIOS = PlatformDetection.isIOS();
+
     // Collection limit checking
     const checkCollectionLimits = (currentCount) => {
         if (!subscription || subscription.loading) {
-            return { allowed: true }; // Allow if we can't determine limits yet
+            return {allowed: true};
         }
 
         const userTier = subscription.tier || 'free';
         const limits = {
             free: 2,
             gold: 10,
-            platinum: -1, // unlimited
-            admin: -1     // Admin unlimited
+            platinum: -1,
+            admin: -1
         };
 
         const limit = limits[userTier] || limits.free;
 
-        if (limit === -1 || userTier === 'admin') return { allowed: true }; // Admin always allowed
+        if (limit === -1 || userTier === 'admin') return {allowed: true};
 
         if (currentCount >= limit) {
             return {
@@ -58,40 +65,79 @@ const RecipeCollections = ({
             };
         }
 
-        return { allowed: true };
+        return {allowed: true};
     };
 
-    // Handle create collection button click with early limit checking
-    const handleCreateCollectionClick = () => {
+    // iOS Native Create Collection Flow
+    const handleCreateCollectionClick = async () => {
         const currentCount = collections.length;
         const limitCheck = checkCollectionLimits(currentCount);
 
-        if (!limitCheck.allowed) {
-            let errorMessage;
-            if (limitCheck.tier === 'free') {
-                errorMessage = `You've reached the free plan limit of 2 recipe collections. Upgrade to Gold for 10 collections or Platinum for unlimited.`;
-            } else if (limitCheck.tier === 'gold') {
-                errorMessage = `You've reached the Gold plan limit of 10 recipe collections. Upgrade to Platinum for unlimited collections.`;
-            } else {
-                errorMessage = `You've reached your collection limit.`;
+        // iOS haptic for button tap
+        if (isIOS) {
+            try {
+                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Create collection haptic failed:', error);
             }
-
-            // Show upgrade prompt immediately
-            if (confirm(`${errorMessage}\n\nWould you like to upgrade now?`)) {
-                window.location.href = `/pricing?source=collection-limit&tier=${limitCheck.tier}`;
-            }
-            return; // Don't show the form
         }
 
-        // If within limits, show the create form
-        setShowCreateForm(true);
+        if (!limitCheck.allowed) {
+            if (isIOS) {
+                try {
+                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showUpgradePrompt({
+                        feature: 'Recipe Collections',
+                        tier: limitCheck.tier === 'free' ? 'Gold' : 'Platinum',
+                        currentLimit: `You've reached your ${limitCheck.tier} plan limit of ${limitCheck.limit} collections.`
+                    });
+                } catch (error) {
+                    console.error('Native upgrade prompt failed:', error);
+                    // Fallback to web confirm
+                    const errorMessage = `You've reached your ${limitCheck.tier} plan limit of ${limitCheck.limit} collections. Upgrade to ${limitCheck.tier === 'free' ? 'Gold' : 'Platinum'} for more collections.`;
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    const confirmed = await NativeDialog.showConfirm({
+                        title: 'Collection Limit Reached',
+                        message: `${errorMessage}\n\nWould you like to upgrade now?`,
+                        confirmText: 'Upgrade',
+                        cancelText: 'Cancel'
+                    });
+                    if (confirmed) {
+                        window.location.href = `/pricing?source=collection-limit&tier=${limitCheck.tier}`;
+                    }
+                }
+            } else {
+                // Web fallback
+                const errorMessage = `You've reached your ${limitCheck.tier} plan limit of ${limitCheck.limit} collections.`;
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                const confirmed = await NativeDialog.showConfirm({
+                    title: 'Collection Limit',
+                    message: `${errorMessage}\n\nWould you like to upgrade now?`,
+                    confirmText: 'Upgrade',
+                    cancelText: 'Cancel'
+                });
+                if (confirmed) {
+                    window.location.href = `/pricing?source=collection-limit&tier=${limitCheck.tier}`;
+                }
+            }
+            return;
+        }
+
+        // Show native iOS form or web form
+        if (isIOS) {
+            await showNativeCreateForm();
+        } else {
+            setShowCreateForm(true);
+        }
     };
+
 
     useEffect(() => {
         fetchCollections();
     }, []);
 
-    // Update parent count when collections change
+// Update parent count when collections change
     useEffect(() => {
         if (onCountChange) {
             onCountChange(collections.length);
@@ -101,38 +147,71 @@ const RecipeCollections = ({
     const fetchCollections = async () => {
         try {
             setLoading(true);
-            const response = await apiGet('/api/collections'); // FIXED: Use API helper
+            const response = await apiGet('/api/collections');
             const data = await response.json();
 
             if (data.success) {
                 setCollections(data.collections);
             } else {
-                setError(data.error || 'Failed to fetch collections');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Loading Failed',
+                    message: data.error || 'Failed to fetch collections'
+                });
             }
         } catch (error) {
             console.error('Error fetching collections:', error);
-            setError('Failed to fetch collections');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Failed to fetch collections'
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    const handleCreateCollection = async (e) => {
-        e.preventDefault();
+    const handleCreateCollection = async (formData) => {
         setCreating(true);
-        setError('');
         setSuccess('');
 
-        try {
-            const response = await apiPost('/api/collections', createFormData); // FIXED: Use API helper
+        // iOS form submit haptic
+        if (isIOS) {
+            try {
+                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Create collection haptic failed:', error);
+            }
+        }
 
+        try {
+            const response = await apiPost('/api/collections', formData);
             const data = await response.json();
 
             if (data.success) {
+                // iOS success haptic
+                if (isIOS) {
+                    try {
+                        const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.success();
+
+                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Collection Created',
+                            message: `"${formData.name}" has been created successfully!`
+                        });
+                    } catch (error) {
+                        console.log('Success notification failed:', error);
+                    }
+                } else {
+                    setSuccess('Collection created successfully!');
+                }
+
                 setCollections([data.collection, ...collections]);
-                setCreateFormData({ name: '', description: '', isPublic: false });
+                setCreateFormData({name: '', description: '', isPublic: false});
                 setShowCreateForm(false);
-                setSuccess('Collection created successfully!');
+
                 setTimeout(() => setSuccess(''), 3000);
 
                 if (onCollectionUpdate) {
@@ -140,16 +219,164 @@ const RecipeCollections = ({
                 }
             } else {
                 if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                    // This should rarely happen now since we check limits early
-                    setError(data.error || 'Collection limit exceeded');
-                    setShowCreateForm(false); // Hide the form
+                    if (isIOS) {
+                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showUpgradePrompt({
+                            feature: 'Recipe Collections',
+                            tier: 'Gold',
+                            currentLimit: data.error
+                        });
+                    } else {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Collection Limit',
+                            message: data.error || 'Collection limit exceeded'
+                        });
+                    }
+                    setShowCreateForm(false);
                 } else {
-                    setError(data.error || 'Failed to create collection');
+                    if (isIOS) {
+                        const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.error();
+
+                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Creation Failed',
+                            message: data.error || 'Failed to create collection. Please try again.'
+                        });
+                    } else {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Creation Failed',
+                            message: data.error || 'Failed to create collection'
+                        });
+                    }
                 }
             }
         } catch (error) {
             console.error('Error creating collection:', error);
-            setError('Failed to create collection');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Creation Failed',
+                message: data.error || 'Failed to create collection'
+            });
+        } finally {
+            setCreating(false);
+        }
+    };
+
+    // iOS Native Collection Creation Form
+    const showNativeCreateForm = async () => {
+        try {
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+
+            // Step 1: Get collection name
+            const nameResult = await NativeDialog.showPrompt({
+                title: 'Create New Collection',
+                message: 'Enter a name for your recipe collection:',
+                placeholder: 'e.g., Comfort Food Favorites',
+                buttons: [
+                    {
+                        text: 'Next',
+                        style: 'default',
+                        action: async (name) => {
+                            if (name && name.trim()) {
+                                return name.trim();
+                            }
+                            await NativeDialog.showAlert({
+                                title: 'Name Required',
+                                message: 'Please enter a collection name.'
+                            });
+                            return false;
+                        }
+                    },
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        action: () => false
+                    }
+                ]
+            });
+
+            if (!nameResult) return;
+
+            // Step 2: Get description (optional)
+            const descResult = await NativeDialog.showPrompt({
+                title: 'Collection Description',
+                message: 'Add a description (optional):',
+                placeholder: 'Describe this collection...',
+                buttons: [
+                    {
+                        text: 'Next',
+                        style: 'default',
+                        action: (desc) => desc || ''
+                    },
+                    {
+                        text: 'Skip',
+                        style: 'default',
+                        action: () => ''
+                    },
+                    {
+                        text: 'Back',
+                        style: 'cancel',
+                        action: () => showNativeCreateForm()
+                    }
+                ]
+            });
+
+            if (descResult === false) return;
+
+            // Step 3: Privacy setting
+            const privacyResult = await NativeDialog.showActionSheet({
+                title: 'Collection Privacy',
+                message: 'Who can see this collection?',
+                buttons: [
+                    {
+                        text: '🔒 Private (Only me)',
+                        style: 'default',
+                        action: () => false
+                    },
+                    {
+                        text: '🌍 Public (Everyone)',
+                        style: 'default',
+                        action: () => true
+                    },
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        action: () => null
+                    }
+                ]
+            });
+
+            if (privacyResult === null) return;
+
+            // Create the collection
+            await handleCreateCollection({
+                name: nameResult,
+                description: descResult,
+                isPublic: privacyResult
+            });
+
+        } catch (error) {
+            console.error('Error creating collection:', error);
+
+            if (isIOS) {
+                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Failed to create collection. Please check your connection and try again.'
+                });
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Creation Failed',
+                    message: data.error || 'Failed to create collection'
+                });
+            }
         } finally {
             setCreating(false);
         }
@@ -158,42 +385,138 @@ const RecipeCollections = ({
     const handleAddRecipeToCollection = async (collectionId) => {
         if (!selectedRecipeId) return;
 
-        try {
-            const response = await apiPost(`/api/collections/${collectionId}/recipes`, { recipeId: selectedRecipeId }); // FIXED: Use API helper
+        // iOS haptic for add action
+        if (isIOS) {
+            try {
+                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Add recipe haptic failed:', error);
+            }
+        }
 
+        try {
+            const response = await apiPost(`/api/collections/${collectionId}/recipes`, {recipeId: selectedRecipeId});
             const data = await response.json();
 
             if (data.success) {
+                // iOS success haptic
+                if (isIOS) {
+                    const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+
+                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'Recipe Added',
+                        message: data.message || 'Recipe added to collection successfully!'
+                    });
+                } else {
+                    setSuccess(data.message);
+                }
+
                 // Update the collection in state
                 setCollections(collections.map(collection =>
                     collection._id === collectionId ? data.collection : collection
                 ));
-                setSuccess(data.message);
+
                 setTimeout(() => setSuccess(''), 3000);
 
                 if (onCollectionUpdate) {
                     onCollectionUpdate();
                 }
             } else {
-                setError(data.error || 'Failed to add recipe to collection');
+                if (isIOS) {
+                    const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Failed to Add Recipe',
+                        message: data.error || 'Could not add recipe to collection. Please try again.'
+                    });
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Failed to Add',
+                        message: data.error || 'Failed to add recipe to collection'
+                    });
+                }
             }
         } catch (error) {
             console.error('Error adding recipe to collection:', error);
-            setError('Failed to add recipe to collection');
+
+            if (isIOS) {
+                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Failed to add recipe to collection. Please try again.'
+                });
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Failed to add recipe to collection'
+                });
+            }
         }
     };
 
     const handleDeleteCollection = async (collectionId) => {
-        if (!confirm('Are you sure you want to delete this collection? This action cannot be undone.')) {
-            return;
-        }
-
         try {
-            const response = await apiDelete(`/api/collections/${collectionId}`); // FIXED: Use API helper
+            let confirmed = false;
+
+            if (isIOS) {
+                // Native iOS confirmation dialog
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                const result = await NativeDialog.showConfirm({
+                    title: 'Delete Collection',
+                    message: 'Are you sure you want to delete this collection? This action cannot be undone.',
+                    okButtonTitle: 'Delete',
+                    cancelButtonTitle: 'Cancel',
+                    onConfirm: () => true,
+                    onCancel: () => false
+                });
+                confirmed = result.value;
+            } else {
+                // Web fallback
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                confirmed = await NativeDialog.showConfirm({
+                    title: 'Delete Collection',
+                    message: 'Are you sure you want to delete this collection? This action cannot be undone.',
+                    confirmText: 'Delete',
+                    cancelText: 'Cancel'
+                });
+            }
+
+            if (!confirmed) return;
+
+            // iOS delete action haptic
+            if (isIOS) {
+                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            }
+
+            const response = await apiDelete(`/api/collections/${collectionId}`);
 
             if (response.ok) {
+                // iOS success haptic
+                if (isIOS) {
+                    const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+
+                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'Collection Deleted',
+                        message: 'Collection deleted successfully'
+                    });
+                } else {
+                    setSuccess('Collection deleted successfully');
+                }
+
                 setCollections(collections.filter(collection => collection._id !== collectionId));
-                setSuccess('Collection deleted successfully');
                 setTimeout(() => setSuccess(''), 3000);
 
                 if (onCollectionUpdate) {
@@ -201,11 +524,43 @@ const RecipeCollections = ({
                 }
             } else {
                 const data = await response.json();
-                setError(data.error || 'Failed to delete collection');
+
+                if (isIOS) {
+                    const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Delete Failed',
+                        message: data.error || 'Failed to delete collection. Please try again.'
+                    });
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Delete Failed',
+                        message: data.error || 'Failed to delete collection'
+                    });
+                }
             }
         } catch (error) {
             console.error('Error deleting collection:', error);
-            setError('Failed to delete collection');
+
+            if (isIOS) {
+                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Failed to delete collection. Please check your connection and try again.'
+                });
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Failed to delete collection'
+                });
+            }
         }
     };
 
@@ -216,19 +571,17 @@ const RecipeCollections = ({
         );
     };
 
-    // FIXED: Get current usage info for display using session from useSafeSession
     const getUsageInfo = () => {
         if (!subscription || subscription.loading) {
-            return { current: collections.length, limit: '...', tier: 'free' };
+            return {current: collections.length, limit: '...', tier: 'free'};
         }
 
-        // FIXED: Use subscription.tier instead of session directly
         const tier = subscription.tier || 'free';
         const limits = {
             free: 2,
             gold: 10,
             platinum: -1,
-            admin: -1  // Admin has unlimited collections
+            admin: -1
         };
 
         const limit = limits[tier] || limits.free;
@@ -237,9 +590,9 @@ const RecipeCollections = ({
             current: collections.length,
             limit: limit === -1 ? 'Unlimited' : limit,
             tier,
-            isUnlimited: limit === -1 || tier === 'admin',  // Admin is unlimited
-            isAtLimit: (limit !== -1 && tier !== 'admin') && collections.length >= limit,  // Admin never at limit
-            isNearLimit: (limit !== -1 && tier !== 'admin') && collections.length >= (limit * 0.8)  // Admin never near limit
+            isUnlimited: limit === -1 || tier === 'admin',
+            isAtLimit: (limit !== -1 && tier !== 'admin') && collections.length >= limit,
+            isNearLimit: (limit !== -1 && tier !== 'admin') && collections.length >= (limit * 0.8)
         };
     };
 
@@ -325,12 +678,20 @@ const RecipeCollections = ({
                                 Approaching Collection Limit
                             </h3>
                             <p className="text-sm text-orange-700 mt-1">
-                                You have {usageInfo.limit - usageInfo.current} collection{usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining on your {usageInfo.tier} plan.
+                                You
+                                have {usageInfo.limit - usageInfo.current} collection{usageInfo.limit - usageInfo.current !== 1 ? 's' : ''} remaining
+                                on your {usageInfo.tier} plan.
                                 {usageInfo.tier === 'free' && ' Upgrade to Gold for 10 collections or Platinum for unlimited.'}
                                 {usageInfo.tier === 'gold' && ' Upgrade to Platinum for unlimited collections.'}
                             </p>
                             <TouchEnhancedButton
-                                onClick={() => window.location.href = `/pricing?source=collection-warning&tier=${usageInfo.tier}`}
+                                onClick={async () => {
+                                    if (isIOS) {
+                                        const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                                        await MobileHaptics.buttonTap();
+                                    }
+                                    window.location.href = `/pricing?source=collection-warning&tier=${usageInfo.tier}`;
+                                }}
                                 className="mt-2 text-orange-600 hover:text-orange-800 underline text-sm"
                             >
                                 View Upgrade Options
@@ -361,7 +722,13 @@ const RecipeCollections = ({
                                 {usageInfo.tier === 'gold' && ' Upgrade to Platinum for unlimited collections.'}
                             </p>
                             <TouchEnhancedButton
-                                onClick={() => window.location.href = `/pricing?source=collection-limit&tier=${usageInfo.tier}`}
+                                onClick={async () => {
+                                    if (isIOS) {
+                                        const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                                        await MobileHaptics.buttonTap();
+                                    }
+                                    window.location.href = `/pricing?source=collection-limit&tier=${usageInfo.tier}`;
+                                }}
                                 className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
                             >
                                 🚀 Upgrade Now
@@ -371,8 +738,8 @@ const RecipeCollections = ({
                 </div>
             )}
 
-            {/* Success/Error Messages */}
-            {error && (
+            {/* Success/Error Messages (web only) */}
+            {!isIOS && error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4">
                     <div className="text-sm text-red-800">
                         <strong>Error:</strong> {error}
@@ -380,7 +747,7 @@ const RecipeCollections = ({
                 </div>
             )}
 
-            {success && (
+            {!isIOS && success && (
                 <div className="bg-green-50 border border-green-200 rounded-lg p-4">
                     <div className="text-sm text-green-800">
                         <strong>Success:</strong> {success}
@@ -388,17 +755,20 @@ const RecipeCollections = ({
                 </div>
             )}
 
-            {/* Create Collection Form */}
-            {showCreateForm && (
+            {/* Create Collection Form - Web Only */}
+            {!isIOS && showCreateForm && (
                 <div className="bg-white border border-gray-200 rounded-lg p-6 shadow-sm">
                     <h3 className="text-lg font-medium text-gray-900 mb-4">Create New Collection</h3>
 
-                    <form onSubmit={handleCreateCollection} className="space-y-4">
+                    <form onSubmit={(e) => {
+                        e.preventDefault();
+                        handleCreateCollection(createFormData);
+                    }} className="space-y-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Collection Name *
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 type="text"
                                 required
                                 value={createFormData.name}
@@ -406,9 +776,16 @@ const RecipeCollections = ({
                                     ...createFormData,
                                     name: e.target.value
                                 })}
-                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 placeholder="e.g., Comfort Food Favorites"
                                 maxLength={100}
+                                validation={(value) => ({
+                                    isValid: value && value.length >= 3 && value.length <= 100,
+                                    message: value && value.length >= 3 && value.length <= 100
+                                        ? 'Good collection name'
+                                        : 'Name should be 3-100 characters'
+                                })}
+                                errorMessage="Collection name is required (3-100 characters)"
+                                successMessage="Perfect collection name"
                             />
                         </div>
 
@@ -416,40 +793,36 @@ const RecipeCollections = ({
                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                 Description (Optional)
                             </label>
-                            <textarea
+                            <NativeTextarea
                                 value={createFormData.description}
                                 onChange={(e) => setCreateFormData({
                                     ...createFormData,
                                     description: e.target.value
                                 })}
-                                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                 placeholder="Describe this collection..."
                                 rows={3}
                                 maxLength={500}
+                                autoExpand={true}
+                                validation={(value) => ({
+                                    isValid: true,
+                                    message: value && value.length > 10 ? 'Great description' : ''
+                                })}
                             />
                         </div>
 
-                        <div className="flex items-start">
-                            <div className="flex items-center h-5">
-                                <input
-                                    id="isPublic"
-                                    type="checkbox"
-                                    checked={createFormData.isPublic}
-                                    onChange={(e) => setCreateFormData({
-                                        ...createFormData,
-                                        isPublic: e.target.checked
-                                    })}
-                                    className="focus:ring-indigo-500 h-4 w-4 text-indigo-600 border-gray-300 rounded"
-                                />
-                            </div>
-                            <div className="ml-3 text-sm">
-                                <label htmlFor="isPublic" className="font-medium text-gray-700">
-                                    Make this collection public
-                                </label>
-                                <p className="text-gray-500">
-                                    Public collections can be viewed by other users
-                                </p>
-                            </div>
+                        <div>
+                            <NativeCheckbox
+                                name="isPublic"
+                                checked={createFormData.isPublic}
+                                onChange={(e) => setCreateFormData({
+                                    ...createFormData,
+                                    isPublic: e.target.checked
+                                })}
+                                label="Make this collection public"
+                            />
+                            <p className="text-sm text-gray-500 ml-8 mt-1">
+                                Public collections can be viewed by other users
+                            </p>
                         </div>
 
                         <div className="flex justify-end space-x-3">
@@ -457,8 +830,8 @@ const RecipeCollections = ({
                                 type="button"
                                 onClick={() => {
                                     setShowCreateForm(false);
-                                    setCreateFormData({ name: '', description: '', isPublic: false });
-                                    setError('');
+                                    setCreateFormData({name: '', description: '', isPublic: false});
+                                    ;
                                 }}
                                 className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
                             >
@@ -471,7 +844,8 @@ const RecipeCollections = ({
                             >
                                 {creating ? (
                                     <>
-                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <div
+                                            className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                         Creating...
                                     </>
                                 ) : (
@@ -497,7 +871,8 @@ const RecipeCollections = ({
                                             📁 {collection.name}
                                         </h3>
                                         {collection.isPublic && (
-                                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                            <span
+                                                className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                 🌍 Public
                             </span>
                                         )}
@@ -548,7 +923,13 @@ const RecipeCollections = ({
 
                                     {/* View Collection Button */}
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = `/collections/${collection._id}`}
+                                        onClick={async () => {
+                                            if (isIOS) {
+                                                const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                                                await MobileHaptics.buttonTap();
+                                            }
+                                            window.location.href = `/collections/${collection._id}`;
+                                        }}
                                         className="px-3 py-1 text-sm bg-gray-100 text-gray-800 rounded-md hover:bg-gray-200"
                                     >
                                         👀 View
@@ -572,16 +953,18 @@ const RecipeCollections = ({
                     fallback={
                         <div className="text-center py-8">
                             <div className="text-gray-500 mb-4">
-                                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24"
+                                     stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                          d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                                 </svg>
                             </div>
                             <h3 className="text-lg font-medium text-gray-900 mb-2">
                                 Recipe Collections Available with Gold
                             </h3>
                             <p className="text-gray-500 mb-4">
-                                Organize your recipes into collections like "Comfort Food", "Quick Dinners", or "Holiday Recipes"
+                                Organize your recipes into collections like "Comfort Food", "Quick Dinners", or "Holiday
+                                Recipes"
                             </p>
                             <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
                                 <div className="text-sm text-yellow-800">
@@ -596,7 +979,13 @@ const RecipeCollections = ({
                                 </div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => window.location.href = '/pricing?source=recipe-collections'}
+                                onClick={async () => {
+                                    if (isIOS) {
+                                        const {MobileHaptics} = await import('@/components/mobile/MobileHaptics');
+                                        await MobileHaptics.buttonTap();
+                                    }
+                                    window.location.href = '/pricing?source=recipe-collections';
+                                }}
                                 className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-6 py-3 rounded-md font-medium hover:from-yellow-500 hover:to-orange-600"
                             >
                                 🚀 Upgrade to Unlock Collections
@@ -608,7 +997,7 @@ const RecipeCollections = ({
                         <div className="text-gray-500 mb-4">
                             <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                                      d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/>
                             </svg>
                         </div>
                         <h3 className="text-lg font-medium text-gray-900 mb-2">

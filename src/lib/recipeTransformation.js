@@ -38,7 +38,12 @@ export async function callModalTransformationService(data) {
         if (!response.ok) {
             const errorText = await response.text();
             console.error('❌ Modal service error:', response.status, errorText);
-            throw new Error(`Modal transformation service failed: ${response.status} ${response.statusText}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Modal Transformation Failed',
+                message: `Modal transformation service failed: ${response.status} ${response.statusText}`
+            });
+            return;
         }
 
         const result = await response.json();

@@ -52,12 +52,20 @@ export default function InventoryNutritionPanel({
 
                 console.log('✅ Nutrition analysis completed');
             } else {
-                setError('Failed to analyze nutrition');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Analysis Failed',
+                    message: 'Failed to analyze nutrition'
+                });
                 console.error('❌ Nutrition analysis failed');
             }
         } catch (error) {
             console.error('❌ Nutrition analysis error:', error);
-            setError('Error analyzing nutrition');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Analysis Error',
+                message: 'Error analyzing nutrition'
+            });
         } finally {
             setLoading(false);
         }

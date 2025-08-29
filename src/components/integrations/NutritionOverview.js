@@ -63,7 +63,11 @@ export function NutritionOverview({ data, loading, onAnalyze }) {
     const generateSmartShoppingList = useCallback(async () => {
         try {
             if (!data?.inventory?.items?.length) {
-                alert('❌ No inventory items found. Add items to your inventory first.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'No Inventory',
+                    message: '❌ No inventory items found. Add items to your inventory first.'
+                });
                 return;
             }
 
@@ -84,24 +88,51 @@ export function NutritionOverview({ data, loading, onAnalyze }) {
 
                     message += '\n🏪 View full list in Shopping section?';
 
-                    if (confirm(message)) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    const confirmed = await NativeDialog.showConfirm({
+                        title: 'Navigate',
+                        message: message,
+                        confirmText: 'Go',
+                        cancelText: 'Cancel'
+                    });
+                    if (confirmed) {
                         window.location.href = '/shopping/saved';
                     }
                 } else {
-                    alert('✅ Your inventory looks well-stocked! No urgent shopping needed.');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'Inventory Status',
+                        message: '✅ Your inventory looks well-stocked! No urgent shopping needed.'
+                    });
                 }
             } else {
-                throw new Error(result.error || 'Shopping list generation failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Generation Failed',
+                    message: result.error || 'Shopping list generation failed'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error generating smart shopping list:', error);
-            alert(`❌ Error generating shopping list: ${error.message}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Generation Error',
+                message: `❌ Error generating shopping list: ${error.message}`
+            });
         }
     }, [data, performSmartInventoryAction, session]);
 
-    const navigateToMealPlanning = useCallback(() => {
+    const navigateToMealPlanning = useCallback(async () => {
         if (!data?.inventory?.items?.length) {
-            if (confirm('❌ No inventory items found.\n\nWould you like to add some items first, or go to meal planning anyway?')) {
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            const confirmed = await NativeDialog.showConfirm({
+                title: 'No Inventory Items',
+                message: '❌ No inventory items found.\n\nWould you like to add some items first, or go to meal planning anyway?',
+                confirmText: 'Meal Planning',
+                cancelText: 'Add Items'
+            });
+            if (confirmed) {
                 window.location.href = '/meal-planning';
             } else {
                 window.location.href = '/inventory?action=add';
@@ -119,7 +150,14 @@ export function NutritionOverview({ data, loading, onAnalyze }) {
             `🤖 AI will suggest meals based on your inventory\n\n` +
             `Ready to create your meal plan?`;
 
-        if (confirm(message)) {
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Navigate to Meal Planning',
+            message: message,
+            confirmText: 'Go',
+            cancelText: 'Cancel'
+        });
+        if (confirmed) {
             window.location.href = '/meal-planning';
         }
     }, [data]);

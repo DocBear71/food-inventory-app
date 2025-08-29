@@ -60,7 +60,11 @@ export default function ExpirationNotifications({ onItemsUpdated }) {
 
     const handleBulkAction = async (action) => {
         if (selectedItems.size === 0) {
-            alert('Please select items first');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Items Selected',
+                message: 'Please select items first'
+            });
             return;
         }
 
@@ -80,13 +84,25 @@ export default function ExpirationNotifications({ onItemsUpdated }) {
                 if (onItemsUpdated) {
                     onItemsUpdated();
                 }
-                alert(data.message);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Update Successful',
+                    message: data.message
+                });
             } else {
-                alert(data.error || 'Failed to update items');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: data.error || 'Failed to update items'
+                });
             }
         } catch (error) {
             console.error('Error updating items:', error);
-            alert('Error updating items');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Update Error',
+                message: 'Error updating items'
+            });
         } finally {
             setProcessingAction(false);
         }

@@ -55,10 +55,18 @@ export default function NutritionFacts({
                     onNutritionLoad(data.nutrition);
                 }
             } else {
-                setError(data.error || 'Failed to load nutrition data');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Loading Failed',
+                    message: data.error || 'Failed to load nutrition data'
+                });
             }
         } catch (err) {
-            setError('Error loading nutrition data');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Loading Error',
+                message: 'Error loading nutrition data'
+            });
             console.error('Nutrition fetch error:', err);
         } finally {
             setLoading(false);

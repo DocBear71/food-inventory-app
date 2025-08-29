@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { useRouter } from 'next/navigation';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function MealPlanningUpgradeBanner({
                                                       onDismiss = null,
@@ -22,8 +23,8 @@ export default function MealPlanningUpgradeBanner({
         }
     };
 
-    const handleUpgrade = () => {
-        router.push('/meal-planning/enhanced');
+    const handleUpgrade = async () => {
+        await NativeNavigation.routerPush(router, '/meal-planning/enhanced');
     };
 
     // Don't show if dismissed and showOnce is enabled
@@ -143,7 +144,7 @@ export default function MealPlanningUpgradeBanner({
                 </div>
                 <div className="flex space-x-3">
                     <TouchEnhancedButton
-                        onClick={() => router.push('/pricing')}
+                        onClick={() => NativeNavigation.routerPush(router, '/pricing')}
                         className="text-blue-600 hover:text-blue-700 text-sm font-medium"
                     >
                         Learn More

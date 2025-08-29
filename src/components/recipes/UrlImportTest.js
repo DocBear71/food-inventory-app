@@ -30,7 +30,6 @@ export default function UrlImportTest() {
         }
 
         setLoading(true);
-        setError('');
         setResult(null);
 
         try {

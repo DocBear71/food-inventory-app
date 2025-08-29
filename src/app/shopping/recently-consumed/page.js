@@ -31,7 +31,12 @@ export default function RecentlyConsumedPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to load consumption history');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Load Failed',
+                    message: result.error || 'Failed to load consumption history'
+                });
+                return;
             }
 
             // Filter by date range and group by item
@@ -83,7 +88,11 @@ export default function RecentlyConsumedPage() {
             setConsumedItems(items);
         } catch (error) {
             console.error('Error loading consumed items:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: error.message
+            });
         } finally {
             setLoading(false);
         }
@@ -131,7 +140,11 @@ export default function RecentlyConsumedPage() {
 
     const addToShoppingList = async () => {
         if (selectedItems.size === 0) {
-            alert('Please select at least one item to add to your shopping list');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Items Selected',
+                message: 'Please select at least one item to add to your shopping list'
+            });
             return;
         }
 
@@ -161,10 +174,19 @@ export default function RecentlyConsumedPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to create shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Creation Failed',
+                    message: result.error || 'Failed to create shopping list'
+                });
+                return;
             }
 
-            alert(`✅ Added ${selectedItems.size} items to new shopping list: "${listName}"`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Shopping List Created',
+                message: `Added ${selectedItems.size} items to new shopping list: "${listName}"`
+            });
             setSelectedItems(new Set());
 
             // Optionally navigate to shopping lists
@@ -172,7 +194,11 @@ export default function RecentlyConsumedPage() {
 
         } catch (error) {
             console.error('Error creating shopping list:', error);
-            alert('❌ Error creating shopping list: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Creation Failed',
+                message: 'Error creating shopping list: ' + error.message
+            });
         }
     };
 

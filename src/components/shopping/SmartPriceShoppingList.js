@@ -312,7 +312,11 @@ export default function SmartPriceShoppingList({
 
     const optimizeForBudget = async () => {
         if (!budgetTracking.limit) {
-            alert('Please set a budget limit first');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Budget Required',
+                message: 'Please set a budget limit first'
+            });
             return;
         }
 

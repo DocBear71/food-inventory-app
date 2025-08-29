@@ -22,7 +22,12 @@ export class IntegratedNutritionSystem {
             const recipe = await Recipe.findById(recipeId).populate('ingredients.item');
 
             if (!recipe || !recipe.ingredients) {
-                throw new Error('Recipe not found or has no ingredients');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Recipe Failed',
+                    message: 'Recipe not found or has no ingredients'
+                });
+                return;
             }
 
             console.log(`🧮 Calculating nutrition for recipe: ${recipe.title}`);
@@ -238,7 +243,12 @@ export class IntegratedNutritionSystem {
             // Get inventory item with nutrition
             const item = await InventoryItem.findById(itemId);
             if (!item) {
-                throw new Error('Inventory item not found');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Inventory Failed',
+                    message: 'Inventory item not found'
+                });
+                return;
             }
 
             // Calculate consumed nutrition

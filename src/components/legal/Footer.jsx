@@ -9,7 +9,8 @@ import AboutUs from './AboutUs';
 import CookieConsent from './CookieConsent'; // You'll need to create this
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { useRouter } from 'next/navigation';
-import { usePlatform } from '@/hooks/usePlatform'; // Use unified platform detection
+import { usePlatform } from '@/hooks/usePlatform';
+import NativeNavigation from '@/components/mobile/NativeNavigation.js'; // Use unified platform detection
 
 const Footer = () => {
     const [activeModal, setActiveModal] = useState(null);
@@ -375,7 +376,7 @@ const Footer = () => {
 
                                     {/* Legal Information Page Link */}
                                     <TouchEnhancedButton
-                                            onClick={() => router.push('/legal')}
+                                            onClick={() => NativeNavigation.routerPush(router, '/legal')}
                                             style={{
                                                 background: 'none',
                                                 border: 'none',

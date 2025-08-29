@@ -9,7 +9,10 @@ import Footer from '@/components/legal/Footer';
 import ContactSupportModal from '@/components/support/ContactSupportModal';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSubscription } from '@/hooks/useSubscription';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 
 export default function HelpCenterPage() {
@@ -268,12 +271,17 @@ export default function HelpCenterPage() {
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                                 </svg>
                             </div>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 type="text"
-                                placeholder="Search help articles..."
+                                inputMode="search"
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                placeholder="Search help articles..."
+                                autoComplete="off"
+                                validation={(value) => ({
+                                    isValid: true,
+                                    message: value && value.length > 2 ? `Searching for "${value}"` : ''
+                                })}
                             />
                         </div>
 

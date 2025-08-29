@@ -162,7 +162,6 @@ export default function InventoryConsumption({
     const handleSubmit = async (e) => {
         e.preventDefault();
         setIsSubmitting(true);
-        setError('');
 
         try {
             if (mode === 'recipe') {

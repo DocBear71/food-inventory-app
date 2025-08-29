@@ -74,7 +74,11 @@ export function SocialMediaShare({ recipe }) {
 
                 // Copy to clipboard and show instructions
                 await navigator.clipboard.writeText(shareUrl);
-                alert('Recipe URL copied to clipboard! Now you can paste it in your Instagram story.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'URL Copied',
+                    message: 'Recipe URL copied to clipboard! Now you can paste it in your Instagram story.'
+                });
 
                 // Open Instagram in a new tab
                 window.open('https://www.instagram.com', '_blank');

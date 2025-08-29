@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/account/billing/page.js v2 - Enhanced iOS billing with App Store compliance
+// file: /src/app/account/billing/page.js v4 - Added basic weekly test subscription
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -30,25 +30,44 @@ function BillingContent() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [isRestoring, setIsRestoring] = useState(false);
+    const [purchaseSteps, setPurchaseSteps] = useState([]);
+
+    // ENHANCED: Better debug tracking for iPad issues
+    const addPurchaseStep = (step, data = {}) => {
+        const timestamp = new Date().toISOString();
+        const newStep = { step, timestamp, data };
+        setPurchaseSteps(prev => [...prev, newStep]);
+        console.log(`📱 Purchase Step ${purchaseSteps.length + 1}:`, step, data);
+    };
 
     // Error boundary for debugging
     useEffect(() => {
-        const handleError = (error) => {
+        const handleError = async (error) => {
             console.error('🚨 Global error caught:', error);
-            setError(`App Error: ${error.message}`);
+            addPurchaseStep('GLOBAL_ERROR', {message: error.message, stack: error.stack});
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'App Error',
+                message: error.message
+            });
         };
 
         window.addEventListener('error', handleError);
-        window.addEventListener('unhandledrejection', (event) => {
+        window.addEventListener('unhandledrejection', async (event) => {
             console.error('🚨 Unhandled promise rejection:', event.reason);
-            setError(`Promise Error: ${event.reason?.message || 'Unknown error'}`);
+            addPurchaseStep('PROMISE_REJECTION', {reason: event.reason?.message || 'Unknown error'});
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Promise Error',
+                message: event.reason?.message || 'Unknown error'
+            });
         });
 
         return () => {
             window.removeEventListener('error', handleError);
             window.removeEventListener('unhandledrejection', handleError);
         };
-    }, []);
+    }, [purchaseSteps.length]);
 
     // Early returns for auth
     useEffect(() => {
@@ -74,13 +93,19 @@ function BillingContent() {
         return null;
     }
 
-    // Subscription plans configuration
+    // UPDATED: Subscription plans configuration with basic weekly test
     const plans = {
         free: {
             name: 'Free',
-            price: { monthly: 0, annual: 0 },
+            price: { monthly: 0, annual: 0, weekly: 0 },
             description: 'Basic inventory management',
             features: ['50 inventory items', '100 starter recipes', 'Basic matching', '2 receipt scans/month']
+        },
+        basic: {
+            name: 'Basic Weekly Access',
+            price: { weekly: 0.99 },
+            description: 'Essential kitchen management tools - weekly subscription',
+            features: ['Essential tools access', 'Weekly billing', 'Test functionality', 'Basic support']
         },
         gold: {
             name: 'Gold',
@@ -103,204 +128,442 @@ function BillingContent() {
         }
 
         setLoading(true);
-        setError('');
+        ;
         setSuccess('');
+        setPurchaseSteps([]);
+
+        addPurchaseStep('PURCHASE_INITIATED', {
+            tier: newTier,
+            billing: newBilling,
+            platform: platform.type,
+            isIOS: platform.isIOS,
+            isNative: platform.isNative
+        });
 
         try {
             // Route to appropriate payment system based on platform
             if (platform.billingProvider === 'stripe') {
-                // Your existing Stripe flow
-                const response = await apiPost('/api/payments/create-checkout', {
-                    tier: newTier,
-                    billingCycle: newBilling,
-                    currentTier: subscription.tier,
-                    source: urlSource || 'billing-page'
-                });
-
-                const data = await response.json();
-
-                if (response.ok && data.url) {
-                    // Track Stripe checkout initiation
-                    try {
-                        const { trackEmailEvent } = await import('@/lib/email-todo-implementations');
-                        await trackEmailEvent({
-                            eventType: 'checkout_initiated',
-                            userEmail: session.user.email,
-                            userId: session.user.id,
-                            emailType: 'stripe_checkout',
-                            metadata: {
-                                tier: newTier,
-                                billingCycle: newBilling,
-                                platform: 'web',
-                                source: urlSource || 'billing-page'
-                            }
-                        });
-                    } catch (trackingError) {
-                        console.error('Failed to track checkout event:', trackingError);
-                    }
-
-                    window.location.href = data.url;
-                } else {
-                    setError(data.error || 'Failed to create checkout session');
-                }
-            } else if (platform.billingProvider === 'googleplay' || platform.billingProvider === 'appstore') {
-                // RevenueCat flow for mobile platforms
+                await handleStripePurchase(newTier, newBilling);
+            } else if (platform.billingProvider === 'appstore') {
                 await handleRevenueCatPurchase(newTier, newBilling);
             } else {
-                setError('Unknown billing platform');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Billing Platform Error',
+                    message: `Unknown billing platform: ${platform.billingProvider}`
+                });
+                return;
             }
         } catch (error) {
-            console.error('Error creating checkout:', error);
-            setError('Network error. Please try again.');
+            console.error('Error in subscription change:', error);
+            addPurchaseStep('SUBSCRIPTION_CHANGE_ERROR', { message: error.message });
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Subscription Error',
+                message: `Subscription change failed: ${error.message}`
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    // ENHANCED: Handle RevenueCat purchases with better error handling
+    // Handle Stripe purchases (web)
+    const handleStripePurchase = async (newTier, newBilling) => {
+        addPurchaseStep('STRIPE_FLOW_START');
+
+        const response = await apiPost('/api/payments/create-checkout', {
+            tier: newTier,
+            billingCycle: newBilling,
+            currentTier: subscription.tier,
+            source: urlSource || 'billing-page'
+        });
+
+        const data = await response.json();
+
+        if (response.ok && data.url) {
+            addPurchaseStep('STRIPE_CHECKOUT_CREATED', { url: data.url });
+
+            // Track Stripe checkout initiation
+            try {
+                await trackEmailEvent({
+                    eventType: 'checkout_initiated',
+                    userEmail: session.user.email,
+                    userId: session.user.id,
+                    emailType: 'stripe_checkout',
+                    metadata: {
+                        tier: newTier,
+                        billingCycle: newBilling,
+                        platform: 'web',
+                        source: urlSource || 'billing-page'
+                    }
+                });
+            } catch (trackingError) {
+                console.error('Failed to track checkout event:', trackingError);
+            }
+
+            window.location.href = data.url;
+        } else {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Checkout Error',
+                message: data.error || 'Failed to create checkout session'
+            });
+            return;
+        }
+    };
+
+    // ENHANCED: Improved RevenueCat purchase flow for iPad
     const handleRevenueCatPurchase = async (tier, billingCycle) => {
         try {
-            console.log('1. Starting RevenueCat purchase...');
+            addPurchaseStep('REVENUECAT_FLOW_START');
 
-            const { Purchases } = await import('@revenuecat/purchases-capacitor');
-            console.log('2. RevenueCat SDK imported successfully');
+            // ENHANCED: Better iPad/iOS detection and error handling
+            if (!platform.isIOS && !platform.isAndroid) {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Mobile Required',
+                    message: 'RevenueCat purchases are only available on mobile devices'
+                });
+                return;
+            }
 
-            // Platform-specific API key selection
-            const apiKey = platform.isAndroid
-                ? process.env.NEXT_PUBLIC_REVENUECAT_ANDROID_API_KEY
-                : platform.isIOS
-                    ? process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY
-                    : null;
+            console.log('1. Starting RevenueCat purchase for iOS/iPad...');
+            addPurchaseStep('REVENUECAT_IMPORT_START');
 
-            console.log('3. Platform:', platform.type);
-            console.log('4. API key exists:', !!apiKey);
+            // Dynamic import with better error handling
+            let Purchases;
+            try {
+                const purchasesModule = await import('@revenuecat/purchases-capacitor');
+                Purchases = purchasesModule.Purchases;
+                addPurchaseStep('REVENUECAT_IMPORT_SUCCESS');
+                console.log('2. RevenueCat SDK imported successfully');
+            } catch (importError) {
+                addPurchaseStep('REVENUECAT_IMPORT_FAILED', { error: importError.message });
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'SDK Not Available',
+                    message: `RevenueCat SDK not available: ${importError.message}`
+                });
+                return;
+            }
+
+            // Get API key for iOS
+            const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
+            console.log('3. API key check:', !!apiKey);
+            addPurchaseStep('API_KEY_CHECK', { hasKey: !!apiKey });
 
             if (!apiKey) {
-                throw new Error(`RevenueCat API key not configured for platform: ${platform.type}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Configuration Error',
+                    message: 'RevenueCat iOS API key not configured'
+                });
+                return;
             }
 
-            // Configure RevenueCat
-            await Purchases.configure({
-                apiKey: apiKey,
-                appUserID: session.user.id
+            // ENHANCED: Configure RevenueCat with better error handling
+            addPurchaseStep('REVENUECAT_CONFIGURE_START');
+            try {
+                await Purchases.configure({
+                    apiKey: apiKey,
+                    appUserID: session.user.id
+                });
+                addPurchaseStep('REVENUECAT_CONFIGURE_SUCCESS');
+                console.log('4. RevenueCat configured successfully!');
+            } catch (configError) {
+                addPurchaseStep('REVENUECAT_CONFIGURE_FAILED', { error: configError.message });
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Configuration Failed',
+                    message: `RevenueCat configuration failed: ${configError.message}`
+                });
+                return;
+            }
+
+            // ENHANCED: Get customer info with detailed logging
+            addPurchaseStep('CUSTOMER_INFO_START');
+            let customerInfo;
+            try {
+                customerInfo = await Purchases.getCustomerInfo();
+                addPurchaseStep('CUSTOMER_INFO_SUCCESS', {
+                    userId: customerInfo.originalAppUserId,
+                    activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
+                    entitlements: Object.keys(customerInfo.entitlements?.all || {})
+                });
+                console.log('5. Customer info retrieved successfully');
+            } catch (customerError) {
+                addPurchaseStep('CUSTOMER_INFO_FAILED', { error: customerError.message });
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Customer Info Error',
+                    message: `Failed to get customer info: ${customerError.message}`
+                });
+                return;
+            }
+
+            // ENHANCED: Get offerings with comprehensive error handling
+            addPurchaseStep('OFFERINGS_START');
+            let offerings;
+            try {
+                offerings = await Purchases.getOfferings();
+                addPurchaseStep('OFFERINGS_SUCCESS', {
+                    hasOfferings: !!offerings,
+                    hasCurrent: !!offerings?.current,
+                    packageCount: offerings?.current?.availablePackages?.length || 0
+                });
+                console.log('6. Offerings retrieved:', {
+                    hasOfferings: !!offerings,
+                    hasCurrent: !!offerings?.current,
+                    packageCount: offerings?.current?.availablePackages?.length || 0
+                });
+            } catch (offeringsError) {
+                addPurchaseStep('OFFERINGS_FAILED', { error: offeringsError.message });
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Offerings Error',
+                    message: `Failed to get offerings: ${offeringsError.message}`
+                });
+                return;
+            }
+
+            if (!offerings || !offerings.current) {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Offerings Available',
+                    message: 'No subscription offerings available. Please ensure products are configured in App Store Connect.'
+                });
+                return;
+            }
+
+            const packages = offerings.current.availablePackages || [];
+            if (packages.length === 0) {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Packages Found',
+                    message: 'No subscription packages found. Please check App Store Connect configuration.'
+                });
+                return;
+            }
+
+            // Log all available packages for debugging
+            addPurchaseStep('PACKAGES_ANALYSIS', {
+                totalPackages: packages.length,
+                packageIdentifiers: packages.map(p => p.identifier),
+                productIdentifiers: packages.map(p => p.product?.identifier)
             });
-            console.log('5. RevenueCat configured successfully!');
 
-            // Get and use customer info
-            const customerInfo = await Purchases.getCustomerInfo();
-            console.log('6. Customer info retrieved:', {
-                userId: customerInfo.originalAppUserId,
-                activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
-                entitlements: Object.keys(customerInfo.entitlements?.all || {}),
-                hasActiveEntitlements: Object.values(customerInfo.entitlements?.active || {}).length > 0
+            console.log('7. Available packages analysis:');
+            packages.forEach((pkg, index) => {
+                console.log(`  Package ${index + 1}:`, {
+                    identifier: pkg.identifier,
+                    productIdentifier: pkg.product?.identifier,
+                    price: pkg.product?.priceString,
+                    packageType: pkg.packageType
+                });
             });
 
-            // Get offerings and attempt purchase
-            console.log('7. Attempting to get offerings...');
-
-            const offerings = await Purchases.getOfferings();
-            console.log('8. Raw offerings response:', JSON.stringify(offerings, null, 2));
-
-            if (offerings && offerings.current) {
-                console.log('9. Current offering identifier:', offerings.current.identifier);
-                console.log('10. Available packages:', offerings.current.availablePackages?.length || 0);
-
-                if (offerings.current.availablePackages?.length > 0) {
-                    offerings.current.availablePackages.forEach((pkg, index) => {
-                        console.log(`11.${index + 1} Package:`, {
-                            identifier: pkg.identifier,
-                            product: pkg.product?.identifier,
-                            price: pkg.product?.priceString
-                        });
-                    });
-
-                    // ENHANCED: Better package matching logic
-                    const packageId = `${tier}_${billingCycle}_package`;
-                    console.log('12. Looking for package:', packageId);
-
-                    let packageToPurchase = offerings.current.availablePackages.find(
-                        pkg => pkg.identifier === packageId
-                    );
-
-                    if (!packageToPurchase) {
-                        // Try alternative package naming patterns
-                        const alternativePackageId = `${tier}_${billingCycle}`;
-                        const alternativePackage = offerings.current.availablePackages.find(
-                            pkg => pkg.identifier === alternativePackageId ||
-                                pkg.product?.identifier === `${tier}_${billingCycle}`
-                        );
-
-                        if (alternativePackage) {
-                            console.log('12b. Found alternative package:', alternativePackage.identifier);
-                            packageToPurchase = alternativePackage;
-                        } else {
-                            throw new Error(`Package ${packageId} not found. Available packages: ${offerings.current.availablePackages.map(p => p.identifier).join(', ')}`);
-                        }
-                    }
-
-                    console.log('13. Found package, attempting purchase...', packageToPurchase.identifier);
-
-                    // Make the purchase
-                    // Make the purchase
-                    const purchaseResult = await Purchases.purchasePackage({
-                        aPackage: packageToPurchase
-                    });
-
-                    console.log('14. Purchase successful!', purchaseResult);
-
-                    // Track successful purchase
-                    try {
-                        const { trackEmailEvent } = await import('@/lib/email-todo-implementations');
-                        await trackEmailEvent({
-                            eventType: 'purchase_completed',
-                            userEmail: session.user.email,
-                            userId: session.user.id,
-                            emailType: 'revenuecat_purchase',
-                            metadata: {
-                                tier,
-                                billingCycle,
-                                platform: platform.type,
-                                packageId: packageToPurchase.identifier
-                            }
-                        });
-                    } catch (trackingError) {
-                        console.error('Failed to track purchase event:', trackingError);
-                    }
-
-                    // ENHANCED: Verify purchase with backend
-                    await handlePurchaseVerification(purchaseResult, tier, billingCycle);
-
-                } else {
-                    console.log('11. No packages found in current offering');
-                    setError('No subscription packages available. Please try again later.');
-                }
+            // UPDATED: Enhanced package matching with support for basic weekly tier
+            let packageId;
+            if (tier === 'basic') {
+                packageId = 'basic_weekly_test'; // Our test product
             } else {
-                console.log('9. No current offering available');
-                setError('Subscription service temporarily unavailable. Please try again later.');
+                packageId = `${tier}_${billingCycle}`;
             }
+
+            addPurchaseStep('PACKAGE_SEARCH', { searchingFor: packageId });
+
+            let packageToPurchase = packages.find(pkg => pkg.identifier === packageId);
+
+            if (!packageToPurchase) {
+                // Strategy 1: Try without _package suffix or with alternative naming
+                const patterns = [
+                    `${tier}_${billingCycle}_package`,
+                    `${tier}_${billingCycle}ly`,
+                    tier === 'basic' ? 'basic_weekly' : `${tier.toUpperCase()}_${billingCycle.toUpperCase()}`,
+                    tier === 'basic' ? 'test_weekly' : `comfortkitchen_${tier}_${billingCycle}`
+                ];
+
+                for (const pattern of patterns) {
+                    packageToPurchase = packages.find(pkg =>
+                        pkg.identifier === pattern ||
+                        pkg.product?.identifier === pattern ||
+                        pkg.identifier.includes(pattern) ||
+                        pkg.product?.identifier?.includes(pattern)
+                    );
+                    if (packageToPurchase) {
+                        addPurchaseStep('PACKAGE_FOUND_PATTERN', {
+                            pattern,
+                            identifier: packageToPurchase.identifier
+                        });
+                        break;
+                    }
+                }
+            }
+
+            if (!packageToPurchase) {
+                // Strategy 2: Fallback to first package that contains the tier name
+                packageToPurchase = packages.find(pkg =>
+                    pkg.identifier.toLowerCase().includes(tier.toLowerCase()) ||
+                    pkg.product?.identifier?.toLowerCase().includes(tier.toLowerCase())
+                );
+
+                if (packageToPurchase) {
+                    addPurchaseStep('PACKAGE_FOUND_FALLBACK', { identifier: packageToPurchase.identifier });
+                }
+            }
+
+            if (!packageToPurchase) {
+                const availableIds = packages.map(p => p.identifier).join(', ');
+                addPurchaseStep('PACKAGE_NOT_FOUND', {
+                    searchedFor: packageId,
+                    available: availableIds
+                });
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Package Not Found',
+                    message: `No package found for ${tier} ${billingCycle}. Available packages: ${availableIds}. Please check App Store Connect product configuration.`
+                });
+                return;
+            }
+
+            console.log('8. Package selected for purchase:', {
+                identifier: packageToPurchase.identifier,
+                productIdentifier: packageToPurchase.product?.identifier,
+                price: packageToPurchase.product?.priceString
+            });
+
+            addPurchaseStep('PURCHASE_START', {
+                packageIdentifier: packageToPurchase.identifier,
+                productPrice: packageToPurchase.product?.priceString
+            });
+
+            // ENHANCED: Make the purchase with comprehensive error handling
+            let purchaseResult;
+            try {
+                console.log('9. Initiating purchase...');
+                setSuccess('Starting purchase process...');
+
+                purchaseResult = await Purchases.purchasePackage({
+                    aPackage: packageToPurchase
+                });
+
+                addPurchaseStep('PURCHASE_SUCCESS', {
+                    transactionId: purchaseResult.transactionIdentifier,
+                    productId: purchaseResult.productIdentifier
+                });
+
+                console.log('10. Purchase successful!', {
+                    transactionId: purchaseResult.transactionIdentifier,
+                    productId: purchaseResult.productIdentifier
+                });
+
+                setSuccess('Purchase completed! Verifying with our servers...');
+
+            } catch (purchaseError) {
+                addPurchaseStep('PURCHASE_FAILED', {
+                    error: purchaseError.message,
+                    code: purchaseError.code
+                });
+
+                console.error('Purchase failed:', purchaseError);
+
+                // ENHANCED: Handle specific purchase errors with user-friendly messages
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                if (purchaseError.message?.includes('ITEM_ALREADY_OWNED')) {
+                    await NativeDialog.showAlert({
+                        title: 'Already Owned',
+                        message: 'You already own this subscription. Try restoring your purchases.'
+                    });
+                    return;
+                } else if (purchaseError.message?.includes('USER_CANCELLED')) {
+                    await NativeDialog.showAlert({
+                        title: 'Purchase Cancelled',
+                        message: 'Purchase was cancelled.'
+                    });
+                    return;
+                } else if (purchaseError.message?.includes('PAYMENT_PENDING')) {
+                    await NativeDialog.showAlert({
+                        title: 'Payment Pending',
+                        message: 'Payment is pending. Please check back in a few minutes.'
+                    });
+                    return;
+                } else if (purchaseError.message?.includes('ITEM_UNAVAILABLE')) {
+                    await NativeDialog.showAlert({
+                        title: 'Unavailable',
+                        message: 'This subscription is temporarily unavailable. Please try again later.'
+                    });
+                    return;
+                } else if (purchaseError.message?.includes('NETWORK_ERROR')) {
+                    await NativeDialog.showAlert({
+                        title: 'Network Error',
+                        message: 'Network error. Please check your connection and try again.'
+                    });
+                    return;
+                }
+
+                throw purchaseError;
+            }
+
+            // Track successful purchase
+            try {
+                await trackEmailEvent({
+                    eventType: 'purchase_completed',
+                    userEmail: session.user.email,
+                    userId: session.user.id,
+                    emailType: 'revenuecat_purchase',
+                    metadata: {
+                        tier,
+                        billingCycle,
+                        platform: platform.type,
+                        packageId: packageToPurchase.identifier,
+                        transactionId: purchaseResult.transactionIdentifier
+                    }
+                });
+            } catch (trackingError) {
+                console.error('Failed to track purchase event:', trackingError);
+            }
+
+            // ENHANCED: Verify purchase with backend
+            await handlePurchaseVerification(purchaseResult, tier, billingCycle);
 
         } catch (error) {
             console.error('RevenueCat purchase error:', error);
+            addPurchaseStep('REVENUECAT_ERROR', {
+                message: error.message,
+                stack: error.stack
+            });
 
-            // Enhanced error messages
-            if (error.message?.includes('ITEM_ALREADY_OWNED')) {
-                setError('You already own this subscription. Try restoring your purchases.');
-            } else if (error.message?.includes('USER_CANCELLED')) {
-                setError('Purchase was cancelled.');
-            } else if (error.message?.includes('PAYMENT_PENDING')) {
-                setError('Payment is pending. Please check back in a few minutes.');
-            } else if (error.message?.includes('ITEM_UNAVAILABLE')) {
-                setError('This subscription is temporarily unavailable. Please try again later.');
+            // Enhanced error messages for iPad users
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            if (error.message?.includes('configuration')) {
+                await NativeDialog.showError({
+                    title: 'Configuration Issue',
+                    message: 'App Store configuration issue. Please try again later or contact support.'
+                });
+            } else if (error.message?.includes('network') || error.message?.includes('Network')) {
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Network connection issue. Please check your internet connection and try again.'
+                });
+            } else if (error.message?.includes('offerings') || error.message?.includes('packages')) {
+                await NativeDialog.showError({
+                    title: 'Updates In Progress',
+                    message: 'Subscription products are being updated. Please try again in a few minutes.'
+                });
             } else {
-                setError(`Purchase error: ${error.message}`);
+                await NativeDialog.showError({
+                    title: 'Purchase Error',
+                    message: error.message
+                });
             }
         }
     };
 
-    // NEW: Handle purchase verification with backend
+    // ENHANCED: Purchase verification with better error handling
     const handlePurchaseVerification = async (purchaseResult, tier, billingCycle) => {
         try {
-            console.log('15. Verifying purchase with backend...');
+            addPurchaseStep('VERIFICATION_START');
+            console.log('11. Verifying purchase with backend...');
 
             const response = await apiPost('/api/payments/revenuecat/verify', {
                 purchaseResult: purchaseResult,
@@ -312,29 +575,47 @@ function BillingContent() {
             const data = await response.json();
 
             if (response.ok) {
+                addPurchaseStep('VERIFICATION_SUCCESS');
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
                 // Refresh subscription data
                 subscription.refetch();
             } else {
+                addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
                 console.error('Backend verification failed:', data);
-                setError('Purchase completed but verification failed. Please contact support.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Verification Failed',
+                    message: 'Purchase completed but verification failed. Please contact support with your transaction ID.'
+                });
             }
         } catch (error) {
+            addPurchaseStep('VERIFICATION_ERROR', { error: error.message });
             console.error('Verification error:', error);
-            setError('Purchase completed but verification failed. Please contact support.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Verification Failed',
+                message: 'Purchase completed but verification failed. Please contact support.'
+            });
         }
     };
 
-    // NEW: iOS Restore Purchases functionality (App Store requirement)
+    // ENHANCED: iOS Restore Purchases functionality with better error handling
     const handleRestorePurchases = async () => {
         if (!platform.isIOS) {
-            setError('Restore purchases is only available on iOS devices.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'iOS Only Feature',
+                message: 'Restore purchases is only available on iOS devices.'
+            });
             return;
         }
 
         setIsRestoring(true);
-        setError('');
+        ;
         setSuccess('');
+        setPurchaseSteps([]);
+
+        addPurchaseStep('RESTORE_START');
 
         try {
             console.log('Starting restore purchases...');
@@ -344,7 +625,12 @@ function BillingContent() {
             // Configure RevenueCat if not already configured
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
             if (!apiKey) {
-                throw new Error('RevenueCat iOS API key not configured');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Configuration Error',
+                    message: 'RevenueCat iOS API key not configured'
+                });
+                return;
             }
 
             await Purchases.configure({
@@ -352,8 +638,15 @@ function BillingContent() {
                 appUserID: session.user.id
             });
 
+            addPurchaseStep('RESTORE_CONFIGURED');
+
             // Restore purchases
             const customerInfo = await Purchases.restorePurchases();
+            addPurchaseStep('RESTORE_COMPLETED', {
+                activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
+                entitlements: Object.keys(customerInfo.entitlements?.all || {})
+            });
+
             console.log('Restore completed:', customerInfo);
 
             // Check if any active subscriptions were restored
@@ -363,12 +656,21 @@ function BillingContent() {
                 setSuccess('Successfully restored your purchases! Your subscription is now active.');
                 subscription.refetch();
             } else {
-                setError('No active subscriptions found to restore.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'No Subscriptions Found',
+                    message: 'No active subscriptions found to restore.'
+                });
             }
 
         } catch (error) {
             console.error('Restore purchases error:', error);
-            setError(`Failed to restore purchases: ${error.message}`);
+            addPurchaseStep('RESTORE_ERROR', { error: error.message });
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Restore Failed',
+                message: `Failed to restore purchases: ${error.message}`
+            });
         } finally {
             setIsRestoring(false);
         }
@@ -381,7 +683,7 @@ function BillingContent() {
         }
 
         setLoading(true);
-        setError('');
+        ;
 
         try {
             const response = await apiPost('/api/subscription/start-trial', {
@@ -395,36 +697,48 @@ function BillingContent() {
                 // Refresh subscription data
                 subscription.refetch();
             } else {
-                setError(data.error || 'Failed to start trial');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Trial Start Failed',
+                    message: data.error || 'Failed to start trial'
+                });
             }
         } catch (error) {
             console.error('Error starting trial:', error);
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
     };
 
-    // ENHANCED: Handle cancellation with platform-specific instructions
+    // Handle cancellation with platform-specific instructions
     const handleCancelSubscription = async () => {
         let cancelMessage = 'Are you sure you want to cancel your subscription? You\'ll lose access to premium features at the end of your billing period.';
 
         if (platform.isIOS) {
             cancelMessage += '\n\nNote: For iOS subscriptions, you may also need to cancel through your Apple ID settings.';
-        } else if (platform.isAndroid) {
-            cancelMessage += '\n\nNote: For Android subscriptions, you may also need to cancel through Google Play Store.';
         }
 
-        if (!confirm(cancelMessage)) {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Cancel Subscription',
+            message: cancelMessage,
+            confirmText: 'Cancel Subscription',
+            cancelText: 'Keep Subscription'
+        });
+        if (!confirmed) {
             return;
         }
 
         setLoading(true);
-        setError('');
+        ;
 
         try {
             const response = await apiPost('/api/subscription/cancel', {});
-
             const data = await response.json();
 
             if (response.ok) {
@@ -432,18 +746,24 @@ function BillingContent() {
 
                 if (platform.isIOS) {
                     successMessage += '\n\nTo ensure complete cancellation, also check your Apple ID subscription settings.';
-                } else if (platform.isAndroid) {
-                    successMessage += '\n\nTo ensure complete cancellation, also check your Google Play subscription settings.';
                 }
 
                 setSuccess(successMessage);
                 subscription.refetch();
             } else {
-                setError(data.error || 'Failed to cancel subscription');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Cancellation Failed',
+                    message: data.error || 'Failed to cancel subscription'
+                });
             }
         } catch (error) {
             console.error('Error cancelling subscription:', error);
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -453,22 +773,15 @@ function BillingContent() {
         if (!date) return 'N/A';
 
         try {
-            // Handle both string and Date object inputs
             const dateObj = typeof date === 'string' ? new Date(date) : date;
-
-            // Check if the date is valid
             if (isNaN(dateObj.getTime())) {
                 console.log('Invalid date:', date);
                 return 'N/A';
             }
-
-            // Manual formatting - guaranteed to work everywhere
-            const month = dateObj.getMonth() + 1; // getMonth() returns 0-11
+            const month = dateObj.getMonth() + 1;
             const day = dateObj.getDate();
             const year = dateObj.getFullYear();
-
             return `${month}/${day}/${year}`;
-
         } catch (error) {
             console.error('Date formatting error:', error, 'for date:', date);
             return 'N/A';
@@ -488,7 +801,9 @@ function BillingContent() {
     const canStartTrial = subscription.tier === 'free' &&
         !subscription.isTrialActive &&
         !subscription.subscriptionData?.hasUsedFreeTrial;
-    const effectiveTier = subscription.isAdmin ? 'platinum' : subscription.tier;
+    const effectiveTier = subscription.isAdmin ? 'platinum' :
+        subscription.isExpired ? 'free' :
+            subscription.originalTier || subscription.tier;
 
     return (
         <MobileOptimizedLayout>
@@ -513,6 +828,19 @@ function BillingContent() {
                 {error && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                         {error}
+                        {/* ENHANCED: Show debug info for purchases on development */}
+                        {process.env.NODE_ENV === 'development' && purchaseSteps.length > 0 && (
+                            <details className="mt-4">
+                                <summary className="cursor-pointer text-sm font-medium">Debug Information</summary>
+                                <div className="mt-2 text-xs bg-red-50 p-2 rounded">
+                                    {purchaseSteps.map((step, index) => (
+                                        <div key={index} className="mb-1">
+                                            <strong>{step.step}:</strong> {JSON.stringify(step.data)}
+                                        </div>
+                                    ))}
+                                </div>
+                            </details>
+                        )}
                     </div>
                 )}
 
@@ -522,34 +850,20 @@ function BillingContent() {
                     </div>
                 )}
 
-                {/* TEMPORARY DEBUG INFO - Remove before App Store submission */}
-                {process.env.NODE_ENV === 'development' && (
-                    <div className="bg-yellow-100 border border-yellow-400 p-4 rounded mb-4">
-                        <h3 className="font-bold text-yellow-800">Debug Info:</h3>
-                        <pre className="text-xs text-yellow-700 mt-2">
-                            {JSON.stringify({
-                                platform: platform,
-                                isIOS: platform?.isIOS,
-                                userAgent: typeof window !== 'undefined' ? window.navigator.userAgent.substring(0, 100) : 'server'
-                            }, null, 2)}
-                        </pre>
-                    </div>
-                )}
-
-                {/* NEW: iOS Restore Purchases Button (App Store Requirement) */}
+                {/* ENHANCED: iOS Restore Purchases Button - More Prominent */}
                 {platform.isIOS && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <h3 className="text-blue-900 font-medium">Already purchased?</h3>
-                                <p className="text-blue-700 text-sm">
-                                    Restore your previous purchases from the App Store
-                                </p>
-                            </div>
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                        <div className="text-center">
+                            <div className="text-4xl mb-3">🔄</div>
+                            <h3 className="text-blue-900 font-semibold text-lg mb-2">Already purchased?</h3>
+                            <p className="text-blue-700 mb-4">
+                                If you've already purchased a subscription on this device or with your Apple ID,
+                                restore your purchases to regain access.
+                            </p>
                             <TouchEnhancedButton
                                 onClick={handleRestorePurchases}
                                 disabled={isRestoring}
-                                className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium"
+                                className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold text-lg"
                             >
                                 {isRestoring ? 'Restoring...' : 'Restore Purchases'}
                             </TouchEnhancedButton>
@@ -565,8 +879,9 @@ function BillingContent() {
                         <div className="flex items-center space-x-4">
                             <div className={`px-3 py-1 rounded-full text-sm font-medium ${
                                 effectiveTier === 'free' ? 'bg-gray-100 text-gray-800' :
-                                    effectiveTier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
-                                        'bg-purple-100 text-purple-800'
+                                    effectiveTier === 'basic' ? 'bg-green-100 text-green-800' :
+                                        effectiveTier === 'gold' ? 'bg-yellow-100 text-yellow-800' :
+                                            'bg-purple-100 text-purple-800'
                             }`}>
                                 {currentPlan.name}
                                 {isOnTrial && ' (Trial)'}
@@ -588,11 +903,18 @@ function BillingContent() {
                                     <span className="text-2xl font-bold text-gray-900">
                                         ${subscription.billingCycle === 'annual'
                                         ? currentPlan.price.annual
-                                        : currentPlan.price.monthly}
+                                        : subscription.billingCycle === 'weekly'
+                                            ? currentPlan.price.weekly
+                                            : currentPlan.price.monthly}
                                     </span>
                                     <span className="text-gray-600 text-sm">
-                                        /{subscription.billingCycle === 'annual' ? 'year' : 'month'}
+                                        /{subscription.billingCycle === 'annual' ? 'year' :
+                                        subscription.billingCycle === 'weekly' ? 'week' : 'month'}
                                     </span>
+                                    <span className="text-gray-600 text-sm">
+                                /{subscription.billingCycle === 'annual' ? 'year' :
+                                        subscription.billingCycle === 'weekly' ? 'week' : 'month'}
+                            </span>
                                     {subscription.isAdmin && (
                                         <div className="text-xs text-purple-600 font-medium">Admin Access</div>
                                     )}
@@ -686,7 +1008,7 @@ function BillingContent() {
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-6">Available Plans</h2>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                         {Object.entries(plans).map(([tierKey, plan]) => {
                             const isCurrentPlan = effectiveTier === tierKey;
                             const savings = getSavings(plan);
@@ -705,14 +1027,24 @@ function BillingContent() {
                                             {plan.name}
                                             {isCurrentPlan && (
                                                 <span className="ml-2 text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded-full">
-                                                    Current
-                                                </span>
+                                            Current
+                                        </span>
                                             )}
                                         </h3>
 
                                         <div className="mb-4">
-                                            {plan.price.monthly === 0 ? (
+                                            {tierKey === 'free' ? (
                                                 <span className="text-2xl font-bold text-gray-900">Free</span>
+                                            ) : tierKey === 'basic' ? (
+                                                <div>
+                                                    <div className="text-2xl font-bold text-gray-900">
+                                                        ${plan.price.weekly}
+                                                        <span className="text-base text-gray-600">/week</span>
+                                                    </div>
+                                                    <div className="text-xs text-green-600 font-medium">
+                                                        Test Subscription
+                                                    </div>
+                                                </div>
                                             ) : (
                                                 <div>
                                                     <div className="text-2xl font-bold text-gray-900">
@@ -745,21 +1077,25 @@ function BillingContent() {
 
                                     {!isCurrentPlan && !subscription.isAdmin && (
                                         <TouchEnhancedButton
-                                            onClick={() => handleSubscriptionChange(tierKey, 'annual')}
+                                            onClick={() => handleSubscriptionChange(
+                                                tierKey,
+                                                tierKey === 'basic' ? 'weekly' : 'annual'
+                                            )}
                                             disabled={loading}
-                                            className={`w-full py-2 px-4 rounded-lg font-medium ${
+                                            className={`w-full py-3 px-4 rounded-lg font-medium transition-colors ${
                                                 tierKey === 'free'
                                                     ? 'bg-gray-600 hover:bg-gray-700 text-white'
-                                                    : tierKey === 'gold'
-                                                        ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
-                                                        : 'bg-purple-600 hover:bg-purple-700 text-white'
+                                                    : tierKey === 'basic'
+                                                        ? 'bg-green-600 hover:bg-green-700 text-white'
+                                                        : tierKey === 'gold'
+                                                            ? 'bg-yellow-600 hover:bg-yellow-700 text-white'
+                                                            : 'bg-purple-600 hover:bg-purple-700 text-white'
                                             }`}
                                         >
                                             {loading ? 'Processing...' :
                                                 tierKey === 'free' ? 'Downgrade to Free' :
-                                                    platform.isAndroid ? `Get ${plan.name} via Google Play` :
-                                                        platform.isIOS ? `Get ${plan.name} via App Store` :
-                                                            `Upgrade to ${plan.name}`}
+                                                    platform.isIOS ? `Get ${plan.name} via App Store` :
+                                                        `Upgrade to ${plan.name}`}
                                         </TouchEnhancedButton>
                                     )}
                                 </div>
@@ -767,7 +1103,7 @@ function BillingContent() {
                         })}
                     </div>
 
-                    {/* NEW: iOS Subscription Management Link */}
+                    {/* iOS Subscription Management Link */}
                     {platform.isIOS && subscription.tier !== 'free' && (
                         <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                             <h3 className="text-blue-900 font-medium mb-2">Manage Your Subscription</h3>
@@ -807,15 +1143,6 @@ function BillingContent() {
                             </div>
                         )}
 
-                        {platform.isAndroid && (
-                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
-                                <h4 className="text-yellow-800 font-medium mb-2">Android Subscription Notice</h4>
-                                <p className="text-yellow-700 text-sm">
-                                    For subscriptions purchased through Google Play, you may also need to cancel directly through the Google Play Store to ensure complete cancellation.
-                                </p>
-                            </div>
-                        )}
-
                         <TouchEnhancedButton
                             onClick={handleCancelSubscription}
                             disabled={loading}
@@ -826,7 +1153,7 @@ function BillingContent() {
                     </div>
                 )}
 
-                {/* NEW: Terms of Service and Privacy Policy Links (App Store Requirement) */}
+                {/* Terms of Service and Privacy Policy Links (App Store Requirement) */}
                 <div className="bg-gray-50 rounded-lg p-6">
                     <h3 className="text-gray-900 font-medium mb-4">Terms & Privacy</h3>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
@@ -864,9 +1191,6 @@ function BillingContent() {
                             <li>• Pricing may vary by region and platform</li>
                             {platform.isIOS && (
                                 <li>• iOS subscriptions are managed through your Apple ID</li>
-                            )}
-                            {platform.isAndroid && (
-                                <li>• Android subscriptions are managed through Google Play</li>
                             )}
                         </ul>
                     </div>

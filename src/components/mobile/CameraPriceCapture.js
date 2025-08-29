@@ -32,7 +32,11 @@ export default function CameraPriceCapture({ onPriceCaptured, onClose }) {
             }
         } catch (error) {
             console.error('Camera access failed:', error);
-            setError('Camera access required for price capture');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Camera Access Required',
+                message: 'Camera access required for price capture'
+            });
         }
     };
 
@@ -76,14 +80,22 @@ export default function CameraPriceCapture({ onPriceCaptured, onClose }) {
 
                 } catch (error) {
                     console.error('Price extraction failed:', error);
-                    setError('Failed to extract price from image');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Price Extraction Failed',
+                        message: 'Failed to extract price from image'
+                    });
                     setIsCapturing(false);
                 }
             }, 'image/jpeg', 0.8);
 
         } catch (error) {
             console.error('Capture failed:', error);
-            setError('Failed to capture image');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Capture Failed',
+                message: 'Failed to capture image'
+            });
             setIsCapturing(false);
         }
     };

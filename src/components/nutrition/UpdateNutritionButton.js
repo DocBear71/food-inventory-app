@@ -32,7 +32,11 @@ const UpdateNutritionButton = ({
         const allIngredients = getAllIngredients(recipe);
 
         if (allIngredients.length === 0) {
-            alert('Please add ingredients before analyzing nutrition.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Ingredients',
+                message: 'Please add ingredients before analyzing nutrition.'
+            });
             return;
         }
 

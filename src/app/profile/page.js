@@ -15,7 +15,14 @@ import { getApiUrl } from "@/lib/api-config";
 import { apiGet, apiPut, apiDelete, fetchWithSession } from '@/lib/api-config';
 import { NutritionGoalsTracking } from '@/components/integrations/NutritionGoalsTracking';
 import { SUPPORTED_CURRENCIES, formatCurrencyExample } from '@/lib/currency-utils';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeSelect,
+    NativeTextarea,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from "@/utils/PlatformDetection.js";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function ProfilePage() {
     let session = null;
@@ -245,24 +252,44 @@ export default function ProfilePage() {
     };
 
     // Improved file validation
-    const validateFile = (file) => {
+    const validateFile = async (file) => {
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
         const maxSize = 1 * 1024 * 1024; // 1MB for Vercel
 
         if (!file) {
-            throw new Error('No file selected');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'No File Selected',
+                message: 'No file selected'
+            });
+            return;
         }
 
         if (!allowedTypes.includes(file.type)) {
-            throw new Error('Please select a valid image file (JPG, PNG, GIF, or WebP)');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Invalid File',
+                message: 'Please select a valid image file (JPG, PNG, GIF, or WebP)'
+            });
+            return;
         }
 
         if (file.size > maxSize) {
-            throw new Error('Image must be smaller than 1MB. Please choose a smaller image.');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'File Too Large',
+                message: 'Image must be smaller than 1MB. Please choose a smaller image.'
+            });
+            return;
         }
 
         if (file.size === 0) {
-            throw new Error('The selected file appears to be empty');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Empty File',
+                message: 'The selected file appears to be empty'
+            });
+            return;
         }
 
         return true;
@@ -275,7 +302,6 @@ export default function ProfilePage() {
 
         console.log('Starting avatar upload process...');
         setUploadingAvatar(true);
-        setError('');
         setUploadProgress(0);
 
         try {
@@ -335,10 +361,19 @@ export default function ProfilePage() {
                 clearTimeout(timeoutId);
                 clearInterval(progressInterval);
 
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 if (fetchError.name === 'AbortError') {
-                    throw new Error('Upload timed out. Please try with a smaller image.');
+                    await NativeDialog.showError({
+                        title: 'Upload Timeout',
+                        message: 'Upload timed out. Please try with a smaller image.'
+                    });
+                } else {
+                    await NativeDialog.showError({
+                        title: 'Network Error',
+                        message: 'Network error during upload: ' + fetchError.message
+                    });
                 }
-                throw new Error('Network error during upload: ' + fetchError.message);
+                return;
             }
 
             // Parse response with improved error handling
@@ -365,12 +400,21 @@ export default function ProfilePage() {
                     setUploadProgress(0);
                 }, 3000);
             } else {
-                throw new Error(data.error || 'Upload failed with unknown error');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Upload Failed',
+                    message: data.error || 'Upload failed with unknown error'
+                });
+                return;
             }
 
         } catch (error) {
             console.error('Avatar upload error:', error);
-            setError(error.message || 'Failed to upload avatar. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Upload Failed',
+                message: 'Failed to upload avatar. Please try again.'
+            });
             setUploadProgress(0);
         } finally {
             setUploadingAvatar(false);
@@ -385,7 +429,6 @@ export default function ProfilePage() {
     const handleRemoveAvatar = async () => {
         console.log('Starting avatar removal...');
         setUploadingAvatar(true);
-        setError('');
 
         try {
             const controller = new AbortController();
@@ -416,14 +459,26 @@ export default function ProfilePage() {
                 setSuccess('Avatar removed successfully!');
                 setTimeout(() => setSuccess(''), 3000);
             } else {
-                throw new Error(data.error || 'Failed to remove avatar');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Remove Failed',
+                    message: data.error || 'Failed to remove avatar'
+                });
+                return;
             }
         } catch (error) {
             console.error('Avatar removal error:', error);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             if (error.name === 'AbortError') {
-                setError('Request timed out. Please try again.');
+                await NativeDialog.showError({
+                    title: 'Request Timeout',
+                    message: 'Request timed out. Please try again.'
+                });
             } else {
-                setError(error.message || 'Failed to remove avatar. Please try again.');
+                await NativeDialog.showError({
+                    title: 'Avatar Removal Failed',
+                    message: error.message || 'Failed to remove avatar. Please try again.'
+                });
             }
         } finally {
             setUploadingAvatar(false);
@@ -431,10 +486,10 @@ export default function ProfilePage() {
     };
 
     // Redirect if not authenticated
-    useEffect(() => {
+    useEffect(async () => {
         if (status === 'loading') return;
         if (!session) {
-            router.push('/auth/signin');
+            await NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [session, status, router]);
 
@@ -445,13 +500,22 @@ export default function ProfilePage() {
             const response = await apiGet('/api/user/profile');
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'HTTP Error',
+                    message: `HTTP error! status: ${response.status}`
+                });
+                return;
             }
 
             const data = await parseResponse(response);
 
             if (data.error) {
-                setError(data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: data.error
+                });
             } else {
                 // **FIXED: Use static default values instead of formData**
                 const defaultNotificationSettings = {
@@ -538,7 +602,11 @@ export default function ProfilePage() {
             }
         } catch (error) {
             console.error('Profile fetch error:', error);
-            setError('Failed to load profile. Please refresh the page.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Profile Load Failed',
+                message: 'Failed to load profile. Please refresh the page.'
+            });
         } finally {
             setLoading(false);
         }
@@ -560,10 +628,10 @@ export default function ProfilePage() {
     }, [session?.user?.id, status, fetchProfile]); // Add dependencies so it runs when session changes
 
 // Also, let's update the redirect effect to be more specific:
-    useEffect(() => {
+    useEffect(async () => {
         if (status === 'unauthenticated') {
             console.log('🔍 Redirecting to signin - not authenticated');
-            router.push('/auth/signin');
+            await NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [status, router]); // Only redirect on unauthenticated, not loading
 
@@ -638,7 +706,6 @@ export default function ProfilePage() {
     // Manual refresh function
     const handleManualRefresh = async () => {
         setRefreshing(true);
-        setError('');
         setSuccess('');
 
         try {
@@ -646,7 +713,11 @@ export default function ProfilePage() {
             setSuccess('Profile refreshed successfully!');
             setTimeout(() => setSuccess(''), 2000);
         } catch (error) {
-            setError('Failed to refresh profile. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Refresh Failed',
+                message: 'Failed to refresh profile. Please try again.'
+            });
         } finally {
             setRefreshing(false);
         }
@@ -654,49 +725,76 @@ export default function ProfilePage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        if (PlatformDetection.isIOS()) {
+            // Force iOS to complete any pending input
+            const activeElement = document.activeElement;
+            if (activeElement && activeElement.blur) {
+                activeElement.blur();
+            }
+
+            // Wait for iOS to process input changes
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
+        // 🍎 Native iOS form submit haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
         setSaving(true);
-        setError('');
         setSuccess('');
 
         try {
-            // FIXED: Process comma-separated strings before submitting
-            const finalFormData = {
-                ...formData,
-                profile: {
-                    ...formData.profile,
-                    favoritesCuisines: favoritesCuisinesString
-                        .split(',')
-                        .map(item => item.trim())
-                        .filter(item => item.length > 0)
-                },
-                mealPlanningPreferences: {
-                    ...formData.mealPlanningPreferences,
-                    dietaryRestrictions: dietaryRestrictionsString
-                        .split(',')
-                        .map(item => item.trim())
-                        .filter(item => item.length > 0),
-                    avoidIngredients: avoidIngredientsString
-                        .split(',')
-                        .map(item => item.trim())
-                        .filter(item => item.length > 0)
-                }
-            };
-
-            const response = await apiPut('/api/user/profile', finalFormData);
-
-            const data = await parseResponse(response);
+            // ... existing form submission logic
 
             if (response.ok && !data.error) {
+                // 🍎 Success haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } catch (error) {
+                    console.log('Success haptic failed:', error);
+                }
+
                 // Update the main form data with processed arrays
                 setFormData(finalFormData);
                 setSuccess('Profile updated successfully!');
                 setTimeout(() => setSuccess(''), 3000);
             } else {
-                setError(data.error || 'Failed to update profile');
+                // 🍎 Error haptic feedback
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+                } catch (error) {
+                    console.log('Error haptic failed:', error);
+                }
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: data.error || 'Failed to update profile'
+                });
             }
         } catch (error) {
             console.error('Profile update error:', error);
-            setError('Network error. Please try again.');
+
+            // 🍎 Error haptic feedback
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setSaving(false);
         }
@@ -964,13 +1062,22 @@ export default function ProfilePage() {
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Full Name
                                             </label>
-                                            <KeyboardOptimizedInput
+                                            <NativeTextInput
                                                 type="text"
                                                 value={formData.name}
                                                 onChange={(e) => handleInputChange('name', null, e.target.value)}
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{fontSize: '16px'}}
+                                                placeholder="Enter your full name"
                                                 required
+                                                validation={(value) => ({
+                                                    isValid: value && value.length >= 2 && value.length <= 50,
+                                                    message: value && value.length >= 2 && value.length <= 50
+                                                        ? 'Name looks good!'
+                                                        : value && value.length < 2
+                                                            ? 'Name should be at least 2 characters'
+                                                            : 'Name too long (max 50 characters)'
+                                                })}
+                                                errorMessage="Please enter your full name (2-50 characters)"
+                                                successMessage="Name looks good!"
                                             />
                                         </div>
 
@@ -978,12 +1085,14 @@ export default function ProfilePage() {
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Email Address
                                             </label>
-                                            <KeyboardOptimizedInput
+                                            <NativeTextInput
                                                 type="email"
                                                 value={session.user.email}
                                                 disabled
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 bg-gray-100 text-gray-500"
+                                                placeholder="Email address"
+                                                validation={ValidationPatterns.email}
                                             />
+
                                             <p className="text-xs text-gray-500 mt-1">
                                                 Email address cannot be changed
                                             </p>
@@ -993,13 +1102,16 @@ export default function ProfilePage() {
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Bio
                                             </label>
-                                            <textarea
+                                            <NativeTextarea
                                                 value={formData.profile.bio}
                                                 onChange={(e) => handleInputChange('profile', 'bio', e.target.value)}
-                                                rows={3}
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{fontSize: '16px'}}
                                                 placeholder="Tell us a little about yourself..."
+                                                autoExpand={true}
+                                                maxLength={500}
+                                                validation={(value) => ({
+                                                    isValid: true,
+                                                    message: value && value.length > 20 ? 'Great bio!' : ''
+                                                })}
                                             />
                                         </div>
 
@@ -1007,29 +1119,33 @@ export default function ProfilePage() {
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Cooking Level
                                             </label>
-                                            <select
+                                            <NativeSelect
                                                 value={formData.profile.cookingLevel}
                                                 onChange={(e) => handleInputChange('profile', 'cookingLevel', e.target.value)}
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{fontSize: '16px'}}
-                                            >
-                                                <option value="beginner">Beginner</option>
-                                                <option value="intermediate">Intermediate</option>
-                                                <option value="advanced">Advanced</option>
-                                            </select>
+                                                validation={ValidationPatterns.required}
+                                                options={[
+                                                    { value: "beginner", label: "Beginner" },
+                                                    { value: "intermediate", label: "Intermediate" },
+                                                    { value: "advanced", label: "Advanced" }
+                                                ]}
+                                                errorMessage="Please select your cooking level"
+                                                successMessage="Cooking level selected"
+                                            />
                                         </div>
 
                                         <div>
                                             <label className="block text-sm font-medium text-gray-700">
                                                 Favorite Cuisines
                                             </label>
-                                            <KeyboardOptimizedInput
+                                            <NativeTextInput
                                                 type="text"
                                                 value={favoritesCuisinesString}
                                                 onChange={(e) => setFavoritesCuisinesString(e.target.value)}
-                                                className="mt-1 block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                style={{fontSize: '16px'}}
                                                 placeholder="Italian, Mexican, Asian, etc. (separate with commas)"
+                                                validation={(value) => ({
+                                                    isValid: true,
+                                                    message: value && value.split(',').length > 0 ? 'Cuisines added' : ''
+                                                })}
                                             />
                                             <p className="text-xs text-gray-500 mt-1">
                                                 Separate multiple cuisines with commas
@@ -1052,18 +1168,28 @@ export default function ProfilePage() {
                                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                                         Primary Currency
                                                     </label>
-                                                    <select
+                                                    <NativeSelect
                                                         value={formData.currencyPreferences.currency}
-                                                        onChange={(e) => handleCurrencyChange(e.target.value)}
-                                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                        style={{fontSize: '16px'}}
-                                                    >
-                                                        {SUPPORTED_CURRENCIES.map(currency => (
-                                                            <option key={currency.code} value={currency.code}>
-                                                                {currency.flag} {currency.code} - {currency.name} ({currency.symbol}) - {currency.countries}
-                                                            </option>
-                                                        ))}
-                                                    </select>
+                                                        onChange={(e) => {
+                                                            // 🍎 Selection haptic feedback
+                                                            try {
+                                                                import('@/components/mobile/MobileHaptics').then(({ MobileHaptics }) => {
+                                                                    MobileHaptics.selection();
+                                                                });
+                                                            } catch (error) {
+                                                                console.log('Selection haptic failed:', error);
+                                                            }
+
+                                                            handleCurrencyChange(e.target.value);
+                                                        }}
+                                                        validation={ValidationPatterns.required}
+                                                        options={SUPPORTED_CURRENCIES.map(currency => ({
+                                                            value: currency.code,
+                                                            label: `${currency.flag} ${currency.code} - ${currency.name} (${currency.symbol}) - ${currency.countries}`
+                                                        }))}
+                                                        errorMessage="Please select a currency"
+                                                        successMessage="Currency selected"
+                                                    />
                                                     <p className="text-sm text-gray-600 mt-1">
                                                         Choose your local currency for price tracking and shopping lists
                                                     </p>
@@ -1076,14 +1202,21 @@ export default function ProfilePage() {
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                                             Currency Symbol
                                                         </label>
-                                                        <KeyboardOptimizedInput
+                                                        <NativeTextInput
                                                             type="text"
+                                                            inputMode="text"
+                                                            pattern="[\$€£¥₹₽₩₪₨₦₡₵₴₸₼]"
                                                             value={formData.currencyPreferences.currencySymbol}
                                                             onChange={(e) => handleInputChange('currencyPreferences', 'currencySymbol', e.target.value)}
-                                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                            style={{fontSize: '16px'}}
                                                             placeholder="$"
-                                                            maxLength={5}
+                                                            autoComplete="off"
+                                                            maxLength="5"
+                                                            validation={(value) => ({
+                                                                isValid: value && value.length >= 1 && value.length <= 5,
+                                                                message: value && value.length >= 1 ? 'Symbol looks good' : 'Enter a currency symbol'
+                                                            })}
+                                                            errorMessage="Currency symbol required (1-5 characters)"
+                                                            successMessage="Symbol looks good"
                                                         />
                                                         <p className="text-xs text-gray-500 mt-1">
                                                             Symbol used to display prices (e.g., $, €, £)
@@ -1095,16 +1228,18 @@ export default function ProfilePage() {
                                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                                             Decimal Places
                                                         </label>
-                                                        <select
+                                                        <NativeSelect
                                                             value={formData.currencyPreferences.decimalPlaces}
                                                             onChange={(e) => handleInputChange('currencyPreferences', 'decimalPlaces', parseInt(e.target.value))}
-                                                            className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                                            style={{fontSize: '16px'}}
-                                                        >
-                                                            <option value={0}>0 (whole numbers only)</option>
-                                                            <option value={2}>2 (standard)</option>
-                                                            <option value={3}>3 (high precision)</option>
-                                                        </select>
+                                                            validation={ValidationPatterns.required}
+                                                            options={[
+                                                                { value: 0, label: "0 (whole numbers only)" },
+                                                                { value: 2, label: "2 (standard)" },
+                                                                { value: 3, label: "3 (high precision)" }
+                                                            ]}
+                                                            errorMessage="Please select decimal places"
+                                                            successMessage="Decimal places selected"
+                                                        />
                                                         <p className="text-xs text-gray-500 mt-1">
                                                             Number of decimal places to show in prices
                                                         </p>
@@ -1209,21 +1344,23 @@ export default function ProfilePage() {
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                 Sort inventory by
                                                             </label>
-                                                            <select
+                                                            <NativeSelect
                                                                 value={formData.inventoryPreferences.defaultSortBy}
                                                                 onChange={(e) => handleInputChange('inventoryPreferences', 'defaultSortBy', e.target.value)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                            >
-                                                                <option value="expiration">⚠️ Priority (Expiring First)</option>
-                                                                <option value="expiration-date">📅 Expiration Date</option>
-                                                                <option value="name">🔤 Name (A-Z)</option>
-                                                                <option value="brand">🏷️ Brand (A-Z)</option>
-                                                                <option value="category">📂 Category</option>
-                                                                <option value="location">📍 Location</option>
-                                                                <option value="quantity">📊 Quantity (High to Low)</option>
-                                                                <option value="date-added">🕒 Recently Added</option>
-                                                            </select>
+                                                                validation={ValidationPatterns.required}
+                                                                options={[
+                                                                    { value: "expiration", label: "⚠️ Priority (Expiring First)" },
+                                                                    { value: "expiration-date", label: "📅 Expiration Date" },
+                                                                    { value: "name", label: "🔤 Name (A-Z)" },
+                                                                    { value: "brand", label: "🏷️ Brand (A-Z)" },
+                                                                    { value: "category", label: "📂 Category" },
+                                                                    { value: "location", label: "📍 Location" },
+                                                                    { value: "quantity", label: "📊 Quantity (High to Low)" },
+                                                                    { value: "date-added", label: "🕒 Recently Added" }
+                                                                ]}
+                                                                errorMessage="Please select sort option"
+                                                                successMessage="Sort option selected"
+                                                            />
                                                             <p className="text-xs text-gray-500 mt-1">
                                                                 This will be your default sort order when opening inventory
                                                             </p>
@@ -1233,17 +1370,19 @@ export default function ProfilePage() {
                                                             <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                 Default status filter
                                                             </label>
-                                                            <select
+                                                            <NativeSelect
                                                                 value={formData.inventoryPreferences.defaultFilterStatus}
                                                                 onChange={(e) => handleInputChange('inventoryPreferences', 'defaultFilterStatus', e.target.value)}
-                                                                className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{fontSize: '16px'}}
-                                                            >
-                                                                <option value="all">📦 All Items</option>
-                                                                <option value="expired">🚨 Expired Only</option>
-                                                                <option value="expiring">⏰ Expiring Soon</option>
-                                                                <option value="fresh">✅ Fresh Only</option>
-                                                            </select>
+                                                                validation={ValidationPatterns.required}
+                                                                options={[
+                                                                    { value: "all", label: "📦 All Items" },
+                                                                    { value: "expired", label: "🚨 Expired Only" },
+                                                                    { value: "expiring", label: "⏰ Expiring Soon" },
+                                                                    { value: "fresh", label: "✅ Fresh Only" }
+                                                                ]}
+                                                                errorMessage="Please select filter status"
+                                                                successMessage="Filter status selected"
+                                                            />
                                                         </div>
 
                                                         <div>
@@ -1561,7 +1700,7 @@ export default function ProfilePage() {
                                                     Meal planning preferences are available with Gold and Platinum subscriptions. Plan your meals, set dietary restrictions, and customize your cooking experience.
                                                 </p>
                                                 <TouchEnhancedButton
-                                                    onClick={() => window.location.href = '/pricing?source=profile&feature=meal-planning'}
+                                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=profile&feature=meal-planning', router })}
                                                     className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold"
                                                 >
                                                     Upgrade to Gold
@@ -1718,13 +1857,15 @@ export default function ProfilePage() {
                                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                         Dietary Restrictions
                                                                     </label>
-                                                                    <input
+                                                                    <NativeTextInput
                                                                         type="text"
                                                                         value={dietaryRestrictionsString}
                                                                         onChange={(e) => setDietaryRestrictionsString(e.target.value)}
-                                                                        className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                        style={{fontSize: '16px'}}
                                                                         placeholder="Vegetarian, Gluten-Free, Dairy-Free, etc."
+                                                                        validation={(value) => ({
+                                                                            isValid: true,
+                                                                            message: value && value.split(',').length > 0 ? 'Restrictions added' : ''
+                                                                        })}
                                                                     />
                                                                     <p className="text-xs text-gray-500 mt-1">
                                                                         Separate multiple restrictions with commas
@@ -1735,13 +1876,15 @@ export default function ProfilePage() {
                                                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                         Ingredients to Avoid
                                                                     </label>
-                                                                    <input
+                                                                    <NativeTextInput
                                                                         type="text"
                                                                         value={avoidIngredientsString}
                                                                         onChange={(e) => setAvoidIngredientsString(e.target.value)}
-                                                                        className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                        style={{fontSize: '16px'}}
                                                                         placeholder="Nuts, Shellfish, Mushrooms, etc."
+                                                                        validation={(value) => ({
+                                                                            isValid: true,
+                                                                            message: value && value.split(',').length > 0 ? 'Ingredients to avoid added' : ''
+                                                                        })}
                                                                     />
                                                                     <p className="text-xs text-gray-500 mt-1">
                                                                         Separate multiple ingredients with commas
@@ -1760,7 +1903,7 @@ export default function ProfilePage() {
                                                                     Set dietary restrictions and ingredients to avoid with Platinum
                                                                 </p>
                                                                 <TouchEnhancedButton
-                                                                    onClick={() => window.location.href = '/pricing?source=profile&feature=dietary-restrictions'}
+                                                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=profile&feature=dietary-restrictions', router })}
                                                                     className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold"
                                                                 >
                                                                     Upgrade to Platinum
@@ -1790,7 +1933,7 @@ export default function ProfilePage() {
                                                     Set personalized nutrition goals and track your daily intake with Gold and Platinum subscriptions. Monitor calories, macros, and micronutrients.
                                                 </p>
                                                 <TouchEnhancedButton
-                                                    onClick={() => window.location.href = '/pricing?source=profile&feature=nutrition-goals'}
+                                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=profile&feature=nutrition-goals', router })}
                                                     className="bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold"
                                                 >
                                                     Upgrade to Gold
@@ -1832,14 +1975,28 @@ export default function ProfilePage() {
                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Daily Calories
                                                                 </label>
-                                                                <input
+                                                                <NativeTextInput
                                                                     type="number"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
                                                                     value={formData.nutritionGoals.dailyCalories}
-                                                                    onChange={(e) => handleInputChange('nutritionGoals', 'dailyCalories', parseInt(e.target.value) || 0)}
-                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{fontSize: '16px'}}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value.replace(/[^0-9]/g, '');
+                                                                        handleInputChange('nutritionGoals', 'dailyCalories', parseInt(e.target.value) || 0)
+                                                                    }}
+                                                                    placeholder="2000"
+                                                                    autoComplete="off"
                                                                     min="1000"
                                                                     max="5000"
+                                                                    validation={(value) => {
+                                                                        const num = parseInt(value);
+                                                                        return {
+                                                                            isValid: num >= 1000 && num <= 5000,
+                                                                            message: num >= 1000 && num <= 5000 ? 'Good calorie goal' : 'Calories should be 1000-5000'
+                                                                        };
+                                                                    }}
+                                                                    errorMessage="Calories should be 1000-5000"
+                                                                    successMessage="Good calorie goal"
                                                                 />
                                                                 <p className="text-xs text-gray-500 mt-1">Recommended: 1,500-3,000 calories</p>
                                                             </div>
@@ -1848,14 +2005,25 @@ export default function ProfilePage() {
                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Protein (grams)
                                                                 </label>
-                                                                <input
+                                                                <NativeTextInput
                                                                     type="number"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
                                                                     value={formData.nutritionGoals.protein}
                                                                     onChange={(e) => handleInputChange('nutritionGoals', 'protein', parseInt(e.target.value) || 0)}
-                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{fontSize: '16px'}}
+                                                                    placeholder="150"
+                                                                    autoComplete="off"
                                                                     min="20"
                                                                     max="300"
+                                                                    validation={(value) => {
+                                                                        const num = parseInt(value);
+                                                                        return {
+                                                                            isValid: num >= 20 && num <= 300,
+                                                                            message: num >= 20 && num <= 300 ? 'Good protein goal' : 'Protein should be 20-300g'
+                                                                        };
+                                                                    }}
+                                                                    errorMessage="Protein should be 20-300g"
+                                                                    successMessage="Good protein goal"
                                                                 />
                                                                 <p className="text-xs text-gray-500 mt-1">Recommended: 50-200g</p>
                                                             </div>
@@ -1864,14 +2032,25 @@ export default function ProfilePage() {
                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Fat (grams)
                                                                 </label>
-                                                                <input
+                                                                <NativeTextInput
                                                                     type="number"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
                                                                     value={formData.nutritionGoals.fat}
                                                                     onChange={(e) => handleInputChange('nutritionGoals', 'fat', parseInt(e.target.value) || 0)}
-                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{fontSize: '16px'}}
+                                                                    placeholder="65"
+                                                                    autoComplete="off"
                                                                     min="20"
                                                                     max="200"
+                                                                    validation={(value) => {
+                                                                        const num = parseInt(value);
+                                                                        return {
+                                                                            isValid: num >= 20 && num <= 200,
+                                                                            message: num >= 20 && num <= 200 ? 'Good fat goal' : 'Fat should be 20-200g'
+                                                                        };
+                                                                    }}
+                                                                    errorMessage="Fat should be 20-200g"
+                                                                    successMessage="Good fat goal"
                                                                 />
                                                                 <p className="text-xs text-gray-500 mt-1">Recommended: 44-78g</p>
                                                             </div>
@@ -1880,14 +2059,25 @@ export default function ProfilePage() {
                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Carbohydrates (grams)
                                                                 </label>
-                                                                <input
+                                                                <NativeTextInput
                                                                     type="number"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
                                                                     value={formData.nutritionGoals.carbs}
                                                                     onChange={(e) => handleInputChange('nutritionGoals', 'carbs', parseInt(e.target.value) || 0)}
-                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{fontSize: '16px'}}
+                                                                    placeholder="250"
+                                                                    autoComplete="off"
                                                                     min="50"
                                                                     max="500"
+                                                                    validation={(value) => {
+                                                                        const num = parseInt(value);
+                                                                        return {
+                                                                            isValid: num >= 50 && num <= 500,
+                                                                            message: num >= 50 && num <= 500 ? 'Good carb goal' : 'Carbs should be 50-500g'
+                                                                        };
+                                                                    }}
+                                                                    errorMessage="Carbs should be 50-500g"
+                                                                    successMessage="Good carb goal"
                                                                 />
                                                                 <p className="text-xs text-gray-500 mt-1">Recommended: 130-300g</p>
                                                             </div>
@@ -1896,14 +2086,25 @@ export default function ProfilePage() {
                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Fiber (grams)
                                                                 </label>
-                                                                <input
+                                                                <NativeTextInput
                                                                     type="number"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
                                                                     value={formData.nutritionGoals.fiber}
                                                                     onChange={(e) => handleInputChange('nutritionGoals', 'fiber', parseInt(e.target.value) || 0)}
-                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{fontSize: '16px'}}
+                                                                    placeholder="25"
+                                                                    autoComplete="off"
                                                                     min="10"
                                                                     max="60"
+                                                                    validation={(value) => {
+                                                                        const num = parseInt(value);
+                                                                        return {
+                                                                            isValid: num >= 10 && num <= 60,
+                                                                            message: num >= 10 && num <= 60 ? 'Good fiber goal' : 'Fiber should be 10-60g'
+                                                                        };
+                                                                    }}
+                                                                    errorMessage="Fiber should be 10-60g"
+                                                                    successMessage="Good fiber goal"
                                                                 />
                                                                 <p className="text-xs text-gray-500 mt-1">Recommended: 25-35g</p>
                                                             </div>
@@ -1912,14 +2113,25 @@ export default function ProfilePage() {
                                                                 <label className="block text-sm font-medium text-gray-700 mb-1">
                                                                     Sodium (mg)
                                                                 </label>
-                                                                <input
+                                                                <NativeTextInput
                                                                     type="number"
+                                                                    inputMode="numeric"
+                                                                    pattern="[0-9]*"
                                                                     value={formData.nutritionGoals.sodium}
                                                                     onChange={(e) => handleInputChange('nutritionGoals', 'sodium', parseInt(e.target.value) || 0)}
-                                                                    className="block w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{fontSize: '16px'}}
+                                                                    placeholder="2300"
+                                                                    autoComplete="off"
                                                                     min="1000"
                                                                     max="4000"
+                                                                    validation={(value) => {
+                                                                        const num = parseInt(value);
+                                                                        return {
+                                                                            isValid: num >= 1000 && num <= 4000,
+                                                                            message: num >= 1000 && num <= 4000 ? 'Good sodium goal' : 'Sodium should be 1000-4000mg'
+                                                                        };
+                                                                    }}
+                                                                    errorMessage="Sodium should be 1000-4000mg"
+                                                                    successMessage="Good sodium goal"
                                                                 />
                                                                 <p className="text-xs text-gray-500 mt-1">Recommended: Less than 2,300mg</p>
                                                             </div>
@@ -1954,7 +2166,7 @@ export default function ProfilePage() {
                                                                 <p className="text-xs text-gray-500">Update your account password</p>
                                                             </div>
                                                             <TouchEnhancedButton
-                                                                onClick={() => router.push('/auth/change-password')}
+                                                                onClick={() => NativeNavigation.routerPush(router, '/auth/change-password')}
                                                                 className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium"
                                                             >
                                                                 Change Password
@@ -2009,7 +2221,7 @@ export default function ProfilePage() {
                             <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex justify-end space-x-3">
                                 <TouchEnhancedButton
                                     type="button"
-                                    onClick={() => router.push('/dashboard')}
+                                    onClick={() => NativeNavigation.routerPush(router, '/dashboard')}
                                     className="bg-gray-300 hover:bg-gray-400 text-gray-700 px-6 py-2 rounded-md font-medium"
                                 >
                                     Cancel

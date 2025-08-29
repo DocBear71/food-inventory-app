@@ -3,8 +3,6 @@
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 import connectDB from '@/lib/mongodb';
-
-// Import RecipePhoto model
 import {Recipe, RecipePhoto, User} from '@/lib/models';
 import { FEATURE_GATES, checkUsageLimit, getUpgradeMessage, getRequiredTier } from '@/lib/subscription-config';
 import { ModalNutritionService } from '@/lib/services/modalNutritionService';
@@ -48,7 +46,6 @@ async function checkPublicRecipePermission(userId, requestedIsPublic) {
     return true;
 }
 
-// ENHANCED: AI nutrition analysis function
 async function analyzeRecipeNutritionAI(recipe, userId) {
     try {
         // Check if AI nutrition analysis is enabled
@@ -113,7 +110,6 @@ async function analyzeRecipeNutritionAI(recipe, userId) {
     }
 }
 
-// FIXED GET - Fetch user's recipes with selective photo population
 export async function GET(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -234,7 +230,6 @@ export async function GET(request) {
     }
 }
 
-// Complete POST function - Replace your entire POST function with this:
 export async function POST(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -320,11 +315,11 @@ export async function POST(request) {
             source,
             isPublic,
             category,
-            nutrition,          // ✅ USED: Manual nutrition data
-            importedFrom,       // ✅ USED: Track import source
-            videoMetadata,      // ✅ USED: Video import metadata
-            extractedImage,     // ✅ USED: AI-extracted images
-            skipAIAnalysis = false, // ✅ USED: Skip AI nutrition analysis
+            nutrition,
+            importedFrom,
+            videoMetadata,
+            extractedImage,
+            skipAIAnalysis = false,
             // CRITICAL: Extract multi-part fields
             isMultiPart,
             parts
@@ -410,6 +405,71 @@ export async function POST(request) {
             }, { status: 403 });
         }
 
+        // IMPROVED: Multi-part recipe flattening function
+        function flattenMultiPartRecipe(parts) {
+            if (!parts || !Array.isArray(parts) || parts.length === 0) {
+                return { ingredients: [], instructions: [] };
+            }
+
+            console.log('🔧 Flattening multi-part recipe with parts:', parts.length);
+
+            // Flatten ingredients from all parts
+            const flattenedIngredients = parts.reduce((allIngredients, part, partIndex) => {
+                if (!part.ingredients || !Array.isArray(part.ingredients)) {
+                    console.log(`⚠️ Part ${partIndex} has no ingredients array`);
+                    return allIngredients;
+                }
+
+                console.log(`🥕 Processing ${part.ingredients.length} ingredients from part: ${part.name}`);
+
+                // Keep ingredients as-is but ensure they're valid
+                const validIngredients = part.ingredients.filter(ingredient =>
+                    ingredient && ingredient.name && ingredient.name.trim() !== ''
+                );
+
+                return [...allIngredients, ...validIngredients];
+            }, []);
+
+            // Flatten instructions from all parts with clear part labels
+            const flattenedInstructions = parts.reduce((allInstructions, part, partIndex) => {
+                if (!part.instructions || !Array.isArray(part.instructions)) {
+                    console.log(`⚠️ Part ${partIndex} has no instructions array`);
+                    return allInstructions;
+                }
+
+                console.log(`📋 Processing ${part.instructions.length} instructions from part: ${part.name}`);
+
+                const partInstructions = part.instructions
+                    .filter(instruction => {
+                        // Filter out empty instructions
+                        const instructionText = typeof instruction === 'string' ? instruction :
+                            (instruction.text || instruction.instruction || '');
+                        return instructionText.trim() !== '';
+                    })
+                    .map((instruction, instructionIndex) => {
+                        const instructionText = typeof instruction === 'string' ? instruction :
+                            (instruction.text || instruction.instruction || String(instruction));
+
+                        const partLabel = part.name || `Part ${partIndex + 1}`;
+
+                        // For multi-part recipes, prefix with part name for clarity
+                        return `[${partLabel}] ${instructionText}`;
+                    });
+
+                return [...allInstructions, ...partInstructions];
+            }, []);
+
+            console.log('✅ Flattening complete:', {
+                ingredientsCount: flattenedIngredients.length,
+                instructionsCount: flattenedInstructions.length
+            });
+
+            return {
+                ingredients: flattenedIngredients,
+                instructions: flattenedInstructions
+            };
+        }
+
         // FIXED: Handle both string and object instructions (for video imports)
         const processedInstructions = instructions ? instructions.filter(inst => {
             // Handle both string and object instructions
@@ -425,34 +485,30 @@ export async function POST(request) {
         // FIXED: Handle ingredients with video metadata
         const processedIngredients = ingredients ? ingredients.filter(ing => ing.name && ing.name.trim() !== '') : [];
 
-        // CRITICAL FIX: Handle multi-part recipe data properly
+        // CRITICAL FIX: Handle multi-part recipe data properly with improved flattening
+        const isMultiPartRecipe = Boolean(isMultiPart);
+        const recipeParts = isMultiPartRecipe && parts && Array.isArray(parts) ? parts : [];
+
+        // Get flattened data for multi-part recipes or use processed data for single-part
+        const { ingredients: finalIngredients, instructions: finalInstructions } =
+            isMultiPartRecipe && recipeParts.length > 0 ?
+                flattenMultiPartRecipe(recipeParts) :
+                {
+                    ingredients: processedIngredients,
+                    instructions: processedInstructions
+                };
+
         const newRecipeData = {
             title,
             description: description || '',
 
             // MULTI-PART HANDLING
-            isMultiPart: Boolean(isMultiPart), // Ensure it's a boolean
-            parts: isMultiPart && parts && Array.isArray(parts) ? parts : [],
+            isMultiPart: isMultiPartRecipe,
+            parts: recipeParts,
 
-            // For backward compatibility and search, populate flat arrays
-            ingredients: isMultiPart && parts && Array.isArray(parts) && parts.length > 0 ?
-                // Flatten ingredients from all parts
-                parts.reduce((allIngredients, part) => {
-                    return [...allIngredients, ...(part.ingredients || [])];
-                }, [])
-                : processedIngredients,
-
-            instructions: isMultiPart && parts && Array.isArray(parts) && parts.length > 0 ?
-                // Flatten instructions from all parts with part labels
-                parts.reduce((allInstructions, part) => {
-                    const partInstructions = (part.instructions || []).map(instruction => {
-                        const instructionText = typeof instruction === 'string' ? instruction :
-                            (instruction.text || instruction.instruction || '');
-                        return `[${part.name}] ${instructionText}`;
-                    });
-                    return [...allInstructions, ...partInstructions];
-                }, [])
-                : processedInstructions,
+            // IMPROVED: Always ensure flat arrays are populated correctly
+            ingredients: finalIngredients,
+            instructions: finalInstructions,
 
             // Rest of your fields
             cookTime: cookTime || null,
@@ -585,6 +641,8 @@ export async function POST(request) {
                 id: savedRecipe._id,
                 isMultiPart: savedRecipe.isMultiPart,
                 partsCount: savedRecipe.parts?.length || 0,
+                flatIngredientsCount: savedRecipe.ingredients?.length || 0,
+                flatInstructionsCount: savedRecipe.instructions?.length || 0,
                 parts: savedRecipe.parts?.map(part => ({
                     name: part.name,
                     ingredientCount: part.ingredients?.length || 0,
@@ -621,11 +679,21 @@ export async function POST(request) {
 
                 // Validate file
                 if (!imageFile.type.startsWith('image/')) {
-                    throw new Error('File must be an image');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Image Failed',
+                        message: 'File must be an image'
+                    });
+                    return;
                 }
 
                 if (imageFile.size > 5242880) { // 5MB
-                    throw new Error('File size must be under 5MB');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'File Failed',
+                        message: 'File size must be under 5MB'
+                    });
+                    return;
                 }
 
                 // Store as binary data in RecipePhoto collection
@@ -729,7 +797,9 @@ export async function POST(request) {
             imageInfo,
             primaryPhotoId,
             isMultiPart: recipe.isMultiPart,
-            partsCount: recipe.parts?.length || 0
+            partsCount: recipe.parts?.length || 0,
+            flatIngredientsCount: recipe.ingredients?.length || 0,
+            flatInstructionsCount: recipe.instructions?.length || 0
         });
 
         return NextResponse.json({
@@ -765,7 +835,6 @@ export async function POST(request) {
     }
 }
 
-// ENHANCED PUT - Update recipe with AI nutrition re-analysis if ingredients changed
 export async function PUT(request) {
     try {
         const session = await getEnhancedSession(request);
@@ -935,7 +1004,6 @@ export async function PUT(request) {
     }
 }
 
-// DELETE - Remove recipe (with usage tracking update)
 export async function DELETE(request) {
     try {
         const session = await getEnhancedSession(request);

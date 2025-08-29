@@ -9,7 +9,12 @@ import Footer from '@/components/legal/Footer';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useSubscription } from '@/hooks/useSubscription';
 import {apiPost} from "@/lib/api-config.js";
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function FeedbackPage() {
     const { data: session } = useSafeSession();
@@ -54,26 +59,52 @@ export default function FeedbackPage() {
             ...prev,
             [name]: type === 'checkbox' ? checked : value
         }));
-        setError('');
+        ;
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Add iOS form submission haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
         setIsSubmitting(true);
-        setError('');
 
         try {
             // Validate form
             if (!formData.feedbackType) {
-                throw new Error('Please select a feedback type.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Feedback Type Required',
+                    message: 'Please select what type of feedback you\'re sharing.'
+                });
+                setIsSubmitting(false);
+                return;
             }
 
             if (!formData.subject.trim() || !formData.message.trim()) {
-                throw new Error('Please fill in both subject and message fields.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Missing Information',
+                    message: 'Please fill in both the subject and your detailed feedback.'
+                });
+                setIsSubmitting(false);
+                return;
             }
 
             if (!formData.anonymous && (!formData.name.trim() || !formData.email.trim())) {
-                throw new Error('Please provide your name and email, or choose to submit anonymously.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Contact Information Required',
+                    message: 'Please provide your name and email, or check "Submit anonymously" to proceed without contact info.'
+                });
+                setIsSubmitting(false);
+                return;
             }
 
             // Send feedback
@@ -87,10 +118,23 @@ export default function FeedbackPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to submit feedback');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Submission Failed',
+                    message: result.error || 'Failed to submit feedback. Please try again.'
+                });
+                setIsSubmitting(false);
+                return;
             }
 
             setShowSuccess(true);
+
+            // Also show native success dialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Feedback Submitted!',
+                message: 'Thank you for your feedback. We\'ll review it and get back to you if needed.'
+            });
 
             // Reset form after success
             setTimeout(() => {
@@ -108,7 +152,11 @@ export default function FeedbackPage() {
 
         } catch (error) {
             console.error('Feedback submission error:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Unable to submit feedback. Please check your connection and try again.'
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -131,7 +179,7 @@ export default function FeedbackPage() {
                             </p>
                         </div>
                         <TouchEnhancedButton
-                            onClick={() => window.location.href = '/account'}
+                            onClick={() => NativeNavigation.navigateTo({ path: '/account', router })}
                             className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
                         >
                             Return to Account
@@ -197,13 +245,21 @@ export default function FeedbackPage() {
                                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
                                         Your Name *
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="text"
                                         id="name"
                                         name="name"
                                         value={formData.name}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="Enter your full name"
+                                        autoComplete="name"
+                                        validation={(value) => ({
+                                            isValid: !formData.anonymous ? (value && value.length >= 2) : true,
+                                            message: value && value.length >= 2 ? 'Name looks good' : ''
+                                        })}
+                                        errorMessage="Please enter your full name (at least 2 characters)"
+                                        successMessage="Name looks good"
                                         required={!formData.anonymous}
                                     />
                                 </div>
@@ -212,13 +268,18 @@ export default function FeedbackPage() {
                                     <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                                         Email Address *
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="email"
+                                        inputMode="email"
                                         id="email"
                                         name="email"
                                         value={formData.email}
                                         onChange={handleInputChange}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                        placeholder="Enter your email address"
+                                        autoComplete="email"
+                                        validation={ValidationPatterns.email}
+                                        errorMessage="Please enter a valid email address"
+                                        successMessage="Email looks good"
                                         required={!formData.anonymous}
                                     />
                                     <p className="text-xs text-gray-500 mt-1">
@@ -287,14 +348,21 @@ export default function FeedbackPage() {
                             <label htmlFor="subject" className="block text-sm font-medium text-gray-700 mb-1">
                                 Subject *
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 type="text"
+                                inputMode="text"
                                 id="subject"
                                 name="subject"
                                 value={formData.subject}
                                 onChange={handleInputChange}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="Brief summary of your feedback"
+                                autoComplete="off"
+                                validation={(value) => ({
+                                    isValid: value && value.trim().length >= 3,
+                                    message: value && value.trim().length >= 3 ? 'Subject looks good' : ''
+                                })}
+                                errorMessage="Please enter a subject (at least 3 characters)"
+                                successMessage="Subject looks good"
                                 required
                             />
                         </div>
@@ -304,14 +372,20 @@ export default function FeedbackPage() {
                             <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">
                                 Your Feedback *
                             </label>
-                            <textarea
+                            <NativeTextarea
                                 id="message"
                                 name="message"
                                 value={formData.message}
                                 onChange={handleInputChange}
-                                rows={6}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 placeholder="Please share your detailed feedback, suggestions, or ideas. The more specific you are, the better we can help!"
+                                autoExpand={true}
+                                maxLength={5000}
+                                validation={(value) => ({
+                                    isValid: value && value.trim().length >= 10,
+                                    message: value && value.trim().length >= 10 ? 'Message looks good!' : ''
+                                })}
+                                errorMessage="Please enter at least 10 characters"
+                                successMessage="Message looks good!"
                                 required
                             />
                             <div className="flex justify-between mt-1">

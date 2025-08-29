@@ -1,14 +1,17 @@
 'use client';
-
-// file: /src/components/recipes/RecipeTransformationPanel.js v2 - FIXED API response handling and reset functionality
+// file: /src/components/recipes/RecipeTransformationPanel.js v3 - iOS Native Enhancements
 
 import { useState } from 'react';
 import RecipeScalingWidget from './RecipeScalingWidget';
 import UnitConversionWidget from './UnitConversionWidget';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
-import {apiPost} from "@/lib/api-config.js";
-import {detectMeasurementSystem} from "@/lib/recipeTransformation";
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import { apiPost } from "@/lib/api-config.js";
+import { detectMeasurementSystem } from "@/lib/recipeTransformation";
+import {
+    NativeTextInput,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 export default function RecipeTransformationPanel({
                                                       recipe,
@@ -19,29 +22,208 @@ export default function RecipeTransformationPanel({
                                                       defaultExpanded = false
                                                   }) {
     const [isExpanded, setIsExpanded] = useState(defaultExpanded);
-    const [activeTab, setActiveTab] = useState('scale'); // 'scale', 'convert', 'both'
+    const [activeTab, setActiveTab] = useState('scale');
     const [servingsInput, setServingsInput] = useState(String(recipe.servings || 4));
     const [isCombinedTransform, setIsCombinedTransform] = useState(false);
-    // Add a separate state for the input string
     const [combinedServingsInput, setCombinedServingsInput] = useState(String(recipe.servings || 4));
     const [combinedOptions, setCombinedOptions] = useState({
         targetServings: recipe.servings || 4,
         targetSystem: detectMeasurementSystem(recipe.ingredients || [])
     });
 
+    const isIOS = PlatformDetection.isIOS();
+
+    // iOS Native Transformation Options Action Sheet
+    const showTransformationActionSheet = async () => {
+        if (!isIOS) return;
+
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+
+            const buttons = [
+                {
+                    text: 'Scale Recipe Servings',
+                    style: 'default',
+                    action: () => {
+                        setActiveTab('scale');
+                        setIsExpanded(true);
+                        return 'scale';
+                    }
+                },
+                {
+                    text: 'Convert Measurements',
+                    style: 'default',
+                    action: () => {
+                        setActiveTab('convert');
+                        setIsExpanded(true);
+                        return 'convert';
+                    }
+                },
+                {
+                    text: 'Scale & Convert Together',
+                    style: 'default',
+                    action: () => {
+                        setActiveTab('both');
+                        setIsExpanded(true);
+                        return 'both';
+                    }
+                },
+                {
+                    text: 'Reset to Original',
+                    style: 'destructive',
+                    action: () => {
+                        handleRevert();
+                        return 'reset';
+                    }
+                },
+                {
+                    text: 'Cancel',
+                    style: 'cancel',
+                    action: () => null
+                }
+            ];
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showActionSheet({
+                title: 'Recipe Transformations',
+                message: 'Choose how to transform your recipe',
+                buttons
+            });
+
+        } catch (error) {
+            console.error('Transformation action sheet error:', error);
+            // Fallback to expanding the panel
+            setIsExpanded(true);
+        }
+    };
+
+    // iOS Native Servings Input with Picker-style Interface
+    const showServingsInputDialog = async (currentServings, onComplete) => {
+        if (!isIOS) {
+            // Fallback for non-iOS
+            const result = prompt('Enter number of servings:', currentServings);
+            if (result && !isNaN(parseInt(result))) {
+                onComplete(parseInt(result));
+            }
+            return;
+        }
+
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+
+            // Show common serving sizes first
+            const commonServings = [1, 2, 4, 6, 8, 10, 12, 16, 20, 24];
+            const buttons = [];
+
+            // Add common serving sizes
+            commonServings.forEach(size => {
+                buttons.push({
+                    text: size === currentServings ? `${size} servings ✓` : `${size} servings`,
+                    style: 'default',
+                    action: () => {
+                        onComplete(size);
+                        return size;
+                    }
+                });
+            });
+
+            // Add custom input option
+            buttons.push({
+                text: 'Custom Amount...',
+                style: 'default',
+                action: async () => {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    const customResult = await NativeDialog.showPrompt({
+                        title: 'Custom Servings',
+                        message: 'Enter the number of servings:',
+                        placeholder: String(currentServings),
+                        buttons: [
+                            {
+                                text: 'Set',
+                                style: 'default',
+                                action: (value) => {
+                                    const num = parseInt(value);
+                                    if (num && num >= 1 && num <= 100) {
+                                        onComplete(num);
+                                        return num;
+                                    }
+                                    return false;
+                                }
+                            },
+                            {
+                                text: 'Cancel',
+                                style: 'cancel',
+                                action: () => false
+                            }
+                        ]
+                    });
+                    return customResult;
+                }
+            });
+
+            buttons.push({
+                text: 'Cancel',
+                style: 'cancel',
+                action: () => null
+            });
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showActionSheet({
+                title: 'Recipe Servings',
+                message: `Current: ${currentServings} servings`,
+                buttons
+            });
+
+        } catch (error) {
+            console.error('Servings input error:', error);
+            // Fallback to prompt
+            const result = prompt('Enter number of servings:', currentServings);
+            if (result && !isNaN(parseInt(result))) {
+                onComplete(parseInt(result));
+            }
+        }
+    };
+
     const handleCombinedTransform = async (saveAsNew = false) => {
-        // FIXED: Validate servings input using the string input state
+        // Validate servings input
         if (!combinedServingsInput || combinedServingsInput === '' || parseInt(combinedServingsInput) < 1) {
-            alert('Please enter a valid number of servings (1 or more)');
+            if (isIOS) {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Invalid Servings',
+                    message: 'Please enter a valid number of servings (1 or more)'
+                });
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Invalid Input',
+                    message: 'Please enter a valid number of servings (1 or more)'
+                });
+            }
             return;
         }
 
         const servingsToUse = parseInt(combinedServingsInput);
 
+        // iOS form submission haptic
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Combined transform haptic failed:', error);
+            }
+        }
+
         setIsCombinedTransform(true);
 
         try {
-            console.log('🚀 Starting combined transformation:', {
+            console.log('Starting combined transformation:', {
                 targetServings: servingsToUse,
                 targetSystem: combinedOptions.targetSystem,
                 saveAsNew
@@ -59,28 +241,20 @@ export default function RecipeTransformationPanel({
             });
 
             const data = await response.json();
-            console.log('🚀 Combined transformation response:', data);
+            console.log('Combined transformation response:', data);
 
             if (data.success) {
-                console.log('🔍 Raw API Response:', data);
-                console.log('🔍 Transformation Result:', data.transformation);
-                console.log('🔍 Recipe Result:', data.recipe);
-
                 const transformationResult = data.recipe || data.transformation;
-                console.log('🔍 Selected Transformation Result:', transformationResult);
 
                 if (transformationResult && onTransformationChange) {
                     const finalIngredients = transformationResult.converted_ingredients ||
                         transformationResult.scaled_ingredients ||
                         recipe.ingredients;
 
-                    console.log('🔍 Final Ingredients to Apply:', finalIngredients);
-                    console.log('🔍 Target Servings:', combinedOptions.targetServings);
-
                     const transformedRecipe = {
                         ...recipe,
                         ingredients: finalIngredients,
-                        servings: combinedOptions.targetServings, // This should be 6
+                        servings: combinedOptions.targetServings,
                         currentMeasurementSystem: combinedOptions.targetSystem,
                         transformationApplied: {
                             type: 'both',
@@ -96,32 +270,99 @@ export default function RecipeTransformationPanel({
                         }
                     };
 
-                    console.log('🔍 Final Transformed Recipe Being Applied:', transformedRecipe);
                     onTransformationChange(transformedRecipe);
                 }
 
+                // iOS success feedback
+                if (isIOS) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
 
-                if (saveAsNew && data.savedRecipe) {
-                    alert(`✅ Transformed recipe saved as "${data.savedRecipe.title}"!`);
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    if (saveAsNew && data.savedRecipe) {
+                        await NativeDialog.showSuccess({
+                            title: 'Recipe Saved',
+                            message: `Transformed recipe saved as "${data.savedRecipe.title}"!`
+                        });
+                    } else {
+                        await NativeDialog.showSuccess({
+                            title: 'Recipe Transformed',
+                            message: 'Recipe transformed successfully!'
+                        });
+                    }
                 } else {
-                    alert('✅ Recipe transformed successfully!');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    if (saveAsNew && data.savedRecipe) {
+                        await NativeDialog.showSuccess({
+                            title: 'Recipe Saved',
+                            message: `Transformed recipe saved as "${data.savedRecipe.title}"!`
+                        });
+                    } else {
+                        await NativeDialog.showSuccess({
+                            title: 'Transformation Complete',
+                            message: 'Recipe transformed successfully!'
+                        });
+                    }
                 }
             } else {
-                console.error('❌ Combined transformation failed:', data);
-                alert(`❌ ${data.error || 'Transformation failed'}`);
+                console.error('Combined transformation failed:', data);
+
+                // iOS error feedback
+                if (isIOS) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Transformation Failed',
+                        message: data.error || 'Could not transform recipe. Please try again.'
+                    });
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Transformation Failed',
+                        message: data.error || 'Transformation failed'
+                    });
+                }
             }
         } catch (error) {
             console.error('Combined transformation error:', error);
-            alert('❌ Failed to transform recipe');
+
+            // iOS error feedback
+            if (isIOS) {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Failed to transform recipe. Please check your connection and try again.'
+                });
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Transformation Failed',
+                    message: 'Failed to transform recipe'
+                });
+            }
         } finally {
             setIsCombinedTransform(false);
         }
     };
 
-    // FIXED: Enhanced revert functionality
-    const handleRevert = () => {
+    const handleRevert = async () => {
+        // iOS haptic for revert action
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.notificationWarning();
+            } catch (error) {
+                console.log('Revert haptic failed:', error);
+            }
+        }
+
         if (onRevert) {
-            console.log('🔄 Reverting to original recipe');
+            console.log('Reverting to original recipe');
             onRevert();
         }
 
@@ -132,25 +373,71 @@ export default function RecipeTransformationPanel({
         });
     };
 
+    // Handle tab changes with haptic feedback
+    const handleTabChange = async (tab) => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.selection();
+            } catch (error) {
+                console.log('Tab change haptic failed:', error);
+            }
+        }
+        setActiveTab(tab);
+    };
+
+    // Handle expansion toggle
+    const handleToggleExpansion = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Toggle expansion haptic failed:', error);
+            }
+        }
+        setIsExpanded(!isExpanded);
+    };
+
     if (!isExpanded) {
         return (
             <div className={`bg-white border border-gray-200 rounded-lg p-4 ${className}`}>
-                <TouchEnhancedButton
-                    onClick={() => setIsExpanded(true)}
-                    className="w-full flex items-center justify-between text-left hover:bg-gray-50 p-2 rounded"
-                >
-                    <div className="flex items-center">
-                        <span className="text-lg font-medium text-gray-900">
-                            🔧 Recipe Transformations
-                        </span>
-                        <span className="ml-2 text-sm text-gray-600">
-                            Scale servings • Convert units
-                        </span>
-                    </div>
-                    <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
-                </TouchEnhancedButton>
+                {/* Collapsed state - iOS shows quick action button */}
+                {isIOS ? (
+                    <TouchEnhancedButton
+                        onClick={showTransformationActionSheet}
+                        className="w-full flex items-center justify-between text-left hover:bg-gray-50 p-2 rounded"
+                    >
+                        <div className="flex items-center">
+                            <span className="text-lg font-medium text-gray-900">
+                                Recipe Transformations
+                            </span>
+                            <span className="ml-2 text-sm text-gray-600">
+                                Scale servings • Convert units
+                            </span>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 9l4-4 4 4m0 6l-4 4-4-4" />
+                        </svg>
+                    </TouchEnhancedButton>
+                ) : (
+                    <TouchEnhancedButton
+                        onClick={handleToggleExpansion}
+                        className="w-full flex items-center justify-between text-left hover:bg-gray-50 p-2 rounded"
+                    >
+                        <div className="flex items-center">
+                            <span className="text-lg font-medium text-gray-900">
+                                Recipe Transformations
+                            </span>
+                            <span className="ml-2 text-sm text-gray-600">
+                                Scale servings • Convert units
+                            </span>
+                        </div>
+                        <svg className="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </TouchEnhancedButton>
+                )}
             </div>
         );
     }
@@ -161,19 +448,12 @@ export default function RecipeTransformationPanel({
             <div className="p-4 border-b border-gray-200">
                 <div className="flex items-center justify-between">
                     <h3 className="text-lg font-medium text-gray-900">
-                        🔧 Recipe Transformations
+                        Recipe Transformations
                     </h3>
                     <div className="flex items-center space-x-2">
-                        {/* FIXED: Enhanced revert button */}
+                        {/* Reset button */}
                         <TouchEnhancedButton
-                            onClick={() => {
-                                console.log('🔄 Reset button clicked in transformation panel');
-                                if (onRevert) {
-                                    onRevert();
-                                } else {
-                                    console.warn('⚠️ No onRevert function provided');
-                                }
-                            }}
+                            onClick={handleRevert}
                             className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center space-x-1"
                             title="Reset to original recipe"
                         >
@@ -184,7 +464,7 @@ export default function RecipeTransformationPanel({
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={() => setIsExpanded(false)}
+                            onClick={handleToggleExpansion}
                             className="text-gray-400 hover:text-gray-600"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -194,38 +474,38 @@ export default function RecipeTransformationPanel({
                     </div>
                 </div>
 
-                {/* Tab Navigation */}
+                {/* Tab Navigation - Enhanced for iOS */}
                 <div className="mt-4">
                     <div className="flex space-x-1 bg-gray-100 p-1 rounded-lg">
                         <TouchEnhancedButton
-                            onClick={() => setActiveTab('scale')}
+                            onClick={() => handleTabChange('scale')}
                             className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                                 activeTab === 'scale'
                                     ? 'bg-white text-blue-600 shadow-sm'
                                     : 'text-gray-600 hover:text-gray-800'
                             }`}
                         >
-                            📏 Scale
+                            Scale
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
-                            onClick={() => setActiveTab('convert')}
+                            onClick={() => handleTabChange('convert')}
                             className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                                 activeTab === 'convert'
                                     ? 'bg-white text-purple-600 shadow-sm'
                                     : 'text-gray-600 hover:text-gray-800'
                             }`}
                         >
-                            🔄 Convert
+                            Convert
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
-                            onClick={() => setActiveTab('both')}
+                            onClick={() => handleTabChange('both')}
                             className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-colors ${
                                 activeTab === 'both'
                                     ? 'bg-white text-green-600 shadow-sm'
                                     : 'text-gray-600 hover:text-gray-800'
                             }`}
                         >
-                            🔧 Both
+                            Both
                         </TouchEnhancedButton>
                     </div>
                 </div>
@@ -255,7 +535,7 @@ export default function RecipeTransformationPanel({
                     <div className="space-y-4">
                         <div className="p-4 bg-blue-50 rounded-lg">
                             <h4 className="text-lg font-medium text-gray-900 mb-3">
-                                🚀 Scale & Convert Recipe
+                                Scale & Convert Recipe
                             </h4>
                             <p className="text-sm text-gray-600 mb-4">
                                 Transform your recipe by both changing the serving size and converting to a different measurement system in one step.
@@ -267,58 +547,80 @@ export default function RecipeTransformationPanel({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Target Servings
                                     </label>
-                                    <KeyboardOptimizedInput
-                                        type="text"
-                                        inputMode="numeric"
-                                        pattern="[0-9]*"
-                                        value={combinedServingsInput}
-                                        onChange={(e) => {
-                                            const value = e.target.value;
-
-                                            // Allow empty string so users can clear the input
-                                            if (value === '') {
-                                                setCombinedServingsInput('');
-                                                return;
-                                            }
-
-                                            // Only allow numbers
-                                            if (!/^\d+$/.test(value)) {
-                                                return;
-                                            }
-
-                                            const numValue = parseInt(value);
-
-                                            // Enforce reasonable limits
-                                            if (numValue > 100) {
-                                                return;
-                                            }
-
-                                            setCombinedServingsInput(value);
-                                            setCombinedOptions(prev => ({
-                                                ...prev,
-                                                targetServings: numValue
-                                            }));
-                                        }}
-                                        onBlur={() => {
-                                            if (combinedServingsInput === '' || parseInt(combinedServingsInput) < 1) {
-                                                // If empty or invalid, revert to current recipe servings
-                                                const fallback = recipe.servings || 4;
-                                                setCombinedServingsInput(String(fallback));
+                                    {/* iOS uses native picker-style input */}
+                                    {isIOS ? (
+                                        <TouchEnhancedButton
+                                            onClick={() => showServingsInputDialog(
+                                                combinedOptions.targetServings,
+                                                (newServings) => {
+                                                    setCombinedServingsInput(String(newServings));
+                                                    setCombinedOptions(prev => ({
+                                                        ...prev,
+                                                        targetServings: newServings
+                                                    }));
+                                                }
+                                            )}
+                                            disabled={isCombinedTransform}
+                                            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white text-left flex items-center justify-between"
+                                        >
+                                            <span>{combinedOptions.targetServings} servings</span>
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                            </svg>
+                                        </TouchEnhancedButton>
+                                    ) : (
+                                        <NativeTextInput
+                                            type="number"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
+                                            value={combinedServingsInput}
+                                            onChange={(e) => {
+                                                const value = e.target.value;
+                                                if (value === '') {
+                                                    setCombinedServingsInput('');
+                                                    return;
+                                                }
+                                                if (!/^\d+$/.test(value)) {
+                                                    return;
+                                                }
+                                                const numValue = parseInt(value);
+                                                if (numValue > 100) {
+                                                    return;
+                                                }
+                                                setCombinedServingsInput(value);
                                                 setCombinedOptions(prev => ({
                                                     ...prev,
-                                                    targetServings: fallback
+                                                    targetServings: numValue
                                                 }));
-                                            }
-                                        }}
-                                        onFocus={(e) => {
-                                            // Select all text on focus for easy replacement
-                                            e.target.select();
-                                        }}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                                        placeholder="1"
-                                        disabled={isCombinedTransform}
-                                        autoComplete="off"
-                                    />
+                                            }}
+                                            onBlur={() => {
+                                                if (combinedServingsInput === '' || parseInt(combinedServingsInput) < 1) {
+                                                    const fallback = recipe.servings || 4;
+                                                    setCombinedServingsInput(String(fallback));
+                                                    setCombinedOptions(prev => ({
+                                                        ...prev,
+                                                        targetServings: fallback
+                                                    }));
+                                                }
+                                            }}
+                                            onFocus={(e) => {
+                                                e.target.select();
+                                            }}
+                                            placeholder="1"
+                                            disabled={isCombinedTransform}
+                                            autoComplete="off"
+                                            min="1"
+                                            max="100"
+                                            validation={(value) => {
+                                                if (!value) return { isValid: false, message: 'Servings required' };
+                                                const num = parseInt(value);
+                                                return {
+                                                    isValid: num >= 1 && num <= 100,
+                                                    message: num >= 1 && num <= 100 ? 'Good serving size' : 'Enter 1-100 servings'
+                                                };
+                                            }}
+                                        />
+                                    )}
                                     <div className="mt-1 text-xs text-gray-500">
                                         Original: {recipe.servings || 4} servings
                                     </div>
@@ -329,18 +631,18 @@ export default function RecipeTransformationPanel({
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Target Measurement System
                                     </label>
-                                    <select
+                                    <NativeSelect
                                         value={combinedOptions.targetSystem}
                                         onChange={(e) => setCombinedOptions(prev => ({
                                             ...prev,
                                             targetSystem: e.target.value
                                         }))}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                         disabled={isCombinedTransform}
-                                    >
-                                        <option value="metric">Metric (g, ml, °C)</option>
-                                        <option value="us">US Standard (cups, °F)</option>
-                                    </select>
+                                        options={[
+                                            { value: 'metric', label: 'Metric (g, ml, °C)' },
+                                            { value: 'us', label: 'US Standard (cups, °F)' }
+                                        ]}
+                                    />
                                 </div>
                             </div>
 
@@ -374,7 +676,7 @@ export default function RecipeTransformationPanel({
                                             Transforming...
                                         </span>
                                     ) : (
-                                        '🚀 Transform Recipe'
+                                        'Transform Recipe'
                                     )}
                                 </TouchEnhancedButton>
 
@@ -385,14 +687,14 @@ export default function RecipeTransformationPanel({
                                         className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
                                         title="Save transformed recipe to your collection"
                                     >
-                                        💾 Save
+                                        Save
                                     </TouchEnhancedButton>
                                 )}
                             </div>
 
                             {/* Feature Note */}
                             <div className="mt-3 p-2 bg-yellow-50 border border-yellow-200 rounded text-xs text-yellow-800">
-                                <strong>💡 Pro Tip:</strong> Combined transformations use AI to ensure optimal results when both scaling and converting measurements.
+                                <strong>Pro Tip:</strong> Combined transformations use AI to ensure optimal results when both scaling and converting measurements.
                             </div>
                         </div>
                     </div>

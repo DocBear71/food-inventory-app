@@ -4,12 +4,13 @@
 
 import { useRouter } from 'next/navigation';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function SavedShoppingListsButton() {
     const router = useRouter();
 
-    const handleClick = () => {
-        router.push('/shopping/saved');
+    const handleClick = async () => {
+        await NativeNavigation.routerPush(router, '/shopping/saved');
     };
 
     return (

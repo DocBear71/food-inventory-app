@@ -98,7 +98,11 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
 
         // Check usage limits before allowing submission
         if (!priceTrackingGate.canUse || (usageInfo.limit > 0 && usageInfo.currentCount >= usageInfo.limit)) {
-            alert(`You've reached your ${priceTrackingGate.tier} plan limit. Upgrade for unlimited price tracking!`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Plan Limit Reached',
+                message: `You've reached your ${priceTrackingGate.tier} plan limit. Upgrade for unlimited price tracking!`
+            });
             return;
         }
 
@@ -125,11 +129,19 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                 checkUsageLimits(); // Update usage counts
                 setActiveTab('history'); // Switch to history tab
             } else {
-                alert(data.error || 'Failed to add price');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Price Failed',
+                    message: data.error || 'Failed to add price'
+                });
             }
         } catch (error) {
             console.error('Error adding price:', error);
-            alert('Error adding price');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Add Price Error',
+                message: 'Error adding price'
+            });
         } finally {
             setLoading(false);
         }
@@ -137,7 +149,11 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
 
     const handleUpdateAlerts = async () => {
         if (!priceAlertsGate.canUse) {
-            alert('Price alerts are available with Platinum subscription!');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Premium Feature',
+                message: 'Price alerts are available with Platinum subscription!'
+            });
             return;
         }
 
@@ -148,18 +164,37 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
 
             const data = await response.json();
             if (data.success) {
-                alert('Price alerts updated successfully!');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Alerts Updated',
+                    message: 'Price alerts updated successfully!'
+                });
             } else {
-                alert(data.error || 'Failed to update alerts');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: data.error || 'Failed to update alerts'
+                });
             }
         } catch (error) {
             console.error('Error updating alerts:', error);
-            alert('Error updating alerts');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Update Error',
+                message: 'Error updating alerts'
+            });
         }
     };
 
     const handleDeletePrice = async (priceEntryId) => {
-        if (!confirm('Are you sure you want to delete this price entry?')) return;
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete Price Entry',
+            message: 'Are you sure you want to delete this price entry?',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) return;
 
         try {
             const response = await apiDelete(`/api/inventory/${item._id}/prices?priceEntryId=${priceEntryId}`, {
@@ -171,11 +206,19 @@ export default function PriceTrackingModal({ item, isOpen, onClose, onPriceAdded
                 checkUsageLimits(); // Update usage counts
                 onPriceAdded?.({ refreshNeeded: true }); // Trigger parent refresh
             } else {
-                alert(data.error || 'Failed to delete price entry');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: data.error || 'Failed to delete price entry'
+                });
             }
         } catch (error) {
             console.error('Error deleting price:', error);
-            alert('Error deleting price');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Error',
+                message: 'Error deleting price'
+            });
         }
     };
 

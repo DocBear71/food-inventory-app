@@ -47,7 +47,12 @@ export async function POST(request) {
         });
 
         if (!response.ok) {
-            throw new Error(`Failed to download image: ${response.status} ${response.statusText}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Download Failed',
+                message: `Failed to download image: ${response.status} ${response.statusText}`
+            });
+            return;
         }
 
         const buffer = await response.arrayBuffer();

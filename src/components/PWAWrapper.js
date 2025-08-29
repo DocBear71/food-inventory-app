@@ -46,10 +46,17 @@ export default function PWAWrapper({ children }) {
                         console.log('Service worker update found');
                         const newWorker = registration.installing;
                         if (newWorker) {
-                            newWorker.addEventListener('statechange', () => {
+                            newWorker.addEventListener('statechange', async () => {
                                 if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
                                     console.log('New service worker installed');
-                                    if (confirm('A new version is available. Refresh to update?')) {
+                                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                                    const confirmed = await NativeDialog.showConfirm({
+                                        title: 'Update Available',
+                                        message: 'A new version is available. Refresh to update?',
+                                        confirmText: 'Refresh',
+                                        cancelText: 'Later'
+                                    });
+                                    if (confirmed) {
                                         window.location.reload();
                                     }
                                 }
@@ -82,10 +89,10 @@ export default function PWAWrapper({ children }) {
             detectPWA();
         };
 
-        mediaQuery.addListener(handleDisplayModeChange);
+        mediaQuery.addEventListener('change', handleDisplayModeChange);
 
         return () => {
-            mediaQuery.removeListener(handleDisplayModeChange);
+            mediaQuery.removeEventListener('change', handleDisplayModeChange);
         };
     }, []);
 

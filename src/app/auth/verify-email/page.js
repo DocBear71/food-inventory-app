@@ -9,7 +9,8 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import MobileOptimizedLayout from "@/components/layout/MobileOptimizedLayout";
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import NativeTextInput from "@/components/mobile/NativeDialog";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 function VerifyEmailContent() {
     const router = useRouter();
@@ -53,7 +54,11 @@ function VerifyEmailContent() {
     const handleResendVerification = async (e) => {
         e.preventDefault();
         if (!email) {
-            alert('Please enter your email address');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Email Required',
+                message: 'Please enter your email address to resend verification'
+            });
             return;
         }
 
@@ -65,14 +70,26 @@ function VerifyEmailContent() {
             const data = await response.json();
 
             if (response.ok) {
-                alert(data.message);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Verification Sent',
+                    message: data.message || 'Verification email sent successfully!'
+                });
                 setEmail('');
             } else {
-                alert(data.error || 'Failed to resend verification email');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Send Failed',
+                    message: data.error || 'Failed to resend verification email. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Resend error:', error);
-            alert('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Unable to send verification email. Please check your connection and try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -111,7 +128,7 @@ function VerifyEmailContent() {
                                 </h3>
                                 <p className="text-gray-600 mb-6">{message}</p>
                                 <TouchEnhancedButton
-                                    onClick={() => router.push('/auth/signin')}
+                                    onClick={() => NativeNavigation.routerPush(router, '/auth/signin')}
                                     className="w-full bg-indigo-600 text-white py-2 px-4 rounded-md hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                 >
                                     Sign In to Your Account
@@ -137,12 +154,22 @@ function VerifyEmailContent() {
                                             Need a new verification email? Enter your email address:
                                         </p>
                                         <form onSubmit={handleResendVerification} className="space-y-3">
-                                            <KeyboardOptimizedInput
+                                            <NativeTextInput
                                                 type="email"
-                                                placeholder="Enter your email"
+                                                inputMode="email"
                                                 value={email}
                                                 onChange={(e) => setEmail(e.target.value)}
-                                                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+                                                placeholder="Enter your email"
+                                                autoComplete="email"
+                                                validation={(value) => {
+                                                    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                                    return {
+                                                        isValid: emailRegex.test(value),
+                                                        message: emailRegex.test(value) ? 'Email looks good' : 'Please enter a valid email address'
+                                                    };
+                                                }}
+                                                errorMessage="Please enter a valid email address"
+                                                successMessage="Email looks good"
                                                 required
                                             />
                                             <TouchEnhancedButton

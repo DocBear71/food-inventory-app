@@ -43,13 +43,25 @@ export default function CurrencySettings({ user, onUpdate }) {
 
             if (response.ok) {
                 onUpdate?.();
-                alert('Currency preferences saved successfully!');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Success',
+                    message: 'Currency preferences saved successfully!'
+                });
             } else {
-                alert('Failed to save currency preferences');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Save Failed',
+                    message: 'Failed to save currency preferences'
+                });
             }
         } catch (error) {
             console.error('Error saving currency preferences:', error);
-            alert('Error saving preferences');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Error',
+                message: 'Error saving preferences'
+            });
         } finally {
             setSaving(false);
         }

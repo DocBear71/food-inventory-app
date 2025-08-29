@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/inventory/history/page.js v2 - Fixed mobile layout and scrolling
+// file: /src/app/inventory/history/page.js v3 - iOS Native Dialog version with Fixed mobile layout and scrolling
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
@@ -30,7 +30,6 @@ export default function ConsumptionHistoryPage() {
 
     const fetchHistory = async () => {
         setLoading(true);
-        setError('');
 
         try {
             const params = new URLSearchParams({
@@ -47,11 +46,19 @@ export default function ConsumptionHistoryPage() {
             if (result.success) {
                 setHistory(result.history || []);
             } else {
-                setError(result.error || 'Failed to fetch consumption history');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Fetch Failed',
+                    message: result.error || 'Failed to fetch consumption history'
+                });
             }
         } catch (error) {
             console.error('Error fetching consumption history:', error);
-            setError('Failed to load consumption history');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: 'Failed to load consumption history'
+            });
         } finally {
             setLoading(false);
         }
@@ -121,12 +128,17 @@ export default function ConsumptionHistoryPage() {
         return stats;
     };
 
-    // NEW: Undo consumption function
+    // UPDATED: Undo consumption function with iOS Native Dialog
     const handleUndoConsumption = async (consumptionRecord) => {
         console.log('Consumption record for undo:', consumptionRecord);
 
         if (!consumptionRecord._id) {
-            alert('Cannot undo this consumption - missing record ID. This may be an older record from before the undo feature was implemented.');
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Cannot Undo',
+                message: 'Cannot undo this consumption - missing record ID. This may be an older record from before the undo feature was implemented.'
+            });
             return;
         }
 
@@ -134,24 +146,43 @@ export default function ConsumptionHistoryPage() {
         const hoursSinceConsumption = (Date.now() - consumptionDate.getTime()) / (1000 * 60 * 60);
 
         if (hoursSinceConsumption > 24) {
-            alert('Cannot undo consumptions older than 24 hours');
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Time Limit Exceeded',
+                message: 'Cannot undo consumptions older than 24 hours'
+            });
             return;
         }
 
         if (consumptionRecord.isReversed) {
-            alert('This consumption has already been reversed');
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Already Reversed',
+                message: 'This consumption has already been reversed'
+            });
             return;
         }
 
         if (consumptionRecord.isReversal) {
-            alert('Cannot undo a reversal record');
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Cannot Undo',
+                message: 'Cannot undo a reversal record'
+            });
             return;
         }
 
-        const confirmMessage = `Are you sure you want to undo this consumption?\n\n` +
-            `This will restore ${consumptionRecord.quantityConsumed} ${consumptionRecord.unitConsumed} of ${consumptionRecord.itemName} back to your inventory.`;
+        // UPDATED: Replace confirm with NativeDialog
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Undo Consumption',
+            message: `Are you sure you want to undo this consumption?\n\nThis will restore ${consumptionRecord.quantityConsumed} ${consumptionRecord.unitConsumed} of ${consumptionRecord.itemName} back to your inventory.`
+        });
 
-        if (!confirm(confirmMessage)) {
+        if (!confirmed) {
             return;
         }
 
@@ -161,18 +192,31 @@ export default function ConsumptionHistoryPage() {
             const result = await response.json();
 
             if (result.success) {
-                alert(result.message);
+                // UPDATED: Replace alert with NativeDialog
+                await NativeDialog.showSuccess({
+                    title: 'Undo Successful',
+                    message: result.message
+                });
                 await fetchHistory();
 
                 if (window.dispatchEvent) {
                     window.dispatchEvent(new CustomEvent('inventoryUpdated'));
                 }
             } else {
-                alert(result.error || 'Failed to undo consumption');
+                // UPDATED: Replace alert with NativeDialog
+                await NativeDialog.showError({
+                    title: 'Undo Failed',
+                    message: result.error || 'Failed to undo consumption'
+                });
             }
         } catch (error) {
             console.error('Error undoing consumption:', error);
-            alert('Error undoing consumption: ' + error.message);
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Undo Error',
+                message: 'Error undoing consumption: ' + error.message
+            });
         }
     };
 
@@ -223,7 +267,7 @@ export default function ConsumptionHistoryPage() {
                             <p className="text-sm text-gray-600 mt-1">Track consumed and removed items</p>
                         </div>
                         <TouchEnhancedButton
-                            onClick={() => window.history.back()}
+                            onClick={() => NativeNavigation.historyBack()}
                             className="inline-flex items-center px-3 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50"
                         >
                             ← Back

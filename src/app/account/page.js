@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/account/page.js - FIXED version with stable hook execution
+// file: /src/app/account/page.js - iOS Native Dialog version with stable hook execution
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,20 +11,14 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import ContactSupportModal from '@/components/support/ContactSupportModal';
 import { apiPost } from '@/lib/api-config';
-
-console.log('🔍 Usage debug:', {
-        subscriptionUsage: subscription.usage,
-        sessionUsage: session?.user?.usage,
-        subscriptionInventory: subscription.usage?.inventoryItems,
-        sessionInventory: session?.user?.usage?.totalInventoryItems
-    });
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function AccountPage() {
     // FIXED: All hooks at the top level - NEVER conditional
     const { data: session, status } = useSafeSession();
     const router = useRouter();
     const subscription = useSubscription();
-    
+
     // All state hooks - always in the same order
     const [loading, setLoading] = useState(false);
     const [showContactModal, setShowContactModal] = useState(false);
@@ -32,6 +26,20 @@ export default function AccountPage() {
     const [preRegRewardStatus, setPreRegRewardStatus] = useState(null);
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
+
+    console.log('🔍 Usage debug:', {
+        subscriptionUsage: subscription.usage,
+        sessionUsage: session?.user?.usage,
+        subscriptionInventory: subscription.usage?.inventoryItems,
+        sessionInventory: session?.user?.usage?.totalInventoryItems
+    });
+
+    console.log('🔍 Subscription status debug:', {
+        tier: subscription.tier,
+        status: subscription.status,
+        isExpired: subscription.isExpired,
+        originalTier: subscription.originalTier
+    });
 
     // FIXED: Memoize the pre-registration check to prevent re-creation on every render
     const checkForPreRegistrationReward = useCallback(async () => {
@@ -104,23 +112,24 @@ export default function AccountPage() {
         if (subscriptionValue !== undefined && subscriptionValue !== null) {
             return subscriptionValue;
         }
-        
+
         // Fallback to session usage (works on mobile)
         const sessionValue = session?.user?.usage?.[field];
         if (sessionValue !== undefined && sessionValue !== null) {
             return sessionValue;
         }
-        
+
         // Default fallback
         return 0;
     }, [subscription.usage, session?.user?.usage]);
 
+
     // FIXED: Use effect with proper cleanup and stable dependencies
-    useEffect(() => {
+    useEffect( () => {
         let mounted = true;
 
         if (status === 'unauthenticated') {
-            router.push('/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
             return;
         }
 
@@ -147,7 +156,6 @@ export default function AccountPage() {
     const claimPreRegistrationReward = useCallback(async () => {
         try {
             setLoading(true);
-            setError('');
 
             // Call your backend to activate the reward
             const response = await apiPost('/api/subscription/claim-prereg-reward', {
@@ -167,11 +175,21 @@ export default function AccountPage() {
                 // Refresh subscription data
                 subscription.refetch();
             } else {
-                setError(data.error || 'Failed to claim pre-registration reward');
+                // UPDATED: Replace setError with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Reward Claim Failed',
+                    message: data.error || 'Failed to claim pre-registration reward'
+                });
             }
         } catch (error) {
             console.error('Error claiming pre-registration reward:', error);
-            setError('Network error. Please try again.');
+            // UPDATED: Replace setError with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -192,10 +210,14 @@ export default function AccountPage() {
         }
     }, []);
 
-    const getTierColor = useCallback((tier) => {
+    const getTierColor = useCallback((tier, status) => {
+        if (status === 'expired') {
+            return 'bg-red-100 text-red-800 border-red-300';
+        }
         switch (tier) {
             case 'platinum': return 'bg-purple-100 text-purple-800 border-purple-300';
             case 'gold': return 'bg-yellow-100 text-yellow-800 border-yellow-300';
+            case 'basic': return 'bg-green-100 text-green-800 border-green-300';
             case 'admin': return 'bg-red-100 text-red-800 border-red-300';
             default: return 'bg-gray-100 text-gray-800 border-gray-300';
         }
@@ -218,7 +240,6 @@ export default function AccountPage() {
         if (loading) return;
 
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiPost('/api/auth/resend-verification', {
@@ -230,11 +251,21 @@ export default function AccountPage() {
             if (response.ok) {
                 setSuccess('Verification email sent! Please check your inbox and spam folder.');
             } else {
-                setError(data.error || 'Failed to resend verification email');
+                // UPDATED: Replace setError with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Verification Failed',
+                    message: data.error || 'Failed to resend verification email'
+                });
             }
         } catch (error) {
             console.error('Resend verification error:', error);
-            setError('Network error. Please try again.');
+            // UPDATED: Replace setError with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -272,28 +303,28 @@ export default function AccountPage() {
             title: 'Manage Billing',
             description: 'Update subscription, view invoices, manage payment methods',
             icon: '💳',
-            action: () => router.push('/account/billing'),
+            action: () => NativeNavigation.routerPush(router, '/account/billing'),
             color: 'border-blue-200 hover:border-blue-300 hover:bg-blue-50'
         },
         {
             title: 'Profile Settings',
             description: 'Update personal info, preferences, and dietary restrictions',
             icon: '⚙️',
-            action: () => router.push('/profile'),
+            action: () => NativeNavigation.routerPush(router, '/profile'),
             color: 'border-green-200 hover:border-green-300 hover:bg-green-50'
         },
         {
             title: 'Inventory Management',
             description: 'Manage your food inventory and consumption tracking',
             icon: '📦',
-            action: () => router.push('/inventory'),
+            action: () => NativeNavigation.routerPush(router, '/inventory'),
             color: 'border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50'
         },
         {
             title: 'Recipe Collections',
             description: 'Save and organize your favorite recipes in custom collections',
             icon: '📚',
-            action: () => router.push('/recipes?tab=collections'),
+            action: () => NativeNavigation.routerPush(router, '/recipes?tab=collections'),
             color: 'border-purple-200 hover:border-purple-300 hover:bg-purple-50'
         }
     ];
@@ -301,31 +332,6 @@ export default function AccountPage() {
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
-                {/* Success/Error Messages */}
-                {success && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="text-green-800">{success}</div>
-                        <button
-                            onClick={() => setSuccess('')}
-                            className="text-green-600 hover:text-green-800 text-sm mt-2"
-                        >
-                            Dismiss
-                        </button>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="text-red-800">{error}</div>
-                        <button
-                            onClick={() => setError('')}
-                            className="text-red-600 hover:text-red-800 text-sm mt-2"
-                        >
-                            Dismiss
-                        </button>
-                    </div>
-                )}
-
                 {/* Header */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <div className="flex items-center justify-between">
@@ -345,108 +351,198 @@ export default function AccountPage() {
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Subscription Overview</h2>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Current Plan */}
+                        {/* Enhanced Current Plan section for expired subscriptions */}
                         <div>
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="font-medium text-gray-900">Current Plan</h3>
-                                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${getTierColor(subscription.tier)}`}>
-                                    {subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)}
+                                <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
+                                    getTierColor(subscription.originalTier ||
+                                        subscription.tier, subscription.status)}`
+                                }>
+            {subscription.status === 'expired'
+                ? `${subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)} (Expired)`
+                : subscription.tier?.charAt(0).toUpperCase() + subscription.tier?.slice(1)
+            }
                                     {subscription.isTrialActive && ' (Trial)'}
                                     {subscription.isAdmin && ' (Admin)'}
-                                </span>
+        </span>
                             </div>
+
+                            {/* Expired subscription alert */}
+                            {subscription.status === 'expired' && (
+                                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+                                    <div className="flex items-start">
+                                        <div className="text-red-500 text-lg mr-3">⚠️</div>
+                                        <div className="flex-1">
+                                            <h4 className="text-red-900 font-medium mb-1">Subscription Expired</h4>
+                                            <p className="text-red-700 text-sm mb-3">
+                                                Your {subscription.tier} subscription expired on {formatDate(subscription.endDate)}.
+                                                You now have access to free tier features only.
+                                            </p>
+                                            <div className="flex flex-col sm:flex-row gap-2">
+                                                <TouchEnhancedButton
+                                                    onClick={() => NativeNavigation.routerPush(router, '/pricing')}
+                                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+                                                >
+                                                    Reactivate Subscription
+                                                </TouchEnhancedButton>
+                                                <TouchEnhancedButton
+                                                    onClick={() => NativeNavigation.routerPush(router, '/account/billing')}
+                                                    className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm"
+                                                >
+                                                    View Billing
+                                                </TouchEnhancedButton>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="space-y-2 text-sm">
                                 <div className="flex justify-between">
                                     <span className="text-gray-600">Status:</span>
-                                    <span className="font-medium">
-                                        {subscription.isTrialActive ? 'Trial Active' : subscription.status || 'Active'}
-                                    </span>
+                                    <span className={`font-medium ${
+                                        subscription.status === 'expired' ? 'text-red-600' : ''
+                                    }`}>
+        {subscription.status === 'expired' ? 'Expired' :
+            subscription.isTrialActive ? 'Trial Active' :
+                subscription.status || 'Active'}
+    </span>
                                 </div>
 
-                                {subscription.billingCycle && (
+                                {subscription.status === 'expired' && subscription.endDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Expired on:</span>
+                                        <span className="font-medium text-red-600">{formatDate(subscription.endDate)}</span>
+                                    </div>
+                                )}
+
+                                {subscription.status === 'expired' && subscription.startDate && (
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-600">Was active from:</span>
+                                        <span className="font-medium">{formatDate(subscription.startDate)}</span>
+                                    </div>
+                                )}
+
+                                {/* Show normal billing info for active subscriptions */}
+                                {subscription.status !== 'expired' && subscription.billingCycle && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Billing:</span>
                                         <span className="font-medium capitalize">{subscription.billingCycle}</span>
                                     </div>
                                 )}
 
-                                {subscription.endDate && (
+                                {subscription.status !== 'expired' && subscription.endDate && (
                                     <div className="flex justify-between">
                                         <span className="text-gray-600">Next billing:</span>
                                         <span className="font-medium">{formatDate(subscription.endDate)}</span>
                                     </div>
                                 )}
-
-                                {subscription.isTrialActive && subscription.daysUntilTrialEnd !== null && (
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-600">Trial ends:</span>
-                                        <span className="font-medium text-orange-600">
-                                            {subscription.daysUntilTrialEnd} day{subscription.daysUntilTrialEnd !== 1 ? 's' : ''} left
-                                        </span>
-                                    </div>
-                                )}
                             </div>
                         </div>
-
-                        {/* Plan Features */}
                         <div>
-                            <h3 className="font-medium text-gray-900 mb-3">Plan Features</h3>
+                            <h3 className="font-medium text-gray-900 mb-3">
+                                {subscription.status === 'expired' ? 'Available Features (Free Tier)' : 'Plan Features'}
+                            </h3>
                             <div className="grid grid-cols-2 gap-3 text-sm">
-                                <div className={`flex items-center ${subscription.canAddInventoryItem ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.canAddInventoryItem ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.canAddInventoryItem)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.canAddInventoryItem) ? '✅' : '❌'}
+            </span>
                                     Inventory Tracking
+                                    {subscription.status === 'expired' && (
+                                        <span className="ml-1 text-xs text-gray-500">(Limited)</span>
+                                    )}
                                 </div>
-                                <div className={`flex items-center ${subscription.canScanReceipt ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.canScanReceipt ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.canScanReceipt)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.canScanReceipt) ? '✅' : '❌'}
+            </span>
                                     Receipt Scanning
+                                    {subscription.status === 'expired' && (
+                                        <span className="ml-1 text-xs text-gray-500">(2/month)</span>
+                                    )}
                                 </div>
-                                <div className={`flex items-center ${subscription.hasMealPlanning ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.hasMealPlanning ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.hasMealPlanning)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.hasMealPlanning) ? '✅' : '❌'}
+            </span>
                                     Meal Planning
                                 </div>
-                                <div className={`flex items-center ${subscription.hasNutritionAccess ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.hasNutritionAccess ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.hasNutritionAccess)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.hasNutritionAccess) ? '✅' : '❌'}
+            </span>
                                     Nutrition Info
                                 </div>
-                                <div className={`flex items-center ${subscription.canWriteReviews ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.canWriteReviews ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.canWriteReviews)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.canWriteReviews) ? '✅' : '❌'}
+            </span>
                                     Write Reviews
                                 </div>
-                                <div className={`flex items-center ${subscription.hasEmailNotifications ? 'text-green-600' : 'text-gray-400'}`}>
-                                    <span className="mr-2">{subscription.hasEmailNotifications ? '✅' : '❌'}</span>
+                                <div className={`flex items-center ${
+                                    (subscription.status === 'expired' ? false : subscription.hasEmailNotifications)
+                                        ? 'text-green-600' : 'text-gray-400'
+                                }`}>
+            <span className="mr-2">
+                {(subscription.status === 'expired' ? false : subscription.hasEmailNotifications) ? '✅' : '❌'}
+            </span>
                                     Email Alerts
                                 </div>
                             </div>
                         </div>
-                    </div>
+                        <div className="mt-6 flex flex-col sm:flex-row gap-3">
+                            {subscription.status === 'expired' ? (
+                                <>
+                                    <TouchEnhancedButton
+                                        onClick={() => NativeNavigation.routerPush(router, '/pricing')}
+                                        className="flex-1 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
+                                    >
+                                        Reactivate Subscription
+                                    </TouchEnhancedButton>
+                                    <TouchEnhancedButton
+                                        onClick={() => NativeNavigation.routerPush(router, '/account/billing')}
+                                        className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                    >
+                                        View Billing History
+                                    </TouchEnhancedButton>
+                                </>
+                            ) : (
+                                <>
+                                    <TouchEnhancedButton
+                                        onClick={() => NativeNavigation.routerPush(router, '/account/billing')}
+                                        className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
+                                    >
+                                        Manage Subscription
+                                    </TouchEnhancedButton>
 
-                    {/* Action Buttons */}
-                    <div className="mt-6 flex flex-col sm:flex-row gap-3">
-                        <TouchEnhancedButton
-                            onClick={() => router.push('/account/billing')}
-                            className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
-                        >
-                            Manage Subscription
-                        </TouchEnhancedButton>
-
-                        {subscription.tier === 'free' && (
-                            <TouchEnhancedButton
-                                onClick={() => router.push('/pricing')}
-                                className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
-                            >
-                                Upgrade Plan
-                            </TouchEnhancedButton>
-                        )}
-
-                        {(subscription.tier === 'gold' || subscription.tier === 'platinum') && (
-                            <TouchEnhancedButton
-                                onClick={() => router.push('/pricing')}
-                                className="flex-1 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
-                            >
-                                View All Plans
-                            </TouchEnhancedButton>
-                        )}
+                                    {subscription.tier === 'free' && (
+                                        <TouchEnhancedButton
+                                            onClick={() => NativeNavigation.routerPush(router, '/pricing')}
+                                            className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
+                                        >
+                                            Upgrade Plan
+                                        </TouchEnhancedButton>
+                                    )}
+                                </>
+                            )}
+                        </div>
                     </div>
                 </div>
 
@@ -599,7 +695,7 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">Last updated recently</div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/auth/change-password')}
+                                onClick={() => NativeNavigation.routerPush(router, '/auth/change-password')}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Change Password
@@ -612,7 +708,13 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">Add an extra layer of security</div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => alert('Two-factor authentication setup coming soon!')}
+                                onClick={async () => {
+                                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                    await NativeDialog.showAlert({
+                                        title: 'Coming Soon',
+                                        message: 'Two-factor authentication setup coming soon!'
+                                    });
+                                }}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Enable 2FA
@@ -636,7 +738,7 @@ export default function AccountPage() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-						onClick={() => router.push('/help')}
+                            onClick={() => NativeNavigation.routerPush(router, '/help')}
                             className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 text-center transition-colors"
                         >
                             <div className="text-2xl mb-2">📚</div>
@@ -645,7 +747,7 @@ export default function AccountPage() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={() => router.push('/feedback')}
+                            onClick={() => NativeNavigation.routerPush(router, '/feedback')}
                             className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 text-center transition-colors"
                         >
                             <div className="text-2xl mb-2">💡</div>
@@ -714,4 +816,3 @@ export default function AccountPage() {
         </MobileOptimizedLayout>
     );
 }
-                            

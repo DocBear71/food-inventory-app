@@ -7,6 +7,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import {apiPost} from "@/lib/api-config.js";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function UnitConversionWidget({
                                                  recipe,
@@ -78,12 +79,15 @@ export default function UnitConversionWidget({
 
     const handleConvert = async (saveAsNew = false, useAI = null) => {
         if (currentSystem === targetSystem) {
-            setError('Recipe is already in the target measurement system');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Conversion Needed',
+                message: 'Recipe is already in the target measurement system'
+            });
             return;
         }
 
         setIsConverting(true);
-        setError('');
         setSuccess('');
 
         try {
@@ -143,14 +147,26 @@ export default function UnitConversionWidget({
                 fetchTransformationLimits();
             } else {
                 if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                    setError(`${data.error} Consider upgrading for more conversions.`);
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Usage Limit Exceeded',
+                        message: `${data.error} Consider upgrading for more conversions.`
+                    });
                 } else {
-                    setError(data.error || 'Failed to convert recipe');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Conversion Failed',
+                        message: data.error || 'Failed to convert recipe'
+                    });
                 }
             }
         } catch (error) {
             console.error('Conversion error:', error);
-            setError('Failed to convert recipe. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Failed to convert recipe. Please try again.'
+            });
         } finally {
             setIsConverting(false);
         }
@@ -163,7 +179,7 @@ export default function UnitConversionWidget({
         if (success || error) {
             const timer = setTimeout(() => {
                 setSuccess('');
-                setError('');
+                ;
             }, 5000);
             return () => clearTimeout(timer);
         }
@@ -315,7 +331,7 @@ export default function UnitConversionWidget({
                                     <p className="text-xs text-yellow-700">Get ingredient-specific density conversions</p>
                                 </div>
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=unit-conversion'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=unit-conversion', router })}
                                     className="ml-auto px-3 py-1 bg-yellow-600 text-white rounded text-xs hover:bg-yellow-700"
                                 >
                                     Upgrade
@@ -457,7 +473,7 @@ export default function UnitConversionWidget({
                         onClick={() => {
                             console.log('🔄 Unit conversion reset clicked');
                             setConvertedRecipe(null);
-                            setError('');
+                            ;
                             setSuccess('');
 
                             // FIXED: Call the global reset function instead of trying to handle locally

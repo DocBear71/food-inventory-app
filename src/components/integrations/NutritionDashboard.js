@@ -106,11 +106,21 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
         try {
             // Data validation
             if (!dashboardData?.inventory || !Array.isArray(dashboardData.inventory)) {
-                throw new Error('Inventory data not available. Please refresh and try again.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Data Unavailable',
+                    message: 'Inventory data not available. Please refresh and try again.'
+                });
+                return;
             }
 
             if (dashboardData.inventory.length === 0) {
-                throw new Error('No inventory items found. Please add items to your inventory first.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'No Inventory',
+                    message: 'No inventory items found. Please add items to your inventory first.'
+                });
+                return;
             }
 
             console.log(`📦 Processing voice command with ${dashboardData.inventory.length} inventory items available`);
@@ -127,7 +137,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
 
                 // Enhanced result handling with better debugging
                 if (!result) {
-                    throw new Error('No result received from analysis');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Analysis Failed',
+                        message: 'No result received from analysis'
+                    });
+                    return;
                 }
 
                 console.log('🔍 ANALYSIS RESULT:', JSON.stringify(result, null, 2));
@@ -137,7 +152,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                 const confidence = result.confidence || 0.8;
 
                 if (!nutrition) {
-                    throw new Error('No nutrition data received');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Data Missing',
+                        message: 'No nutrition data received'
+                    });
+                    return;
                 }
 
                 // Use the enhanced display function (modal or alert)
@@ -146,11 +166,19 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
             } else if (nutritionQuery.action === 'get_suggestions') {
                 setActiveTab('recipes');
                 setShowVoiceNutrition(false);
-                alert('✅ Switched to Recipe Suggestions tab');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Tab Switched',
+                    message: '✅ Switched to Recipe Suggestions tab'
+                });
             } else if (nutritionQuery.action === 'optimization') {
                 setActiveTab('optimization');
                 setShowVoiceNutrition(false);
-                alert('✅ Switched to Smart Optimization tab');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Tab Switched',
+                    message: '✅ Switched to Smart Optimization tab'
+                });
             } else if (nutritionQuery.action === 'list_items') {
                 const itemList = dashboardData.inventory
                     .slice(0, 10)
@@ -171,7 +199,11 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                 message += `\n\n✅ = Has nutrition data\n🤖 = Can analyze with AI`;
 
                 setShowVoiceNutrition(false);
-                alert(message);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Notification',
+                    message: message
+                });
             }
         } catch (error) {
             console.error('❌ Error processing voice nutrition:', error);
@@ -186,7 +218,11 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                 errorMessage = 'AI nutrition service is temporarily unavailable.';
             }
 
-            alert(`❌ ${errorMessage}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Error',
+                message: `❌ ${errorMessage}`
+            });
         } finally {
             setProcessingVoiceNutrition(false);
         }
@@ -363,7 +399,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                 let nutrition = extractNutritionFromResponse(result);
 
                 if (!nutrition) {
-                    throw new Error('Could not extract nutrition data from Modal response');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Extraction Failed',
+                        message: 'Could not extract nutrition data from Modal response'
+                    });
+                    return;
                 }
 
                 return {
@@ -375,7 +416,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                         'Using mock data - check Modal response format' : null
                 };
             } else {
-                throw new Error(result.error || 'Recipe analysis failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Analysis Failed',
+                    message: result.error || 'Recipe analysis failed'
+                });
+                return;
             }
         } catch (error) {
             console.error('❌ Recipe Modal analysis failed:', error);
@@ -407,7 +453,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                 let nutrition = extractNutritionFromResponse(result);
 
                 if (!nutrition) {
-                    throw new Error('Could not extract nutrition data from Modal response');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Extraction Failed',
+                        message: 'Could not extract nutrition data from Modal response'
+                    });
+                    return;
                 }
 
                 return {
@@ -419,7 +470,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                         'Using mock data - check Modal response format' : null
                 };
             } else {
-                throw new Error(result.error || 'Ingredient analysis failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Analysis Failed',
+                    message: result.error || 'Ingredient analysis failed'
+                });
+                return;
             }
         } catch (error) {
             console.error('❌ Ingredient Modal analysis failed:', error);
@@ -451,7 +507,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                 let nutrition = extractNutritionFromResponse(result);
 
                 if (!nutrition) {
-                    throw new Error('Could not extract nutrition data from Modal response');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Extraction Failed',
+                        message: 'Could not extract nutrition data from Modal response'
+                    });
+                    return;
                 }
 
                 // Update inventory with new nutrition data
@@ -473,7 +534,12 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                     inventoryUpdated: true
                 };
             } else {
-                throw new Error(result.error || 'AI analysis failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'AI Analysis Failed',
+                    message: result.error || 'AI analysis failed'
+                });
+                return;
             }
         } catch (error) {
             console.error('❌ Inventory Modal analysis failed:', error);
@@ -702,7 +768,7 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
     };
 
     // ENHANCED: Show nutrition data using modal or alert
-    const displayNutritionResults = (nutrition, analyzedItem, result) => {
+    const displayNutritionResults = async (nutrition, analyzedItem, result) => {
         console.log('🎨 Displaying nutrition results for:', analyzedItem);
 
         // Check if we have enough data for the modal
@@ -719,7 +785,11 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
         } else {
             // Fallback to alert for incomplete data or if no modal handler
             const message = formatNutritionForAlert(nutrition, analyzedItem, result);
-            alert(message);
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Nutrition Information',
+                message: message
+            });
             console.log('⚠️ Using alert fallback due to incomplete data or missing modal handler');
         }
     };
@@ -859,7 +929,11 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
     const generateSmartShoppingList = useCallback(async () => {
         try {
             if (!dashboardData?.inventory?.length) {
-                alert('❌ No inventory items found. Add items to your inventory first.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'No Inventory',
+                    message: '❌ No inventory items found. Add items to your inventory first.'
+                });
                 return;
             }
 
@@ -883,14 +957,30 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
 
                     message += '\n🏪 View full list in Shopping section?';
 
-                    if (confirm(message)) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    const confirmed = await NativeDialog.showConfirm({
+                        title: 'Navigate',
+                        message: message,
+                        confirmText: 'Go',
+                        cancelText: 'Cancel'
+                    });
+                    if (confirmed) {
                         window.location.href = '/shopping/saved';
                     }
                 } else {
-                    alert('✅ Your inventory looks well-stocked! No urgent shopping needed.');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'Inventory Status',
+                        message: '✅ Your inventory looks well-stocked! No urgent shopping needed.'
+                    });
                 }
             } else {
-                throw new Error(result.error || 'Shopping list generation failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Generation Failed',
+                    message: result.error || 'Shopping list generation failed'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error generating smart shopping list:', error);
@@ -921,7 +1011,14 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
 
             message += 'Navigate to shopping section?';
 
-            if (confirm(message)) {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            const confirmed = await NativeDialog.showConfirm({
+                title: 'Navigate',
+                message: message,
+                confirmText: 'Go',
+                cancelText: 'Cancel'
+            });
+            if (confirmed) {
                 window.location.href = '/shopping';
             }
         } finally {
@@ -929,9 +1026,16 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
         }
     }, [dashboardData, performSmartInventoryAction, session]);
 
-    const navigateToMealPlanning = useCallback(() => {
+    const navigateToMealPlanning = useCallback(async () => {
         if (!dashboardData?.inventory?.length) {
-            if (confirm('❌ No inventory items found.\n\nWould you like to add some items first, or go to meal planning anyway?')) {
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            const confirmed = await NativeDialog.showConfirm({
+                title: 'No Inventory Items',
+                message: '❌ No inventory items found.\n\nWould you like to add some items first, or go to meal planning anyway?',
+                confirmText: 'Meal Planning',
+                cancelText: 'Add Items'
+            });
+            if (confirmed) {
                 window.location.href = '/meal-planning';
             } else {
                 window.location.href = '/inventory?action=add';
@@ -949,14 +1053,25 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
             `🤖 AI will suggest meals based on your inventory\n\n` +
             `Ready to create your meal plan?`;
 
-        if (confirm(message)) {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Navigate to Meal Planning',
+            message: message,
+            confirmText: 'Go',
+            cancelText: 'Cancel'
+        });
+        if (confirmed) {
             window.location.href = '/meal-planning';
         }
     }, [dashboardData]);
 
     const analyzeInventoryNutrition = useCallback(async () => {
         if (!dashboardData?.inventory?.length) {
-            alert('❌ No inventory items found. Add items to your inventory first.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Inventory',
+                message: '❌ No inventory items found. Add items to your inventory first.'
+            });
             return;
         }
 
@@ -968,7 +1083,11 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
             const itemsWithNutrition = dashboardData.inventory.filter(item => item.nutrition);
 
             if (itemsToAnalyze.length === 0) {
-                alert('✅ All items already have nutrition data!');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Analysis Complete',
+                    message: '✅ All items already have nutrition data!'
+                });
                 return;
             }
 
@@ -1066,11 +1185,19 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                 message += `\n⏳ Remaining items will be analyzed in future runs`;
             }
 
-            alert(message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Analysis Result',
+                message: message
+            });
 
         } catch (error) {
             console.error('Error in batch nutrition analysis:', error);
-            alert(`❌ Error analyzing nutrition: ${error.message}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Analysis Error',
+                message: `❌ Error analyzing nutrition: ${error.message}`
+            });
         } finally {
             setRefreshing(false);
         }
@@ -1241,9 +1368,13 @@ export default function NutritionDashboard({ onShowNutritionModal }) {
                         <div className="mb-4">
                             <VoiceInput
                                 onResult={handleVoiceNutrition}
-                                onError={(error) => {
+                                onError={async (error) => {
                                     console.error('Voice nutrition error:', error);
-                                    alert('🎤 Voice input failed. Please try again.');
+                                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                                    await NativeDialog.showError({
+                                        title: 'Voice Input Failed',
+                                        message: '🎤 Voice input failed. Please try again.'
+                                    });
                                     setProcessingVoiceNutrition(false);
                                 }}
                                 placeholder="Ask about nutrition for any item..."
