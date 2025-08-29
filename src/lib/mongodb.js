@@ -4,13 +4,8 @@ import mongoose from 'mongoose';
 
 const MONGODB_URI = process.env.MONGODB_URI;
 
-if (!MONGODB_URI) {
-    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-    await NativeDialog.showError({
-        title: 'DataBase Failed',
-        message: 'Please define the MONGODB_URI environment variable inside .env.local'
-    });
-    return;
+if (!process.env.MONGODB_URI) {
+    throw new Error('Please define the MONGODB_URI environment variable inside .env.local');
 }
 
 /**
