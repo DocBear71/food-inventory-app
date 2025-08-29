@@ -311,142 +311,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }, 4000);
     }, [playBeepSound]);
 
-    // FIXED: Native iOS barcode scanner function with proper permission handling
-    const startNativeScan = useCallback(async () => {
-        if (!nativeBarcodeScanner) {
-            console.log('🍎 Native scanner not available, falling back to Capacitor');
-            return startCapacitorScan();
-        }
-
-        try {
-            console.log('🍎 Starting native iOS AVFoundation barcode scan...');
-            setIsScanning(true);
-            setError(null);
-            setScanFeedback('Checking camera permissions...');
-
-            // FIXED: Check permissions and request if needed
-            let permissions = await nativeBarcodeScanner.checkPermissions();
-            console.log('🍎 Initial camera permissions:', permissions);
-
-            if (permissions.camera === 'prompt' || permissions.camera === 'denied') {
-                setScanFeedback('Requesting camera permission...');
-                console.log('🍎 Requesting camera permissions...');
-                permissions = await nativeBarcodeScanner.requestPermissions();
-                console.log('🍎 Camera permissions after request:', permissions);
-            }
-
-            if (permissions.camera !== 'granted') {
-                console.log('🍎 Camera permission denied:', permissions.camera);
-                provideScanFeedback('error', 'Camera permission is required. Please enable camera access in Settings.');
-                setIsScanning(false);
-                return;
-            }
-
-            setScanFeedback('🍎 Opening native iOS camera...');
-
-            // Start native scan with timeout
-            const scanPromise = nativeBarcodeScanner.scanBarcode({
-                enableHapticFeedback: true,
-                enableAudioFeedback: true
-            });
-
-            // Add timeout to prevent hanging
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('Scan timeout')), 30000);
-            });
-
-            const result = await Promise.race([scanPromise, timeoutPromise]);
-            console.log('🍎 Native iOS scan result:', result);
-
-            if (result.hasContent && result.content) {
-                console.log('🍎 Native iOS barcode detected:', result.content);
-                provideScanFeedback('success', 'Native iOS scan successful!');
-
-                // Use existing validation logic
-                const validation = analyzeAndValidateBarcode(result.content);
-                if (!validation.valid) {
-                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
-                    setIsScanning(false);
-                    return;
-                }
-
-                const cleanCode = validation.cleanCode;
-
-                // Check for duplicates (using existing logic)
-                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
-                if (processedCodesRef.current.has(sessionKey)) {
-                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
-                    setIsScanning(false);
-                    return;
-                }
-
-                processedCodesRef.current.add(sessionKey);
-                provideScanFeedback('success', '🍎 Native iOS scan successful!', validation);
-
-                // Process the result
-                setTimeout(() => {
-                    if (mountedRef.current) {
-                        onBarcodeDetected(cleanCode);
-                        setTimeout(() => {
-                            if (mountedRef.current && onClose) {
-                                onClose();
-                            }
-                        }, 500);
-                    }
-                }, 300);
-
-            } else {
-                console.log('🍎 No barcode found in native result:', result);
-                provideScanFeedback('error', 'No barcode detected - please try again');
-                setIsScanning(false);
-            }
-
-        } catch (error) {
-            console.error('Native iOS scanning failed:', error);
-
-            // CRITICAL FIX: Always reset scanning state on any error
-            setIsScanning(false);
-            setError(null); // Clear any previous errors
-
-            // Handle specific error cases
-            if (error.message && (
-                error.message.includes('cancelled') ||
-                error.message.includes('USER_CANCELLED') ||
-                error.message.includes('User cancelled')
-            )) {
-                console.log('Native iOS scan cancelled by user');
-                provideScanFeedback('info', 'Scan cancelled');
-                return;
-            }
-
-            if (error.message && error.message.includes('timeout')) {
-                console.log('Native iOS scan timeout');
-                provideScanFeedback('error', 'Scan timeout - please try again');
-                return;
-            }
-
-            if (error.message && error.message.includes('PERMISSION_DENIED')) {
-                provideScanFeedback('error', 'Camera permission required - check iOS Settings');
-                setError('Camera permission denied. Please check your browser settings.');
-            } else if (error.message && error.message.includes('CAMERA_ERROR')) {
-                provideScanFeedback('error', 'Camera setup failed - please try again');
-                setError('Camera not available. Please try again.');
-            } else {
-                console.log('Falling back to Capacitor scanner after native failure...');
-                provideScanFeedback('error', 'Native scan failed - trying fallback scanner...');
-
-                // Automatic fallback to Capacitor scanner
-                setTimeout(async () => {
-                    if (mountedRef.current && !scanInProgressRef.current) {
-                        console.log('Starting Capacitor fallback...');
-                        await startCapacitorScan();
-                    }
-                }, 1000);
-                return; // Don't set error state if we're trying fallback
-            }
-        }
-    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, startCapacitorScan]);
-
     // FIXED: Capacitor scanner function with proper web camera permission handling
     const startCapacitorScan = useCallback(async () => {
         if (!capacitorBarcodeScanner) {
@@ -584,6 +448,143 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             }
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
+
+
+    // FIXED: Native iOS barcode scanner function with proper permission handling
+    const startNativeScan = useCallback(async () => {
+        if (!nativeBarcodeScanner) {
+            console.log('🍎 Native scanner not available, falling back to Capacitor');
+            return startCapacitorScan();
+        }
+
+        try {
+            console.log('🍎 Starting native iOS AVFoundation barcode scan...');
+            setIsScanning(true);
+            setError(null);
+            setScanFeedback('Checking camera permissions...');
+
+            // FIXED: Check permissions and request if needed
+            let permissions = await nativeBarcodeScanner.checkPermissions();
+            console.log('🍎 Initial camera permissions:', permissions);
+
+            if (permissions.camera === 'prompt' || permissions.camera === 'denied') {
+                setScanFeedback('Requesting camera permission...');
+                console.log('🍎 Requesting camera permissions...');
+                permissions = await nativeBarcodeScanner.requestPermissions();
+                console.log('🍎 Camera permissions after request:', permissions);
+            }
+
+            if (permissions.camera !== 'granted') {
+                console.log('🍎 Camera permission denied:', permissions.camera);
+                provideScanFeedback('error', 'Camera permission is required. Please enable camera access in Settings.');
+                setIsScanning(false);
+                return;
+            }
+
+            setScanFeedback('🍎 Opening native iOS camera...');
+
+            // Start native scan with timeout
+            const scanPromise = nativeBarcodeScanner.scanBarcode({
+                enableHapticFeedback: true,
+                enableAudioFeedback: true
+            });
+
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Scan timeout')), 30000);
+            });
+
+            const result = await Promise.race([scanPromise, timeoutPromise]);
+            console.log('🍎 Native iOS scan result:', result);
+
+            if (result.hasContent && result.content) {
+                console.log('🍎 Native iOS barcode detected:', result.content);
+                provideScanFeedback('success', 'Native iOS scan successful!');
+
+                // Use existing validation logic
+                const validation = analyzeAndValidateBarcode(result.content);
+                if (!validation.valid) {
+                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
+                    setIsScanning(false);
+                    return;
+                }
+
+                const cleanCode = validation.cleanCode;
+
+                // Check for duplicates (using existing logic)
+                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
+                if (processedCodesRef.current.has(sessionKey)) {
+                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
+                    setIsScanning(false);
+                    return;
+                }
+
+                processedCodesRef.current.add(sessionKey);
+                provideScanFeedback('success', '🍎 Native iOS scan successful!', validation);
+
+                // Process the result
+                setTimeout(() => {
+                    if (mountedRef.current) {
+                        onBarcodeDetected(cleanCode);
+                        setTimeout(() => {
+                            if (mountedRef.current && onClose) {
+                                onClose();
+                            }
+                        }, 500);
+                    }
+                }, 300);
+
+            } else {
+                console.log('🍎 No barcode found in native result:', result);
+                provideScanFeedback('error', 'No barcode detected - please try again');
+                setIsScanning(false);
+            }
+
+        } catch (error) {
+            console.error('Native iOS scanning failed:', error);
+
+            // CRITICAL FIX: Always reset scanning state on any error
+            setIsScanning(false);
+            setError(null); // Clear any previous errors
+
+            // Handle specific error cases
+            if (error.message && (
+                error.message.includes('cancelled') ||
+                error.message.includes('USER_CANCELLED') ||
+                error.message.includes('User cancelled')
+            )) {
+                console.log('Native iOS scan cancelled by user');
+                provideScanFeedback('info', 'Scan cancelled');
+                return;
+            }
+
+            if (error.message && error.message.includes('timeout')) {
+                console.log('Native iOS scan timeout');
+                provideScanFeedback('error', 'Scan timeout - please try again');
+                return;
+            }
+
+            if (error.message && error.message.includes('PERMISSION_DENIED')) {
+                provideScanFeedback('error', 'Camera permission required - check iOS Settings');
+                setError('Camera permission denied. Please check your browser settings.');
+            } else if (error.message && error.message.includes('CAMERA_ERROR')) {
+                provideScanFeedback('error', 'Camera setup failed - please try again');
+                setError('Camera not available. Please try again.');
+            } else {
+                console.log('Falling back to Capacitor scanner after native failure...');
+                provideScanFeedback('error', 'Native scan failed - trying fallback scanner...');
+
+                // Automatic fallback to Capacitor scanner
+                setTimeout(async () => {
+                    if (mountedRef.current && !scanInProgressRef.current) {
+                        console.log('Starting Capacitor fallback...');
+                        await startCapacitorScan();
+                    }
+                }, 1000);
+                return; // Don't set error state if we're trying fallback
+            }
+        }
+    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, startCapacitorScan]);
 
     // Choose the appropriate scanner function with proper permission handling
     const startScan = useCallback(async () => {
