@@ -13,7 +13,12 @@ export class NutritionService {
             const response = await fetch(searchUrl);
 
             if (!response.ok) {
-                throw new Error(`Open Food Facts API error: ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Open Food Facts API Failed',
+                    message: `Open Food Facts API error: ${response.status}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -47,7 +52,12 @@ export class NutritionService {
             const response = await fetch(`${OPENFOODFACTS_API_BASE}/product/${barcode}.json`);
 
             if (!response.ok) {
-                throw new Error(`Open Food Facts API error: ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Open Food Facts API Failed',
+                    message: `Open Food Facts API error: ${response.status}`
+                });
+                return;
             }
 
             const data = await response.json();

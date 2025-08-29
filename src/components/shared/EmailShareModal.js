@@ -1,12 +1,17 @@
 'use client';
-// file: /src/components/shared/EmailShareModal.js v1
+// file: /src/components/shared/EmailShareModal.js v2 - iOS Native Enhancements with Native Form Components
 
 
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 export default function EmailShareModal({
                                             isOpen,
@@ -32,10 +37,12 @@ export default function EmailShareModal({
         relationship: 'other'
     });
 
+    const isIOS = PlatformDetection.isIOS();
+
     useEffect(() => {
         if (isOpen) {
             fetchContacts();
-            setError('');
+            ;
             setSuccess('');
         }
     }, [isOpen]);
@@ -52,12 +59,28 @@ export default function EmailShareModal({
         }
     };
 
-    const addRecipientField = () => {
+    const addRecipientField = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Add recipient haptic failed:', error);
+            }
+        }
         setRecipients([...recipients, '']);
     };
 
-    const removeRecipientField = (index) => {
+    const removeRecipientField = async (index) => {
         if (recipients.length > 1) {
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.buttonTap();
+                } catch (error) {
+                    console.log('Remove recipient haptic failed:', error);
+                }
+            }
             setRecipients(recipients.filter((_, i) => i !== index));
         }
     };
@@ -68,7 +91,16 @@ export default function EmailShareModal({
         setRecipients(updated);
     };
 
-    const selectContact = (contact) => {
+    const selectContact = async (contact) => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Contact select haptic failed:', error);
+            }
+        }
+
         const emptyIndex = recipients.findIndex(r => r === '');
         if (emptyIndex !== -1) {
             updateRecipient(emptyIndex, contact.email);
@@ -79,8 +111,38 @@ export default function EmailShareModal({
 
     const addContact = async () => {
         if (!newContact.name || !newContact.email) {
-            setError('Name and email are required for new contact');
+            if (isIOS) {
+                try {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Missing Information',
+                        message: 'Name and email are required for new contact'
+                    });
+                } catch (error) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Missing Information',
+                        message: 'Name and email are required for new contact'
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Missing Information',
+                    message: 'Name and email are required for new contact'
+                });
+            }
             return;
+        }
+
+        // iOS form submit haptic
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Add contact haptic failed:', error);
+            }
         }
 
         try {
@@ -92,23 +154,107 @@ export default function EmailShareModal({
                 setNewContact({ name: '', email: '', relationship: 'other' });
                 setShowContactForm(false);
                 selectContact(data.contact);
+
+                // iOS success feedback
+                if (isIOS) {
+                    try {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.success();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Contact Added',
+                            message: `${data.contact.name} has been added to your contacts`
+                        });
+                    } catch (error) {
+                        console.log('Success feedback failed:', error);
+                    }
+                }
             } else {
-                setError(data.error);
+                const errorMessage = data.error || 'Failed to add contact';
+                if (isIOS) {
+                    try {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.error();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Add Contact Failed',
+                            message: errorMessage
+                        });
+                    } catch (error) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Error',
+                            message: errorMessage
+                        });
+                    }
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
             }
         } catch (error) {
-            setError('Failed to add contact');
+            const errorMessage = 'Failed to add contact';
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Network Error',
+                        message: errorMessage
+                    });
+                } catch (error) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: errorMessage
+                });
+            }
         }
     };
 
     const sendEmail = async () => {
         setIsLoading(true);
-        setError('');
         setSuccess('');
 
         // Validate recipients
         const validRecipients = recipients.filter(email => email.trim().length > 0);
         if (validRecipients.length === 0) {
-            setError('Please add at least one recipient');
+            const errorMessage = 'Please add at least one recipient';
+            if (isIOS) {
+                try {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'No Recipients',
+                        message: errorMessage
+                    });
+                } catch (error) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: errorMessage
+                });
+            }
             setIsLoading(false);
             return;
         }
@@ -117,9 +263,40 @@ export default function EmailShareModal({
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         const invalidEmails = validRecipients.filter(email => !emailRegex.test(email.trim()));
         if (invalidEmails.length > 0) {
-            setError(`Invalid email format: ${invalidEmails.join(', ')}`);
+            const errorMessage = `Invalid email format: ${invalidEmails.join(', ')}`;
+            if (isIOS) {
+                try {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Invalid Email Format',
+                        message: errorMessage
+                    });
+                } catch (error) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: errorMessage
+                });
+            }
             setIsLoading(false);
             return;
+        }
+
+        // iOS form submit haptic
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Send email haptic failed:', error);
+            }
         }
 
         try {
@@ -134,16 +311,83 @@ export default function EmailShareModal({
             const data = await response.json();
 
             if (data.success) {
-                setSuccess(`Shopping list sent successfully to ${data.recipientCount} recipient${data.recipientCount > 1 ? 's' : ''}!`);
+                const successMessage = `Shopping list sent successfully to ${data.recipientCount} recipient${data.recipientCount > 1 ? 's' : ''}!`;
+
+                // iOS success feedback
+                if (isIOS) {
+                    try {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.success();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Email Sent!',
+                            message: successMessage
+                        });
+                    } catch (error) {
+                        setSuccess(successMessage);
+                    }
+                } else {
+                    setSuccess(successMessage);
+                }
+
                 setTimeout(() => {
                     onClose();
                     resetForm();
                 }, 2000);
             } else {
-                setError(data.error || 'Failed to send email');
+                const errorMessage = data.error || 'Failed to send email';
+                if (isIOS) {
+                    try {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.error();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Send Failed',
+                            message: errorMessage
+                        });
+                    } catch (error) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Error',
+                            message: errorMessage
+                        });
+                    }
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
             }
         } catch (error) {
-            setError('Failed to send email. Please try again.');
+            const errorMessage = 'Failed to send email. Please try again.';
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Network Error',
+                        message: errorMessage
+                    });
+                } catch (dialogError) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Dialog Error',
+                        message: errorMessage
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: errorMessage
+                });
+            }
             console.error('Email send error:', error);
         } finally {
             setIsLoading(false);
@@ -153,10 +397,22 @@ export default function EmailShareModal({
     const resetForm = () => {
         setRecipients(['']);
         setPersonalMessage('');
-        setError('');
+        ;
         setSuccess('');
         setShowContactForm(false);
         setEmailPreview(false);
+    };
+
+    const toggleContactForm = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Contact form toggle haptic failed:', error);
+            }
+        }
+        setShowContactForm(!showContactForm);
     };
 
     const getShoppingListSummary = () => {
@@ -354,8 +610,9 @@ export default function EmailShareModal({
                                 marginBottom: '0.5rem',
                                 alignItems: 'center'
                             }}>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="email"
+                                    inputMode="email"
                                     placeholder="Enter email address"
                                     value={recipient}
                                     onChange={(e) => updateRecipient(index, e.target.value)}
@@ -366,6 +623,17 @@ export default function EmailShareModal({
                                         borderRadius: '6px',
                                         fontSize: '0.875rem'
                                     }}
+                                    validation={(value) => {
+                                        if (!value) return { isValid: index > 0, message: '' };
+                                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                        return {
+                                            isValid: emailRegex.test(value),
+                                            message: emailRegex.test(value) ? 'Valid email' : 'Please enter a valid email'
+                                        };
+                                    }}
+                                    errorMessage="Please enter a valid email address"
+                                    successMessage="Valid email address"
+                                    required={index === 0}
                                 />
                                 {recipients.length > 1 && (
                                     <TouchEnhancedButton
@@ -463,7 +731,7 @@ export default function EmailShareModal({
                                     Add New Contact
                                 </h4>
                                 <TouchEnhancedButton
-                                    onClick={() => setShowContactForm(false)}
+                                    onClick={toggleContactForm}
                                     style={{
                                         color: '#6b7280',
                                         backgroundColor: 'transparent',
@@ -475,7 +743,7 @@ export default function EmailShareModal({
                                 </TouchEnhancedButton>
                             </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="text"
                                     placeholder="Name"
                                     value={newContact.name}
@@ -486,9 +754,16 @@ export default function EmailShareModal({
                                         borderRadius: '6px',
                                         fontSize: '0.875rem'
                                     }}
+                                    validation={(value) => ({
+                                        isValid: value.trim().length >= 2 || value.length === 0,
+                                        message: value.trim().length >= 2 ? 'Name looks good!' : value.length > 0 ? 'Name should be at least 2 characters' : ''
+                                    })}
+                                    errorMessage="Name should be at least 2 characters"
+                                    successMessage="Name looks good!"
                                 />
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="email"
+                                    inputMode="email"
                                     placeholder="Email"
                                     value={newContact.email}
                                     onChange={(e) => setNewContact({...newContact, email: e.target.value})}
@@ -498,8 +773,18 @@ export default function EmailShareModal({
                                         borderRadius: '6px',
                                         fontSize: '0.875rem'
                                     }}
+                                    validation={(value) => {
+                                        if (!value) return { isValid: false, message: '' };
+                                        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                        return {
+                                            isValid: emailRegex.test(value),
+                                            message: emailRegex.test(value) ? 'Valid email' : 'Please enter a valid email'
+                                        };
+                                    }}
+                                    errorMessage="Please enter a valid email address"
+                                    successMessage="Valid email address"
                                 />
-                                <select
+                                <NativeSelect
                                     value={newContact.relationship}
                                     onChange={(e) => setNewContact({...newContact, relationship: e.target.value})}
                                     style={{
@@ -508,13 +793,14 @@ export default function EmailShareModal({
                                         borderRadius: '6px',
                                         fontSize: '0.875rem'
                                     }}
-                                >
-                                    <option value="family">Family</option>
-                                    <option value="friend">Friend</option>
-                                    <option value="roommate">Roommate</option>
-                                    <option value="colleague">Colleague</option>
-                                    <option value="other">Other</option>
-                                </select>
+                                    options={[
+                                        { value: 'family', label: 'Family' },
+                                        { value: 'friend', label: 'Friend' },
+                                        { value: 'roommate', label: 'Roommate' },
+                                        { value: 'colleague', label: 'Colleague' },
+                                        { value: 'other', label: 'Other' }
+                                    ]}
+                                />
                                 <TouchEnhancedButton
                                     onClick={addContact}
                                     style={{
@@ -534,7 +820,7 @@ export default function EmailShareModal({
                     ) : (
                         <TouchEnhancedButton
                             type="button"
-                            onClick={() => setShowContactForm(true)}
+                            onClick={toggleContactForm}
                             style={{
                                 color: '#4f46e5',
                                 backgroundColor: 'transparent',
@@ -561,7 +847,7 @@ export default function EmailShareModal({
                         }}>
                             Personal Message (Optional)
                         </label>
-                        <textarea
+                        <NativeTextarea
                             placeholder="Add a personal message to include with the shopping list..."
                             value={personalMessage}
                             onChange={(e) => setPersonalMessage(e.target.value)}
@@ -573,9 +859,9 @@ export default function EmailShareModal({
                                 border: '1px solid #d1d5db',
                                 borderRadius: '6px',
                                 fontSize: '0.875rem',
-                                resize: 'vertical',
                                 boxSizing: 'border-box'
                             }}
+                            autoExpand={true}
                         />
                         <div style={{
                             fontSize: '0.75rem',

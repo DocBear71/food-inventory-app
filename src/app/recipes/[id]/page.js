@@ -21,6 +21,7 @@ import RecipePhotoGallery from '@/components/recipes/RecipePhotoGallery';
 import RecipePhotoUpload from '@/components/recipes/RecipePhotoUpload';
 import RecipeTransformationPanel from '@/components/recipes/RecipeTransformationPanel';
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // FIXED: Hero Recipe Image Component with proper metadata fetching
 const RecipeHeroImage = ({recipe, session, className = "", onImageUpdate}) => {
@@ -1324,11 +1325,19 @@ export default function RecipeDetailPage() {
                     console.log('👁️ View incremented for recipe');
                 }
             } else {
-                setError(data.error || 'Recipe not found');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Recipe Not Found',
+                    message: data.error || 'Recipe not found'
+                });
             }
         } catch (error) {
             console.error('Error fetching recipe:', error);
-            setError('Failed to load recipe');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: 'Failed to load recipe'
+            });
         } finally {
             setLoading(false);
             setIsFetching(false);
@@ -1458,7 +1467,12 @@ export default function RecipeDetailPage() {
             const response = await apiGet(`/api/meal-plans/${mealPlanId}`);
             const data = await response.json();
             if (!data.success) {
-                throw new Error('Failed to fetch meal plan');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Fetch Failed',
+                    message: 'Failed to fetch meal plan'
+                });
+                return;
             }
 
             const mealPlan = data.mealPlan;
@@ -1485,14 +1499,27 @@ export default function RecipeDetailPage() {
 
             const updateData = await updateResponse.json();
             if (updateData.success) {
-                alert(`Added "${recipe.title}" to your meal plan!`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Added to Meal Plan',
+                    message: `Added "${recipe.title}" to your meal plan!`
+                });
                 setShowMealPlanModal(false);
             } else {
-                throw new Error(updateData.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Addition Failed',
+                    message: updateData.error
+                });
+                return;
             }
         } catch (error) {
             console.error('Error adding to meal plan:', error);
-            alert('Failed to add recipe to meal plan');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Addition Failed',
+                message: 'Failed to add recipe to meal plan'
+            });
         }
     };
 
@@ -1647,7 +1674,7 @@ export default function RecipeDetailPage() {
         }
     };
 
-    const handleRevert = () => {
+    const handleRevert = async () => {
         console.log('🔄 Reverting to original recipe');
 
         if (originalRecipe) {
@@ -1663,7 +1690,11 @@ export default function RecipeDetailPage() {
         } else {
             console.error('❌ No original recipe stored for revert');
             // Don't refetch - just show error
-            alert('Unable to revert - original recipe data not available');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Revert Failed',
+                message: 'Unable to revert - original recipe data not available'
+            });
         }
     };
 
@@ -1701,7 +1732,7 @@ export default function RecipeDetailPage() {
                     <div className="text-center">
                         <div className="text-red-600 text-lg font-medium mb-4">{error}</div>
                         <TouchEnhancedButton
-                            onClick={() => router.push('/recipes')}
+                            onClick={() => NativeNavigation.routerPush(router, '/recipes')}
                             className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700"
                         >
                             Back to Recipes
@@ -1719,7 +1750,7 @@ export default function RecipeDetailPage() {
                 <div className="mb-8">
                     <div className="flex items-center justify-between mb-6">
                         <TouchEnhancedButton
-                            onClick={() => router.push('/recipes')}
+                            onClick={() => NativeNavigation.routerPush(router, '/recipes')}
                             className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -2278,9 +2309,9 @@ export default function RecipeDetailPage() {
                                     <h4 className="text-lg font-medium text-gray-900 mb-2">No meal plans found</h4>
                                     <p className="text-gray-500 mb-6">Create your first meal plan to get started!</p>
                                     <TouchEnhancedButton
-                                        onClick={() => {
+                                        onClick={async () => {
                                             setShowMealPlanModal(false);
-                                            router.push('/meal-planning');
+                                            await NativeNavigation.routerPush(router, '/meal-planning');
                                         }}
                                         className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors font-medium"
                                     >
@@ -2338,9 +2369,9 @@ export default function RecipeDetailPage() {
                                 <p className="text-sm text-gray-600">
                                     💡 Tip: You can create and manage meal plans in the
                                     <TouchEnhancedButton
-                                        onClick={() => {
+                                        onClick={async () => {
                                             setShowMealPlanModal(false);
-                                            router.push('/meal-planning');
+                                            await NativeNavigation.routerPush(router, '/meal-planning');
                                         }}
                                         className="ml-1 text-indigo-600 hover:text-indigo-700 underline"
                                     >

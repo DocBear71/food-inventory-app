@@ -48,11 +48,20 @@ export default function SmartShoppingAssistant({ onClose }) {
                 setStep('results');
                 MobileHaptics?.success();
             } else {
-                throw new Error(data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: data.error
+                });
+                return;
             }
         } catch (error) {
             console.error('Optimization error:', error);
-            alert('Failed to optimize shopping list. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Optimization Failed',
+                message: 'Failed to optimize shopping list. Please try again.'
+            });
             setStep('input');
             MobileHaptics?.error();
         } finally {

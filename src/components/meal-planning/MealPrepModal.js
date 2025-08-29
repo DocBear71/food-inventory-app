@@ -22,7 +22,6 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
 
     const fetchMealPrepSuggestions = async () => {
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiGet(`/api/meal-prep/${mealPlanId}`);
@@ -31,11 +30,19 @@ export default function MealPrepModal({ mealPlanId, mealPlanName, onClose }) {
             if (data.success) {
                 setMealPrepData(data);
             } else {
-                setError(data.error || 'Failed to generate meal prep suggestions');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Generation Failed',
+                    message: data.error || 'Failed to generate meal prep suggestions'
+                });
             }
         } catch (error) {
             console.error('Error fetching meal prep suggestions:', error);
-            setError('Failed to load meal prep suggestions');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Failed',
+                message: 'Failed to load meal prep suggestions'
+            });
         } finally {
             setLoading(false);
         }

@@ -7,6 +7,7 @@ import { apiGet } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function NutritionFacts({
                                            recipeId,
@@ -55,10 +56,18 @@ export default function NutritionFacts({
                     onNutritionLoad(data.nutrition);
                 }
             } else {
-                setError(data.error || 'Failed to load nutrition data');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Loading Failed',
+                    message: data.error || 'Failed to load nutrition data'
+                });
             }
         } catch (err) {
-            setError('Error loading nutrition data');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Loading Error',
+                message: 'Error loading nutrition data'
+            });
             console.error('Nutrition fetch error:', err);
         } finally {
             setLoading(false);
@@ -94,7 +103,7 @@ export default function NutritionFacts({
                     </div>
 
                     <TouchEnhancedButton
-                        onClick={() => window.location.href = '/pricing?source=nutrition-facts'}
+                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=nutrition-facts', router })}
                         className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-yellow-700 text-sm"
                     >
                         Upgrade to Gold - $4.99/month

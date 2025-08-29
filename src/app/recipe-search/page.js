@@ -137,12 +137,16 @@ export default function PublicRecipeSearch() {
         const fetchRecipes = async () => {
             try {
                 setLoading(true);
-                setError('');
 
                 const response = await fetch('/api/public-recipes');
 
                 if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'HTTP Error',
+                        message: `HTTP error! status: ${response.status}: ${response.statusText}`
+                    });
+                    return;
                 }
 
                 const data = await response.json();
@@ -156,12 +160,21 @@ export default function PublicRecipeSearch() {
                     const multiPartCount = publicRecipes.filter(r => r.isMultiPart).length;
                     console.log(`Found ${multiPartCount} multi-part recipes`);
                 } else {
-                    throw new Error(data.error || 'Failed to load recipes');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Load Failed',
+                        message: data.error || 'Failed to load recipes'
+                    });
+                    return;
                 }
 
             } catch (error) {
                 console.error('Error fetching recipes:', error);
-                setError('Failed to load recipes. Please try again later.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Load Failed',
+                    message: 'Failed to load recipes. Please try again later.'
+                });
                 setRecipes([]);
                 setFilteredRecipes([]);
             } finally {

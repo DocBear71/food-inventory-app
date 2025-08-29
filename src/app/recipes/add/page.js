@@ -8,6 +8,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function AddRecipePage() {
     const router = useRouter();
@@ -158,7 +159,12 @@ export default function AddRecipePage() {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('API Error Response:', errorText);
-                throw new Error(`Server error: ${response.status} - ${errorText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Server Error',
+                    message: `Server error: ${response.status} - ${errorText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -173,17 +179,29 @@ export default function AddRecipePage() {
             } else {
                 // Show error
                 console.error('Recipe creation failed:', data.error);
-                alert(data.error || 'Failed to create recipe');
-                throw new Error(data.error || 'Failed to create recipe');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Recipe Creation Failed',
+                    message: data.error || 'Failed to create recipe'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error creating recipe:', error);
 
             // Enhanced error handling for video imports
             if (recipeData.videoMetadata || importSource) {
-                alert(`Error saving ${importSource || 'imported'} recipe: ${error.message}\n\nThe recipe was extracted successfully but couldn't be saved. Please try again.`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: `${importSource || 'Imported'} Recipe Save Failed`,
+                    message: `The recipe was extracted successfully but couldn't be saved: ${error.message}\n\nPlease try again.`
+                });
             } else {
-                alert('Error creating recipe: ' + error.message);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Recipe Creation Failed',
+                    message: error.message
+                });
             }
 
             throw error; // Re-throw so EnhancedRecipeForm can handle loading state
@@ -191,8 +209,8 @@ export default function AddRecipePage() {
     };
 
     // Handle cancel
-    const handleCancel = () => {
-        router.back();
+    const handleCancel = async () => {
+        await NativeNavigation.routerBack(router);
     };
 
     const getImportSourceInfo = () => {
@@ -255,7 +273,7 @@ export default function AddRecipePage() {
                         )}
                     </div>
                     <TouchEnhancedButton
-                        onClick={() => router.back()}
+                        onClick={() => NativeNavigation.routerBack(router)}
                         className="text-gray-600 hover:text-gray-800 flex items-center gap-2"
                     >
                         ← Back to Recipes

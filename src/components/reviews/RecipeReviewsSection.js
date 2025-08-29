@@ -9,6 +9,7 @@ import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Simple Star Rating Component
 function StarRating({ rating, maxRating = 5, onRatingChange, interactive = false, size = 'medium' }) {
@@ -119,7 +120,11 @@ function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
         e.preventDefault();
 
         if (rating === 0) {
-            alert('Please select a rating');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Rating Required',
+                message: 'Please select a rating'
+            });
             return;
         }
 
@@ -150,11 +155,19 @@ function AddReviewForm({ recipeId, onReviewAdded, onCancel }) {
                 setModifications('');
                 setWouldMakeAgain(null);
             } else {
-                alert(data.error || 'Failed to add review');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Review Failed',
+                    message: data.error || 'Failed to add review'
+                });
             }
         } catch (error) {
             console.error('Error adding review:', error);
-            alert('Error adding review');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Review Error',
+                message: 'Error adding review'
+            });
         } finally {
             setSubmitting(false);
         }
@@ -374,7 +387,7 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
                         fallback={
                             <div className="text-center">
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=recipe-reviews'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=recipe-reviews', router })}
                                     className="bg-yellow-600 text-white px-4 py-2 rounded-md hover:bg-yellow-700 transition-colors text-sm"
                                 >
                                     Upgrade to Write Reviews
@@ -432,7 +445,7 @@ export default function RecipeReviewsSection({ recipeId, recipeOwnerId }) {
                             fallback={
                                 <div className="space-y-2">
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=recipe-reviews'}
+                                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=recipe-reviews', router })}
                                         className="bg-yellow-600 text-white px-6 py-2 rounded-md hover:bg-yellow-700 transition-colors"
                                     >
                                         Upgrade to Write the First Review

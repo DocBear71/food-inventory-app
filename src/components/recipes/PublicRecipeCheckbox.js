@@ -6,6 +6,7 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function PublicRecipeCheckbox({
                                                  isPublic,
@@ -97,7 +98,7 @@ export default function PublicRecipeCheckbox({
                         </div>
                         <div className="mt-3">
                             <TouchEnhancedButton
-                                onClick={() => window.location.href = '/pricing?source=public-recipes'}
+                                onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=public-recipes', router })}
                                 className="bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-4 py-2 rounded-md font-medium hover:from-yellow-500 hover:to-orange-600"
                             >
                                 🚀 Upgrade to Gold
@@ -142,7 +143,7 @@ export default function PublicRecipeCheckbox({
                                                 ⚠️ Gold limit reached! Upgrade to Platinum for unlimited public recipes.
                                             </p>
                                             <TouchEnhancedButton
-                                                onClick={() => window.location.href = '/pricing?source=public-recipe-limit'}
+                                                onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=public-recipe-limit', router })}
                                                 className="mt-2 bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-3 py-1 rounded-md text-xs font-medium"
                                             >
                                                 Upgrade to Platinum
@@ -168,7 +169,7 @@ export default function PublicRecipeCheckbox({
                                 <strong>⚠️ Approaching Limit:</strong> You have {publicRecipeStats.limit - publicRecipeStats.current} public recipe slots remaining.
                                 <div className="mt-2">
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=public-recipe-warning'}
+                                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=public-recipe-warning', router })}
                                         className="text-orange-700 hover:text-orange-900 underline text-xs"
                                     >
                                         Upgrade to Platinum for unlimited public recipes

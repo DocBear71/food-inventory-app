@@ -114,7 +114,12 @@ export class AIRecipeNutritionService {
                 parsed = JSON.parse(response.choices[0].message.content);
             } catch (parseError) {
                 console.error('❌ Failed to parse AI response as JSON:', parseError);
-                throw new Error('AI response was not valid JSON');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'AI Response Failed',
+                    message: 'AI response was not valid JSON'
+                });
+                return;
             }
 
             return {

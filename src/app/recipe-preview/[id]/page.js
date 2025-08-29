@@ -24,16 +24,25 @@ export default function PublicRecipePreview() {
 
             try {
                 setLoading(true);
-                setError('');
 
                 // Use the dedicated public recipe API
                 const response = await fetch(`/api/public-recipe/${params.id}`);
 
                 if (!response.ok) {
                     if (response.status === 404) {
-                        throw new Error('Recipe not found or not publicly available');
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Recipe Failed',
+                            message: 'Recipe not found or not publicly available'
+                        });
+                        return;
                     } else {
-                        throw new Error(`Failed to load recipe: ${response.status}`);
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Recipe Load Failed',
+                            message: `Failed to load recipe: ${response.status}`
+                        });
+                        return;
                     }
                 }
 
@@ -54,7 +63,12 @@ export default function PublicRecipePreview() {
                     // Fetch related recipes
                     await fetchRelatedRecipes(data.recipe);
                 } else {
-                    throw new Error(data.error || 'Failed to load recipe');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Load Failed',
+                        message: data.error || 'Failed to load recipe'
+                    });
+                    return;
                 }
 
             } catch (error) {

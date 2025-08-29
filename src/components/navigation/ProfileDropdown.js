@@ -8,6 +8,7 @@ import { useSafeSession } from '@/hooks/useSafeSession';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function ProfileDropdown() {
     const { data: session } = useSafeSession();
@@ -35,7 +36,7 @@ export default function ProfileDropdown() {
 
     const handleSignOut = async () => {
         await signOut({ redirect: false });
-        router.push('/auth/signin');
+        await NativeNavigation.routerPush(router, '/auth/signin');
     };
 
     return (

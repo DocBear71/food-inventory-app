@@ -10,6 +10,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import AddToCollectionButton from "@/components/recipes/AddToCollectionButton";
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function CollectionViewPage() {
     const { data: session, status } = useSafeSession();
@@ -46,11 +47,19 @@ export default function CollectionViewPage() {
                     isPublic: data.collection.isPublic
                 });
             } else {
-                setError(data.error || 'Collection not found');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Collection Not Found',
+                    message: data.error || 'Collection not found'
+                });
             }
         } catch (error) {
             console.error('Error fetching collection:', error);
-            setError('Failed to load collection');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Failed',
+                message: 'Failed to load collection'
+            });
         } finally {
             setLoading(false);
         }
@@ -58,7 +67,6 @@ export default function CollectionViewPage() {
 
     const handleUpdateCollection = async () => {
         setUpdating(true);
-        setError('');
 
         try {
             const response = await apiPut(`/api/collections/${params.id}`, editData); // Changed this line
@@ -69,18 +77,33 @@ export default function CollectionViewPage() {
                 setCollection(data.collection);
                 setEditMode(false);
             } else {
-                setError(data.error || 'Failed to update collection');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: data.error || 'Failed to update collection'
+                });
             }
         } catch (error) {
             console.error('Error updating collection:', error);
-            setError('Failed to update collection');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Update Failed',
+                message: data.error || 'Failed to update collection'
+            });
         } finally {
             setUpdating(false);
         }
     };
 
     const handleRemoveRecipe = async (recipeId) => {
-        if (!confirm('Remove this recipe from the collection?')) {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Remove Recipe',
+            message: 'Remove this recipe from the collection?',
+            confirmText: 'Remove',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -92,11 +115,19 @@ export default function CollectionViewPage() {
             if (data.success) {
                 setCollection(data.collection);
             } else {
-                setError(data.error || 'Failed to remove recipe');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Remove Failed',
+                    message: data.error || 'Failed to remove recipe'
+                });
             }
         } catch (error) {
             console.error('Error removing recipe:', error);
-            setError('Failed to remove recipe');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Remove Failed',
+                message: 'Failed to remove recipe'
+            });
         }
     };
 
@@ -153,7 +184,7 @@ export default function CollectionViewPage() {
                             {error}
                         </h3>
                         <TouchEnhancedButton
-                            onClick={() => router.back()}
+                            onClick={() => NativeNavigation.routerBack(router)}
                             className="text-indigo-600 hover:text-indigo-700"
                         >
                             ← Go Back
@@ -174,7 +205,7 @@ export default function CollectionViewPage() {
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
                     <TouchEnhancedButton
-                        onClick={() => router.back()}
+                        onClick={() => NativeNavigation.routerBack(router)}
                         className="text-gray-600 hover:text-gray-800 flex items-center gap-2"
                     >
                         ← Back
@@ -407,7 +438,7 @@ export default function CollectionViewPage() {
                             Start adding recipes to organize them by theme, cuisine, or occasion
                         </p>
                         <TouchEnhancedButton
-                            onClick={() => router.push('/recipes')}
+                            onClick={() => NativeNavigation.routerPush(router, '/recipes')}
                             className="bg-indigo-600 text-white px-6 py-2 rounded-md hover:bg-indigo-700"
                         >
                             Browse Recipes

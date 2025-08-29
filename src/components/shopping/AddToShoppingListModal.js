@@ -45,7 +45,11 @@ export default function AddToShoppingListModal({
             }
         } catch (error) {
             console.error('Error loading saved lists:', error);
-            setError('Failed to load saved lists');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Loading Failed',
+                message: 'Failed to load saved lists'
+            });
         }
     };
 
@@ -53,12 +57,15 @@ export default function AddToShoppingListModal({
         if (!item) return;
 
         setLoading(true);
-        setError('');
 
         try {
             if (selectedOption === 'new') {
                 if (!newListName.trim()) {
-                    setError('Please enter a name for the new list');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Name Required',
+                        message: 'Please enter a name for the new list'
+                    });
                     setLoading(false);
                     return;
                 }
@@ -69,7 +76,11 @@ export default function AddToShoppingListModal({
                 });
             } else {
                 if (!selectedExistingList) {
-                    setError('Please select an existing list');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Selection Required',
+                        message: 'Please select an existing list'
+                    });
                     setLoading(false);
                     return;
                 }
@@ -82,7 +93,11 @@ export default function AddToShoppingListModal({
 
             onClose();
         } catch (error) {
-            setError(error.message || 'Failed to add item to shopping list');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Add Failed',
+                message: error.message || 'Failed to add item to shopping list'
+            });
         } finally {
             setLoading(false);
         }

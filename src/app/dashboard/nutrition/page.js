@@ -11,6 +11,7 @@ import Footer from '@/components/legal/Footer';
 // Import the full-featured nutrition dashboard component
 import NutritionDashboard from '@/components/integrations/NutritionDashboard';
 import NutritionModal from '@/components/nutrition/NutritionModal';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function NutritionDashboardPage() {
     const { data: session, status } = useSafeSession();
@@ -23,7 +24,7 @@ export default function NutritionDashboardPage() {
 
     useEffect(() => {
         if (status === 'unauthenticated') {
-            router.push('/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [status, router]);
 

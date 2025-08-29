@@ -37,14 +37,26 @@ export default function AIPhotoSearch({ recipeId, onPhotoAdded, onClose }) {
             if (data.success) {
                 setSearchResults(data.photos || []);
                 if (data.photos.length === 0) {
-                    setError('No suitable photos found. Try a different search type.');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showAlert({
+                        title: 'No Photos Found',
+                        message: 'No suitable photos found. Try a different search type.'
+                    });
                 }
             } else {
-                setError(data.error || 'Search failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Search Failed',
+                    message: data.error || 'Search failed'
+                });
             }
         } catch (error) {
             console.error('Photo search error:', error);
-            setError('Failed to search for photos');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Search Error',
+                message: 'Failed to search for photos'
+            });
         } finally {
             setSearching(false);
         }
@@ -67,11 +79,19 @@ export default function AIPhotoSearch({ recipeId, onPhotoAdded, onClose }) {
                 onPhotoAdded(data.photo);
                 onClose();
             } else {
-                setError(data.error || 'Auto-select failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Auto-Select Failed',
+                    message: data.error || 'Auto-select failed'
+                });
             }
         } catch (error) {
             console.error('Auto-select error:', error);
-            setError('Failed to auto-select photo');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Auto-Select Error',
+                message: 'Failed to auto-select photo'
+            });
         } finally {
             setSearching(false);
         }
@@ -104,11 +124,19 @@ export default function AIPhotoSearch({ recipeId, onPhotoAdded, onClose }) {
                 onPhotoAdded(data.photo);
                 onClose();
             } else {
-                setError(data.error || 'Failed to save photo');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Save Failed',
+                    message: data.error || 'Failed to save photo'
+                });
             }
         } catch (error) {
             console.error('Save photo error:', error);
-            setError('Failed to save selected photo');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Save Error',
+                message: 'Failed to save selected photo'
+            });
         } finally {
             setSaving(false);
         }

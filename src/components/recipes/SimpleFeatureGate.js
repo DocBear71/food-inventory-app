@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { apiGet } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function SimpleFeatureGate({
                                               feature,
@@ -56,7 +57,7 @@ export default function SimpleFeatureGate({
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                 <p className="text-blue-800 text-sm mb-2">Please sign in to access this feature</p>
                 <button
-                    onClick={() => window.location.href = '/auth/signin'}
+                    onClick={() => NativeNavigation.navigateTo({ path: '/auth/signin', router })}
                     className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700"
                 >
                     Sign In

@@ -8,6 +8,7 @@ import Link from 'next/link';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout.js';
 import Footer from '@/components/legal/Footer.jsx';
 import { MobileSession } from '@/lib/mobile-session-simple.js';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function Home() {
     const {data: session, status} = useSafeSession();
@@ -39,7 +40,7 @@ export default function Home() {
                         if (mobileSession?.user) {
                             console.log('✅ Found mobile session, redirecting to dashboard');
                             setDebugInfo('Found mobile session, redirecting...');
-                            router.replace('/dashboard');
+                            await NativeNavigation.routerReplace(router, '/dashboard');
                         } else {
                             console.log('❌ No mobile session found');
                             setDebugInfo('No mobile session found');
@@ -65,7 +66,7 @@ export default function Home() {
     useEffect(() => {
         if (!isNative && status === 'authenticated' && session) {
             console.log('🌐 Web platform: Redirecting authenticated user to dashboard');
-            router.push('/dashboard');
+            NativeNavigation.routerPush(router, '/dashboard');
         }
     }, [status, session, router, isNative]);
 

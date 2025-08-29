@@ -7,6 +7,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Separate component for search params to wrap in Suspense
 function PricingContent() {
@@ -508,7 +509,7 @@ function PricingContent() {
                         <p className="text-gray-600">
                             Need help choosing? <TouchEnhancedButton className="text-blue-600 hover:text-blue-700 font-medium">Contact our support team</TouchEnhancedButton> or{' '}
                             <TouchEnhancedButton
-                                onClick={() => router.push('/auth/signup')}
+                                onClick={() => NativeNavigation.routerPush(router, '/auth/signup')}
                                 className="text-blue-600 hover:text-blue-700 font-medium"
                             >
                                 start with our free plan

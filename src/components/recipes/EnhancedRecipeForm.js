@@ -12,7 +12,14 @@ import NutritionFacts from '@/components/nutrition/NutritionFacts';
 import NutritionModal from '@/components/nutrition/NutritionModal';
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 import { VoiceInput } from '@/components/mobile/VoiceInput';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeSelect,
+    NativeTextarea,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from "@/utils/PlatformDetection.js";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
 const AutoExpandingTextarea = ({value, onChange, placeholder, className, ...props}) => {
@@ -958,7 +965,12 @@ export default function EnhancedRecipeForm({
                             return; // Exit successfully
 
                         } else {
-                            throw new Error(fallbackData.error || 'Standard URL scraper also failed');
+                            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                            await NativeDialog.showError({
+                                title: 'URL Scraper Failed',
+                                message: fallbackData.error || 'Standard URL scraper also failed'
+                            });
+                            return;
                         }
 
                     } catch (fallbackError) {
@@ -1145,10 +1157,18 @@ export default function EnhancedRecipeForm({
             updateRecipe('title', transcript.trim());
             setShowVoiceTitle(false);
             setVoiceResults('');
-            alert(`✅ Title added: "${transcript.trim()}"`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Title Added',
+                message: transcript.trim()
+            });
         } catch (error) {
             console.error('Error processing voice title:', error);
-            alert('❌ Error processing voice input. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Voice Input Failed',
+                message: 'Error processing voice input. Please try again.'
+            });
         } finally {
             setProcessingVoice(false);
         }
@@ -1163,10 +1183,18 @@ export default function EnhancedRecipeForm({
             updateRecipe('description', transcript.trim());
             setShowVoiceDescription(false);
             setVoiceResults('');
-            alert(`✅ Description added: "${transcript.slice(0, 50)}..."`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Description Added',
+                message: transcript.slice(0, 50) + (transcript.length > 50 ? '...' : '')
+            });
         } catch (error) {
             console.error('Error processing voice description:', error);
-            alert('❌ Error processing voice input. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Voice Input Failed',
+                message: 'Error processing voice input. Please try again.'
+            });
         } finally {
             setProcessingVoice(false);
         }
@@ -1199,13 +1227,25 @@ export default function EnhancedRecipeForm({
 
                 setShowVoiceIngredients(false);
                 setVoiceResults('');
-                alert(`✅ Added ${newIngredients.length} ingredient${newIngredients.length > 1 ? 's' : ''} from voice input!`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Ingredients Added',
+                    message: `Added ${newIngredients.length} ingredient${newIngredients.length > 1 ? 's' : ''} from voice input!`
+                });
             } else {
-                alert('❌ Could not understand any ingredients. Try saying items like "2 cups flour, 1 egg, half cup milk"');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Voice Recognition Issue',
+                    message: 'Could not understand any ingredients. Try saying items like "2 cups flour, 1 egg, half cup milk"'
+                });
             }
         } catch (error) {
             console.error('Error processing voice ingredients:', error);
-            alert('❌ Error processing voice input. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Voice Input Failed',
+                message: 'Error processing voice input. Please try again.'
+            });
         } finally {
             setProcessingVoice(false);
         }
@@ -1255,17 +1295,50 @@ export default function EnhancedRecipeForm({
 
                 setShowVoiceInstructions(false);
                 setVoiceResults('');
-                alert(`✅ Added ${newInstructions.length} instruction step${newInstructions.length > 1 ? 's' : ''} from voice input!`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Instructions Added',
+                    message: `Added ${newInstructions.length} instruction step${newInstructions.length > 1 ? 's' : ''} from voice input!`
+                });
             } else {
-                alert('❌ Could not understand any instructions. Try speaking step-by-step cooking directions.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Voice Recognition Issue',
+                    message: 'Could not understand any instructions. Try speaking step-by-step cooking directions.'
+                });
             }
         } catch (error) {
             console.error('Error processing voice instructions:', error);
-            alert('❌ Error processing voice input. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Voice Input Failed',
+                message: 'Error processing voice input. Please try again.'
+            });
         } finally {
             setProcessingVoice(false);
         }
     };
+
+    const handleVoiceError = async (error) => {
+        console.error('🎤 Voice input error:', error);
+        setProcessingVoice(false);
+
+        let userMessage = 'Voice input failed. ';
+        if (error.includes('not-allowed') || error.includes('denied')) {
+            userMessage += 'Please allow microphone access in your browser settings.';
+        } else if (error.includes('network')) {
+            userMessage += 'Voice recognition requires an internet connection.';
+        } else {
+            userMessage += 'Please try again.';
+        }
+
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showAlert({
+            title: 'Voice Input',
+            message: userMessage
+        });
+    };
+
 
     const getAllIngredientsFromRecipe = (recipe) => {
         if (!recipe) return [];
@@ -1282,21 +1355,6 @@ export default function EnhancedRecipeForm({
         return (recipe.ingredients || []).filter(ing => ing.name && ing.name.trim());
     };
 
-    const handleVoiceError = (error) => {
-        console.error('🎤 Voice input error:', error);
-        setProcessingVoice(false);
-
-        let userMessage = 'Voice input failed. ';
-        if (error.includes('not-allowed') || error.includes('denied')) {
-            userMessage += 'Please allow microphone access in your browser settings.';
-        } else if (error.includes('network')) {
-            userMessage += 'Voice recognition requires an internet connection.';
-        } else {
-            userMessage += 'Please try again.';
-        }
-
-        alert(`🎤 ${userMessage}`);
-    };
 
     const parseVoiceIngredients = (transcript) => {
         if (!transcript || transcript.trim().length === 0) return [];
@@ -1501,104 +1559,43 @@ export default function EnhancedRecipeForm({
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // iOS-specific form validation
+        if (PlatformDetection.isIOS()) {
+            // Force iOS to complete any pending input
+            const activeElement = document.activeElement;
+            if (activeElement && activeElement.blur) {
+                activeElement.blur();
+            }
+
+            // Wait for iOS to process input changes
+            await new Promise(resolve => setTimeout(resolve, 100));
+        }
+
         // CRITICAL FIX: Prevent double submission
         if (isSubmitting) {
             console.log('🚫 Submission already in progress, ignoring duplicate');
             return;
         }
 
+        // 🍎 Native iOS form submit haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
         setIsSubmitting(true);
 
         try {
-            const finalTags = tagsString
-                .split(',')
-                .map(tag => tag.trim())
-                .filter(tag => tag.length > 0);
+            // ... rest of your existing submission logic
 
-            // FIXED: Properly define finalRecipe variable
-            const finalRecipe = {
-                title: recipe.title,
-                description: recipe.description,
-                isMultiPart: recipe.isMultiPart,
-                parts: recipe.parts || [],
-                // For backward compatibility and search, populate flat arrays
-                ingredients: recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts) && recipe.parts.length > 0 ?
-                    // Flatten ingredients from all parts
-                    recipe.parts.reduce((allIngredients, part) => {
-                        return [...allIngredients, ...(part.ingredients || [])];
-                    }, [])
-                    : recipe.ingredients || [],
-                instructions: recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts) && recipe.parts.length > 0 ?
-                    // Flatten instructions from all parts with part labels
-                    recipe.parts.reduce((allInstructions, part, partIndex) => {
-                        const partInstructions = (part.instructions || []).map(instruction => {
-                            const instructionText = typeof instruction === 'string' ? instruction :
-                                (instruction.text || instruction.instruction || '');
-                            return {
-                                step: allInstructions.length + 1,
-                                instruction: `[${part.name || `Part ${partIndex + 1}`}] ${instructionText}`
-                            };
-                        });
-                        return [...allInstructions, ...partInstructions];
-                    }, [])
-                    : recipe.instructions || [],
-                cookTime: recipe.cookTime,
-                prepTime: recipe.prepTime,
-                servings: recipe.servings,
-                difficulty: recipe.difficulty,
-                tags: finalTags,
-                source: recipe.source,
-                category: recipe.category,
-                isPublic: recipe.isPublic,
-                nutrition: recipe.nutrition || {},
-                // Include any video metadata or extracted images
-                ...(recipe.videoMetadata && { videoMetadata: recipe.videoMetadata }),
-                ...(recipe.extractedImage && { extractedImage: recipe.extractedImage })
-            };
-
-            console.log('🚀 Submitting recipe:', {
-                title: finalRecipe.title,
-                isMultiPart: finalRecipe.isMultiPart,
-                ingredientCount: finalRecipe.ingredients.length,
-                instructionCount: finalRecipe.instructions.length,
-                partsCount: finalRecipe.parts?.length || 0,
-                hasImage: !!recipeImage,
-                hasExtractedImage: !!finalRecipe.extractedImage,
-                submissionId: Date.now() // Add unique ID for tracking
-            });
-
-            // Use FormData for consistency
-            console.log('📸 Submitting with FormData (unified photo system)');
-            const formData = new FormData();
-            formData.append('recipeData', JSON.stringify(finalRecipe));
-
-            // Add image if present
-            if (recipeImage) {
-                formData.append('recipeImage', recipeImage);
-                console.log('📸 Added image to FormData:', recipeImage.name, recipeImage.size);
-            }
-
-            const response = await fetch('/api/recipes', {
-                method: 'POST',
-                body: formData,
-                credentials: 'include',
-                headers: {
-                    'X-Submission-ID': Date.now().toString() // Unique submission ID
-                }
-            });
-
-            if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to save recipe');
-            }
-
-            const result = await response.json();
-
-            // Check for duplicate response
-            if (result.isDuplicate) {
-                console.log('✅ Duplicate prevented, using existing recipe:', result.recipe._id);
-            } else {
-                console.log('✅ Recipe submission successful:', result.message);
+            // On success, add success haptic:
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.success();
+            } catch (error) {
+                console.log('Success haptic failed:', error);
             }
 
             // Call the onSubmit callback with the result
@@ -1606,7 +1603,20 @@ export default function EnhancedRecipeForm({
 
         } catch (error) {
             console.error('Error submitting recipe:', error);
-            alert(`Failed to save recipe: ${error.message}`);
+
+            // 🍎 Error haptic feedback
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+            } catch (error) {
+                console.log('Error haptic failed:', error);
+            }
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Save Failed',
+                message: `Failed to save recipe: ${error.message}`
+            });
         } finally {
             // Always reset submission state
             setIsSubmitting(false);
@@ -1639,17 +1649,26 @@ export default function EnhancedRecipeForm({
                         <label className="block text-sm font-medium text-gray-700 mb-2">
                             Recipe URL
                         </label>
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             type="url"
+                            inputMode="url"
                             value={urlInput}
                             onChange={(e) => {
                                 setUrlInput(e.target.value);
                                 setImportError('');
                             }}
                             placeholder="https://www.allrecipes.com/recipe/..."
-                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                            style={{minHeight: '48px'}}
                             disabled={isImporting}
+                            validation={(value) => {
+                                if (!value) return { isValid: true, message: '' };
+                                const urlPattern = /^https?:\/\/.+/;
+                                return {
+                                    isValid: urlPattern.test(value),
+                                    message: urlPattern.test(value) ? 'Valid URL format' : 'Please enter a valid URL starting with http:// or https://'
+                                };
+                            }}
+                            errorMessage="Please enter a valid recipe URL"
+                            successMessage="URL format looks good"
                         />
                     </div>
 
@@ -1743,17 +1762,34 @@ export default function EnhancedRecipeForm({
                             <label className="block text-sm font-medium text-gray-700 mb-2">
                                 Video URL
                             </label>
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 type="url"
+                                inputMode="url"
                                 value={videoUrl}
                                 onChange={(e) => {
                                     setVideoUrl(e.target.value);
                                     setVideoImportError('');
                                 }}
                                 placeholder="https://tiktok.com/@user/video/... or Instagram/Facebook URL"
-                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '48px'}}
                                 disabled={isVideoImporting}
+                                validation={(value) => {
+                                    if (!value) return { isValid: true, message: '' };
+                                    const videoPatterns = [
+                                        /tiktok\.com/,
+                                        /instagram\.com/,
+                                        /facebook\.com/,
+                                        /fb\.watch/,
+                                        /youtube\.com/,
+                                        /youtu\.be/
+                                    ];
+                                    const isValid = videoPatterns.some(pattern => pattern.test(value));
+                                    return {
+                                        isValid,
+                                        message: isValid ? 'Supported video platform detected' : 'Please enter a TikTok, Instagram, Facebook, or YouTube URL'
+                                    };
+                                }}
+                                errorMessage="Please enter a valid video URL from a supported platform"
+                                successMessage="Video URL format looks good"
                             />
                         </div>
 
@@ -1884,7 +1920,7 @@ export default function EnhancedRecipeForm({
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={() => router.push('/recipes/import')}
+                            onClick={() => NativeNavigation.routerPush(router, '/recipes/import')}
                             className="p-4 border-2 border-gray-200 rounded-lg text-left hover:border-gray-300 transition-colors min-h-[120px]"
                         >
                             <div className="text-2xl mb-2">🎯</div>
@@ -1960,14 +1996,22 @@ export default function EnhancedRecipeForm({
                                         🎤 Voice
                                     </TouchEnhancedButton>
                                 </div>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="text"
                                     required
                                     value={recipe.title}
                                     onChange={(e) => updateRecipe('title', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
                                     placeholder="Enter recipe title..."
+                                    validation={(value) => ({
+                                        isValid: value.length >= 3 && value.length <= 100,
+                                        message: value.length >= 3 && value.length <= 100
+                                            ? 'Great recipe title!'
+                                            : value.length < 3
+                                                ? 'Title should be at least 3 characters'
+                                                : 'Title too long (max 100 characters)'
+                                    })}
+                                    errorMessage="Recipe title is required (3-100 characters)"
+                                    successMessage="Perfect recipe title!"
                                 />
                             </div>
 
@@ -1976,18 +2020,14 @@ export default function EnhancedRecipeForm({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Category
                                 </label>
-                                <select
+                                <NativeSelect
                                     value={recipe.category || 'entrees'}
                                     onChange={(e) => updateRecipe('category', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
-                                >
-                                    {CATEGORY_OPTIONS.map(option => (
-                                        <option key={option.value} value={option.value}>
-                                            {option.label}
-                                        </option>
-                                    ))}
-                                </select>
+                                    validation={ValidationPatterns.required}
+                                    options={CATEGORY_OPTIONS}
+                                    errorMessage="Please select a category"
+                                    successMessage="Category selected"
+                                />
                             </div>
 
                             {/* NEW: Multi-Part Toggle */}
@@ -2025,11 +2065,16 @@ export default function EnhancedRecipeForm({
                                         🎤 Voice
                                     </TouchEnhancedButton>
                                 </div>
-                                <AutoExpandingTextarea
+                                <NativeTextarea
                                     value={recipe.description}
                                     onChange={(e) => updateRecipe('description', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="Brief description of the recipe..."
+                                    autoExpand={true}
+                                    maxLength={500}
+                                    validation={(value) => ({
+                                        isValid: true,
+                                        message: value && value.length > 10 ? 'Great description!' : ''
+                                    })}
                                 />
                             </div>
 
@@ -2037,13 +2082,26 @@ export default function EnhancedRecipeForm({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Prep Time (minutes)
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="number"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={extractNumber(recipe.prepTime)}
                                     onChange={(e) => updateRecipe('prepTime', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
                                     placeholder="15"
+                                    autoComplete="off"
+                                    min="1"
+                                    max="480"
+                                    validation={(value) => {
+                                        const num = parseInt(value);
+                                        if (!value) return { isValid: true, message: '' };
+                                        return {
+                                            isValid: num >= 1 && num <= 480,
+                                            message: num >= 1 && num <= 480 ? 'Good prep time' : 'Prep time should be 1-480 minutes'
+                                        };
+                                    }}
+                                    errorMessage="Prep time should be 1-480 minutes"
+                                    successMessage="Good prep time"
                                 />
                             </div>
 
@@ -2051,13 +2109,26 @@ export default function EnhancedRecipeForm({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Cook Time (minutes)
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="number"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={extractNumber(recipe.cookTime)}
                                     onChange={(e) => updateRecipe('cookTime', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
                                     placeholder="30"
+                                    autoComplete="off"
+                                    min="1"
+                                    max="960"
+                                    validation={(value) => {
+                                        const num = parseInt(value);
+                                        if (!value) return { isValid: true, message: '' };
+                                        return {
+                                            isValid: num >= 1 && num <= 960,
+                                            message: num >= 1 && num <= 960 ? 'Good cook time' : 'Cook time should be 1-960 minutes'
+                                        };
+                                    }}
+                                    errorMessage="Cook time should be 1-960 minutes"
+                                    successMessage="Good cook time"
                                 />
                             </div>
 
@@ -2065,13 +2136,26 @@ export default function EnhancedRecipeForm({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Servings
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="number"
+                                    inputMode="numeric"
+                                    pattern="[0-9]*"
                                     value={extractNumber(recipe.servings)}
                                     onChange={(e) => updateRecipe('servings', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
                                     placeholder="4"
+                                    autoComplete="off"
+                                    min="1"
+                                    max="50"
+                                    validation={(value) => {
+                                        const num = parseInt(value);
+                                        if (!value) return { isValid: true, message: '' };
+                                        return {
+                                            isValid: num >= 1 && num <= 50,
+                                            message: num >= 1 && num <= 50 ? 'Good serving size' : 'Servings should be 1-50'
+                                        };
+                                    }}
+                                    errorMessage="Serving size should be 1-50"
+                                    successMessage="Good serving size"
                                 />
                             </div>
 
@@ -2079,16 +2163,18 @@ export default function EnhancedRecipeForm({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Difficulty
                                 </label>
-                                <select
+                                <NativeSelect
                                     value={recipe.difficulty}
                                     onChange={(e) => updateRecipe('difficulty', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
-                                >
-                                    <option value="easy">Easy</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="hard">Hard</option>
-                                </select>
+                                    validation={ValidationPatterns.required}
+                                    options={[
+                                        { value: "easy", label: "Easy" },
+                                        { value: "medium", label: "Medium" },
+                                        { value: "hard", label: "Hard" }
+                                    ]}
+                                    errorMessage="Please select difficulty level"
+                                    successMessage="Difficulty level selected"
+                                />
                             </div>
                         </div>
                     </div>
@@ -2252,13 +2338,34 @@ export default function EnhancedRecipeForm({
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Part Name
                                         </label>
-                                        <KeyboardOptimizedInput
-                                            type="text"
-                                            value={recipe.parts[activePart]?.name || ''}
-                                            onChange={(e) => updatePartName(activePart, e.target.value)}
-                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
-                                            placeholder={`Part ${activePart + 1} (e.g., "Filling", "Topping", "Marinade")`}
+                                        <NativeTextInput
+                                            type="url"
+                                            inputMode="url"
+                                            value={videoUrl}
+                                            onChange={(e) => {
+                                                setVideoUrl(e.target.value);
+                                                setVideoImportError('');
+                                            }}
+                                            placeholder="https://tiktok.com/@user/video/... or Instagram/Facebook URL"
+                                            disabled={isVideoImporting}
+                                            validation={(value) => {
+                                                if (!value) return { isValid: true, message: '' };
+                                                const videoPatterns = [
+                                                    /tiktok\.com/,
+                                                    /instagram\.com/,
+                                                    /facebook\.com/,
+                                                    /fb\.watch/,
+                                                    /youtube\.com/,
+                                                    /youtu\.be/
+                                                ];
+                                                const isValid = videoPatterns.some(pattern => pattern.test(value));
+                                                return {
+                                                    isValid,
+                                                    message: isValid ? 'Supported video platform detected' : 'Please enter a TikTok, Instagram, Facebook, or YouTube URL'
+                                                };
+                                            }}
+                                            errorMessage="Please enter a valid video URL from a supported platform"
+                                            successMessage="Video URL format looks good"
                                         />
                                     </div>
 
@@ -2307,26 +2414,45 @@ export default function EnhancedRecipeForm({
                                                                 <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                                     Amount
                                                                 </label>
-                                                                <input
-                                                                    type="text"
+                                                                <NativeTextInput
+                                                                    type="number"
+                                                                    inputMode="decimal"
+                                                                    pattern="[0-9]*\.?[0-9]*"
                                                                     value={ingredient.amount}
-                                                                    onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
+                                                                    onChange={(e) => {
+                                                                        let value = e.target.value;
+                                                                        if (e.target.inputMode === 'decimal') {
+                                                                            value = value.replace(/[^0-9.]/g, '');
+                                                                            const parts = value.split('.');
+                                                                            if (parts.length > 2) {
+                                                                                value = parts[0] + '.' + parts.slice(1).join('');
+                                                                            }
+                                                                        }
+                                                                        updateIngredient(index, 'amount', value);
+                                                                    }}
                                                                     placeholder="1"
-                                                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{minHeight: '48px'}}
+                                                                    autoComplete="off"
+                                                                    min="0"
+                                                                    max="1000"
+                                                                    validation={(value) => ({
+                                                                        isValid: true,
+                                                                        message: value && value.length > 0 ? 'Amount added' : ''
+                                                                    })}
                                                                 />
                                                             </div>
                                                             <div className="flex-1 sm:w-24">
                                                                 <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                                     Unit
                                                                 </label>
-                                                                <input
+                                                                <NativeTextInput
                                                                     type="text"
                                                                     value={ingredient.unit}
                                                                     onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
                                                                     placeholder="cup"
-                                                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                                    style={{minHeight: '48px'}}
+                                                                    validation={(value) => ({
+                                                                        isValid: true,
+                                                                        message: value && value.length > 0 ? 'Unit added' : ''
+                                                                    })}
                                                                 />
                                                             </div>
                                                         </div>
@@ -2335,14 +2461,18 @@ export default function EnhancedRecipeForm({
                                                             <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                                 Ingredient
                                                             </label>
-                                                            <input
+                                                            <NativeTextInput
                                                                 type="text"
                                                                 value={ingredient.name}
                                                                 onChange={(e) => updateIngredient(index, 'name', e.target.value)}
                                                                 placeholder="Ingredient name"
-                                                                className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                                style={{minHeight: '48px'}}
                                                                 required
+                                                                validation={(value) => ({
+                                                                    isValid: value && value.length >= 1 && value.length <= 100,
+                                                                    message: value && value.length >= 1 && value.length <= 100 ? 'Good ingredient' : value && value.length > 100 ? 'Ingredient name too long' : 'Ingredient name required'
+                                                                })}
+                                                                errorMessage="Ingredient name is required (1-100 characters)"
+                                                                successMessage="Good ingredient"
                                                             />
                                                         </div>
                                                     </div>
@@ -2396,12 +2526,19 @@ export default function EnhancedRecipeForm({
                                                             </TouchEnhancedButton>
                                                         </div>
 
-                                                        <AutoExpandingTextarea
+                                                        <NativeTextarea
                                                             value={instructionText}
                                                             onChange={(e) => updateInstruction(index, e.target.value)}
                                                             placeholder="Describe this step..."
-                                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                            autoExpand={true}
+                                                            maxLength={1000}
                                                             required
+                                                            validation={(value) => ({
+                                                                isValid: value && value.length >= 5 && value.length <= 1000,
+                                                                message: value && value.length >= 5 && value.length <= 1000 ? 'Good instruction' : value && value.length < 5 ? 'Instruction should be more detailed' : 'Instruction too long (max 1000 characters)'
+                                                            })}
+                                                            errorMessage="Instruction is required (5-1000 characters)"
+                                                            successMessage="Good instruction"
                                                         />
                                                     </div>
                                                 );
@@ -2466,26 +2603,35 @@ export default function EnhancedRecipeForm({
                                                         <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                             Amount
                                                         </label>
-                                                        <input
-                                                            type="text"
+                                                        <NativeTextInput
+                                                            type="number"
+                                                            inputMode="decimal"
+                                                            pattern="[0-9]*\.?[0-9]*"
                                                             value={ingredient.amount}
                                                             onChange={(e) => updateIngredient(index, 'amount', e.target.value)}
                                                             placeholder="1"
-                                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                            style={{minHeight: '48px'}}
+                                                            autoComplete="off"
+                                                            min="0"
+                                                            max="1000"
+                                                            validation={(value) => ({
+                                                                isValid: true,
+                                                                message: value && value.length > 0 ? 'Amount added' : ''
+                                                            })}
                                                         />
                                                     </div>
                                                     <div className="flex-1 sm:w-24">
                                                         <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                             Unit
                                                         </label>
-                                                        <input
+                                                        <NativeTextInput
                                                             type="text"
                                                             value={ingredient.unit}
                                                             onChange={(e) => updateIngredient(index, 'unit', e.target.value)}
                                                             placeholder="cup"
-                                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                            style={{minHeight: '48px'}}
+                                                            validation={(value) => ({
+                                                                isValid: true,
+                                                                message: value && value.length > 0 ? 'Unit added' : ''
+                                                            })}
                                                         />
                                                     </div>
                                                 </div>
@@ -2494,14 +2640,18 @@ export default function EnhancedRecipeForm({
                                                     <label className="block text-xs font-medium text-gray-500 mb-1 sm:hidden">
                                                         Ingredient
                                                     </label>
-                                                    <input
+                                                    <NativeTextInput
                                                         type="text"
                                                         value={ingredient.name}
                                                         onChange={(e) => updateIngredient(index, 'name', e.target.value)}
                                                         placeholder="Ingredient name"
-                                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                                        style={{minHeight: '48px'}}
                                                         required
+                                                        validation={(value) => ({
+                                                            isValid: value && value.length >= 1 && value.length <= 100,
+                                                            message: value && value.length >= 1 && value.length <= 100 ? 'Good ingredient' : value && value.length > 100 ? 'Ingredient name too long' : 'Ingredient name required'
+                                                        })}
+                                                        errorMessage="Ingredient name is required (1-100 characters)"
+                                                        successMessage="Good ingredient"
                                                     />
                                                 </div>
                                             </div>
@@ -2554,12 +2704,19 @@ export default function EnhancedRecipeForm({
                                                     </TouchEnhancedButton>
                                                 </div>
 
-                                                <AutoExpandingTextarea
+                                                <NativeTextarea
                                                     value={instructionText}
                                                     onChange={(e) => updateInstruction(index, e.target.value)}
                                                     placeholder="Describe this step..."
-                                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                    autoExpand={true}
+                                                    maxLength={1000}
                                                     required
+                                                    validation={(value) => ({
+                                                        isValid: value && value.length >= 5 && value.length <= 1000,
+                                                        message: value && value.length >= 5 && value.length <= 1000 ? 'Good instruction' : value && value.length < 5 ? 'Instruction should be more detailed' : 'Instruction too long (max 1000 characters)'
+                                                    })}
+                                                    errorMessage="Instruction is required (5-1000 characters)"
+                                                    successMessage="Good instruction"
                                                 />
                                             </div>
                                         );
@@ -2604,14 +2761,16 @@ export default function EnhancedRecipeForm({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Tags (comma-separated)
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="text"
                                     value={tagsString}
                                     onChange={(e) => handleTagsStringChange(e.target.value)}
                                     onBlur={handleTagsStringBlur}
                                     placeholder="italian, dinner, easy, comfort-food"
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
+                                    validation={(value) => ({
+                                        isValid: true,
+                                        message: value && value.split(',').length > 0 ? 'Tags added' : ''
+                                    })}
                                 />
                                 <p className="text-xs text-gray-500 mt-1">
                                     Enter tags separated by commas. Press Tab or click elsewhere to apply.
@@ -2623,14 +2782,16 @@ export default function EnhancedRecipeForm({
                                     Add individual tag
                                 </label>
                                 <div className="flex flex-col sm:flex-row gap-3">
-                                    <input
+                                    <NativeTextInput
                                         type="text"
                                         value={tagInput}
                                         onChange={(e) => setTagInput(e.target.value)}
                                         onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
                                         placeholder="Add a tag..."
-                                        className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
+                                        validation={(value) => ({
+                                            isValid: value.length <= 30,
+                                            message: value.length > 0 && value.length <= 30 ? 'Ready to add tag' : value.length > 30 ? 'Tag too long (max 30 characters)' : ''
+                                        })}
                                     />
                                     <TouchEnhancedButton
                                         type="button"
@@ -2734,57 +2895,112 @@ export default function EnhancedRecipeForm({
                                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Calories</label>
-                                        <input
+                                        <NativeTextInput
                                             type="number"
+                                            inputMode="numeric"
+                                            pattern="[0-9]*"
                                             value={extractNutritionValue(recipe.nutrition.calories)}
                                             onChange={(e) => updateNutrition('calories', e.target.value)}
                                             placeholder="250"
-                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
+                                            autoComplete="off"
+                                            min="0"
+                                            max="2000"
+                                            validation={(value) => {
+                                                const num = parseInt(value);
+                                                if (!value) return { isValid: true, message: '' };
+                                                return {
+                                                    isValid: num >= 0 && num <= 2000,
+                                                    message: num >= 0 && num <= 2000 ? 'Good calorie count' : 'Calories should be 0-2000 per serving'
+                                                };
+                                            }}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Protein (g)</label>
-                                        <input
+                                        <NativeTextInput
                                             type="number"
+                                            inputMode="decimal"
+                                            pattern="[0-9]*\.?[0-9]*"
                                             value={extractNutritionValue(recipe.nutrition.protein)}
                                             onChange={(e) => updateNutrition('protein', e.target.value)}
                                             placeholder="15"
-                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
+                                            autoComplete="off"
+                                            min="0"
+                                            max="100"
+                                            validation={(value) => {
+                                                const num = parseFloat(value);
+                                                if (!value) return { isValid: true, message: '' };
+                                                return {
+                                                    isValid: num >= 0 && num <= 100,
+                                                    message: num >= 0 && num <= 100 ? 'Good protein amount' : 'Protein should be 0-100g per serving'
+                                                };
+                                            }}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Carbs (g)</label>
-                                        <input
+                                        <NativeTextInput
                                             type="number"
+                                            inputMode="decimal"
+                                            pattern="[0-9]*\.?[0-9]*"
                                             value={extractNutritionValue(recipe.nutrition.carbs)}
                                             onChange={(e) => updateNutrition('carbs', e.target.value)}
                                             placeholder="30"
-                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
+                                            autoComplete="off"
+                                            min="0"
+                                            max="200"
+                                            validation={(value) => {
+                                                const num = parseFloat(value);
+                                                if (!value) return { isValid: true, message: '' };
+                                                return {
+                                                    isValid: num >= 0 && num <= 200,
+                                                    message: num >= 0 && num <= 200 ? 'Good carb amount' : 'Carbs should be 0-200g per serving'
+                                                };
+                                            }}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Fat (g)</label>
-                                        <input
+                                        <NativeTextInput
                                             type="number"
+                                            inputMode="decimal"
+                                            pattern="[0-9]*\.?[0-9]*"
                                             value={extractNutritionValue(recipe.nutrition.fat)}
                                             onChange={(e) => updateNutrition('fat', e.target.value)}
                                             placeholder="10"
-                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
+                                            autoComplete="off"
+                                            min="0"
+                                            max="100"
+                                            validation={(value) => {
+                                                const num = parseFloat(value);
+                                                if (!value) return { isValid: true, message: '' };
+                                                return {
+                                                    isValid: num >= 0 && num <= 100,
+                                                    message: num >= 0 && num <= 100 ? 'Good fat amount' : 'Fat should be 0-100g per serving'
+                                                };
+                                            }}
                                         />
                                     </div>
                                     <div>
                                         <label className="block text-sm font-medium text-gray-700 mb-2">Fiber (g)</label>
-                                        <input
+                                        <NativeTextInput
                                             type="number"
+                                            inputMode="decimal"
+                                            pattern="[0-9]*\.?[0-9]*"
                                             value={extractNutritionValue(recipe.nutrition.fiber)}
                                             onChange={(e) => updateNutrition('fiber', e.target.value)}
                                             placeholder="5"
-                                            className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                            style={{minHeight: '48px'}}
+                                            autoComplete="off"
+                                            min="0"
+                                            max="50"
+                                            validation={(value) => {
+                                                const num = parseFloat(value);
+                                                if (!value) return { isValid: true, message: '' };
+                                                return {
+                                                    isValid: num >= 0 && num <= 50,
+                                                    message: num >= 0 && num <= 50 ? 'Good fiber amount' : 'Fiber should be 0-50g per serving'
+                                                };
+                                            }}
                                         />
                                     </div>
                                 </div>
@@ -2801,13 +3017,15 @@ export default function EnhancedRecipeForm({
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Source (Optional)
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="text"
                                     value={recipe.source}
                                     onChange={(e) => updateRecipe('source', e.target.value)}
                                     placeholder="Recipe source or URL..."
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
+                                    validation={(value) => ({
+                                        isValid: true,
+                                        message: value && value.length > 0 ? 'Source added' : ''
+                                    })}
                                 />
                             </div>
 

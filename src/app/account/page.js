@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/app/account/page.js - FIXED version with stable hook execution
+// file: /src/app/account/page.js - iOS Native Dialog version with stable hook execution
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
@@ -11,6 +11,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import ContactSupportModal from '@/components/support/ContactSupportModal';
 import { apiPost } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function AccountPage() {
     // FIXED: All hooks at the top level - NEVER conditional
@@ -124,11 +125,11 @@ export default function AccountPage() {
 
 
     // FIXED: Use effect with proper cleanup and stable dependencies
-    useEffect(() => {
+    useEffect( () => {
         let mounted = true;
 
         if (status === 'unauthenticated') {
-            router.push('/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
             return;
         }
 
@@ -155,7 +156,6 @@ export default function AccountPage() {
     const claimPreRegistrationReward = useCallback(async () => {
         try {
             setLoading(true);
-            setError('');
 
             // Call your backend to activate the reward
             const response = await apiPost('/api/subscription/claim-prereg-reward', {
@@ -175,11 +175,21 @@ export default function AccountPage() {
                 // Refresh subscription data
                 subscription.refetch();
             } else {
-                setError(data.error || 'Failed to claim pre-registration reward');
+                // UPDATED: Replace setError with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Reward Claim Failed',
+                    message: data.error || 'Failed to claim pre-registration reward'
+                });
             }
         } catch (error) {
             console.error('Error claiming pre-registration reward:', error);
-            setError('Network error. Please try again.');
+            // UPDATED: Replace setError with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -230,7 +240,6 @@ export default function AccountPage() {
         if (loading) return;
 
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiPost('/api/auth/resend-verification', {
@@ -242,11 +251,21 @@ export default function AccountPage() {
             if (response.ok) {
                 setSuccess('Verification email sent! Please check your inbox and spam folder.');
             } else {
-                setError(data.error || 'Failed to resend verification email');
+                // UPDATED: Replace setError with NativeDialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Verification Failed',
+                    message: data.error || 'Failed to resend verification email'
+                });
             }
         } catch (error) {
             console.error('Resend verification error:', error);
-            setError('Network error. Please try again.');
+            // UPDATED: Replace setError with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -284,28 +303,28 @@ export default function AccountPage() {
             title: 'Manage Billing',
             description: 'Update subscription, view invoices, manage payment methods',
             icon: '💳',
-            action: () => router.push('/account/billing'),
+            action: () => NativeNavigation.routerPush(router, '/account/billing'),
             color: 'border-blue-200 hover:border-blue-300 hover:bg-blue-50'
         },
         {
             title: 'Profile Settings',
             description: 'Update personal info, preferences, and dietary restrictions',
             icon: '⚙️',
-            action: () => router.push('/profile'),
+            action: () => NativeNavigation.routerPush(router, '/profile'),
             color: 'border-green-200 hover:border-green-300 hover:bg-green-50'
         },
         {
             title: 'Inventory Management',
             description: 'Manage your food inventory and consumption tracking',
             icon: '📦',
-            action: () => router.push('/inventory'),
+            action: () => NativeNavigation.routerPush(router, '/inventory'),
             color: 'border-indigo-200 hover:border-indigo-300 hover:bg-indigo-50'
         },
         {
             title: 'Recipe Collections',
             description: 'Save and organize your favorite recipes in custom collections',
             icon: '📚',
-            action: () => router.push('/recipes?tab=collections'),
+            action: () => NativeNavigation.routerPush(router, '/recipes?tab=collections'),
             color: 'border-purple-200 hover:border-purple-300 hover:bg-purple-50'
         }
     ];
@@ -313,31 +332,6 @@ export default function AccountPage() {
     return (
         <MobileOptimizedLayout>
             <div className="space-y-6">
-                {/* Success/Error Messages */}
-                {success && (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                        <div className="text-green-800">{success}</div>
-                        <button
-                            onClick={() => setSuccess('')}
-                            className="text-green-600 hover:text-green-800 text-sm mt-2"
-                        >
-                            Dismiss
-                        </button>
-                    </div>
-                )}
-
-                {error && (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-                        <div className="text-red-800">{error}</div>
-                        <button
-                            onClick={() => setError('')}
-                            className="text-red-600 hover:text-red-800 text-sm mt-2"
-                        >
-                            Dismiss
-                        </button>
-                    </div>
-                )}
-
                 {/* Header */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <div className="flex items-center justify-between">
@@ -362,7 +356,7 @@ export default function AccountPage() {
                             <div className="flex items-center justify-between mb-3">
                                 <h3 className="font-medium text-gray-900">Current Plan</h3>
                                 <span className={`px-3 py-1 rounded-full text-sm font-medium border ${
-                                    getTierColor(subscription.originalTier || 
+                                    getTierColor(subscription.originalTier ||
                                         subscription.tier, subscription.status)}`
                                 }>
             {subscription.status === 'expired'
@@ -387,13 +381,13 @@ export default function AccountPage() {
                                             </p>
                                             <div className="flex flex-col sm:flex-row gap-2">
                                                 <TouchEnhancedButton
-                                                    onClick={() => router.push('/pricing')}
+                                                    onClick={() => NativeNavigation.routerPush(router, '/pricing')}
                                                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
                                                 >
                                                     Reactivate Subscription
                                                 </TouchEnhancedButton>
                                                 <TouchEnhancedButton
-                                                    onClick={() => router.push('/account/billing')}
+                                                    onClick={() => NativeNavigation.routerPush(router, '/account/billing')}
                                                     className="bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded-lg font-medium text-sm"
                                                 >
                                                     View Billing
@@ -517,13 +511,13 @@ export default function AccountPage() {
                             {subscription.status === 'expired' ? (
                                 <>
                                     <TouchEnhancedButton
-                                        onClick={() => router.push('/pricing')}
+                                        onClick={() => NativeNavigation.routerPush(router, '/pricing')}
                                         className="flex-1 bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
                                     >
                                         Reactivate Subscription
                                     </TouchEnhancedButton>
                                     <TouchEnhancedButton
-                                        onClick={() => router.push('/account/billing')}
+                                        onClick={() => NativeNavigation.routerPush(router, '/account/billing')}
                                         className="flex-1 bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                                     >
                                         View Billing History
@@ -532,7 +526,7 @@ export default function AccountPage() {
                             ) : (
                                 <>
                                     <TouchEnhancedButton
-                                        onClick={() => router.push('/account/billing')}
+                                        onClick={() => NativeNavigation.routerPush(router, '/account/billing')}
                                         className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg font-medium transition-colors"
                                     >
                                         Manage Subscription
@@ -540,7 +534,7 @@ export default function AccountPage() {
 
                                     {subscription.tier === 'free' && (
                                         <TouchEnhancedButton
-                                            onClick={() => router.push('/pricing')}
+                                            onClick={() => NativeNavigation.routerPush(router, '/pricing')}
                                             className="flex-1 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium transition-all"
                                         >
                                             Upgrade Plan
@@ -701,7 +695,7 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">Last updated recently</div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/auth/change-password')}
+                                onClick={() => NativeNavigation.routerPush(router, '/auth/change-password')}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Change Password
@@ -714,7 +708,13 @@ export default function AccountPage() {
                                 <div className="text-sm text-gray-600">Add an extra layer of security</div>
                             </div>
                             <TouchEnhancedButton
-                                onClick={() => alert('Two-factor authentication setup coming soon!')}
+                                onClick={async () => {
+                                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                    await NativeDialog.showAlert({
+                                        title: 'Coming Soon',
+                                        message: 'Two-factor authentication setup coming soon!'
+                                    });
+                                }}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
                                 Enable 2FA
@@ -738,7 +738,7 @@ export default function AccountPage() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={() => router.push('/help')}
+                            onClick={() => NativeNavigation.routerPush(router, '/help')}
                             className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 text-center transition-colors"
                         >
                             <div className="text-2xl mb-2">📚</div>
@@ -747,7 +747,7 @@ export default function AccountPage() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={() => router.push('/feedback')}
+                            onClick={() => NativeNavigation.routerPush(router, '/feedback')}
                             className="p-4 border border-gray-200 rounded-lg hover:border-gray-300 hover:bg-gray-50 text-center transition-colors"
                         >
                             <div className="text-2xl mb-2">💡</div>

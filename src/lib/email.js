@@ -908,11 +908,21 @@ class EmailService {
     async sendEmail(to, subject, htmlContent, textContent = null, userSubscription = null, userId = null) {
         try {
             if (typeof window !== 'undefined') {
-                throw new Error('Email service cannot be used on client side');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Email Failed',
+                    message: 'Email service cannot be used on client side'
+                });
+                return;
             }
 
             if (!resend) {
-                throw new Error('Resend API key not configured');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'API key Failed',
+                    message: 'Resend API key not configured'
+                });
+                return;
             }
 
             // SUBSCRIPTION VALIDATION for general email sending
@@ -921,7 +931,12 @@ class EmailService {
                     const { checkFeatureAccess } = await import('./subscription-config');
 
                     if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
-                        throw new Error('Email features require a Gold subscription.');
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Email Failed',
+                            message: 'Email features require a Gold subscription.'
+                        });
+                        return;
                     }
                 } catch (importError) {
                     console.warn('Subscription validation skipped - subscription-config not available:', importError.message);
@@ -930,7 +945,12 @@ class EmailService {
 
             // Validate configuration
             if (!process.env.RESEND_API_KEY) {
-                throw new Error('RESEND_API_KEY is not configured');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Resend API Failed',
+                    message: 'RESEND_API_KEY is not configured'
+                });
+                return;
             }
 
             const result = await resend.emails.send({
@@ -942,7 +962,12 @@ class EmailService {
             });
 
             if (result.error) {
-                throw new Error(`Resend API error: ${result.error.message}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Resend API Failed',
+                    message: `Resend API error: ${result.error.message}`
+                });
+                return;
             }
 
             console.log(`Email sent successfully to ${Array.isArray(to) ? to.join(', ') : to} via Resend:`, result.data.id);
@@ -954,7 +979,12 @@ class EmailService {
 
         } catch (error) {
             console.error('Email sending failed:', error);
-            throw new Error(`Failed to send email via Resend: ${error.message}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Resend Failed',
+                message: `Failed to send email via Resend: ${error.message}`
+            });
+            return;
         }
     }
 
@@ -3094,7 +3124,12 @@ export const sendShoppingListEmail = async ({
 
                 // Check feature access
                 if (!checkFeatureAccess(userSubscription, 'EMAIL_SHARING')) {
-                    throw new Error('Email sharing is a Gold feature. Please upgrade your subscription to share shopping lists via email.');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Level Failed',
+                        message: 'Email sharing is a Gold feature. Please upgrade your subscription to share shopping lists via email.'
+                    });
+                    return;
                 }
 
                 // Check usage limits for Gold users (50 emails/month)
@@ -3118,7 +3153,12 @@ export const sendShoppingListEmail = async ({
                     if (!checkUsageLimit(userSubscription, 'emailSharesPerMonth', currentUsage)) {
                         const { getUsageLimit } = await import('./subscription-config');
                         const limit = getUsageLimit(userSubscription, 'emailSharesPerMonth');
-                        throw new Error(`You've reached your monthly email sharing limit (${limit} emails). Upgrade to Platinum for unlimited email sharing.`);
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Limit Failed',
+                            message: `You've reached your monthly email sharing limit (${limit} emails). Upgrade to Platinum for unlimited email sharing.`
+                        });
+                        return;
                     }
 
                     // Track this usage
@@ -3133,11 +3173,21 @@ export const sendShoppingListEmail = async ({
 
         // Validate inputs
         if (!toEmails || toEmails.length === 0) {
-            throw new Error('At least one recipient email is required');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Email Failed',
+                message: 'At least one recipient email is required'
+            });
+            return;
         }
 
         if (!shoppingList) {
-            throw new Error('Shopping list is required');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Shopping List Failed',
+                message: 'Shopping list is required'
+            });
+            return;
         }
 
         // Generate email content
@@ -3172,7 +3222,12 @@ export const sendShoppingListEmail = async ({
 
     } catch (error) {
         console.error('Email sending error:', error);
-        throw new Error(`Failed to send email: ${error.message}`);
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Send Failed',
+            message: `Failed to send email: ${error.message}`
+        });
+        return;
     }
 };
 
@@ -3237,11 +3292,21 @@ export const sendExpirationNotificationEmail = async ({
 
         // Validate inputs
         if (!toEmail) {
-            throw new Error('Recipient email is required');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Email Failed',
+                message: 'Recipient email is required'
+            });
+            return;
         }
 
         if (!expiringItems || expiringItems.length === 0) {
-            throw new Error('No expiring items provided');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Expiration Failed',
+                message: 'No expiring items provided'
+            });
+            return;
         }
 
         // Generate email content
@@ -3272,7 +3337,12 @@ export const sendExpirationNotificationEmail = async ({
 
     } catch (error) {
         console.error('Expiration notification email error:', error);
-        throw new Error(`Failed to send expiration notification: ${error.message}`);
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Notification Failed',
+            message: `Failed to send expiration notification: ${error.message}`
+        });
+        return;
     }
 };
 
@@ -3367,7 +3437,12 @@ export async function sendSubscriptionUpgradeEmail(userData) {
 
     } catch (error) {
         console.error('Subscription upgrade email error:', error);
-        throw new Error(`Failed to send subscription upgrade email: ${error.message}`);
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Upgrade Email Failed',
+            message: `Failed to send subscription upgrade email: ${error.message}`
+        });
+        return;
     }
 }
 
@@ -3393,7 +3468,12 @@ export async function sendAccountSuspensionEmail(userData) {
 
     } catch (error) {
         console.error('Account suspension email error:', error);
-        throw new Error(`Failed to send account suspension email: ${error.message}`);
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Suspension Email Failed',
+            message: `Failed to send account suspension email: ${error.message}`
+        });
+        return;
     }
 }
 
@@ -3419,6 +3499,11 @@ export async function sendAccountReactivationEmail(userData) {
 
     } catch (error) {
         console.error('Account reactivation email error:', error);
-        throw new Error(`Failed to send account reactivation email: ${error.message}`);
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Reactiviation Email Failed',
+            message: `Failed to send account reactivation email: ${error.message}`
+        });
+        return;
     }
 }

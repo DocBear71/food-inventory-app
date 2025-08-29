@@ -13,7 +13,11 @@ import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate, { SubscriptionIndicator } from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiGet, apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function ShoppingPage() {
     const {data: session, status} = useSafeSession();
@@ -164,11 +168,19 @@ export default function ShoppingPage() {
                 setRecipes(result.recipes);
                 extractFilterOptions(result.recipes);
             } else {
-                setError('Failed to fetch recipes');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Fetch Failed',
+                    message: 'Failed to fetch recipes'
+                });
             }
         } catch (error) {
             console.error('Error fetching recipes:', error);
-            setError('Failed to fetch recipes');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Fetch Error',
+                message: 'Failed to fetch recipes'
+            });
         }
     };
 
@@ -296,17 +308,20 @@ export default function ShoppingPage() {
         setSelectedRecipes([]);
         setShoppingList(null);
         setShowShoppingList(false);
-        setError('');
+        ;
     };
 
     const generateShoppingList = async () => {
         if (selectedRecipes.length === 0) {
-            setError('Please select at least one recipe');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'No Recipes Selected',
+                message: 'Please select at least one recipe to generate a shopping list.'
+            });
             return;
         }
 
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiPost('/api/shopping/generate', {
@@ -316,19 +331,33 @@ export default function ShoppingPage() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to generate shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Generation Failed',
+                    message: result.error || 'Failed to generate shopping list'
+                });
+                return;
             }
 
             if (result.success) {
                 setShoppingList(result.shoppingList);
                 setShowShoppingList(true);
             } else {
-                throw new Error('Invalid response format');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Invalid Response',
+                    message: 'Invalid response format'
+                });
+                return;
             }
 
         } catch (error) {
             console.error('Error generating shopping list:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Generation Error',
+                message: error.message
+            });
         } finally {
             setLoading(false);
         }
@@ -513,7 +542,7 @@ export default function ShoppingPage() {
                                 {/* Upgrade CTA */}
                                 <div className="text-center">
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=shopping-list'}
+                                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=shopping-list', router })}
                                         className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-green-700 hover:to-emerald-700 transition-all transform hover:scale-105 shadow-lg"
                                     >
                                         Upgrade to Gold - Start Shopping Smarter!
@@ -577,7 +606,7 @@ export default function ShoppingPage() {
                                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                                     <div className="text-center">
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/recipes'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/recipes', router })}
                                             className="w-full bg-blue-100 text-blue-700 py-3 px-4 rounded-lg hover:bg-blue-200 transition-colors"
                                         >
                                             Browse Recipes
@@ -586,7 +615,7 @@ export default function ShoppingPage() {
                                     </div>
                                     <div className="text-center">
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/inventory'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/inventory', router })}
                                             className="w-full bg-green-100 text-green-700 py-3 px-4 rounded-lg hover:bg-green-200 transition-colors"
                                         >
                                             Check Inventory
@@ -595,7 +624,7 @@ export default function ShoppingPage() {
                                     </div>
                                     <div className="text-center">
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/recipes/suggestions'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/recipes/suggestions', router })}
                                             className="w-full bg-purple-100 text-purple-700 py-3 px-4 rounded-lg hover:bg-purple-200 transition-colors"
                                         >
                                             Recipe Suggestions
@@ -633,13 +662,18 @@ export default function ShoppingPage() {
                                         🔍 Search Recipes
                                     </label>
                                     <div className="relative">
-                                        <KeyboardOptimizedInput
+                                        <NativeTextInput
                                             type="text"
+                                            inputMode="search"
                                             id="search"
-                                            placeholder="Search by name, description, or ingredients..."
                                             value={searchQuery}
                                             onChange={(e) => setSearchQuery(e.target.value)}
-                                            className="w-full px-4 py-3 border border-gray-300 rounded-lg text-base bg-white focus:ring-indigo-500 focus:border-indigo-500 shadow-sm"
+                                            placeholder="Search by name, description, or ingredients..."
+                                            autoComplete="off"
+                                            validation={(value) => ({
+                                                isValid: true,
+                                                message: value && value.length > 2 ? `Searching recipes for "${value}"` : ''
+                                            })}
                                         />
                                         {searchQuery && (
                                             <TouchEnhancedButton

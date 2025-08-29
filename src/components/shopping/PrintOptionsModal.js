@@ -75,13 +75,17 @@ export default function PrintOptionsModal({
             onClose();
         } catch (error) {
             console.error('Print failed:', error);
-            alert('Printing failed: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Print Failed',
+                message: 'Printing failed: ' + error.message
+            });
         } finally {
             setPrinting(false);
         }
     };
 
-    const handleExportText = () => {
+    const handleExportText = async () => {
         try {
             const template = PRINT_TEMPLATES[selectedTemplate];
             const exportOptions = {
@@ -96,7 +100,7 @@ export default function PrintOptionsModal({
 
             const textContent = printer.exportAsText(shoppingList, exportOptions);
 
-            const blob = new Blob([textContent], { type: 'text/plain' });
+            const blob = new Blob([textContent], {type: 'text/plain'});
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
@@ -105,11 +109,15 @@ export default function PrintOptionsModal({
             URL.revokeObjectURL(url);
         } catch (error) {
             console.error('Export failed:', error);
-            alert('Export failed: ' + error.message);
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Export Failed',
+                message: 'Export failed: ' + error.message
+            });
         }
     };
 
-    const handlePreview = () => {
+    const handlePreview = async () => {
         try {
             const template = PRINT_TEMPLATES[selectedTemplate];
             const previewOptions = {
@@ -129,11 +137,19 @@ export default function PrintOptionsModal({
                 previewWindow.document.write(previewHTML);
                 previewWindow.document.close();
             } else {
-                alert('Pop-up blocked. Please allow pop-ups to preview.');
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Pop-up Blocked',
+                    message: 'Pop-up blocked. Please allow pop-ups to preview.'
+                });
             }
         } catch (error) {
             console.error('Preview failed:', error);
-            alert('Preview failed: ' + error.message);
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Preview Failed',
+                message: 'Preview failed: ' + error.message
+            });
         }
     };
 

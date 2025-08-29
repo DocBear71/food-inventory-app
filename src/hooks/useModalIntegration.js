@@ -20,13 +20,21 @@ export function useModalIntegration() {
             });
 
             if (!response.ok) {
-                throw new Error(`Request failed: ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Request Failed',
+                    message: `Request failed: ${response.status}`
+                });
             }
 
             const result = await response.json();
             return result;
         } catch (err) {
-            setError(err.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Integration Error',
+                message: err.message
+            });
             throw err;
         } finally {
             setLoading(false);

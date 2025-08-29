@@ -215,7 +215,7 @@ function transformSnakeCaseToCamelCase(obj) {
 }
 
 // ENHANCED: Universal platform detection
-function detectUniversalPlatform(url) {
+async function detectUniversalPlatform(url) {
     console.log('🌟 [VERCEL] Detecting universal platform for URL:', url);
 
     // Check each platform
@@ -223,21 +223,26 @@ function detectUniversalPlatform(url) {
         const contentId = config.extractId(url);
         if (contentId) {
             console.log(`✅ [VERCEL] Detected ${platform} content: ${contentId}`);
-            return { platform, contentId, originalUrl: url };
+            return {platform, contentId, originalUrl: url};
         }
     }
 
     // Check for direct video files
     if (url.match(/\.(mp4|mov|avi|mkv|webm)(\?|$)/i)) {
-        return { platform: 'direct_video', contentId: url.split('/').pop(), originalUrl: url };
+        return {platform: 'direct_video', contentId: url.split('/').pop(), originalUrl: url};
     }
 
     // Generic video/content detection
     if (url.match(/\/video|\/watch|\/play|\/post|\/status/)) {
-        return { platform: 'generic_content', contentId: 'unknown', originalUrl: url };
+        return {platform: 'generic_content', contentId: 'unknown', originalUrl: url};
     }
 
-    throw new Error('Platform not supported yet. Currently supports TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads, Snapchat, and direct video files.');
+    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+    await NativeDialog.showError({
+        title: 'Platform Failed',
+        message: 'Platform not supported yet. Currently supports TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads, Snapchat, and direct video files.'
+    });
+    return;
 }
 
 // ENHANCED: Transform Modal response for universal platforms
@@ -378,7 +383,12 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
 
         if (!modalResponse.ok) {
             const errorText = await modalResponse.text();
-            throw new Error(`Modal API error (${modalResponse.status}): ${errorText}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Modal API Failed',
+                message: `Modal API error (${modalResponse.status}): ${errorText}`
+            });
+            return;
         }
 
         const rawResult = await modalResponse.json();
@@ -392,7 +402,12 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
         }
 
         if (!result.success) {
-            throw new Error(result.error || 'Universal Modal processing failed');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Modal Processing Failed',
+                message: result.error || 'Universal Modal processing failed'
+            });
+            return;
         }
 
         console.log(`✅ [VERCEL] Universal Modal ${contentInfo.platform} processing successful`);

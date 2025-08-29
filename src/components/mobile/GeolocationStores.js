@@ -15,27 +15,38 @@ export function GeolocationStores({ onStoreSelected, selectedStore }) {
 
     // Check geolocation support and permission
     useEffect(() => {
-        if ('geolocation' in navigator) {
-            // Check permission status if available
-            if ('permissions' in navigator) {
-                navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-                    setPermissionStatus(result.state);
+        const checkGeolocationSupport = async () => {
+            if ('geolocation' in navigator) {
+                // Check permission status if available
+                if ('permissions' in navigator) {
+                    navigator.permissions.query({name: 'geolocation'}).then((result) => {
+                        setPermissionStatus(result.state);
+                    });
+                }
+            } else {
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Geolocation Not Supported',
+                    message: 'Geolocation is not supported by this browser'
                 });
             }
-        } else {
-            setError('Geolocation is not supported by this browser');
-        }
+        };
+
+        checkGeolocationSupport();
     }, []);
 
     // Get user's current location
-    const getCurrentLocation = useCallback(() => {
+    const getCurrentLocation = useCallback(async () => {
         if (!('geolocation' in navigator)) {
-            setError('Geolocation is not supported');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Geolocation Not Available',
+                message: 'Geolocation is not supported'
+            });
             return;
         }
 
         setLoading(true);
-        setError('');
 
         const options = {
             enableHighAccuracy: true,
@@ -45,13 +56,13 @@ export function GeolocationStores({ onStoreSelected, selectedStore }) {
 
         navigator.geolocation.getCurrentPosition(
             (position) => {
-                const { latitude, longitude } = position.coords;
-                setLocation({ lat: latitude, lng: longitude });
+                const {latitude, longitude} = position.coords;
+                setLocation({lat: latitude, lng: longitude});
                 setLoading(false);
                 vibrateDevice([50]); // Success feedback
                 findNearbyStores(latitude, longitude);
             },
-            (error) => {
+            async (error) => {
                 setLoading(false);
                 let errorMessage = 'Failed to get location';
 
@@ -70,7 +81,11 @@ export function GeolocationStores({ onStoreSelected, selectedStore }) {
                         errorMessage = 'Unknown location error occurred.';
                 }
 
-                setError(errorMessage);
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Geolocation Error',
+                    message: errorMessage
+                });
                 console.error('Geolocation error:', error);
             },
             options
@@ -139,7 +154,11 @@ export function GeolocationStores({ onStoreSelected, selectedStore }) {
             setLoading(false);
         } catch (error) {
             console.error('Failed to fetch nearby stores:', error);
-            setError('Failed to find nearby stores');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Store Search Failed',
+                message: 'Failed to find nearby stores'
+            });
             setLoading(false);
         }
     }, []);

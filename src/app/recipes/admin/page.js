@@ -144,11 +144,19 @@ export default function AdminRecipes() {
                 setUploadedFile(null);
                 setParseStats(null);
             } else {
-                alert('Error importing recipes: ' + data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Import Failed',
+                    message: 'Error importing recipes: ' + data.error
+                });
             }
         } catch (error) {
             console.error('Import error:', error);
-            alert('Error importing recipes');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Import Failed',
+                message: 'Error importing recipes'
+            });
         } finally {
             setIsProcessing(false);
         }
@@ -195,7 +203,14 @@ export default function AdminRecipes() {
     };
 
     const handleDeleteVolume = async () => {
-        if (!confirm(`Are you sure you want to delete ALL recipes from Volume ${selectedVolume}? This cannot be undone.`)) {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete All Recipes',
+            message: `Are you sure you want to delete ALL recipes from Volume ${selectedVolume}? This cannot be undone.`,
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -207,18 +222,30 @@ export default function AdminRecipes() {
             const data = await response.json();
 
             if (data.success) {
-                alert(`Successfully deleted ${data.deletedCount} recipes from Volume ${selectedVolume}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Deletion Complete',
+                    message: `Successfully deleted ${data.deletedCount} recipes from Volume ${selectedVolume}`
+                });
                 setImportResults(null);
                 setParsedRecipes([]);
                 setExtractedText('');
                 setUploadedFile(null);
                 setParseStats(null);
             } else {
-                alert('Error deleting recipes: ' + data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Deletion Failed',
+                    message: 'Error deleting recipes: ' + data.error
+                });
             }
         } catch (error) {
             console.error('Delete error:', error);
-            alert('Error deleting recipes');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Deletion Failed',
+                message: 'Error deleting recipes'
+            });
         } finally {
             setIsProcessing(false);
         }

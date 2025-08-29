@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/recipes/RecipeParser.js v6 - Enhanced with multi-part recipe parsing support
+// file: /src/components/recipes/RecipeParser.js v7 - iOS Native Enhancements with Document Picker
 
 import {useState, useEffect, useRef, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -14,9 +14,14 @@ import {
     isHeaderLine,
     cleanTitle
 } from '@/lib/recipe-parsing-utils';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
-// AutoExpandingTextarea component (moved outside to prevent re-creation)
+// AutoExpandingTextarea component
 const AutoExpandingTextarea = ({value, onChange, placeholder, className, ...props}) => {
     const textareaRef = useRef(null);
 
@@ -59,18 +64,15 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
     const [forceMultiPart, setForceMultiPart] = useState(false);
     const [detectedMultiPart, setDetectedMultiPart] = useState(false);
 
-    // NEW: Multi-part recipe detection
+    const isIOS = PlatformDetection.isIOS();
+
+    // Multi-part recipe detection
     const detectMultiPartRecipe = useCallback((text) => {
         const multiPartIndicators = [
-            // Common multi-part section headers
             /^(filling|topping|sauce|marinade|base|crust|dough|biscuit|pastry|glaze|frosting)/im,
-            // Multiple sections with ingredients/instructions
             /(\w+\s*(ingredients?|preparation|instructions?):)/gi,
-            // Numbered or lettered sections
             /^(part\s*\d+|section\s*[a-z]|step\s*[a-z])/im,
-            // Recipe name followed by another recipe name
             /(recipe|for\s+the)\s*\w+.*\n.*\n.*(recipe|for\s+the)\s*\w+/i,
-            // Multiple "For the" sections
             /(for\s+the\s+\w+)/gi
         ];
 
@@ -79,7 +81,7 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
             return count + (result ? result.length : 0);
         }, 0);
 
-        return matches >= 2; // Need at least 2 indicators for multi-part
+        return matches >= 2;
     }, []);
 
     // Update detection when text changes
@@ -88,9 +90,115 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
         setDetectedMultiPart(isMultiPart);
     }, [rawText, detectMultiPartRecipe]);
 
+    // iOS Native Document Picker for importing text files
+    const handleIOSDocumentImport = async () => {
+        if (!isIOS) return;
+
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+
+            // Use Capacitor Filesystem plugin for iOS document picker
+            const { Filesystem } = await import('@capacitor/filesystem');
+
+            // Show action sheet for import options
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            const result = await NativeDialog.showActionSheet({
+                title: 'Import Recipe Text',
+                message: 'Choose how to import your recipe',
+                buttons: [
+                    {
+                        text: 'Import from Files',
+                        style: 'default',
+                        action: async () => {
+                            try {
+                                // iOS native file picker
+                                const { FilePicker } = await import('@capawesome/capacitor-file-picker');
+
+                                const fileResult = await FilePicker.pickFiles({
+                                    types: ['text/plain', 'text/rtf', 'application/rtf'],
+                                    multiple: false
+                                });
+
+                                if (fileResult.files && fileResult.files.length > 0) {
+                                    const file = fileResult.files[0];
+
+                                    // Read file content
+                                    const content = await Filesystem.readFile({
+                                        path: file.path,
+                                        encoding: 'utf8'
+                                    });
+
+                                    await MobileHaptics.success();
+                                    setRawText(content.data);
+
+                                    await NativeDialog.showSuccess({
+                                        title: 'File Imported',
+                                        message: `Successfully imported text from ${file.name}`
+                                    });
+                                }
+                            } catch (error) {
+                                console.error('File picker error:', error);
+                                await MobileHaptics.error();
+
+                                await NativeDialog.showError({
+                                    title: 'Import Failed',
+                                    message: 'Could not import file. Please try copying and pasting the text instead.'
+                                });
+                            }
+                        }
+                    },
+                    {
+                        text: 'Paste from Clipboard',
+                        style: 'default',
+                        action: async () => {
+                            try {
+                                const { Clipboard } = await import('@capacitor/clipboard');
+                                const clipResult = await Clipboard.read();
+
+                                if (clipResult.value && clipResult.value.trim()) {
+                                    await MobileHaptics.success();
+                                    setRawText(clipResult.value);
+
+                                    await NativeDialog.showSuccess({
+                                        title: 'Text Pasted',
+                                        message: 'Successfully pasted text from clipboard'
+                                    });
+                                } else {
+                                    await MobileHaptics.error();
+                                    await NativeDialog.showAlert({
+                                        title: 'No Text Found',
+                                        message: 'No text found in clipboard. Please copy some recipe text and try again.'
+                                    });
+                                }
+                            } catch (error) {
+                                console.error('Clipboard error:', error);
+                                await MobileHaptics.error();
+
+                                await NativeDialog.showError({
+                                    title: 'Paste Failed',
+                                    message: 'Could not access clipboard. Please paste manually in the text area.'
+                                });
+                            }
+                        }
+                    },
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        action: () => null
+                    }
+                ]
+            });
+
+        } catch (error) {
+            console.error('iOS document import error:', error);
+            // Fallback - do nothing, user can still type
+        }
+    };
+
     // Enhanced parsing function with multi-part support
     const parseRecipeText = (text) => {
-        console.log('🔍 Starting enhanced recipe parsing with multi-part support:', text.substring(0, 100) + '...');
+        console.log('Starting enhanced recipe parsing with multi-part support:', text.substring(0, 100) + '...');
 
         if (!text || text.trim().length === 0) {
             return null;
@@ -99,31 +207,30 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
         const shouldParseMultiPart = forceMultiPart || detectedMultiPart;
 
         if (shouldParseMultiPart) {
-            console.log('🧩 Attempting multi-part recipe parsing');
+            console.log('Attempting multi-part recipe parsing');
             const multiPartResult = parseMultiPartRecipe(text);
             if (multiPartResult && multiPartResult.parts && multiPartResult.parts.length > 1) {
-                console.log('✅ Successfully parsed as multi-part recipe with', multiPartResult.parts.length, 'parts');
+                console.log('Successfully parsed as multi-part recipe with', multiPartResult.parts.length, 'parts');
                 return multiPartResult;
             }
-            console.log('⚠️ Multi-part parsing failed, falling back to single-part');
+            console.log('Multi-part parsing failed, falling back to single-part');
         }
 
-        console.log('📝 Parsing as single-part recipe');
+        console.log('Parsing as single-part recipe');
         return parseSinglePartRecipe(text);
     };
 
-    // NEW: Multi-part recipe parsing
+    // Multi-part recipe parsing
     const parseMultiPartRecipe = (text) => {
         const lines = text.split('\n').map(line => line.trim()).filter(line => line);
 
-        // Initialize recipe object
         const recipe = {
             title: '',
             description: '',
             isMultiPart: true,
             parts: [],
-            ingredients: [], // Empty for multi-part
-            instructions: [], // Empty for multi-part
+            ingredients: [],
+            instructions: [],
             prepTime: null,
             cookTime: null,
             servings: null,
@@ -143,21 +250,17 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
             const line = lines[i];
             const lowerLine = line.toLowerCase();
 
-            // Extract title (first meaningful line)
             if (!hasProcessedTitle && line.length > 2 && !isHeaderLine(line) && !isRecipeSectionHeader(line)) {
                 recipe.title = cleanTitle(line);
                 hasProcessedTitle = true;
                 continue;
             }
 
-            // Check for recipe part headers (e.g., "Filling", "Biscuit Topping", "For the sauce")
             if (isRecipeSectionHeader(line)) {
-                // Save previous part
                 if (currentPart && (currentPart.ingredients.length > 0 || currentPart.instructions.length > 0)) {
                     recipe.parts.push(currentPart);
                 }
 
-                // Start new part
                 currentPart = {
                     name: cleanPartName(line),
                     description: '',
@@ -169,7 +272,6 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
                 continue;
             }
 
-            // Check for section headers within a part
             if (isIngredientSectionHeader(lowerLine)) {
                 currentSection = 'ingredients';
                 continue;
@@ -180,7 +282,6 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
                 continue;
             }
 
-            // Process content based on current section
             switch (currentSection) {
                 case 'title':
                 case 'description':
@@ -198,7 +299,6 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
                                 currentPart.ingredients.push(ingredient);
                             }
                         } else if (isInstructionLine(line) && line.length > 10) {
-                            // Auto-switch to instructions if we see instruction-like content
                             const instruction = parseInstructionLine(line, currentPart.instructions.length);
                             if (instruction) {
                                 currentPart.instructions.push({
@@ -224,30 +324,25 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
             }
         }
 
-        // Add final part
         if (currentPart && (currentPart.ingredients.length > 0 || currentPart.instructions.length > 0)) {
             recipe.parts.push(currentPart);
         }
 
-        // Extract metadata from full text
         extractMetadata(text, recipe);
 
-        // Validate multi-part recipe
         if (recipe.parts.length === 0) {
-            return null; // No parts found
+            return null;
         }
 
-        // If only one part, might be better as single-part
         if (recipe.parts.length === 1 && !forceMultiPart) {
-            return null; // Let single-part parser handle it
+            return null;
         }
 
-        // Set default title if none found
         if (!recipe.title) {
             recipe.title = 'Multi-Part Recipe';
         }
 
-        console.log(`🧩 Multi-part parsing results: ${recipe.parts.length} parts`);
+        console.log(`Multi-part parsing results: ${recipe.parts.length} parts`);
         recipe.parts.forEach((part, index) => {
             console.log(`   Part ${index + 1}: "${part.name}" - ${part.ingredients.length} ingredients, ${part.instructions.length} instructions`);
         });
@@ -255,13 +350,12 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
         return recipe;
     };
 
-    // Enhanced single-part parsing using existing utilities
+    // Enhanced single-part parsing
     const parseSinglePartRecipe = (text) => {
-        console.log('📝 Parsing single-part recipe using enhanced utilities');
+        console.log('Parsing single-part recipe using enhanced utilities');
 
         const lines = text.split('\n').map(line => line.trim()).filter(line => line.length > 0);
 
-        // Initialize recipe object
         const recipe = {
             title: '',
             description: '',
@@ -280,26 +374,23 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
             nutrition: {}
         };
 
-        // Try structured format first (clear section headers)
         const structuredResult = parseStructuredFormat(lines, recipe);
         if (structuredResult.success) {
-            console.log('✅ Successfully parsed structured format');
+            console.log('Successfully parsed structured format');
             return structuredResult.recipe;
         }
 
-        // Try delimited format (--Ingredients--, --Instructions--, etc.)
         const delimitedResult = parseDelimitedFormat(text, recipe);
         if (delimitedResult.success) {
-            console.log('✅ Successfully parsed delimited format');
+            console.log('Successfully parsed delimited format');
             return delimitedResult.recipe;
         }
 
-        // Fall back to smart auto-detection
-        console.log('⚡ Using smart auto-detection parsing');
+        console.log('Using smart auto-detection parsing');
         return parseSmartAutoDetection(lines, recipe);
     };
 
-    // Helper functions for parsing (keeping your existing logic)
+    // Helper parsing functions (keeping existing logic)
     const parseStructuredFormat = (lines, recipe) => {
         let currentSection = 'title';
         let ingredientSectionFound = false;
@@ -460,7 +551,7 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
             recipe.title = 'Imported Recipe';
         }
 
-        console.log(`📊 Auto-detection results: ${recipe.ingredients.length} ingredients, ${recipe.instructions.length} instructions`);
+        console.log(`Auto-detection results: ${recipe.ingredients.length} ingredients, ${recipe.instructions.length} instructions`);
 
         return recipe;
     };
@@ -497,7 +588,7 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
         return instructions;
     };
 
-    // NEW: Multi-part specific helpers
+    // Multi-part specific helpers
     const isRecipeSectionHeader = (line) => {
         const sectionPatterns = [
             /^(filling|topping|sauce|marinade|base|crust|dough|biscuit|pastry|glaze|frosting)/i,
@@ -508,7 +599,7 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
 
         return sectionPatterns.some(pattern => pattern.test(line)) &&
             !line.includes(':') &&
-            line.length < 60; // Headers are usually short
+            line.length < 60;
     };
 
     const cleanPartName = (line) => {
@@ -517,23 +608,61 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
             .replace(/^\d+\.\s*/, '')
             .replace(/^[a-z]\.\s*/i, '')
             .trim()
-            .replace(/\b\w/g, l => l.toUpperCase()); // Title case
+            .replace(/\b\w/g, l => l.toUpperCase());
     };
 
     // Main parsing handler
-    const handleParse = () => {
+    const handleParse = async () => {
+        // iOS haptic for parse action
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Parse haptic failed:', error);
+            }
+        }
+
         setIsParsing(true);
 
-        setTimeout(() => {
-            const parsed = parseRecipeText(rawText);
-            setParsedRecipe(parsed);
-            setShowPreview(true);
-            setIsParsing(false);
+        setTimeout(async () => {
+            try {
+                const parsed = parseRecipeText(rawText);
+                setParsedRecipe(parsed);
+                setShowPreview(true);
+
+                // iOS success haptic
+                if (isIOS && parsed) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } else if (isIOS && !parsed) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+                }
+            } catch (error) {
+                console.error('Parsing error:', error);
+                if (isIOS) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+                }
+            } finally {
+                setIsParsing(false);
+            }
         }, 500);
     };
 
-    const handleUseRecipe = () => {
+    const handleUseRecipe = async () => {
         if (parsedRecipe) {
+            // iOS success haptic for using recipe
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } catch (error) {
+                    console.log('Use recipe haptic failed:', error);
+                }
+            }
+
             onRecipeParsed(parsedRecipe);
         }
     };
@@ -549,7 +678,6 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
     const handleEditIngredient = (index, field, value, partIndex = null) => {
         setParsedRecipe(prev => {
             if (prev.isMultiPart && partIndex !== null) {
-                // Edit ingredient in specific part
                 const updatedParts = [...prev.parts];
                 updatedParts[partIndex].ingredients[index] = {
                     ...updatedParts[partIndex].ingredients[index],
@@ -557,7 +685,6 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
                 };
                 return {...prev, parts: updatedParts};
             } else {
-                // Edit ingredient in single-part recipe
                 return {
                     ...prev,
                     ingredients: prev.ingredients.map((ing, i) =>
@@ -571,7 +698,6 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
     const handleEditInstruction = useCallback((index, value, partIndex = null) => {
         setParsedRecipe(prev => {
             if (prev.isMultiPart && partIndex !== null) {
-                // Edit instruction in specific part
                 const updatedParts = [...prev.parts];
                 updatedParts[partIndex].instructions[index] = {
                     ...updatedParts[partIndex].instructions[index],
@@ -579,7 +705,6 @@ export default function RecipeParser({onRecipeParsed, onCancel}) {
                 };
                 return {...prev, parts: updatedParts};
             } else {
-                // Edit instruction in single-part recipe
                 return {
                     ...prev,
                     instructions: prev.instructions.map((inst, i) =>
@@ -645,43 +770,36 @@ Instructions:
                 // Input Phase
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                        📝 Smart Recipe Text Parser
+                        Smart Recipe Text Parser
                     </h2>
                     <p className="text-gray-600 mb-4">
                         Paste a recipe from anywhere! The smart parser can handle structured recipes, YouTube
-                        transcripts,
-                        unformatted text, and now <strong>multi-part recipes</strong> like pot pies with separate
-                        fillings and toppings!
+                        transcripts, unformatted text, and multi-part recipes like pot pies with separate
+                        fillings and toppings.
                     </p>
 
-                    {/* NEW: Multi-part detection indicator */}
+                    {/* Multi-part detection indicator */}
                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
                         <div className="flex items-center justify-between mb-2">
-                            <h3 className="font-medium text-blue-900">✨ Enhanced Parsing Features:</h3>
+                            <h3 className="font-medium text-blue-900">Enhanced Parsing Features:</h3>
                             <div className="flex items-center gap-2">
                                 <span className="text-xs text-blue-600">
-                                    {detectedMultiPart ? '🧩 Multi-part detected' : '📝 Single-part detected'}
+                                    {detectedMultiPart ? 'Multi-part detected' : 'Single-part detected'}
                                 </span>
                             </div>
                         </div>
                         <ul className="text-blue-800 text-sm space-y-1">
                             <li>• <strong>Multi-part recipes</strong> with separate components (filling + topping)</li>
-                            <li>• <strong>Structured recipes</strong> with "Ingredients:" and "Instructions:" headers
-                            </li>
-                            <li>• <strong>Delimited format</strong> with --Ingredients-- and --Instructions-- sections
-                            </li>
+                            <li>• <strong>Structured recipes</strong> with "Ingredients:" and "Instructions:" headers</li>
+                            <li>• <strong>Delimited format</strong> with --Ingredients-- and --Instructions-- sections</li>
                             <li>• <strong>Unstructured text</strong> from websites, messages, or documents</li>
-                            <li>• <strong>YouTube transcripts</strong> - copy/paste video captions for recipe extraction
-                            </li>
-                            <li>• <strong>Smart detection</strong> - separates ingredients from instructions
-                                automatically
-                            </li>
+                            <li>• <strong>YouTube transcripts</strong> - copy/paste video captions for recipe extraction</li>
+                            <li>• <strong>Smart detection</strong> - separates ingredients from instructions automatically</li>
                         </ul>
                     </div>
 
                     {/* Force multi-part toggle */}
-                    <div
-                        className="mb-4 flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                    <div className="mb-4 flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
                         <div>
                             <label className="flex items-center">
                                 <input
@@ -699,11 +817,11 @@ Instructions:
                             </p>
                         </div>
                         <div className="text-purple-600 text-2xl">
-                            🧩
+                            {detectedMultiPart || forceMultiPart ? '🧩' : '📝'}
                         </div>
                     </div>
 
-                    <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
                         <div className="flex items-start">
                             <div className="text-green-600 mr-3 mt-0.5">
                                 <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
@@ -711,21 +829,19 @@ Instructions:
                                 </svg>
                             </div>
                             <div className="flex-1">
-                                <h3 className="font-medium text-green-900 mb-2">📺 YouTube Recipe Extraction</h3>
+                                <h3 className="font-medium text-green-900 mb-2">YouTube Recipe Extraction</h3>
                                 <p className="text-green-800 text-sm mb-3">
                                     Want to extract recipes from YouTube cooking videos? Follow these steps:
                                 </p>
                                 <div className="bg-green-100 rounded-lg p-3 mb-3">
-                                    <h4 className="font-medium text-green-900 text-sm mb-2">How to get YouTube
-                                        transcripts:</h4>
+                                    <h4 className="font-medium text-green-900 text-sm mb-2">How to get YouTube transcripts:</h4>
                                     <ol className="list-decimal list-inside text-green-800 text-sm space-y-1">
                                         <li>Open the YouTube video on desktop or mobile</li>
                                         <li>Click the "..." (more) menu below the video</li>
-                                        <li>Select <strong>"Show transcript"</strong> or <strong>"Open
-                                            transcript"</strong></li>
+                                        <li>Select <strong>"Show transcript"</strong> or <strong>"Open transcript"</strong></li>
                                         <li>Copy all the transcript text</li>
                                         <li>Paste it in the text box below</li>
-                                        <li>Let our AI extract the recipe automatically! 🤖</li>
+                                        <li>Let our AI extract the recipe automatically</li>
                                     </ol>
                                 </div>
                                 <div className="flex items-center text-sm text-green-700">
@@ -742,13 +858,28 @@ Instructions:
 
                     <div className="space-y-4">
                         <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-2">
-                                Recipe Text
-                            </label>
-                            <textarea
+                            <div className="flex items-center justify-between mb-2">
+                                <label className="block text-sm font-medium text-gray-700">
+                                    Recipe Text
+                                </label>
+                                {/* iOS Document Import Button */}
+                                {isIOS && (
+                                    <TouchEnhancedButton
+                                        onClick={handleIOSDocumentImport}
+                                        className="text-indigo-600 hover:text-indigo-700 text-sm font-medium flex items-center gap-1"
+                                    >
+                                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                        </svg>
+                                        Import Text
+                                    </TouchEnhancedButton>
+                                )}
+                            </div>
+
+                            <NativeTextarea
                                 value={rawText}
                                 onChange={(e) => setRawText(e.target.value)}
-                                placeholder="Paste your recipe here...
+                                placeholder={`Paste your recipe here...
 
 Examples that work great:
 • Multi-part recipes (pot pie with filling + biscuit topping)
@@ -764,30 +895,42 @@ The parser will automatically:
 - Remove pricing info like ($0.37)
 - Detect ingredients vs instructions
 - Extract serving size and cooking times
-- Generate relevant tags"
-                                className="w-full h-64 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                style={{minHeight: '256px'}}
+- Generate relevant tags`}
+                                className="h-64"
+                                autoExpand={false}
+                                maxLength={10000}
+                                validation={(value) => ({
+                                    isValid: value.length >= 50 || value.length === 0,
+                                    message: value.length >= 50 ? 'Recipe text looks good!' :
+                                        value.length > 0 ? 'Recipe text seems short - add more details for better parsing' : ''
+                                })}
                             />
                         </div>
 
-                        {/* Example button */}
+                        {/* Example button and detection indicator */}
                         <div className="flex items-center justify-between">
                             <TouchEnhancedButton
                                 type="button"
                                 onClick={() => setRawText(exampleMultiPartText)}
                                 className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
                             >
-                                📋 Load Example Multi-Part Recipe
+                                Load Example Multi-Part Recipe
                             </TouchEnhancedButton>
 
                             <div className="text-xs text-gray-500">
-                                Auto-detects: {detectedMultiPart || forceMultiPart ? '🧩 Multi-part' : '📝 Single-part'}
+                                Auto-detects: {detectedMultiPart || forceMultiPart ? 'Multi-part' : 'Single-part'}
                             </div>
                         </div>
 
                         <div className="flex flex-col sm:flex-row justify-between gap-3">
                             <TouchEnhancedButton
-                                onClick={onCancel}
+                                onClick={async () => {
+                                    if (isIOS) {
+                                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                                        await MobileHaptics.buttonTap();
+                                    }
+                                    onCancel();
+                                }}
                                 className="px-4 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 min-h-[48px] order-2 sm:order-1"
                             >
                                 Cancel
@@ -799,15 +942,15 @@ The parser will automatically:
                             >
                                 {isParsing ? (
                                     <>
-                                        <div
-                                            className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
                                         Parsing...
                                     </>
                                 ) : (
                                     <>
-                                        🧠 Smart Parse Recipe
-                                        {(detectedMultiPart || forceMultiPart) &&
-                                            <span className="text-xs">(Multi-part)</span>}
+                                        Smart Parse Recipe
+                                        {(detectedMultiPart || forceMultiPart) && (
+                                            <span className="text-xs">(Multi-part)</span>
+                                        )}
                                     </>
                                 )}
                             </TouchEnhancedButton>
@@ -818,7 +961,7 @@ The parser will automatically:
                 // Preview Phase
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">
-                        ✨ Parsed Recipe Preview
+                        Parsed Recipe Preview
                     </h2>
                     <p className="text-gray-600 mb-6">
                         Review and edit the extracted information before adding to your recipe collection.
@@ -829,7 +972,7 @@ The parser will automatically:
                             {/* Parsing Results Summary */}
                             <div className={`border rounded-lg p-4 ${parsedRecipe.isMultiPart ? 'bg-purple-50 border-purple-200' : 'bg-green-50 border-green-200'}`}>
                                 <h3 className={`font-medium mb-2 ${parsedRecipe.isMultiPart ? 'text-purple-900' : 'text-green-900'}`}>
-                                    📊 {parsedRecipe.isMultiPart ? '🧩 Multi-Part' : '📝 Single-Part'} Parsing Results
+                                    {parsedRecipe.isMultiPart ? 'Multi-Part' : 'Single-Part'} Parsing Results
                                 </h3>
                                 <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                                     {parsedRecipe.isMultiPart ? (
@@ -880,78 +1023,124 @@ The parser will automatically:
 
                             {/* Basic info fields */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div>
+                                <div className="md:col-span-2">
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Recipe Title
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
                                         value={parsedRecipe.title}
                                         onChange={(e) => handleEditField('title', e.target.value)}
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
+                                        placeholder="Enter recipe title..."
+                                        validation={(value) => ({
+                                            isValid: value.length >= 3 && value.length <= 100,
+                                            message: value.length >= 3 && value.length <= 100
+                                                ? 'Recipe title looks good!'
+                                                : value.length < 3
+                                                    ? 'Title should be at least 3 characters'
+                                                    : 'Title too long (max 100 characters)'
+                                        })}
+                                        errorMessage="Recipe title is required (3-100 characters)"
+                                        successMessage="Perfect recipe title!"
                                     />
                                 </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Cook Time (minutes)
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         value={parsedRecipe.cookTime || ''}
                                         onChange={(e) => handleEditField('cookTime', parseInt(e.target.value) || null)}
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
+                                        placeholder="30"
+                                        autoComplete="off"
+                                        min="1"
+                                        max="960"
+                                        validation={(value) => {
+                                            const num = parseInt(value);
+                                            if (!value) return { isValid: true, message: '' };
+                                            return {
+                                                isValid: num >= 1 && num <= 960,
+                                                message: num >= 1 && num <= 960 ? 'Good cook time' : 'Cook time should be 1-960 minutes'
+                                            };
+                                        }}
                                     />
                                 </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Servings
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         value={parsedRecipe.servings || ''}
                                         onChange={(e) => handleEditField('servings', parseInt(e.target.value) || null)}
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
+                                        placeholder="4"
+                                        autoComplete="off"
+                                        min="1"
+                                        max="50"
+                                        validation={(value) => {
+                                            const num = parseInt(value);
+                                            if (!value) return { isValid: true, message: '' };
+                                            return {
+                                                isValid: num >= 1 && num <= 50,
+                                                message: num >= 1 && num <= 50 ? 'Good serving size' : 'Servings should be 1-50'
+                                            };
+                                        }}
                                     />
                                 </div>
+
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Prep Time (minutes)
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="number"
+                                        inputMode="numeric"
+                                        pattern="[0-9]*"
                                         value={parsedRecipe.prepTime || ''}
                                         onChange={(e) => handleEditField('prepTime', parseInt(e.target.value) || null)}
-                                        className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
+                                        placeholder="15"
+                                        autoComplete="off"
+                                        min="1"
+                                        max="960"
+                                        validation={(value) => {
+                                            const num = parseInt(value);
+                                            if (!value) return { isValid: true, message: '' };
+                                            return {
+                                                isValid: num >= 1 && num <= 480,
+                                                message: num >= 1 && num <= 480 ? 'Good prep time' : 'Prep time should be 1-480 minutes'
+                                            };
+                                        }}
                                     />
                                 </div>
-                            </div>
 
-                            {/* Category */}
-                            <div>
-                                <label className="block text-sm font-medium text-gray-700 mb-2">
-                                    Category
-                                </label>
-                                <select
-                                    value={parsedRecipe.category}
-                                    onChange={(e) => handleEditField('category', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
-                                >
-                                    <option value="entrees">Entrees</option>
-                                    <option value="appetizers">Appetizers</option>
-                                    <option value="side-dishes">Side Dishes</option>
-                                    <option value="soups">Soups</option>
-                                    <option value="desserts">Desserts</option>
-                                    <option value="beverages">Beverages</option>
-                                    <option value="breakfast">Breakfast</option>
-                                    <option value="sauces">Sauces</option>
-                                    <option value="seasonings">Seasonings</option>
-                                    <option value="breads">Breads</option>
-                                </select>
+                                <div>
+                                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                                        Category
+                                    </label>
+                                    <NativeSelect
+                                        value={parsedRecipe.category}
+                                        onChange={(e) => handleEditField('category', e.target.value)}
+                                        options={[
+                                            { value: 'entrees', label: 'Entrees' },
+                                            { value: 'appetizers', label: 'Appetizers' },
+                                            { value: 'side-dishes', label: 'Side Dishes' },
+                                            { value: 'soups', label: 'Soups' },
+                                            { value: 'desserts', label: 'Desserts' },
+                                            { value: 'beverages', label: 'Beverages' },
+                                            { value: 'breakfast', label: 'Breakfast' },
+                                            { value: 'sauces', label: 'Sauces' },
+                                            { value: 'seasonings', label: 'Seasonings' },
+                                            { value: 'breads', label: 'Breads' }
+                                        ]}
+                                    />
+                                </div>
                             </div>
 
                             {/* Description */}
@@ -959,20 +1148,21 @@ The parser will automatically:
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Description
                                 </label>
-                                <AutoExpandingTextarea
+                                <NativeTextarea
                                     value={parsedRecipe.description}
                                     onChange={(e) => handleEditField('description', e.target.value)}
                                     placeholder="Brief description of the recipe..."
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                    autoExpand={true}
+                                    maxLength={500}
                                 />
                             </div>
 
-                            {/* Recipe Content - Multi-part vs Single-part */}
+                            {/* Multi-part vs Single-part content display */}
                             {parsedRecipe.isMultiPart ? (
                                 // Multi-part recipe display
                                 <div>
                                     <h3 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
-                                        🧩 Recipe Parts ({parsedRecipe.parts.length})
+                                        Recipe Parts ({parsedRecipe.parts.length})
                                     </h3>
                                     <div className="space-y-6">
                                         {parsedRecipe.parts.map((part, partIndex) => (
@@ -982,11 +1172,11 @@ The parser will automatically:
                                                     <label className="block text-sm font-medium text-purple-900 mb-2">
                                                         Part {partIndex + 1} Name
                                                     </label>
-                                                    <KeyboardOptimizedInput
+                                                    <NativeTextInput
                                                         type="text"
                                                         value={part.name}
                                                         onChange={(e) => handleEditPart(partIndex, 'name', e.target.value)}
-                                                        className="w-full px-3 py-2 text-base border border-purple-300 rounded-md focus:ring-purple-500 focus:border-purple-500 bg-white"
+                                                        className="bg-white"
                                                     />
                                                 </div>
 
@@ -998,65 +1188,35 @@ The parser will automatically:
                                                     <div className="space-y-2 max-h-48 overflow-y-auto">
                                                         {part.ingredients.map((ingredient, ingredientIndex) => (
                                                             <div key={ingredientIndex} className="bg-white border border-purple-200 rounded p-3">
-                                                                <div className="flex items-center justify-between mb-2">
-                                                                    <label className="flex items-center text-sm text-purple-700">
-                                                                        <input
-                                                                            type="checkbox"
-                                                                            checked={ingredient.optional || false}
-                                                                            onChange={(e) => handleEditIngredient(ingredientIndex, 'optional', e.target.checked, partIndex)}
-                                                                            className="h-4 w-4 text-purple-600 rounded"
-                                                                        />
-                                                                        <span className="ml-2">Optional</span>
-                                                                    </label>
-                                                                    <TouchEnhancedButton
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            const updatedParts = [...parsedRecipe.parts];
-                                                                            updatedParts[partIndex].ingredients = updatedParts[partIndex].ingredients.filter((_, i) => i !== ingredientIndex);
-                                                                            setParsedRecipe(prev => ({ ...prev, parts: updatedParts }));
-                                                                        }}
-                                                                        className="text-red-600 hover:text-red-700 p-1"
-                                                                    >
-                                                                        ✕
-                                                                    </TouchEnhancedButton>
-                                                                </div>
                                                                 <div className="flex gap-2">
-                                                                    <KeyboardOptimizedInput
-                                                                        type="text"
+                                                                    <NativeTextInput
+                                                                        type="number"
+                                                                        inputMode="numeric"
+                                                                        pattern="[0-9]*"
                                                                         value={ingredient.amount}
                                                                         onChange={(e) => handleEditIngredient(ingredientIndex, 'amount', e.target.value, partIndex)}
-                                                                        placeholder="Amount"
-                                                                        className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
+                                                                        placeholder="1"
+                                                                        autoComplete="off"
+                                                                        className="w-20"
                                                                     />
-                                                                    <KeyboardOptimizedInput
+                                                                    <NativeTextInput
                                                                         type="text"
                                                                         value={ingredient.unit}
                                                                         onChange={(e) => handleEditIngredient(ingredientIndex, 'unit', e.target.value, partIndex)}
                                                                         placeholder="Unit"
-                                                                        className="w-20 px-2 py-1 text-sm border border-gray-300 rounded"
+                                                                        className="w-20"
                                                                     />
-                                                                    <KeyboardOptimizedInput
+                                                                    <NativeTextInput
                                                                         type="text"
                                                                         value={ingredient.name}
                                                                         onChange={(e) => handleEditIngredient(ingredientIndex, 'name', e.target.value, partIndex)}
                                                                         placeholder="Ingredient name"
-                                                                        className="flex-1 px-2 py-1 text-sm border border-gray-300 rounded"
+                                                                        className="flex-1"
                                                                     />
                                                                 </div>
                                                             </div>
                                                         ))}
                                                     </div>
-                                                    <TouchEnhancedButton
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const updatedParts = [...parsedRecipe.parts];
-                                                            updatedParts[partIndex].ingredients.push({ name: '', amount: '', unit: '', optional: false });
-                                                            setParsedRecipe(prev => ({ ...prev, parts: updatedParts }));
-                                                        }}
-                                                        className="mt-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
-                                                    >
-                                                        + Add Ingredient
-                                                    </TouchEnhancedButton>
                                                 </div>
 
                                                 {/* Part instructions */}
@@ -1071,69 +1231,20 @@ The parser will automatically:
                                                                     <div className="flex-shrink-0 w-6 h-6 bg-purple-100 text-purple-600 rounded-full flex items-center justify-center text-xs font-medium">
                                                                         {instruction.step}
                                                                     </div>
-                                                                    <TouchEnhancedButton
-                                                                        type="button"
-                                                                        onClick={() => {
-                                                                            const updatedParts = [...parsedRecipe.parts];
-                                                                            updatedParts[partIndex].instructions = updatedParts[partIndex].instructions
-                                                                                .filter((_, i) => i !== instructionIndex)
-                                                                                .map((inst, i) => ({ ...inst, step: i + 1 }));
-                                                                            setParsedRecipe(prev => ({ ...prev, parts: updatedParts }));
-                                                                        }}
-                                                                        className="text-red-600 hover:text-red-700 p-1"
-                                                                    >
-                                                                        ✕
-                                                                    </TouchEnhancedButton>
                                                                 </div>
-                                                                <AutoExpandingTextarea
+                                                                <NativeTextarea
                                                                     value={instruction.instruction}
                                                                     onChange={(e) => handleEditInstruction(instructionIndex, e.target.value, partIndex)}
                                                                     placeholder={`Step ${instruction.step} instructions...`}
-                                                                    className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:ring-purple-500 focus:border-purple-500"
+                                                                    autoExpand={true}
                                                                 />
                                                             </div>
                                                         ))}
                                                     </div>
-                                                    <TouchEnhancedButton
-                                                        type="button"
-                                                        onClick={() => {
-                                                            const updatedParts = [...parsedRecipe.parts];
-                                                            const newStep = {
-                                                                step: updatedParts[partIndex].instructions.length + 1,
-                                                                instruction: ''
-                                                            };
-                                                            updatedParts[partIndex].instructions.push(newStep);
-                                                            setParsedRecipe(prev => ({ ...prev, parts: updatedParts }));
-                                                        }}
-                                                        className="mt-2 text-purple-600 hover:text-purple-700 text-sm font-medium"
-                                                    >
-                                                        + Add Step
-                                                    </TouchEnhancedButton>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
-
-                                    {/* Add new part button */}
-                                    <TouchEnhancedButton
-                                        type="button"
-                                        onClick={() => {
-                                            const newPart = {
-                                                name: `Part ${parsedRecipe.parts.length + 1}`,
-                                                description: '',
-                                                ingredients: [],
-                                                instructions: [],
-                                                order: parsedRecipe.parts.length
-                                            };
-                                            setParsedRecipe(prev => ({
-                                                ...prev,
-                                                parts: [...prev.parts, newPart]
-                                            }));
-                                        }}
-                                        className="mt-4 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 text-sm font-medium"
-                                    >
-                                        + Add Recipe Part
-                                    </TouchEnhancedButton>
                                 </div>
                             ) : (
                                 // Single-part recipe display
@@ -1146,74 +1257,37 @@ The parser will automatically:
                                         <div className="space-y-3 max-h-64 overflow-y-auto">
                                             {parsedRecipe.ingredients.map((ingredient, index) => (
                                                 <div key={index} className="border border-gray-200 rounded-lg p-4">
-                                                    <div className="flex items-center justify-between mb-3">
-                                                        <label className="flex items-center text-sm text-gray-600">
-                                                            <input
-                                                                type="checkbox"
-                                                                checked={ingredient.optional || false}
-                                                                onChange={(e) => handleEditIngredient(index, 'optional', e.target.checked)}
-                                                                className="ingredient-checkbox h-4 w-4"
-                                                            />
-                                                            <span className="ml-3">Optional</span>
-                                                        </label>
-                                                        <TouchEnhancedButton
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const updated = parsedRecipe.ingredients.filter((_, i) => i !== index);
-                                                                setParsedRecipe(prev => ({ ...prev, ingredients: updated }));
-                                                            }}
-                                                            className="font-semibold text-red-600 hover:text-red-700 p-1 min-h-[32px] min-w-[32px] flex items-center justify-center"
-                                                        >
-                                                            ✕
-                                                        </TouchEnhancedButton>
-                                                    </div>
                                                     <div className="flex flex-col sm:flex-row gap-2">
                                                         <div className="flex gap-2 sm:w-auto">
-                                                            <div className="flex-1 sm:w-20">
-                                                                <KeyboardOptimizedInput
-                                                                    type="text"
-                                                                    value={ingredient.amount}
-                                                                    onChange={(e) => handleEditIngredient(index, 'amount', e.target.value)}
-                                                                    placeholder="Amount"
-                                                                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded"
-                                                                />
-                                                            </div>
-                                                            <div className="flex-1 sm:w-20">
-                                                                <KeyboardOptimizedInput
-                                                                    type="text"
-                                                                    value={ingredient.unit}
-                                                                    onChange={(e) => handleEditIngredient(index, 'unit', e.target.value)}
-                                                                    placeholder="Unit"
-                                                                    className="w-full px-2 py-2 text-sm border border-gray-300 rounded"
-                                                                />
-                                                            </div>
-                                                        </div>
-                                                        <div className="flex-1">
-                                                            <KeyboardOptimizedInput
+                                                            <NativeTextInput
+                                                                type="number"
+                                                                inputMode="numeric"
+                                                                pattern="[0-9]*"
+                                                                value={ingredient.amount}
+                                                                onChange={(e) => handleEditIngredient(index, 'amount', e.target.value)}
+                                                                placeholder="1"
+                                                                autoComplete="off"
+                                                                className="w-20"
+                                                            />
+                                                            <NativeTextInput
                                                                 type="text"
-                                                                value={ingredient.name}
-                                                                onChange={(e) => handleEditIngredient(index, 'name', e.target.value)}
-                                                                placeholder="Ingredient name"
-                                                                className="w-full px-2 py-2 text-sm border border-gray-300 rounded"
+                                                                value={ingredient.unit}
+                                                                onChange={(e) => handleEditIngredient(index, 'unit', e.target.value)}
+                                                                placeholder="Unit"
+                                                                className="w-20"
                                                             />
                                                         </div>
+                                                        <NativeTextInput
+                                                            type="text"
+                                                            value={ingredient.name}
+                                                            onChange={(e) => handleEditIngredient(index, 'name', e.target.value)}
+                                                            placeholder="Ingredient name"
+                                                            className="flex-1"
+                                                        />
                                                     </div>
                                                 </div>
                                             ))}
                                         </div>
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={() => {
-                                                const newIngredient = { name: '', amount: '', unit: '', optional: false };
-                                                setParsedRecipe(prev => ({
-                                                    ...prev,
-                                                    ingredients: [...prev.ingredients, newIngredient]
-                                                }));
-                                            }}
-                                            className="mt-3 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-3 py-2"
-                                        >
-                                            + Add Ingredient
-                                        </TouchEnhancedButton>
                                     </div>
 
                                     {/* Instructions */}
@@ -1228,44 +1302,16 @@ The parser will automatically:
                                                         <div className="flex-shrink-0 w-8 h-8 bg-indigo-100 text-indigo-600 rounded-full flex items-center justify-center text-sm font-medium">
                                                             {instruction.step}
                                                         </div>
-                                                        <TouchEnhancedButton
-                                                            type="button"
-                                                            onClick={() => {
-                                                                const updated = parsedRecipe.instructions
-                                                                    .filter((_, i) => i !== index)
-                                                                    .map((inst, i) => ({ ...inst, step: i + 1 }));
-                                                                setParsedRecipe(prev => ({ ...prev, instructions: updated }));
-                                                            }}
-                                                            className="font-semibold text-red-600 hover:text-red-700 p-1 min-h-[32px] min-w-[32px] flex items-center justify-center"
-                                                        >
-                                                            ✕
-                                                        </TouchEnhancedButton>
                                                     </div>
-                                                    <AutoExpandingTextarea
+                                                    <NativeTextarea
                                                         value={instruction.instruction}
                                                         onChange={(e) => handleEditInstruction(index, e.target.value)}
                                                         placeholder={`Step ${instruction.step} instructions...`}
-                                                        className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                                        autoExpand={true}
                                                     />
                                                 </div>
                                             ))}
                                         </div>
-                                        <TouchEnhancedButton
-                                            type="button"
-                                            onClick={() => {
-                                                const newInstruction = {
-                                                    step: parsedRecipe.instructions.length + 1,
-                                                    instruction: ''
-                                                };
-                                                setParsedRecipe(prev => ({
-                                                    ...prev,
-                                                    instructions: [...prev.instructions, newInstruction]
-                                                }));
-                                            }}
-                                            className="mt-3 text-indigo-600 hover:text-indigo-700 text-sm font-medium px-3 py-2"
-                                        >
-                                            + Add Step
-                                        </TouchEnhancedButton>
                                     </div>
                                 </>
                             )}
@@ -1275,16 +1321,14 @@ The parser will automatically:
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Tags (comma-separated)
                                 </label>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="text"
                                     value={parsedRecipe.tags.join(', ')}
                                     onChange={(e) => handleEditField('tags', e.target.value.split(',').map(tag => tag.trim()).filter(tag => tag))}
                                     placeholder="italian, dinner, easy"
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
                                 />
                                 <p className="text-xs text-gray-500 mt-1">
-                                    ✨ Auto-generated tags based on recipe content using enhanced parsing
+                                    Auto-generated tags based on recipe content using enhanced parsing
                                 </p>
                             </div>
 
@@ -1293,57 +1337,19 @@ The parser will automatically:
                                 <label className="block text-sm font-medium text-gray-700 mb-2">
                                     Difficulty
                                 </label>
-                                <select
+                                <NativeSelect
                                     value={parsedRecipe.difficulty}
                                     onChange={(e) => handleEditField('difficulty', e.target.value)}
-                                    className="w-full px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    style={{minHeight: '48px'}}
-                                >
-                                    <option value="easy">Easy</option>
-                                    <option value="medium">Medium</option>
-                                    <option value="hard">Hard</option>
-                                </select>
+                                    options={[
+                                        { value: 'easy', label: 'Easy' },
+                                        { value: 'medium', label: 'Medium' },
+                                        { value: 'hard', label: 'Hard' }
+                                    ]}
+                                />
                                 <p className="text-xs text-gray-500 mt-1">
-                                    🎯 Auto-determined based on complexity and instruction count
+                                    Auto-determined based on complexity and instruction count
                                 </p>
                             </div>
-
-                            {/* Multi-part conversion option for single-part recipes */}
-                            {!parsedRecipe.isMultiPart && (
-                                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                                    <label className="flex items-center">
-                                        <input
-                                            type="checkbox"
-                                            checked={false}
-                                            onChange={(e) => {
-                                                if (e.target.checked) {
-                                                    // Convert to multi-part
-                                                    setParsedRecipe(prev => ({
-                                                        ...prev,
-                                                        isMultiPart: true,
-                                                        parts: [{
-                                                            name: 'Main Recipe',
-                                                            description: '',
-                                                            ingredients: prev.ingredients,
-                                                            instructions: prev.instructions,
-                                                            order: 0
-                                                        }],
-                                                        ingredients: [],
-                                                        instructions: []
-                                                    }));
-                                                }
-                                            }}
-                                            className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 h-4 w-4"
-                                        />
-                                        <span className="ml-2 text-sm font-medium text-blue-900">
-                                Convert to multi-part recipe
-                            </span>
-                                    </label>
-                                    <p className="text-xs text-blue-700 mt-1">
-                                        This will allow you to add separate components like toppings or sauces
-                                    </p>
-                                </div>
-                            )}
 
                             {/* Action Buttons */}
                             <div className="flex flex-col sm:flex-row justify-between pt-4 border-t gap-3">
@@ -1351,11 +1357,17 @@ The parser will automatically:
                                     onClick={() => setShowPreview(false)}
                                     className="px-4 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 min-h-[48px] order-3 sm:order-1"
                                 >
-                                    ← Back to Edit Text
+                                    Back to Edit Text
                                 </TouchEnhancedButton>
                                 <div className="flex flex-col sm:flex-row gap-3 order-1 sm:order-2">
                                     <TouchEnhancedButton
-                                        onClick={onCancel}
+                                        onClick={async () => {
+                                            if (isIOS) {
+                                                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                                                await MobileHaptics.buttonTap();
+                                            }
+                                            onCancel();
+                                        }}
                                         className="px-4 py-3 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 min-h-[48px] order-2 sm:order-1"
                                     >
                                         Cancel
@@ -1364,7 +1376,7 @@ The parser will automatically:
                                         onClick={handleUseRecipe}
                                         className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 min-h-[48px] order-1 sm:order-2"
                                     >
-                                        ✓ Use This Recipe
+                                        Use This Recipe
                                         {parsedRecipe.isMultiPart && (
                                             <span className="ml-1 text-xs">(Multi-part)</span>
                                         )}

@@ -104,10 +104,15 @@ export function AnalyticsProvider({ children }) {
     );
 }
 
-export function useAnalyticsContext() {
+export async function useAnalyticsContext() {
     const context = useContext(AnalyticsContext);
     if (context === undefined) {
-        throw new Error('useAnalyticsContext must be used within an AnalyticsProvider');
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Analytics Failed',
+            message: 'useAnalyticsContext must be used within an AnalyticsProvider'
+        });
+        return;
     }
     return context;
 }

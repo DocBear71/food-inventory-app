@@ -11,6 +11,7 @@ import Footer from '@/components/legal/Footer';
 import { apiPost } from '@/lib/api-config';
 import { usePlatform } from '@/hooks/usePlatform';
 import { trackEmailEvent } from '@/lib/email-todo-implementations';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Separate component for search params to wrap in Suspense
 function BillingContent() {
@@ -42,17 +43,25 @@ function BillingContent() {
 
     // Error boundary for debugging
     useEffect(() => {
-        const handleError = (error) => {
+        const handleError = async (error) => {
             console.error('🚨 Global error caught:', error);
-            addPurchaseStep('GLOBAL_ERROR', { message: error.message, stack: error.stack });
-            setError(`App Error: ${error.message}`);
+            addPurchaseStep('GLOBAL_ERROR', {message: error.message, stack: error.stack});
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'App Error',
+                message: error.message
+            });
         };
 
         window.addEventListener('error', handleError);
-        window.addEventListener('unhandledrejection', (event) => {
+        window.addEventListener('unhandledrejection', async (event) => {
             console.error('🚨 Unhandled promise rejection:', event.reason);
-            addPurchaseStep('PROMISE_REJECTION', { reason: event.reason?.message || 'Unknown error' });
-            setError(`Promise Error: ${event.reason?.message || 'Unknown error'}`);
+            addPurchaseStep('PROMISE_REJECTION', {reason: event.reason?.message || 'Unknown error'});
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Promise Error',
+                message: event.reason?.message || 'Unknown error'
+            });
         });
 
         return () => {
@@ -64,7 +73,7 @@ function BillingContent() {
     // Early returns for auth
     useEffect(() => {
         if (status === 'unauthenticated') {
-            router.push('/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [status, router]);
 
@@ -120,7 +129,6 @@ function BillingContent() {
         }
 
         setLoading(true);
-        setError('');
         setSuccess('');
         setPurchaseSteps([]);
 
@@ -139,12 +147,21 @@ function BillingContent() {
             } else if (platform.billingProvider === 'appstore') {
                 await handleRevenueCatPurchase(newTier, newBilling);
             } else {
-                throw new Error(`Unknown billing platform: ${platform.billingProvider}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Billing Platform Error',
+                    message: `Unknown billing platform: ${platform.billingProvider}`
+                });
+                return;
             }
         } catch (error) {
             console.error('Error in subscription change:', error);
             addPurchaseStep('SUBSCRIPTION_CHANGE_ERROR', { message: error.message });
-            setError(`Subscription change failed: ${error.message}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Subscription Error',
+                message: `Subscription change failed: ${error.message}`
+            });
         } finally {
             setLoading(false);
         }
@@ -186,7 +203,12 @@ function BillingContent() {
 
             window.location.href = data.url;
         } else {
-            throw new Error(data.error || 'Failed to create checkout session');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Checkout Error',
+                message: data.error || 'Failed to create checkout session'
+            });
+            return;
         }
     };
 
@@ -197,7 +219,12 @@ function BillingContent() {
 
             // ENHANCED: Better iPad/iOS detection and error handling
             if (!platform.isIOS && !platform.isAndroid) {
-                throw new Error('RevenueCat purchases are only available on mobile devices');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Mobile Required',
+                    message: 'RevenueCat purchases are only available on mobile devices'
+                });
+                return;
             }
 
             console.log('1. Starting RevenueCat purchase for iOS/iPad...');
@@ -212,7 +239,12 @@ function BillingContent() {
                 console.log('2. RevenueCat SDK imported successfully');
             } catch (importError) {
                 addPurchaseStep('REVENUECAT_IMPORT_FAILED', { error: importError.message });
-                throw new Error(`RevenueCat SDK not available: ${importError.message}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'SDK Not Available',
+                    message: `RevenueCat SDK not available: ${importError.message}`
+                });
+                return;
             }
 
             // Get API key for iOS
@@ -221,7 +253,12 @@ function BillingContent() {
             addPurchaseStep('API_KEY_CHECK', { hasKey: !!apiKey });
 
             if (!apiKey) {
-                throw new Error('RevenueCat iOS API key not configured');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Configuration Error',
+                    message: 'RevenueCat iOS API key not configured'
+                });
+                return;
             }
 
             // ENHANCED: Configure RevenueCat with better error handling
@@ -235,7 +272,12 @@ function BillingContent() {
                 console.log('4. RevenueCat configured successfully!');
             } catch (configError) {
                 addPurchaseStep('REVENUECAT_CONFIGURE_FAILED', { error: configError.message });
-                throw new Error(`RevenueCat configuration failed: ${configError.message}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Configuration Failed',
+                    message: `RevenueCat configuration failed: ${configError.message}`
+                });
+                return;
             }
 
             // ENHANCED: Get customer info with detailed logging
@@ -251,7 +293,12 @@ function BillingContent() {
                 console.log('5. Customer info retrieved successfully');
             } catch (customerError) {
                 addPurchaseStep('CUSTOMER_INFO_FAILED', { error: customerError.message });
-                throw new Error(`Failed to get customer info: ${customerError.message}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Customer Info Error',
+                    message: `Failed to get customer info: ${customerError.message}`
+                });
+                return;
             }
 
             // ENHANCED: Get offerings with comprehensive error handling
@@ -271,16 +318,31 @@ function BillingContent() {
                 });
             } catch (offeringsError) {
                 addPurchaseStep('OFFERINGS_FAILED', { error: offeringsError.message });
-                throw new Error(`Failed to get offerings: ${offeringsError.message}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Offerings Error',
+                    message: `Failed to get offerings: ${offeringsError.message}`
+                });
+                return;
             }
 
             if (!offerings || !offerings.current) {
-                throw new Error('No subscription offerings available. Please ensure products are configured in App Store Connect.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Offerings Available',
+                    message: 'No subscription offerings available. Please ensure products are configured in App Store Connect.'
+                });
+                return;
             }
 
             const packages = offerings.current.availablePackages || [];
             if (packages.length === 0) {
-                throw new Error('No subscription packages found. Please check App Store Connect configuration.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Packages Found',
+                    message: 'No subscription packages found. Please check App Store Connect configuration.'
+                });
+                return;
             }
 
             // Log all available packages for debugging
@@ -356,7 +418,12 @@ function BillingContent() {
                     searchedFor: packageId,
                     available: availableIds
                 });
-                throw new Error(`No package found for ${tier} ${billingCycle}. Available packages: ${availableIds}. Please check App Store Connect product configuration.`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Package Not Found',
+                    message: `No package found for ${tier} ${billingCycle}. Available packages: ${availableIds}. Please check App Store Connect product configuration.`
+                });
+                return;
             }
 
             console.log('8. Package selected for purchase:', {
@@ -401,20 +468,36 @@ function BillingContent() {
                 console.error('Purchase failed:', purchaseError);
 
                 // ENHANCED: Handle specific purchase errors with user-friendly messages
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 if (purchaseError.message?.includes('ITEM_ALREADY_OWNED')) {
-                    setError('You already own this subscription. Try restoring your purchases.');
+                    await NativeDialog.showAlert({
+                        title: 'Already Owned',
+                        message: 'You already own this subscription. Try restoring your purchases.'
+                    });
                     return;
                 } else if (purchaseError.message?.includes('USER_CANCELLED')) {
-                    setError('Purchase was cancelled.');
+                    await NativeDialog.showAlert({
+                        title: 'Purchase Cancelled',
+                        message: 'Purchase was cancelled.'
+                    });
                     return;
                 } else if (purchaseError.message?.includes('PAYMENT_PENDING')) {
-                    setError('Payment is pending. Please check back in a few minutes.');
+                    await NativeDialog.showAlert({
+                        title: 'Payment Pending',
+                        message: 'Payment is pending. Please check back in a few minutes.'
+                    });
                     return;
                 } else if (purchaseError.message?.includes('ITEM_UNAVAILABLE')) {
-                    setError('This subscription is temporarily unavailable. Please try again later.');
+                    await NativeDialog.showAlert({
+                        title: 'Unavailable',
+                        message: 'This subscription is temporarily unavailable. Please try again later.'
+                    });
                     return;
                 } else if (purchaseError.message?.includes('NETWORK_ERROR')) {
-                    setError('Network error. Please check your connection and try again.');
+                    await NativeDialog.showAlert({
+                        title: 'Network Error',
+                        message: 'Network error. Please check your connection and try again.'
+                    });
                     return;
                 }
 
@@ -451,14 +534,27 @@ function BillingContent() {
             });
 
             // Enhanced error messages for iPad users
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             if (error.message?.includes('configuration')) {
-                setError('App Store configuration issue. Please try again later or contact support.');
+                await NativeDialog.showError({
+                    title: 'Configuration Issue',
+                    message: 'App Store configuration issue. Please try again later or contact support.'
+                });
             } else if (error.message?.includes('network') || error.message?.includes('Network')) {
-                setError('Network connection issue. Please check your internet connection and try again.');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Network connection issue. Please check your internet connection and try again.'
+                });
             } else if (error.message?.includes('offerings') || error.message?.includes('packages')) {
-                setError('Subscription products are being updated. Please try again in a few minutes.');
+                await NativeDialog.showError({
+                    title: 'Updates In Progress',
+                    message: 'Subscription products are being updated. Please try again in a few minutes.'
+                });
             } else {
-                setError(`Purchase error: ${error.message}`);
+                await NativeDialog.showError({
+                    title: 'Purchase Error',
+                    message: error.message
+                });
             }
         }
     };
@@ -486,24 +582,35 @@ function BillingContent() {
             } else {
                 addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
                 console.error('Backend verification failed:', data);
-                setError('Purchase completed but verification failed. Please contact support with your transaction ID.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Verification Failed',
+                    message: 'Purchase completed but verification failed. Please contact support with your transaction ID.'
+                });
             }
         } catch (error) {
             addPurchaseStep('VERIFICATION_ERROR', { error: error.message });
             console.error('Verification error:', error);
-            setError('Purchase completed but verification failed. Please contact support.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Verification Failed',
+                message: 'Purchase completed but verification failed. Please contact support.'
+            });
         }
     };
 
     // ENHANCED: iOS Restore Purchases functionality with better error handling
     const handleRestorePurchases = async () => {
         if (!platform.isIOS) {
-            setError('Restore purchases is only available on iOS devices.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'iOS Only Feature',
+                message: 'Restore purchases is only available on iOS devices.'
+            });
             return;
         }
 
         setIsRestoring(true);
-        setError('');
         setSuccess('');
         setPurchaseSteps([]);
 
@@ -517,7 +624,12 @@ function BillingContent() {
             // Configure RevenueCat if not already configured
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
             if (!apiKey) {
-                throw new Error('RevenueCat iOS API key not configured');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Configuration Error',
+                    message: 'RevenueCat iOS API key not configured'
+                });
+                return;
             }
 
             await Purchases.configure({
@@ -543,13 +655,21 @@ function BillingContent() {
                 setSuccess('Successfully restored your purchases! Your subscription is now active.');
                 subscription.refetch();
             } else {
-                setError('No active subscriptions found to restore.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'No Subscriptions Found',
+                    message: 'No active subscriptions found to restore.'
+                });
             }
 
         } catch (error) {
             console.error('Restore purchases error:', error);
             addPurchaseStep('RESTORE_ERROR', { error: error.message });
-            setError(`Failed to restore purchases: ${error.message}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Restore Failed',
+                message: `Failed to restore purchases: ${error.message}`
+            });
         } finally {
             setIsRestoring(false);
         }
@@ -562,7 +682,6 @@ function BillingContent() {
         }
 
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiPost('/api/subscription/start-trial', {
@@ -576,11 +695,19 @@ function BillingContent() {
                 // Refresh subscription data
                 subscription.refetch();
             } else {
-                setError(data.error || 'Failed to start trial');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Trial Start Failed',
+                    message: data.error || 'Failed to start trial'
+                });
             }
         } catch (error) {
             console.error('Error starting trial:', error);
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -594,12 +721,18 @@ function BillingContent() {
             cancelMessage += '\n\nNote: For iOS subscriptions, you may also need to cancel through your Apple ID settings.';
         }
 
-        if (!confirm(cancelMessage)) {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Cancel Subscription',
+            message: cancelMessage,
+            confirmText: 'Cancel Subscription',
+            cancelText: 'Keep Subscription'
+        });
+        if (!confirmed) {
             return;
         }
 
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiPost('/api/subscription/cancel', {});
@@ -615,11 +748,19 @@ function BillingContent() {
                 setSuccess(successMessage);
                 subscription.refetch();
             } else {
-                setError(data.error || 'Failed to cancel subscription');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Cancellation Failed',
+                    message: data.error || 'Failed to cancel subscription'
+                });
             }
         } catch (error) {
             console.error('Error cancelling subscription:', error);
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -672,7 +813,7 @@ function BillingContent() {
                             <p className="text-gray-600 mt-1">Manage your subscription and billing details</p>
                         </div>
                         <TouchEnhancedButton
-                            onClick={() => router.push('/account')}
+                            onClick={() => NativeNavigation.routerPush(router, '/account')}
                             className="text-indigo-600 hover:text-indigo-700"
                         >
                             ← Back to Account
@@ -1015,7 +1156,7 @@ function BillingContent() {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
                         <div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/legal/terms')}
+                                onClick={() => NativeNavigation.routerPush(router, '/legal/terms')}
                                 className="text-blue-600 hover:text-blue-700 font-medium"
                             >
                                 Terms of Service →
@@ -1026,7 +1167,7 @@ function BillingContent() {
                         </div>
                         <div>
                             <TouchEnhancedButton
-                                onClick={() => router.push('/legal/privacy')}
+                                onClick={() => NativeNavigation.routerPush(router, '/legal/privacy')}
                                 className="text-blue-600 hover:text-blue-700 font-medium"
                             >
                                 Privacy Policy →

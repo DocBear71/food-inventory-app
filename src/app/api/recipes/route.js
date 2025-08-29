@@ -679,11 +679,21 @@ export async function POST(request) {
 
                 // Validate file
                 if (!imageFile.type.startsWith('image/')) {
-                    throw new Error('File must be an image');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Image Failed',
+                        message: 'File must be an image'
+                    });
+                    return;
                 }
 
                 if (imageFile.size > 5242880) { // 5MB
-                    throw new Error('File size must be under 5MB');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'File Failed',
+                        message: 'File size must be under 5MB'
+                    });
+                    return;
                 }
 
                 // Store as binary data in RecipePhoto collection

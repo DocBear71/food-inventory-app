@@ -36,7 +36,11 @@ export default function RecipePhotoUpload({ recipeId, existingPhotos = [], onPho
         } catch (error) {
             console.error('Error selecting from photo library:', error);
             if (error.message !== 'User cancelled photos app') {
-                setError('Failed to select photo from library');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Selection Failed',
+                    message: 'Failed to select photo from library'
+                });
                 MobileHaptics?.error();
             }
         }
@@ -62,13 +66,17 @@ export default function RecipePhotoUpload({ recipeId, existingPhotos = [], onPho
         } catch (error) {
             console.error('Error taking photo with camera:', error);
             if (error.message !== 'User cancelled photos app') {
-                setError('Failed to take photo with camera');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Camera Error',
+                    message: 'Failed to take photo with camera'
+                });
                 MobileHaptics?.error();
             }
         }
     };
 
-    const handleFileSelect = (files) => {
+    const handleFileSelect = async (files) => {
         const fileArray = Array.from(files);
         const imageFiles = fileArray.filter(file => file.type.startsWith('image/'));
 
@@ -76,14 +84,22 @@ export default function RecipePhotoUpload({ recipeId, existingPhotos = [], onPho
             // Validate file sizes (5MB limit for MongoDB binary storage)
             const oversizedFiles = imageFiles.filter(file => file.size > 5242880);
             if (oversizedFiles.length > 0) {
-                setError(`Some files are too large. Maximum size is 5MB per photo.`);
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'File Size Error',
+                    message: 'Some files are too large. Maximum size is 5MB per photo.'
+                });
                 MobileHaptics?.error();
                 return;
             }
 
             uploadPhotos(imageFiles);
         } else {
-            setError('Please select image files only.');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Invalid File Type',
+                message: 'Please select image files only.'
+            });
             MobileHaptics?.error();
         }
     };
@@ -109,7 +125,12 @@ export default function RecipePhotoUpload({ recipeId, existingPhotos = [], onPho
 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.error || 'Upload failed');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Upload Failed',
+                        message: errorData.error || 'Upload failed'
+                    });
+                    return;
                 }
 
                 return response.json();
@@ -126,7 +147,11 @@ export default function RecipePhotoUpload({ recipeId, existingPhotos = [], onPho
             console.log(`✅ Successfully uploaded ${newPhotos.length} photos to MongoDB`);
         } catch (error) {
             console.error('Error uploading photos:', error);
-            setError(error.message || 'Upload failed. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Upload Failed',
+                message: error.message || 'Upload failed. Please try again.'
+            });
             MobileHaptics?.error();
         } finally {
             setUploading(false);
@@ -150,11 +175,20 @@ export default function RecipePhotoUpload({ recipeId, existingPhotos = [], onPho
                 MobileHaptics?.light();
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Delete failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: errorData.error || 'Delete failed'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error deleting photo:', error);
-            setError(error.message || 'Failed to delete photo');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Failed',
+                message: error.message || 'Failed to delete photo'
+            });
             MobileHaptics?.error();
         }
     };
@@ -181,7 +215,11 @@ export default function RecipePhotoUpload({ recipeId, existingPhotos = [], onPho
             }
         } catch (error) {
             console.error('Error setting primary photo:', error);
-            setError('Failed to set primary photo');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Update Failed',
+                message: 'Failed to set primary photo'
+            });
             MobileHaptics?.error();
         }
     };

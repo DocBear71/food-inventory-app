@@ -10,7 +10,11 @@ import Footer from '@/components/legal/Footer';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { apiPost } from '@/lib/api-config';
 import VideoImportLoadingModal from '@/components/recipes/VideoImportLoadingModal';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function ImportRecipePage() {
     const router = useRouter();
@@ -166,7 +170,11 @@ export default function ImportRecipePage() {
 
     const handleUrlImport = async () => {
         if (!urlInput.trim()) {
-            setImportError('Please enter a valid URL');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Missing URL',
+                message: 'Please enter a valid URL to import from.'
+            });
             return;
         }
 
@@ -259,7 +267,12 @@ export default function ImportRecipePage() {
                     router.push(`/recipes/add?imported=true&source=${platform}`);
                 }, 2000);
             } else {
-                throw new Error(data.error || `Failed to extract recipe from ${getPlatformName(platform)} content`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Extraction Failed',
+                    message: data.error || `Failed to extract recipe from ${getPlatformName(platform)} content`
+                });
+                return;
             }
         } catch (error) {
             console.error('Import error:', error);
@@ -285,10 +298,20 @@ export default function ImportRecipePage() {
                 // Navigate to add page with the scraped recipe data
                 router.push(`/recipes/add?imported=true&source=website&data=${encodeURIComponent(JSON.stringify(data.recipe))}`);
             } else {
-                throw new Error(data.error || 'Failed to import recipe from website');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Import Failed',
+                    message: data.error || 'Failed to import recipe from website'
+                });
+                return;
             }
         } catch (error) {
-            throw new Error(`Website import failed: ${error.message}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Import Failed',
+                message:`Website import failed: ${error.message}`
+            });
+            return;
         }
     };
 
@@ -313,8 +336,8 @@ export default function ImportRecipePage() {
         }
     };
 
-    const handleCancel = () => {
-        router.push('/recipes');
+    const handleCancel = async () => {
+        await NativeNavigation.routerPush(router, '/recipes');
     };
 
     // ENHANCED: Platform icons with new platforms
@@ -527,17 +550,30 @@ export default function ImportRecipePage() {
                                     )}
                                 </label>
                                 <div className="flex gap-3">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="url"
+                                        inputMode="url"
                                         value={urlInput}
-                                        onChange={(e) => {
-                                            setUrlInput(e.target.value);
-                                            setImportError('');
+                                        onChange={(e) => setUrlInput(e.target.value)}
+                                        placeholder="https://example.com/recipe or video URL"
+                                        autoComplete="url"
+                                        validation={(value) => {
+                                            if (!value) return { isValid: false, message: '' };
+                                            try {
+                                                new URL(value);
+                                                return {
+                                                    isValid: true,
+                                                    message: 'URL looks good!'
+                                                };
+                                            } catch {
+                                                return {
+                                                    isValid: false,
+                                                    message: 'Please enter a valid URL'
+                                                };
+                                            }
                                         }}
-                                        placeholder="Paste any recipe URL from social media or websites..."
-                                        className="flex-1 px-3 py-3 text-base border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                        style={{minHeight: '48px'}}
-                                        disabled={isImporting}
+                                        errorMessage="Please enter a valid URL (e.g., https://example.com)"
+                                        successMessage="URL looks good!"
                                     />
                                     <TouchEnhancedButton
                                         onClick={handleUrlImport}

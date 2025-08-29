@@ -5,6 +5,7 @@
 // Google Play Tester Bulk Upgrade Utility - Special component for your closed beta
 
 import { useState } from 'react';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function BulkTesterUpgrade() {
     const [testerEmails, setTesterEmails] = useState('');
@@ -284,7 +285,7 @@ tester3@gmail.com`}
                             Upgrade More Users
                         </button>
                         <button
-                            onClick={() => window.location.href = '/admin/users'}
+                            onClick={() => NativeNavigation.navigateTo({ path: '/admin/users', router })}
                             className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700"
                         >
                             View All Users

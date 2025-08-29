@@ -1,12 +1,13 @@
 'use client';
 
-// file: /src/app/admin/users/page.js
+// file: /src/app/admin/users/page.js - iOS Native Dialog version
 // Admin Users Management Page - Mobile-responsive with card layout
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import {apiPost} from "@/lib/api-config.js";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function AdminUsersPage() {
     const { data: session, status } = useSession();
@@ -49,7 +50,7 @@ export default function AdminUsersPage() {
         if (status === 'loading') return;
 
         if (!session?.user?.isAdmin) {
-            router.push('/');
+            NativeNavigation.routerPush(router, '/');
             return;
         }
     }, [session, status, router]);
@@ -69,7 +70,12 @@ export default function AdminUsersPage() {
             const response = await fetch(`/api/admin/users?${params}`);
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Request Failed',
+                    message: `HTTP ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -79,7 +85,11 @@ export default function AdminUsersPage() {
 
         } catch (err) {
             console.error('Error fetching users:', err);
-            setError(err.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Users Fetch Error',
+                message: err.message
+            });
         } finally {
             setLoading(false);
         }
@@ -124,17 +134,28 @@ export default function AdminUsersPage() {
             if (!selectedUserForUpgrade) return;
 
             const response = await apiPost(`/api/admin/users/${selectedUserForUpgrade._id}/upgrade`, {
-                    tier: individualUpgradeData.tier,
-                    endDate: individualUpgradeData.endDate,
-                    reason: individualUpgradeData.reason
+                tier: individualUpgradeData.tier,
+                endDate: individualUpgradeData.endDate,
+                reason: individualUpgradeData.reason
             });
 
             if (!response.ok) {
-                throw new Error('Individual upgrade failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Upgrade Failed',
+                    message: 'Individual upgrade failed'
+                });
+                return;
             }
 
             const result = await response.json();
-            alert(result.message || `Successfully upgraded ${selectedUserForUpgrade.name} to ${individualUpgradeData.tier}!`);
+
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Upgrade Successful',
+                message: result.message || `Successfully upgraded ${selectedUserForUpgrade.name} to ${individualUpgradeData.tier}!`
+            });
 
             setShowIndividualUpgrade(false);
             setSelectedUserForUpgrade(null);
@@ -142,7 +163,12 @@ export default function AdminUsersPage() {
 
         } catch (err) {
             console.error('Individual upgrade error:', err);
-            alert('Error upgrading user: ' + err.message);
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Upgrade Failed',
+                message: 'Error upgrading user: ' + err.message
+            });
         }
     };
 
@@ -172,11 +198,22 @@ export default function AdminUsersPage() {
             });
 
             if (!response.ok) {
-                throw new Error('Bulk upgrade failed');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Bulk Upgrade Failed',
+                    message: 'Bulk upgrade failed'
+                });
+                return;
             }
 
             const result = await response.json();
-            alert(`Successfully upgraded ${result.results.successful.length} users!`);
+
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showSuccess({
+                title: 'Bulk Upgrade Complete',
+                message: `Successfully upgraded ${result.results.successful.length} users!`
+            });
 
             setShowBulkUpgrade(false);
             setSelectedUsers(new Set());
@@ -184,7 +221,12 @@ export default function AdminUsersPage() {
 
         } catch (err) {
             console.error('Bulk upgrade error:', err);
-            alert('Error upgrading users: ' + err.message);
+            // UPDATED: Replace alert with NativeDialog
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Bulk Upgrade Failed',
+                message: 'Error upgrading users: ' + err.message
+            });
         }
     };
 

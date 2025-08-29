@@ -152,11 +152,20 @@ function WriteReviewModal({ storeId, onClose, onSuccess }) {
                 onSuccess();
                 MobileHaptics?.success();
             } else {
-                throw new Error(data.error);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Submission Failed',
+                    message: data.error
+                });
+                return;
             }
         } catch (error) {
             console.error('Failed to submit review:', error);
-            alert('Failed to submit review. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Submission Failed',
+                message: 'Failed to submit review. Please try again.'
+            });
             MobileHaptics?.error();
         } finally {
             setLoading(false);

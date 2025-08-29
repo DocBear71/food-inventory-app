@@ -638,7 +638,12 @@ export default function EnhancedAIShoppingListModal({
         try {
             const response = await fetch('/api/stores');
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: `HTTP error! status: ${response.status}`
+                });
+                return;
             }
             const data = await response.json();
             if (data.success) {
@@ -746,7 +751,12 @@ export default function EnhancedAIShoppingListModal({
 
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`Modal.com API error: ${response.status} ${errorText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'API Error',
+                    message: `Modal.com API error: ${response.status} ${errorText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -1340,7 +1350,11 @@ export default function EnhancedAIShoppingListModal({
 
     const optimizeForBudget = useCallback(async () => {
         if (!budgetTracking.limit) {
-            alert('Please set a budget limit first');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Budget Required',
+                message: 'Please set a budget limit first'
+            });
             return;
         }
 
@@ -2054,7 +2068,11 @@ export default function EnhancedAIShoppingListModal({
     // AI Optimization Functions
     const handleAIOptimization = useCallback(async () => {
         if (!selectedStore || !session?.user?.id) {
-            alert('Please select a store first');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Store Required',
+                message: 'Please select a store first'
+            });
             return;
         }
 
@@ -2116,7 +2134,11 @@ export default function EnhancedAIShoppingListModal({
 
         } catch (error) {
             console.error('AI optimization error:', error);
-            alert('AI optimization failed. Using basic layout.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'AI Optimization Failed',
+                message: 'AI optimization failed. Using basic layout.'
+            });
             setAiMode('basic');
         } finally {
             setAiLoading(false);
@@ -3032,9 +3054,16 @@ export default function EnhancedAIShoppingListModal({
                                     </TouchEnhancedButton>
 
                                     <TouchEnhancedButton
-                                        onClick={(e) => {
+                                        onClick={async (e) => {
                                             e.stopPropagation();
-                                            if (window.confirm(`Remove "${item.ingredient || item.name}"?`)) {
+                                            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                                            const confirmed = await NativeDialog.showConfirm({
+                                                title: 'Remove Item',
+                                                message: `Remove "${item.ingredient || item.name}"?`,
+                                                confirmText: 'Remove',
+                                                cancelText: 'Cancel'
+                                            });
+                                            if (confirmed) {
                                                 handleRemoveItem(item, category);
                                             }
                                         }}
@@ -3054,9 +3083,16 @@ export default function EnhancedAIShoppingListModal({
                                 </>
                             ) : (
                                 <TouchEnhancedButton
-                                    onClick={(e) => {
+                                    onClick={async (e) => {
                                         e.stopPropagation();
-                                        if (window.confirm(`Remove "${item.ingredient || item.name}"?`)) {
+                                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                                        const confirmed = await NativeDialog.showConfirm({
+                                            title: 'Remove Item',
+                                            message: `Remove "${item.ingredient || item.name}"?`,
+                                            confirmText: 'Remove',
+                                            cancelText: 'Cancel'
+                                        });
+                                        if (confirmed) {
                                             handleRemoveItem(item, category);
                                         }
                                     }}

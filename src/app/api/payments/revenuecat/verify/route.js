@@ -48,7 +48,12 @@ async function validateReceiptWithApple(receiptData) {
 
     } catch (error) {
         console.error('❌ Apple receipt validation failed:', error);
-        throw new Error(`Receipt validation failed: ${error.message}`);
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Receipt Validation Failed',
+            message: `Receipt validation failed: ${error.message}`
+        });
+        return;
     }
 }
 

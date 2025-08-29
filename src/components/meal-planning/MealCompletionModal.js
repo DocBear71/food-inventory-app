@@ -6,7 +6,11 @@ import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost } from '@/lib/api-config';
 import { findBestInventoryMatch, normalizeIngredientName, extractIngredientName } from '@/utils/ingredientMatching';
 import UPCLookup from '@/components/inventory/UPCLookup';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 export default function MealCompletionModal({
                                                 isOpen,
@@ -82,11 +86,19 @@ export default function MealCompletionModal({
                 setRecipeDetails(data.recipe);
                 performIngredientMatching(data.recipe.ingredients);
             } else {
-                setError('Failed to load recipe details');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error Loading',
+                    message: 'Failed to load recipe details'
+                });
             }
         } catch (error) {
             console.error('Error loading recipe details:', error);
-            setError('Failed to load recipe details');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Error Loading',
+                message: 'Failed to load recipe details'
+            });
         } finally {
             setLoading(false);
         }
@@ -270,7 +282,6 @@ export default function MealCompletionModal({
 
     const handleComplete = async () => {
         setSaving(true);
-        setError('');
 
         try {
             // Combine regular ingredients and extra items for consumption
@@ -303,7 +314,11 @@ export default function MealCompletionModal({
             allItemsToConsume.push(...recipeItemsToConsume, ...extraItemsToConsume);
 
             if (allItemsToConsume.length === 0) {
-                setError('No inventory items selected for consumption');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Items Selected',
+                    message: 'Please select at least one inventory item for consumption.'
+                });
                 return;
             }
 
@@ -333,11 +348,19 @@ export default function MealCompletionModal({
 
                 onClose();
             } else {
-                setError(result.error || 'Failed to consume ingredients');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Completion Failed',
+                    message: result.error || 'Failed to consume ingredients. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error completing meal:', error);
-            setError('Failed to complete meal: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Completion Error',
+                message: 'Failed to complete meal: ' + error.message
+            });
         } finally {
             setSaving(false);
         }
@@ -704,12 +727,17 @@ export default function MealCompletionModal({
                                         <label className="block text-sm font-medium text-gray-700 mb-2">
                                             Notes (Optional)
                                         </label>
-                                        <textarea
+                                        <NativeTextarea
                                             value={notes}
                                             onChange={(e) => setNotes(e.target.value)}
                                             rows={3}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
                                             placeholder="How was the meal? Any modifications you made?"
+                                            validation={(value) => ({
+                                                isValid: true,
+                                                message: value && value.length > 10 ? 'Great notes!' : ''
+                                            })}
+                                            autoExpand={true}
+                                            maxLength={500}
                                         />
                                     </div>
 
@@ -876,7 +904,12 @@ function AddInventoryItemModal({
                     inventoryItem = data.item;
                     addedToInventory = true;
                 } else {
-                    throw new Error(data.error || 'Failed to add item to inventory');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Add Item Failed',
+                        message: errorData.error || 'Failed to add item to inventory'
+                    });
+                    return;
                 }
             }
 
@@ -906,7 +939,11 @@ function AddInventoryItemModal({
 
         } catch (error) {
             console.error('Error adding item:', error);
-            alert('Error adding item: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Add Item Failed',
+                message: 'Error adding item: ' + error.message
+            });
         } finally {
             setLoading(false);
         }
@@ -1064,14 +1101,18 @@ function AddInventoryItemModal({
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Item Name *
                                         </label>
-                                        <KeyboardOptimizedInput
+                                        <NativeTextInput
                                             type="text"
+                                            inputMode="text"
                                             name="name"
                                             required
                                             value={formData.name}
                                             onChange={handleChange}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                             placeholder="e.g., Extra Virgin Olive Oil"
+                                            autoComplete="off"
+                                            validation={ValidationPatterns.required}
+                                            errorMessage="Please enter an item name"
+                                            successMessage="Item name looks good!"
                                         />
                                     </div>
 
@@ -1079,13 +1120,18 @@ function AddInventoryItemModal({
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Brand
                                         </label>
-                                        <KeyboardOptimizedInput
+                                        <NativeTextInput
                                             type="text"
+                                            inputMode="text"
                                             name="brand"
                                             value={formData.brand}
                                             onChange={handleChange}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                             placeholder="e.g., Bertolli"
+                                            autoComplete="organization"
+                                            validation={(value) => ({
+                                                isValid: true,
+                                                message: value ? 'Brand noted' : ''
+                                            })}
                                         />
                                     </div>
 
@@ -1172,13 +1218,18 @@ function AddInventoryItemModal({
                                         <label className="block text-sm font-medium text-gray-700 mb-1">
                                             Notes
                                         </label>
-                                        <KeyboardOptimizedInput
+                                        <NativeTextInput
                                             type="text"
+                                            inputMode="text"
                                             name="notes"
                                             value={formData.notes}
                                             onChange={handleChange}
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-md"
                                             placeholder="Why was this added?"
+                                            autoComplete="off"
+                                            validation={(value) => ({
+                                                isValid: true,
+                                                message: value && value.length > 5 ? 'Good notes!' : ''
+                                            })}
                                         />
                                     </div>
                                 </div>

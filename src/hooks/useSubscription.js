@@ -180,7 +180,11 @@ export function SubscriptionProvider({ children }) {
                         usage: {},
                         timestamp: new Date().toISOString()
                     });
-                    setError('Failed to fetch subscription data - using fallback');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Subscription Error',
+                        message: 'Failed to fetch subscription data - using fallback'
+                    });
                 }
             }
         } catch (err) {
@@ -197,7 +201,11 @@ export function SubscriptionProvider({ children }) {
                 }, retryDelay);
             } else {
                 console.log('❌ Network error - max retries reached or no session');
-                setError('Network error while fetching subscription data');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: 'Network error while fetching subscription data'
+                });
             }
         } finally {
             setIsFetching(false);
@@ -433,7 +441,7 @@ export function useSubscription() {
         throw new Error('useSubscription must be used within a SubscriptionProvider');
     }
 
-    const { subscriptionData, loading, error, refetch, forceRefresh, clearCache, refreshFromDatabase } = context;
+    const {subscriptionData, loading, error, refetch, forceRefresh, clearCache, refreshFromDatabase} = context;
 
     const isExpired = () => {
         return subscriptionData?.status === 'expired';

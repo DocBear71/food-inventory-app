@@ -8,8 +8,9 @@ import BarcodeScannerIOS from './BarcodeScannerIOS';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import {apiGet, apiPost} from '@/lib/api-config';
 import {useSubscription} from '@/hooks/useSubscription';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import { NativeTextInput } from '@/components/forms/NativeIOSFormComponents';
 import { PlatformDetection } from '@/utils/PlatformDetection';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Helper function for Nutri-Score colors
 function getNutriScoreColor(score) {
@@ -267,8 +268,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 ? 'Unexpected limit reached'
                 : `You've reached your monthly limit of ${currentUsageData.monthlyLimit} UPC scans.`;
 
-            alert(`❌ ${limitMessage}\n\nUpgrade to Gold for unlimited UPC scanning!`);
-            window.location.href = `/pricing?source=upc-limit&feature=upc-scanning&required=gold`;
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showUpgradePrompt({
+                feature: 'UPC Scanning',
+                tier: 'Gold',
+                currentLimit: limitMessage
+            });
             return false;
         }
 
@@ -445,7 +450,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ Search API error:', response.status, errorText);
-                throw new Error(`Search API returned ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Search API Error',
+                    message: `Search API returned ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             let data;
@@ -454,7 +464,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 data = JSON.parse(responseText);
             } catch (parseError) {
                 console.error('❌ JSON parse error:', parseError);
-                throw new Error('Invalid response format from search API');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Parse Error',
+                    message: 'Invalid response format from search API'
+                });
+                return;
             }
 
             console.log('🔍 Search response data:', {
@@ -493,7 +508,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 }
 
             } else {
-                throw new Error(data.error || 'Search failed - no success flag');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Search Failed',
+                    message: data.error || 'Search failed - no success flag'
+                });
+                return;
             }
 
         } catch (error) {
@@ -509,12 +529,23 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             }
 
             // User-friendly error messages
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+
             if (error.message.includes('429') || error.message.includes('Rate limit')) {
-                alert('❌ Search service is temporarily busy. Please wait a moment before searching again.');
+                await NativeDialog.showError({
+                    title: 'Service Busy',
+                    message: 'Search service is temporarily busy. Please wait a moment before searching again.'
+                });
             } else if (error.message.includes('timeout')) {
-                alert('❌ Search is taking longer than usual. Please try again.');
+                await NativeDialog.showError({
+                    title: 'Search Timeout',
+                    message: 'Search is taking longer than usual. Please try again.'
+                });
             } else {
-                alert(`❌ Search failed: ${error.message}. Please try again.`);
+                await NativeDialog.showError({
+                    title: 'Search Failed',
+                    message: `Search failed: ${error.message}. Please try again.`
+                });
             }
         } finally {
             setIsSearching(false);
@@ -547,7 +578,11 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         const validation = validateAndCleanUPC(barcode);
         if (!validation.valid) {
             console.log(`❌ Invalid scanned barcode: ${validation.reason}`);
-            alert(`❌ Invalid barcode: ${validation.reason.replace('_', ' ')}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Invalid Barcode',
+                message: `Invalid barcode: ${validation.reason.replace('_', ' ')}`
+            });
             processingBarcodeRef.current = false;
             return;
         }
@@ -680,7 +715,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                     </div>
                     {currentUsageData.monthlyLimit !== 'unlimited' && currentUsageData.remaining <= 2 && (
                         <TouchEnhancedButton
-                            onClick={() => window.location.href = '/pricing?source=upc-low&feature=upc-scanning'}
+                            onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=upc-low&feature=upc-scanning', router })}
                             className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
                         >
                             Upgrade
@@ -735,12 +770,20 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     // Check usage limits before any UPC operation
     const checkUsageLimits = async () => {
         if (isLoadingUsage) {
-            alert('⏳ Please wait while we check your scan limits...');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Checking Limits',
+                message: 'Please wait while we check your scan limits...'
+            });
             return false;
         }
 
         if (!usageInfo) {
-            alert('❌ Unable to check scan limits. Please refresh the page and try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Scan Limits Check Failed',
+                message: 'Unable to check scan limits. Please refresh the page and try again.'
+            });
             return false;
         }
 
@@ -749,8 +792,12 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 ? 'Unexpected limit reached'
                 : `You've reached your monthly limit of ${usageInfo.monthlyLimit} UPC scans. Used: ${usageInfo.currentMonth}/${usageInfo.monthlyLimit}`;
 
-            alert(`❌ ${limitMessage}\n\nUpgrade to Gold for unlimited UPC scanning!`);
-            window.location.href = `/pricing?source=upc-limit&feature=upc-scanning&required=gold`;
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showUpgradePrompt({
+                feature: 'UPC Scanning',
+                tier: 'Gold',
+                currentLimit: limitMessage
+            });
             return false;
         }
 
@@ -775,7 +822,11 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     // Scanner click with usage check
     const handleScannerClick = async () => {
         if (!checkCameraAvailability()) {
-            alert('Camera not available on this device. Please enter UPC manually.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Camera Unavailable',
+                message: 'Camera not available on this device. Please enter UPC manually.'
+            });
             return;
         }
 
@@ -788,8 +839,16 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     };
 
     // Handle UPC input changes with auto-lookup
-    const handleUPCInput = (e) => {
-        const upc = e.target.value;
+    const handleUPCInput = async (e) => {
+        let upc = e.target.value.replace(/[^0-9]/g, '');
+
+        // 🍎 Native iOS input haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.selection();
+        } catch (error) {
+            console.log('Input haptic failed:', error);
+        }
 
         // Reset duplicate detection if user manually changes UPC
         if (upc !== lastProcessedBarcodeRef.current) {
@@ -814,8 +873,17 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         }
     };
 
+
     // Manual lookup handler
-    const handleManualLookup = () => {
+    const handleManualLookup = async () => {
+        // 🍎 Native iOS button haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+        } catch (error) {
+            console.log('Manual lookup haptic failed:', error);
+        }
+
         const upcToLookup = localUPC || currentUPC;
         if (upcToLookup) {
             handleUPCLookupWithImmediateUpdate(upcToLookup);
@@ -1113,14 +1181,22 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             {isIOS ? '🍎 iOS UPC/Barcode Scanner (Enhanced for US Products)' : '🇺🇸 UPC/Barcode Scanner (Enhanced for US Products)'}
                         </label>
 
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             type="text"
+                            inputMode="numeric"
+                            pattern="[0-9]*"
                             id="upc"
                             name="upc"
                             value={localUPC}
                             onChange={handleUPCInput}
                             placeholder="Enter or scan UPC code (e.g., 0046000861210)"
-                            className="w-full mt-1 block border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                            autoComplete="off"
+                            validation={(value) => ({
+                                isValid: value.length === 0 || (value.length >= 8 && value.length <= 14),
+                                message: value.length >= 8 ? 'UPC format looks good' : ''
+                            })}
+                            errorMessage="UPC should be 8-14 digits"
+                            successMessage="UPC format looks good"
                         />
 
                         {/* Enhanced buttons */}
@@ -1206,15 +1282,22 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                             🌍 Enhanced Product Search
                         </label>
                         <div className="relative">
-                            <KeyboardOptimizedInput
+                            <NativeTextInput
                                 ref={searchInputRef}
-                                type="text"
+                                type="search"
+                                inputMode="search"
                                 id="search"
                                 value={searchQuery}
                                 onChange={handleSearchInputChange}
                                 onFocus={handleSearchInputFocus}
                                 placeholder="Type product name (e.g., 'Old El Paso', 'Campbell's Soup')"
-                                className="w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                autoComplete="off"
+                                autoCorrect="on"
+                                spellCheck="true"
+                                validation={(value) => ({
+                                    isValid: true,
+                                    message: value.length > 2 ? 'Searching...' : ''
+                                })}
                             />
 
                             {/* Autocomplete dropdown */}

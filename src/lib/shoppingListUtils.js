@@ -100,7 +100,7 @@ export function createAdvancedPrintFunction(options = {}) {
         onError = (error) => console.error('Print error:', error)
     } = options;
 
-    return function handleAdvancedPrint(event) {
+    return async function handleAdvancedPrint(event) {
         // Prevent multiple clicks
         const button = event?.target;
         if (button?.disabled) return;
@@ -110,7 +110,11 @@ export function createAdvancedPrintFunction(options = {}) {
             const printContent = document.getElementById(contentElementId);
 
             if (!printContent) {
-                alert('Could not find shopping list content to print');
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Print Error',
+                    message: 'Could not find shopping list content to print'
+                });
                 return;
             }
 
@@ -143,16 +147,20 @@ export function createAdvancedPrintFunction(options = {}) {
                 });
             }
 
-            function openInNewTab() {
+            async function openInNewTab() {
                 const htmlContent = generatePrintableHTML(printContent, title, subtitle, true);
 
                 // Create blob and open in new tab
-                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const blob = new Blob([htmlContent], {type: 'text/html'});
                 const url = URL.createObjectURL(blob);
                 const newTab = window.open(url, '_blank');
 
                 if (!newTab) {
-                    alert('Please allow popups to view the printable shopping list');
+                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showAlert({
+                        title: 'Pop-up Blocked',
+                        message: 'Please allow popups to view the printable shopping list'
+                    });
                 } else {
                     // Clean up the blob URL after a delay
                     setTimeout(() => {
@@ -161,11 +169,15 @@ export function createAdvancedPrintFunction(options = {}) {
                 }
             }
 
-            function desktopPrint() {
+            async function desktopPrint() {
                 const printWindow = window.open('', '_blank', 'width=800,height=600');
 
                 if (!printWindow) {
-                    alert('Please allow popups to print the shopping list');
+                    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showAlert({
+                        title: 'Pop-up Blocked',
+                        message: 'Please allow popups to print the shopping list'
+                    });
                     return;
                 }
 
@@ -173,7 +185,7 @@ export function createAdvancedPrintFunction(options = {}) {
                 printWindow.document.write(htmlContent);
                 printWindow.document.close();
 
-                printWindow.onload = function() {
+                printWindow.onload = function () {
                     setTimeout(() => {
                         printWindow.print();
                         printWindow.close();
@@ -183,7 +195,11 @@ export function createAdvancedPrintFunction(options = {}) {
 
         } catch (error) {
             onError(error);
-            alert('There was an error preparing the shopping list for printing');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Print Preparation Failed',
+                message: 'There was an error preparing the shopping list for printing'
+            });
         } finally {
             // Re-enable button
             if (button) {

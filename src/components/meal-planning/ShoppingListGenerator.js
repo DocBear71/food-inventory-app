@@ -82,7 +82,6 @@ export default function EnhancedShoppingListGenerator({
 
     const generateShoppingList = async () => {
         setLoading(true);
-        setError('');
         setStep('generating');
 
         try {
@@ -103,7 +102,12 @@ export default function EnhancedShoppingListGenerator({
                     statusText: baseResponse.statusText,
                     body: errorText
                 });
-                throw new Error(`API Error ${baseResponse.status}: ${baseResponse.statusText} - ${errorText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'API Failed',
+                    message: `API Error ${baseResponse.status}: ${baseResponse.statusText} - ${errorText}`
+                });
+                return;
             }
 
             const baseData = await baseResponse.json();
@@ -413,7 +417,7 @@ export default function EnhancedShoppingListGenerator({
     };
 
     const retryGeneration = () => {
-        setError('');
+        ;
         setStep('options');
     };
 
@@ -445,7 +449,12 @@ export default function EnhancedShoppingListGenerator({
 
             if (extractedItems.length === 0) {
                 console.error('❌ No valid items extracted from listData');
-                throw new Error('No valid items found in shopping list data');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Shopping List Failed',
+                    message: 'No valid items found in shopping list data'
+                });
+                return;
             }
 
             console.log(`✅ Successfully extracted ${extractedItems.length} items for save`);
@@ -455,7 +464,12 @@ export default function EnhancedShoppingListGenerator({
 
             if (formattedItems.length === 0) {
                 console.error('❌ No valid items after formatting');
-                throw new Error('No valid items remain after formatting');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Valid Items Failed',
+                    message: 'No valid items remain after formatting'
+                });
+                return;
             }
 
             console.log(`✅ Successfully formatted ${formattedItems.length} items for schema`);
@@ -489,7 +503,12 @@ export default function EnhancedShoppingListGenerator({
                     errorDetails: errorDetails
                 });
 
-                throw new Error(`Save failed (${response.status}): ${errorDetails.error || errorDetails.message || 'Unknown error'}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Save Failed',
+                    message: `Save failed (${response.status}): ${errorDetails.error || errorDetails.message || 'Unknown error'}`
+                });
+                return;
             }
 
             const result = await response.json();
@@ -894,7 +913,7 @@ export default function EnhancedShoppingListGenerator({
     };
 
 // STEP 3: Create save payload with validation - FIXED: Use correct listType
-    const createSavePayload = (listData, formattedItems) => {
+    const createSavePayload = async (listData, formattedItems) => {
         console.log('📦 PAYLOAD - Creating save payload...');
 
         const payload = {
@@ -919,11 +938,21 @@ export default function EnhancedShoppingListGenerator({
 
         // Validate payload
         if (!payload.name || payload.name.length === 0) {
-            throw new Error('Shopping list name is required');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Shopping List Name Failed',
+                message: 'Shopping list name is required'
+            });
+            return;
         }
 
         if (!Array.isArray(payload.items) || payload.items.length === 0) {
-            throw new Error('Shopping list must contain at least one item');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Shopping List Failed',
+                message: 'Shopping list must contain at least one item'
+            });
+            return;
         }
 
         console.log(`✅ PAYLOAD - Created valid payload with ${payload.items.length} items`);

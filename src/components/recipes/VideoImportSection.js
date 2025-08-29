@@ -93,12 +93,20 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
 
     const handleVideoExtraction = async () => {
         if (!videoUrl.trim()) {
-            setError('Please enter a video URL');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'URL Required',
+                message: 'Please enter a video URL'
+            });
             return;
         }
 
         if (!isValidVideoUrl(videoUrl)) {
-            setError('Please enter a valid social media URL from TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads, or Snapchat.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Invalid URL',
+                message: 'Please enter a valid social media URL from TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads, or Snapchat.'
+            });
             return;
         }
 
@@ -106,7 +114,6 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         console.log(`🎥 Starting ${platform} video extraction for:`, videoUrl);
 
         setExtracting(true);
-        setError('');
         setExtractionInfo(null);
 
         try {
@@ -119,7 +126,12 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
 
             if (!response.ok) {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to extract recipe from video');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Extraction Failed',
+                    message: errorData.error || 'Failed to extract recipe from video'
+                });
+                return;
             }
 
             const data = await response.json();
@@ -152,12 +164,21 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
                 // Clear the URL input
                 setVideoUrl('');
             } else {
-                throw new Error(data.error || 'Failed to extract recipe');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Extraction Failed',
+                    message: data.error || 'Failed to extract recipe'
+                });
+                return;
             }
 
         } catch (error) {
             console.error(`❌ ${platform} video extraction error:`, error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Extraction Error',
+                message: error.message
+            });
             setExtractionInfo(null);
         } finally {
             setExtracting(false);
@@ -167,9 +188,6 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
     const handleUrlChange = (e) => {
         const url = e.target.value;
         setVideoUrl(url);
-
-        // Clear previous error when user starts typing
-        if (error) setError('');
 
         // Clear extraction info when URL changes
         if (extractionInfo) setExtractionInfo(null);

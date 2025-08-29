@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
+<plist version="1.0.0">
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>Doc Bear's Comfort Kitchen</string>
+	<string>Doc Bear&apos;s Comfort Kitchen</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,60 @@
 	</array>
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
+	<key>NSCameraUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen needs camera access to scan product barcodes and receipt images to help you manage your food inventory and reduce waste.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen needs access to your photo library to upload recipe images and save receipt photos for expense tracking and dietary analysis.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen needs permission to save receipt photos to your photo library for record keeping and expense tracking.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen uses the microphone for voice input to help you quickly add recipes and notes to your meal planning.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Doc Bear's Comfort Kitchen uses speech recognition to convert your voice input into text for easier recipe entry and meal planning.</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<!-- Universal URL Handling -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.edward.docbearscomfort2025.universal</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>docbearscomfort</string>
+				<string>https</string>
+			</array>
+		</dict>
+	</array>
+
+	<!-- Associated Domains for Deep Linking -->
+	<key>com.apple.developer.associated-domains</key>
+	<array>
+		<string>applinks:docbearscomfort.kitchen</string>
+		<string>applinks:www.docbearscomfort.kitchen</string>
+	</array>
+
+	<!-- User Activity Types for Sharing -->
+	<key>NSUserActivityTypes</key>
+	<array>
+		<string>NSUserActivityTypeBrowsingWeb</string>
+		<string>com.edward.docbearscomfort2025.share</string>
+	</array>
+
+
+	<!-- Supported URL Schemes for Sharing -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>tiktok</string>
+		<string>instagram</string>
+		<string>facebook</string>
+		<string>twitter</string>
+		<string>youtube</string>
+		<string>reddit</string>
+		<string>pinterest</string>
+		<string>linkedin</string>
+		<string>https</string>
+		<string>http</string>
+	</array>
 </dict>
 </plist>

@@ -8,6 +8,7 @@ import { apiGet, apiPost, apiPut } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onClose }) {
     const { data: session } = useSafeSession();
@@ -61,7 +62,7 @@ export default function WeeklyNutritionDashboard({ mealPlanId, mealPlanName, onC
 
                             <div className="space-y-3">
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=nutrition-analysis'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=nutrition-analysis', router })}
                                     className="w-full bg-yellow-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-yellow-700"
                                 >
                                     Upgrade to Gold - $4.99/month
@@ -106,7 +107,6 @@ function WeeklyNutritionDashboardContent({ mealPlanId, mealPlanName, onClose, se
 
     const fetchGoalsAndAnalysis = async () => {
         setLoading(true);
-        setError('');
 
         try {
             // Fetch goals and analysis in parallel
@@ -142,7 +142,11 @@ function WeeklyNutritionDashboardContent({ mealPlanId, mealPlanName, onClose, se
             }
         } catch (error) {
             console.error('Error fetching nutrition data:', error);
-            setError('Failed to load nutrition data');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: 'Failed to load nutrition data'
+            });
         } finally {
             setLoading(false);
         }
@@ -155,13 +159,22 @@ function WeeklyNutritionDashboardContent({ mealPlanId, mealPlanName, onClose, se
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to analyze nutrition');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Analysis Failed',
+                    message: result.error || 'Failed to analyze nutrition'
+                });
+                return;
             }
 
             setAnalysis(result.analysis);
         } catch (error) {
             console.error('Error generating nutrition analysis:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Analysis Error',
+                message: error.message
+            });
         }
     };
 
@@ -624,11 +637,19 @@ function GoalsEditor({ goals, onUpdate }) {
             if (result.success) {
                 onUpdate(result.goals);
             } else {
-                alert(result.error || 'Failed to update goals');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: result.error || 'Failed to update goals'
+                });
             }
         } catch (error) {
             console.error('Error updating goals:', error);
-            alert('Error updating goals');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Update Error',
+                message: 'Error updating goals'
+            });
         } finally {
             setLoading(false);
         }
@@ -652,11 +673,19 @@ function GoalsEditor({ goals, onUpdate }) {
                 setFormData(result.goals);
                 onUpdate(result.goals);
             } else {
-                alert(result.error || 'Failed to reset goals');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Reset Failed',
+                    message: result.error || 'Failed to reset goals'
+                });
             }
         } catch (error) {
             console.error('Error resetting goals:', error);
-            alert('Error resetting goals');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Reset Error',
+                message: 'Error resetting goals'
+            });
         } finally {
             setLoading(false);
         }

@@ -9,6 +9,7 @@ import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet, apiPost } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function SaveRecipeButton({
                                              recipeId,
@@ -38,7 +39,7 @@ export default function SaveRecipeButton({
         if (success || error) {
             const timer = setTimeout(() => {
                 setSuccess('');
-                setError('');
+                ;
             }, 3000);
             return () => clearTimeout(timer);
         }
@@ -71,12 +72,15 @@ export default function SaveRecipeButton({
 
     const handleAddToCollection = async (collectionId) => {
         if (!session?.user?.id) {
-            alert('Please sign in to save recipes');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Sign In Required',
+                message: 'Please sign in to save recipes'
+            });
             return;
         }
 
         setLoading(true);
-        setError('');
         setSuccess('');
 
         try {
@@ -93,19 +97,38 @@ export default function SaveRecipeButton({
                 fetchCollections();
             } else {
                 if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                    setError(data.error || 'You have reached your recipe limit.');
-                    setTimeout(() => {
-                        if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Recipe Limit Reached',
+                        message: data.error || 'You have reached your recipe limit.'
+                    });
+                    setTimeout(async () => {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        const confirmed = await NativeDialog.showConfirm({
+                            title: 'Recipe Limit Reached',
+                            message: `${data.error}\n\nWould you like to upgrade now?`,
+                            confirmText: 'Upgrade',
+                            cancelText: 'Cancel'
+                        });
+                        if (confirmed) {
                             window.location.href = data.upgradeUrl || '/pricing';
                         }
                     }, 100);
                 } else {
-                    setError(data.error || 'Failed to add recipe to collection');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Collection Error',
+                        message: data.error || 'Failed to add recipe to collection'
+                    });
                 }
             }
         } catch (error) {
             console.error('Error adding to collection:', error);
-            setError(error.message || 'Failed to add recipe to collection');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Collection Error',
+                message: error.message || 'Failed to add recipe to collection'
+            });
         } finally {
             setLoading(false);
         }
@@ -147,7 +170,7 @@ export default function SaveRecipeButton({
                     // Original full button fallback
                     <div className="relative">
                         <TouchEnhancedButton
-                            onClick={() => window.location.href = '/pricing?source=save-recipe'}
+                            onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=save-recipe', router })}
                             className={`bg-gradient-to-r from-yellow-400 to-orange-500 text-white rounded-md font-medium hover:from-yellow-500 hover:to-orange-600 flex items-center gap-2 ${getSizeClasses()} ${className}`}
                         >
                             <svg className={getIconSize()} fill="none" viewBox="0 0 24 24" stroke="currentColor">

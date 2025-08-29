@@ -1,4 +1,4 @@
-// file: /src/app/api/payments/webhook/route.js v1 - Stripe webhook handler
+// file: /src/app/api/payments/webhook/route.js v2 - Proper Email Implementations
 
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
@@ -116,7 +116,12 @@ async function handleCheckoutCompleted(session) {
                 subscriptionEndDate = new Date(stripeSubscription.current_period_end * 1000);
                 // Validate the date is actually valid
                 if (isNaN(subscriptionEndDate.getTime())) {
-                    throw new Error('Invalid date created');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Upgrade Failed',
+                        message: 'Individual upgrade failed'
+                    });
+                    return;
                 }
             } catch (error) {
                 console.warn('Error creating subscription end date:', error);
@@ -158,7 +163,21 @@ async function handleCheckoutCompleted(session) {
             nextBilling: subscriptionEndDate.toISOString()
         });
 
-        // TODO: Send welcome email for new subscription
+        try {
+            const { sendWelcomeEmail } = await import('../../../../lib/email-todo-implementations.js');
+            await sendWelcomeEmail({
+                userEmail: user.email,
+                userName: user.name || user.displayName || 'there',
+                tier: tier,
+                billingCycle: billingCycle,
+                endDate: subscriptionEndDate,
+                isNewUser: previousTier === 'free' || !previousTier
+            });
+            console.log('✅ Welcome email sent for checkout completion');
+        } catch (emailError) {
+            console.error('❌ Failed to send welcome email:', emailError);
+            // Don't throw - email failure shouldn't break subscription processing
+        }
 
     } catch (error) {
         console.error('❌ Error handling checkout completion:', error);
@@ -195,7 +214,12 @@ async function handleSubscriptionCreated(subscription) {
                 subscriptionEndDate = new Date(subscription.current_period_end * 1000);
                 // Validate the date is actually valid
                 if (isNaN(subscriptionEndDate.getTime())) {
-                    throw new Error('Invalid date created');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Upgrade Failed',
+                        message: 'Individual upgrade failed'
+                    });
+                    return;
                 }
             } catch (error) {
                 console.warn('Error creating subscription end date:', error);
@@ -230,6 +254,24 @@ async function handleSubscriptionCreated(subscription) {
             status: subscription.status
         });
 
+        // Send welcome email if this is a new paid subscription (not trial)
+        if (subscription.status === 'active') {
+            try {
+                const { sendWelcomeEmail } = await import('../../../../lib/email-todo-implementations.js');
+                await sendWelcomeEmail({
+                    userEmail: user.email,
+                    userName: user.name || user.displayName || 'there',
+                    tier: tier,
+                    billingCycle: billingCycle,
+                    endDate: subscriptionEndDate,
+                    isNewUser: true
+                });
+                console.log('✅ Welcome email sent for new subscription');
+            } catch (emailError) {
+                console.error('❌ Failed to send welcome email:', emailError);
+            }
+        }
+
     } catch (error) {
         console.error('❌ Error handling subscription creation:', error);
     }
@@ -257,7 +299,12 @@ async function handleSubscriptionUpdated(subscription) {
                 subscriptionEndDate = new Date(subscription.current_period_end * 1000);
                 // Validate the date is actually valid
                 if (isNaN(subscriptionEndDate.getTime())) {
-                    throw new Error('Invalid date created');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Upgrade Failed',
+                        message: 'Individual upgrade failed'
+                    });
+                    return;
                 }
             } catch (error) {
                 console.warn('Error creating subscription end date:', error);
@@ -313,6 +360,10 @@ async function handleSubscriptionDeleted(subscription) {
             return;
         }
 
+        // Store previous subscription details for the email
+        const previousTier = user.subscription.tier;
+        const previousBillingCycle = user.subscription.billingCycle;
+
         // Downgrade to free tier
         user.subscription = {
             ...user.subscription,
@@ -331,7 +382,21 @@ async function handleSubscriptionDeleted(subscription) {
             subscriptionId: subscription.id
         });
 
-        // TODO: Send cancellation confirmation email
+        try {
+            const { sendCancellationConfirmationEmail } = await import('../../../../lib/email-todo-implementations.js');
+            await sendCancellationConfirmationEmail({
+                userEmail: user.email,
+                userName: user.name || user.displayName || 'there',
+                tier: previousTier,
+                billingCycle: previousBillingCycle,
+                accessUntilDate: subscription.current_period_end ?
+                    new Date(subscription.current_period_end * 1000) : new Date(),
+                cancellationReason: subscription.cancellation_details?.reason || 'User requested cancellation'
+            });
+            console.log('✅ Cancellation confirmation email sent');
+        } catch (emailError) {
+            console.error('❌ Failed to send cancellation email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling subscription deletion:', error);
@@ -370,7 +435,28 @@ async function handlePaymentSucceeded(invoice) {
             currency: invoice.currency
         });
 
-        // TODO: Send payment confirmation email
+        try {
+            const { sendPaymentConfirmationEmail } = await import('../../../../lib/email-todo-implementations.js');
+
+            // Get subscription details for the email
+            const stripeSubscription = invoice.subscription ?
+                await stripe.subscriptions.retrieve(invoice.subscription) : null;
+
+            await sendPaymentConfirmationEmail({
+                userEmail: user.email,
+                userName: user.name || user.displayName || 'there',
+                amount: (invoice.amount_paid / 100).toFixed(2),
+                currency: invoice.currency.toUpperCase(),
+                invoiceId: invoice.id,
+                tier: user.subscription.tier,
+                billingCycle: user.subscription.billingCycle,
+                nextBillingDate: user.subscription.nextBillingDate,
+                paymentMethod: invoice.payment_intent?.payment_method_types?.[0] || 'Card'
+            });
+            console.log('✅ Payment confirmation email sent');
+        } catch (emailError) {
+            console.error('❌ Failed to send payment confirmation email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling payment success:', error);
@@ -408,7 +494,25 @@ async function handlePaymentFailed(invoice) {
             attemptCount: invoice.attempt_count
         });
 
-        // TODO: Send payment failed notification email
+        try {
+            const { sendPaymentFailedEmail } = await import('../../../../lib/email-todo-implementations.js');
+
+            await sendPaymentFailedEmail({
+                userEmail: user.email,
+                userName: user.name || user.displayName || 'there',
+                amount: (invoice.amount_due / 100).toFixed(2),
+                currency: invoice.currency.toUpperCase(),
+                attemptCount: invoice.attempt_count,
+                nextRetryDate: invoice.next_payment_attempt ?
+                    new Date(invoice.next_payment_attempt * 1000) : null,
+                tier: user.subscription.tier,
+                billingCycle: user.subscription.billingCycle,
+                reason: invoice.last_payment_error?.message || 'Payment declined'
+            });
+            console.log('✅ Payment failed email sent');
+        } catch (emailError) {
+            console.error('❌ Failed to send payment failed email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling payment failure:', error);
@@ -436,7 +540,24 @@ async function handleTrialWillEnd(subscription) {
             trialEnd: new Date(subscription.trial_end * 1000).toISOString()
         });
 
-        // TODO: Send trial ending notification email
+        try {
+            const { sendTrialEndingEmail } = await import('../../../../lib/email-todo-implementations.js');
+
+            const trialEndDate = new Date(subscription.trial_end * 1000);
+            const now = new Date();
+            const daysRemaining = Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24));
+
+            await sendTrialEndingEmail({
+                userEmail: user.email,
+                userName: user.name || user.displayName || 'there',
+                daysRemaining: Math.max(0, daysRemaining),
+                trialEndDate: trialEndDate,
+                currentTier: user.subscription.tier || 'platinum'
+            });
+            console.log('✅ Trial ending email sent');
+        } catch (emailError) {
+            console.error('❌ Failed to send trial ending email:', emailError);
+        }
 
     } catch (error) {
         console.error('❌ Error handling trial ending notification:', error);

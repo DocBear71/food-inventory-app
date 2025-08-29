@@ -119,11 +119,15 @@ export default function RecipeCookingIntegration({
         return false;
     };
 
-    const handleStartCooking = () => {
+    const handleStartCooking = async () => {
         if (matchedIngredients.length > 0) {
             setShowConsumption(true);
         } else {
-            alert('No matching ingredients found in inventory');
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Matches Found',
+                message: 'No matching ingredients found in inventory'
+            });
         }
     };
 
@@ -143,11 +147,20 @@ export default function RecipeCookingIntegration({
                 onCookingComplete?.(result.summary);
                 onClose();
             } else {
-                throw new Error(result.error || 'Failed to update inventory');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Inventory Update Failed',
+                    message: result.error || 'Failed to update inventory'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error updating inventory:', error);
-            alert('Error updating inventory: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Inventory Update Error',
+                message: 'Error updating inventory: ' + error.message
+            });
             throw error;
         }
     };
@@ -389,9 +402,13 @@ export default function RecipeCookingIntegration({
                             </TouchEnhancedButton>
                             {missingIngredients.length > 0 && (
                                 <TouchEnhancedButton
-                                    onClick={() => {
+                                    onClick={async () => {
                                         // Could integrate with shopping list here
-                                        alert('Shopping list feature coming soon!');
+                                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                        await NativeDialog.showAlert({
+                                            title: 'Coming Soon',
+                                            message: 'Shopping list feature coming soon!'
+                                        });
                                     }}
                                     className="px-4 py-2 border border-blue-300 rounded-md text-blue-700 bg-blue-50 hover:bg-blue-100"
                                 >

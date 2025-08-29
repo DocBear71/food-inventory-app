@@ -11,6 +11,7 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api-config';
 import { useSubscription } from '@/hooks/useSubscription';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function Dashboard() {
     const {data: session, status} = useSafeSession();
@@ -28,7 +29,7 @@ export default function Dashboard() {
     // FIXED: Use router.push instead of redirect
     useEffect(() => {
         if (status === 'unauthenticated') {
-            router.push('/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [status, router]);
 
@@ -127,13 +128,13 @@ export default function Dashboard() {
                                 </p>
                                 <div className="mt-3 flex flex-col sm:flex-row gap-2">
                                     <TouchEnhancedButton
-                                        onClick={() => router.push('/pricing')}
+                                        onClick={() => NativeNavigation.routerPush(router, '/pricing')}
                                         className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
                                     >
                                         Reactivate Subscription
                                     </TouchEnhancedButton>
                                     <TouchEnhancedButton
-                                        onClick={() => router.push('/account/billing')}
+                                        onClick={() => NativeNavigation.routerPush(router, '/account/billing')}
                                         className="bg-white hover:bg-gray-50 text-red-600 border border-red-600 px-4 py-2 rounded-lg font-medium text-sm"
                                     >
                                         View Billing Details

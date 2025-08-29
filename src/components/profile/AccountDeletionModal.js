@@ -6,7 +6,12 @@ import { useRouter } from 'next/navigation';
 import { signOut } from 'next-auth/react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { apiGet, apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeCheckbox,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
     const router = useRouter();
@@ -36,7 +41,7 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                 confirmDeletion: false,
                 confirmEmail: ''
             });
-            setError('');
+            ;
             setDataSummary(null);
         }
     }, [isOpen]);
@@ -50,10 +55,18 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
             if (response.ok) {
                 setDataSummary(data);
             } else {
-                setError(data.error || 'Failed to fetch account data');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Fetch Failed',
+                    message: data.error || 'Failed to fetch account data'
+                });
             }
         } catch (error) {
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -61,7 +74,6 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
 
     const handleDeleteAccount = async () => {
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiPost('/api/user/delete-account', {
@@ -73,16 +85,28 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
 
             if (response.ok) {
                 // Account deleted successfully
-                alert('Your account has been successfully deleted. You will now be signed out.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Account Deleted',
+                    message: 'Your account has been successfully deleted. You will now be signed out.'
+                });
 
                 // Sign out and redirect
                 await signOut({ redirect: false });
-                router.push('/');
+                await NativeNavigation.routerPush(router, '/');
             } else {
-                setError(data.error || 'Failed to delete account');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Deletion Failed',
+                    message: data.error || 'Failed to delete account'
+                });
             }
         } catch (error) {
-            setError('Network error. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Network Error',
+                message: 'Network error. Please try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -328,13 +352,23 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                             </p>
                                         </div>
                                     )}
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="email"
+                                        inputMode="email"
                                         value={formData.confirmEmail}
                                         onChange={(e) => setFormData(prev => ({ ...prev, confirmEmail: e.target.value }))}
-                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500"
                                         placeholder="Enter your email address"
-                                        required
+                                        autoComplete="email"
+                                        validation={(value) => {
+                                            if (!value) return { isValid: false, message: 'Email address is required' };
+                                            if (!getValidationEmail()) return ValidationPatterns.email(value);
+                                            if (value.toLowerCase() !== getValidationEmail().toLowerCase()) {
+                                                return { isValid: false, message: "Email doesn't match your account" };
+                                            }
+                                            return { isValid: true, message: 'Email confirmed' };
+                                        }}
+                                        errorMessage="Please enter your email address"
+                                        successMessage="Email confirmed"
                                     />
                                 </div>
 
@@ -343,26 +377,30 @@ export default function AccountDeletionModal({ isOpen, onClose, userEmail }) {
                                     <label className="block text-sm font-medium text-gray-700 mb-2">
                                         Enter your password to confirm deletion:
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="password"
                                         value={formData.password}
                                         onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-red-500 focus:border-red-500"
                                         placeholder="Enter your current password"
-                                        required
+                                        autoComplete="current-password"
+                                        validation={ValidationPatterns.required}
+                                        errorMessage="Password is required to confirm deletion"
+                                        successMessage="Password entered"
                                     />
                                 </div>
 
                                 {/* Final Confirmation Checkbox */}
                                 <div className="bg-red-50 border border-red-200 rounded-md p-4">
                                     <div className="flex items-start">
-                                        <input
-                                            type="checkbox"
-                                            id="confirmDeletion"
+                                        <NativeCheckbox
+                                            name="confirmDeletion"
                                             checked={formData.confirmDeletion}
                                             onChange={(e) => setFormData(prev => ({ ...prev, confirmDeletion: e.target.checked }))}
-                                            className="mt-0.5 h-4 w-4 text-red-600 focus:ring-red-500 border-gray-300 rounded"
-                                        />
+                                            className="text-red-600 focus:ring-red-500"
+                                        >
+                                            <strong>I understand that this action is permanent and irreversible.</strong>
+                                            I want to permanently delete my Doc Bear's Comfort Kitchen account and all associated data.
+                                        </NativeCheckbox>
                                         <label htmlFor="confirmDeletion" className="ml-2 text-sm text-red-700">
                                             <strong>I understand that this action is permanent and irreversible.</strong>
                                             I want to permanently delete my Doc Bear's Comfort Kitchen account and all associated data.

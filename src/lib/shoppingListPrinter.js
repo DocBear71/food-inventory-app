@@ -718,7 +718,12 @@ export class ShoppingListPrinter {
             const printWindow = window.open('', '_blank', 'width=800,height=600,scrollbars=yes,resizable=yes');
 
             if (!printWindow) {
-                throw new Error('Pop-up blocked. Please allow pop-ups for printing.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Popup Failed',
+                    message: 'Pop-up blocked. Please allow pop-ups for printing.'
+                });
+                return;
             }
 
             // Write HTML to print window

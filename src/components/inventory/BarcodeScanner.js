@@ -8,6 +8,7 @@ import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
 import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const videoRef = useRef(null);
@@ -458,12 +459,20 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                     return true;
                 } else {
                     setPermissionState('denied');
-                    setError('Camera permission denied. Please enable camera access in settings.');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Camera Permission Denied',
+                        message: 'Camera permission denied. Please enable camera access in settings.'
+                    });
                     return false;
                 }
             } catch (error) {
                 setPermissionState('denied');
-                setError(`Camera permission failed: ${error.message}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Permission Failed',
+                    message: `Camera permission failed: ${error.message}`
+                });
                 return false;
             }
         } else {
@@ -481,7 +490,11 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 return true;
             } catch (error) {
                 setPermissionState('denied');
-                setError('Camera access denied. Please allow camera access and try again.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Camera Access Denied',
+                    message: 'Camera access denied. Please allow camera access and try again.'
+                });
                 return false;
             }
         }
@@ -527,17 +540,30 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     // (The existing handleScanError, initializeZXingScanner, cleanupScanner, etc. remain the same)
 
     // Enhanced error handling with international context
-    const handleScanError = useCallback((error) => {
+    const handleScanError = useCallback(async (error) => {
         console.error('🚨 International scanner error:', error);
 
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
         if (error.message.includes('Permission') || error.message.includes('permission')) {
-            setError('Camera permission required. Please allow camera access and try again.');
+            await NativeDialog.showError({
+                title: 'Camera Permission Required',
+                message: 'Camera permission required. Please allow camera access and try again.'
+            });
         } else if (error.message.includes('NotFoundError') || error.message.includes('no camera')) {
-            setError('No camera found. Please ensure your device has a camera.');
+            await NativeDialog.showError({
+                title: 'No Camera Found',
+                message: 'No camera found. Please ensure your device has a camera.'
+            });
         } else if (error.message.includes('NotReadableError')) {
-            setError('Camera is in use by another application. Please close other camera apps and try again.');
+            await NativeDialog.showError({
+                title: 'Camera In Use',
+                message: 'Camera is in use by another application. Please close other camera apps and try again.'
+            });
         } else {
-            setError('Scanner initialization failed. Please try again.');
+            await NativeDialog.showError({
+                title: 'Scanner Failed',
+                message: 'Scanner initialization failed. Please try again.'
+            });
         }
 
         setIsInitialized(false);
@@ -560,11 +586,21 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                 videoInputDevices = await codeReader.listVideoInputDevices();
                 console.log('📹 Available cameras:', videoInputDevices.length);
             } catch (deviceError) {
-                throw new Error('Unable to access camera devices. Please check camera permissions.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Camera Access Failed',
+                    message: 'Unable to access camera devices. Please check camera permissions.'
+                });
+                return;
             }
 
             if (!videoInputDevices || videoInputDevices.length === 0) {
-                throw new Error('No camera devices found on this device.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Camera Found',
+                    message: 'No camera devices found on this device.'
+                });
+                return;
             }
 
             const selectedDeviceId = videoInputDevices.find(device =>
@@ -596,7 +632,12 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
 
             } catch (streamError) {
                 console.error('Stream error:', streamError);
-                throw new Error('Failed to start camera stream. Camera may be in use by another application.');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Camera Stream Failed',
+                    message: 'Failed to start camera stream. Camera may be in use by another application.'
+                });
+                return;
             }
 
         } catch (error) {
@@ -650,7 +691,11 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             } catch (error) {
                 console.error('❌ Enhanced scanner setup error:', error);
                 if (mountedRef.current) {
-                    setError(`Scanner initialization failed: ${error.message}`);
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Scanner Failed',
+                        message: `Scanner initialization failed: ${error.message}`
+                    });
                     setIsLoading(false);
                 }
             }
@@ -813,7 +858,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             </div>
                             <div className="space-y-3">
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=upc-limit'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=upc-limit', router })}
                                     className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium"
                                 >
                                     Upgrade for Unlimited Scans

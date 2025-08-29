@@ -1,12 +1,17 @@
 'use client';
-// file: /src/components/support/IssueReporter.js - General issue reporting component
+// file: /src/components/support/IssueReporter.js v2 - iOS Native Enhancements with Native Form Components
 
 
 import { useState } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { fetchWithSession } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 
 export default function IssueReporter({
@@ -24,7 +29,18 @@ export default function IssueReporter({
         context: context
     });
 
-    function openModal() {
+    const isIOS = PlatformDetection.isIOS();
+
+    async function openModal() {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Open modal haptic failed:', error);
+            }
+        }
+
         setReportData({
             issue: '',
             description: '',
@@ -35,32 +51,94 @@ export default function IssueReporter({
         setShowModal(true);
     }
 
-    function handleFileUpload(event) {
+    async function handleFileUpload(event) {
         const files = Array.from(event.target.files);
-        const validFiles = files.filter(file => {
+        const validFiles = files.filter(async file => {
             const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
             const maxSize = 10 * 1024 * 1024; // 10MB
 
             if (!validTypes.includes(file.type)) {
-                alert(`File ${file.name} is not a supported image type.`);
+                const errorMessage = `File ${file.name} is not a supported image type.`;
+                if (isIOS) {
+                    try {
+                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Unsupported File Type',
+                            message: errorMessage
+                        });
+                    } catch (error) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Error',
+                            message: errorMessage
+                        });
+                    }
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
                 return false;
             }
 
             if (file.size > maxSize) {
-                alert(`File ${file.name} is too large. Maximum size is 10MB.`);
+                const errorMessage = `File ${file.name} is too large. Maximum size is 10MB.`;
+                if (isIOS) {
+                    try {
+                        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'File Too Large',
+                            message: errorMessage
+                        });
+                    } catch (error) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Error',
+                            message: errorMessage
+                        });
+                    }
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
                 return false;
             }
 
             return true;
         });
 
-        setReportData(prev => ({
-            ...prev,
-            additionalFiles: [...prev.additionalFiles, ...validFiles]
-        }));
+        if (validFiles.length > 0) {
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                } catch (error) {
+                    console.log('File upload haptic failed:', error);
+                }
+            }
+
+            setReportData(prev => ({
+                ...prev,
+                additionalFiles: [...prev.additionalFiles, ...validFiles]
+            }));
+        }
     }
 
-    function removeFile(index) {
+    async function removeFile(index) {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Remove file haptic failed:', error);
+            }
+        }
+
         setReportData(prev => ({
             ...prev,
             additionalFiles: prev.additionalFiles.filter((_, i) => i !== index)
@@ -69,8 +147,39 @@ export default function IssueReporter({
 
     async function submitReport() {
         if (!reportData.issue || !reportData.description) {
-            alert('Please fill in all required fields.');
+            const errorMessage = 'Please fill in all required fields.';
+            if (isIOS) {
+                try {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Missing Information',
+                        message: errorMessage
+                    });
+                } catch (error) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: errorMessage
+                });
+            }
             return;
+        }
+
+        // iOS form submit haptic
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            } catch (error) {
+                console.log('Form submit haptic failed:', error);
+            }
         }
 
         try {
@@ -92,16 +201,98 @@ export default function IssueReporter({
             });
 
             if (response.ok) {
-                alert('✅ Thank you! Your issue report has been sent. We\'ll look into it and get back to you.');
+                const successMessage = 'Thank you! Your issue report has been sent. We\'ll look into it and get back to you.';
+
+                if (isIOS) {
+                    try {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.success();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Report Sent!',
+                            message: successMessage
+                        });
+                    } catch (error) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showSuccess({
+                            title: 'Success',
+                            message: successMessage
+                        });
+                    }
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'Success',
+                        message: successMessage
+                    });
+                }
+
                 setShowModal(false);
             } else {
-                throw new Error('Failed to send report');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Report Failed',
+                    message: 'Failed to send report'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error sending issue report:', error);
-            alert('❌ Failed to send issue report. Please try again.');
+
+            const errorMessage = 'Failed to send issue report. Please try again.';
+            if (isIOS) {
+                try {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Send Failed',
+                        message: errorMessage
+                    });
+                } catch (dialogError) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Error',
+                        message: errorMessage
+                    });
+                }
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Error',
+                    message: errorMessage
+                });
+            }
         }
     }
+
+    async function handleCloseModal() {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Close modal haptic failed:', error);
+            }
+        }
+        setShowModal(false);
+    }
+
+    const issueOptions = [
+        { value: '', label: 'Select an issue...' },
+        { value: 'page-not-loading', label: 'Page not loading' },
+        { value: 'feature-not-working', label: 'Feature not working' },
+        { value: 'data-not-saving', label: 'Data not saving' },
+        { value: 'ui-layout-broken', label: 'Layout/design broken' },
+        { value: 'slow-performance', label: 'Slow performance' },
+        { value: 'error-message', label: 'Error message appeared' },
+        { value: 'login-issues', label: 'Login/authentication issues' },
+        { value: 'mobile-issues', label: 'Mobile app issues' },
+        { value: 'feature-request', label: 'Feature request' },
+        { value: 'other', label: 'Other issue' }
+    ];
 
     return (
         <>
@@ -119,7 +310,7 @@ export default function IssueReporter({
                             <div className="flex justify-between items-center mb-4">
                                 <h3 className="text-lg font-medium text-gray-900">📧 Report an Issue</h3>
                                 <TouchEnhancedButton
-                                    onClick={() => setShowModal(false)}
+                                    onClick={handleCloseModal}
                                     className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
                                 >
                                     ×
@@ -131,48 +322,61 @@ export default function IssueReporter({
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         What type of issue are you experiencing? *
                                     </label>
-                                    <select
+                                    <NativeSelect
                                         value={reportData.issue}
                                         onChange={(e) => setReportData(prev => ({ ...prev, issue: e.target.value }))}
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
-                                    >
-                                        <option value="">Select an issue...</option>
-                                        <option value="page-not-loading">Page not loading</option>
-                                        <option value="feature-not-working">Feature not working</option>
-                                        <option value="data-not-saving">Data not saving</option>
-                                        <option value="ui-layout-broken">Layout/design broken</option>
-                                        <option value="slow-performance">Slow performance</option>
-                                        <option value="error-message">Error message appeared</option>
-                                        <option value="login-issues">Login/authentication issues</option>
-                                        <option value="mobile-issues">Mobile app issues</option>
-                                        <option value="feature-request">Feature request</option>
-                                        <option value="other">Other issue</option>
-                                    </select>
+                                        options={issueOptions}
+                                        required={true}
+                                    />
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Please describe the issue in detail *
                                     </label>
-                                    <textarea
+                                    <NativeTextarea
                                         value={reportData.description}
                                         onChange={(e) => setReportData(prev => ({ ...prev, description: e.target.value }))}
                                         placeholder="Describe what happened, what you expected, what you were trying to do, and any error messages you saw..."
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
                                         rows={4}
+                                        maxLength={2000}
+                                        autoExpand={true}
+                                        validation={(value) => ({
+                                            isValid: value.trim().length >= 10,
+                                            message: value.trim().length >= 10 ? 'Description looks comprehensive!' : 'Please provide more details (at least 10 characters)'
+                                        })}
+                                        errorMessage="Please provide a detailed description"
+                                        successMessage="Great description!"
+                                        required={true}
                                     />
+                                    <div className="text-xs text-gray-500 mt-1">
+                                        {reportData.description.length}/2000 characters
+                                    </div>
                                 </div>
 
                                 <div>
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Your email (for follow-up)
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="email"
+                                        inputMode="email"
                                         value={reportData.email}
                                         onChange={(e) => setReportData(prev => ({ ...prev, email: e.target.value }))}
                                         placeholder="your.email@example.com"
                                         className="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500"
+                                        validation={(value) => {
+                                            if (!value) return { isValid: true, message: '' };
+                                            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                                            return {
+                                                isValid: emailRegex.test(value),
+                                                message: emailRegex.test(value) ? 'Valid email address' : 'Please enter a valid email'
+                                            };
+                                        }}
+                                        errorMessage="Please enter a valid email address"
+                                        successMessage="Valid email address"
                                     />
                                 </div>
 
@@ -240,14 +444,15 @@ export default function IssueReporter({
 
                             <div className="flex space-x-3 mt-6">
                                 <TouchEnhancedButton
-                                    onClick={() => setShowModal(false)}
+                                    onClick={handleCloseModal}
                                     className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
                                 >
                                     Cancel
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
                                     onClick={submitReport}
-                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                                    disabled={!reportData.issue || !reportData.description}
+                                    className="flex-1 px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed"
                                 >
                                     📧 Send Report
                                 </TouchEnhancedButton>

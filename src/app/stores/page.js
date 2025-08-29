@@ -9,7 +9,11 @@ import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
 import {apiDelete, apiPost, apiPut} from "@/lib/api-config.js";
 import {CategoryUtils, GROCERY_CATEGORIES} from '@/lib/groceryCategories';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function StoresPage() {
     const {data: session, status} = useSafeSession();
@@ -37,7 +41,7 @@ export default function StoresPage() {
     useEffect(() => {
         if (status === 'loading') return;
         if (!session) {
-            router.push('/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [session, status, router]);
 
@@ -118,11 +122,19 @@ export default function StoresPage() {
                 });
                 setShowAddStore(false);
             } else {
-                alert(data.error || 'Failed to add store');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Store Failed',
+                    message: data.error || 'Failed to add store. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error adding store:', error);
-            alert('Error adding store');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Store Addition Failed',
+                message: 'Error adding store'
+            });
         }
     };
 
@@ -140,18 +152,32 @@ export default function StoresPage() {
                 ));
                 setEditingStore(null);
             } else {
-                alert(data.error || 'Failed to update store');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: data.error || 'Failed to update store. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error updating store:', error);
-            alert('Error updating store');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Store Update Failed',
+                message: 'Error updating store'
+            });
         }
     };
 
     const handleDeleteStore = async (storeId) => {
-        if (!confirm('Are you sure you want to delete this store? This will not affect your price history.')) {
-            return;
-        }
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete Store',
+            message: 'Are you sure you want to delete this store? This will not affect your price history.',
+            confirmText: 'Delete Store',
+            cancelText: 'Keep Store'
+        });
+
+        if (!confirmed) return;
 
         try {
             const response = await apiDelete(`/api/stores?storeId=${storeId}`, {});
@@ -166,11 +192,19 @@ export default function StoresPage() {
                 localStorage.setItem(`store-categories-${session?.user?.id}`, JSON.stringify(updated));
                 setStoreCategories(updated);
             } else {
-                alert(data.error || 'Failed to delete store');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: data.error || 'Failed to delete store. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error deleting store:', error);
-            alert('Error deleting store');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Store Deletion Failed',
+                message: 'Error deleting store'
+            });
         }
     };
 
@@ -226,13 +260,17 @@ export default function StoresPage() {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">
                                         Search Stores
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="search"
                                         value={searchTerm}
                                         onChange={(e) => setSearchTerm(e.target.value)}
-                                        className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="Search by name, chain, or city..."
-                                        style={{fontSize: '16px'}}
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 1 ? `Searching stores for "${value}"` : ''
+                                        })}
                                     />
                                 </div>
                                 <div>
@@ -964,12 +1002,17 @@ function EnhancedCategoryOrderModal({store, currentOrder, onSave, onClose}) {
                 {/* Enhanced Search Bar - Fixed Icons */}
                 <div className="p-3 border-b border-gray-200">
                     <div className="relative">
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             type="text"
+                            inputMode="search"
                             placeholder="Search categories..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-8 pr-8 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-purple-500"
+                            autoComplete="off"
+                            validation={(value) => ({
+                                isValid: true,
+                                message: value && value.length > 1 ? `Searching categories for "${value}"` : ''
+                            })}
                         />
                         <div className="absolute left-2.5 top-1/2 transform -translate-y-1/2 pointer-events-none">
                             <span className="text-gray-400 text-sm">🔍</span>
@@ -1101,8 +1144,10 @@ function EnhancedCategoryOrderModal({store, currentOrder, onSave, onClose}) {
                                             {/* Middle Row: Jump to Position */}
                                             <div className="flex items-center gap-2">
                                                 <span className="text-xs text-gray-600 flex-shrink-0">Jump:</span>
-                                                <KeyboardOptimizedInput
+                                                <NativeTextInput
                                                     type="number"
+                                                    inputMode="numeric"
+                                                    pattern="[0-9]*"
                                                     min="1"
                                                     max={visibleCategories.length}
                                                     value={jumpToPositions[category] || ''}
@@ -1110,9 +1155,18 @@ function EnhancedCategoryOrderModal({store, currentOrder, onSave, onClose}) {
                                                         ...prev,
                                                         [category]: e.target.value
                                                     }))}
-                                                    className="w-12 px-1 py-1 text-xs border border-gray-300 rounded text-center"
                                                     placeholder="#"
                                                     onClick={(e) => e.stopPropagation()}
+                                                    autoComplete="off"
+                                                    validation={(value) => {
+                                                        if (!value) return { isValid: true, message: '' };
+                                                        const num = parseInt(value);
+                                                        if (num < 1 || num > visibleCategories.length) return { isValid: false, message: `Must be 1-${visibleCategories.length}` };
+                                                        return { isValid: true, message: 'Ready to jump!' };
+                                                    }}
+                                                    errorMessage="Invalid position"
+                                                    successMessage="Ready to jump!"
+                                                    style={{ width: '48px', padding: '4px', fontSize: '12px', textAlign: 'center' }}
                                                 />
                                                 <TouchEnhancedButton
                                                     onClick={(e) => {

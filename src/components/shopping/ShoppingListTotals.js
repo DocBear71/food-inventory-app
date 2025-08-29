@@ -1,11 +1,16 @@
 'use client';
 
-// file: /src/components/shopping/ShoppingListTotals.js v1 - Mobile-optimized shopping list totals with budget tracking
+// file: /src/components/shopping/ShoppingListTotals.js v2 - iOS Native Enhancements with Native Form Components
 
 import React, { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import { ShoppingListTotalsCalculator, DEFAULT_TAX_RATES, TAXABLE_CATEGORIES } from '@/lib/shoppingListTotals';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    NativeSelect
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 export default function ShoppingListTotals({
                                                shoppingList,
@@ -32,6 +37,8 @@ export default function ShoppingListTotals({
     const [selectedRegion, setSelectedRegion] = useState(userPreferences.region || 'custom');
     const [showCategoryDetails, setShowCategoryDetails] = useState(false);
 
+    const isIOS = PlatformDetection.isIOS();
+
     // Recalculate totals when inputs change
     useEffect(() => {
         if (!shoppingList) return;
@@ -48,7 +55,16 @@ export default function ShoppingListTotals({
         setCalculations(results);
     }, [shoppingList, taxRate, budget, calculator]);
 
-    const handleRegionChange = (region) => {
+    const handleRegionChange = async (region) => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Region change haptic failed:', error);
+            }
+        }
+
         setSelectedRegion(region);
         if (region !== 'custom' && DEFAULT_TAX_RATES.US[region]) {
             const newTaxRate = DEFAULT_TAX_RATES.US[region] * 100;
@@ -59,11 +75,57 @@ export default function ShoppingListTotals({
         }
     };
 
-    const handleBudgetSave = () => {
+    const handleBudgetSave = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.success();
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showSuccess({
+                    title: 'Budget Saved',
+                    message: budget ? `Budget set to ${calculator.formatCurrency(parseFloat(budget))}` : 'Budget removed'
+                });
+            } catch (error) {
+                console.log('Budget save feedback failed:', error);
+            }
+        }
+
         if (onBudgetChange) {
             onBudgetChange(budget ? parseFloat(budget) : null);
         }
         setShowSettings(false);
+    };
+
+    const handleTaxRateChange = (newRate) => {
+        setTaxRate(parseFloat(newRate) || 0);
+        if (onTaxRateChange) {
+            onTaxRateChange((parseFloat(newRate) || 0) / 100);
+        }
+    };
+
+    const toggleSettings = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Settings toggle haptic failed:', error);
+            }
+        }
+        setShowSettings(!showSettings);
+    };
+
+    const toggleCategoryDetails = async () => {
+        if (isIOS) {
+            try {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            } catch (error) {
+                console.log('Category details haptic failed:', error);
+            }
+        }
+        setShowCategoryDetails(!showCategoryDetails);
     };
 
     const getBudgetColorClass = () => {
@@ -131,7 +193,7 @@ export default function ShoppingListTotals({
                         💰 Shopping List Totals
                     </h3>
                     <TouchEnhancedButton
-                        onClick={() => setShowSettings(!showSettings)}
+                        onClick={toggleSettings}
                         className="text-gray-500 hover:text-gray-700 p-2 rounded-md hover:bg-gray-100"
                         title="Settings"
                     >
@@ -150,14 +212,27 @@ export default function ShoppingListTotals({
                                 💳 Shopping Budget
                             </label>
                             <div className="flex gap-2">
-                                <input
+                                <NativeTextInput
                                     type="number"
+                                    inputMode="decimal"
+                                    pattern="[0-9]*"
                                     value={budget}
                                     onChange={(e) => setBudget(e.target.value)}
                                     placeholder="Enter budget amount"
                                     min="0"
+                                    max="10000"
                                     step="0.01"
                                     className="flex-1 border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                    validation={(value) => {
+                                        if (!value) return { isValid: true, message: '' };
+                                        const num = parseFloat(value);
+                                        return {
+                                            isValid: num >= 0 && num <= 10000,
+                                            message: num >= 0 && num <= 10000 ? 'Budget amount looks good!' : 'Budget should be 0-10000'
+                                        };
+                                    }}
+                                    errorMessage="Please enter a valid budget amount"
+                                    successMessage="Budget amount looks good!"
                                 />
                                 <TouchEnhancedButton
                                     onClick={handleBudgetSave}
@@ -174,27 +249,38 @@ export default function ShoppingListTotals({
                                 🏛️ Tax Rate
                             </label>
                             <div className="grid grid-cols-2 gap-2 mb-2">
-                                <select
+                                <NativeSelect
                                     value={selectedRegion}
                                     onChange={(e) => handleRegionChange(e.target.value)}
                                     className="border border-gray-300 rounded-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
-                                >
-                                    <option value="custom">Custom Rate</option>
-                                    <option value="IA">Iowa (6%)</option>
-                                    <option value="CA">California (7.25%)</option>
-                                    <option value="FL">Florida (6%)</option>
-                                    <option value="NY">New York (8%)</option>
-                                    <option value="TX">Texas (6.25%)</option>
-                                </select>
+                                    options={[
+                                        { value: 'custom', label: 'Custom Rate' },
+                                        { value: 'IA', label: 'Iowa (6%)' },
+                                        { value: 'CA', label: 'California (7.25%)' },
+                                        { value: 'FL', label: 'Florida (6%)' },
+                                        { value: 'NY', label: 'New York (8%)' },
+                                        { value: 'TX', label: 'Texas (6.25%)' }
+                                    ]}
+                                />
                                 <div className="flex">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="number"
+                                        inputMode="decimal"
+                                        pattern="[0-9]*"
                                         value={taxRate}
-                                        onChange={(e) => setTaxRate(parseFloat(e.target.value) || 0)}
+                                        onChange={(e) => handleTaxRateChange(e.target.value)}
                                         min="0"
                                         max="20"
                                         step="0.1"
                                         className="flex-1 border border-gray-300 rounded-l-md px-3 py-2 text-sm focus:ring-indigo-500 focus:border-indigo-500"
+                                        validation={(value) => {
+                                            const num = parseFloat(value);
+                                            if (!value) return { isValid: true, message: '' };
+                                            return {
+                                                isValid: num >= 0 && num <= 20,
+                                                message: num >= 0 && num <= 20 ? 'Valid tax rate' : 'Tax rate should be 0-20%'
+                                            };
+                                        }}
                                     />
                                     <span className="inline-flex items-center px-3 rounded-r-md border border-l-0 border-gray-300 bg-gray-50 text-gray-500 text-sm">
                                         %
@@ -292,7 +378,7 @@ export default function ShoppingListTotals({
                 {showCategoryBreakdown && summary.categories.length > 1 && (
                     <div className="mt-4">
                         <TouchEnhancedButton
-                            onClick={() => setShowCategoryDetails(!showCategoryDetails)}
+                            onClick={toggleCategoryDetails}
                             className="flex justify-between items-center w-full text-left p-2 hover:bg-gray-50 rounded-md"
                         >
                             <span className="text-sm font-medium text-gray-700">

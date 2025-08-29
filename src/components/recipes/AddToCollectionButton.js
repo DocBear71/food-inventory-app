@@ -1,12 +1,17 @@
 'use client';
-// file: /src/components/recipes/AddToCollectionButton.js v2 - FIXED error handling and API calls
+// file: /src/components/recipes/AddToCollectionButton.js v3 - iOS Native Enhancements
 
 import { useState, useEffect } from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiGet, apiPost } from '@/lib/api-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    NativeTextarea,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import { PlatformDetection } from '@/utils/PlatformDetection';
 
 export default function AddToCollectionButton({ recipeId, recipeName, className = '' }) {
     const [collections, setCollections] = useState([]);
@@ -16,6 +21,8 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
     const [error, setError] = useState('');
     const [showCreateForm, setShowCreateForm] = useState(false);
     const [creatingCollection, setCreatingCollection] = useState(false);
+
+    const isIOS = PlatformDetection.isIOS();
 
     useEffect(() => {
         if (showDropdown && collections.length === 0) {
@@ -28,7 +35,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
         if (success || error) {
             const timer = setTimeout(() => {
                 setSuccess('');
-                setError('');
+                ;
             }, 3000);
             return () => clearTimeout(timer);
         }
@@ -40,7 +47,12 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
             const response = await apiGet('/api/collections');
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: `HTTP ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -48,28 +60,160 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
             if (data.success) {
                 setCollections(data.collections || []);
             } else {
-                throw new Error(data.error || 'Failed to fetch collections');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Loading Failed',
+                    message: data.error || 'Failed to fetch collections'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error fetching collections:', error);
-            setError('Failed to load collections');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Loading Failed',
+                message: 'Failed to load collections'
+            });
         } finally {
             setLoading(false);
         }
     };
 
+    // iOS Native Action Sheet Implementation
+    const showIOSActionSheet = async () => {
+        try {
+            // iOS haptic feedback for button tap
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.buttonTap();
+
+            // Fetch collections if needed
+            if (collections.length === 0) {
+                await fetchCollections();
+            }
+
+            // Prepare action sheet buttons
+            const buttons = [];
+
+            // Add existing collections
+            collections.forEach((collection) => {
+                const isInCollection = isRecipeInCollection(collection);
+                buttons.push({
+                    text: isInCollection
+                        ? `✓ ${collection.name} (Already added)`
+                        : `📁 ${collection.name}`,
+                    style: isInCollection ? 'default' : 'default',
+                    action: () => {
+                        if (!isInCollection) {
+                            return handleAddToCollection(collection._id);
+                        }
+                    }
+                });
+            });
+
+            // Add create new collection option
+            buttons.push({
+                text: '+ Create New Collection',
+                style: 'default',
+                action: () => showCreateCollectionModal()
+            });
+
+            // Add cancel button
+            buttons.push({
+                text: 'Cancel',
+                style: 'cancel',
+                action: () => null
+            });
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showActionSheet({
+                title: 'Add to Collection',
+                message: `Add "${recipeName}" to which collection?`,
+                buttons
+            });
+
+        } catch (error) {
+            console.error('Error showing action sheet:', error);
+            // Fallback to web dropdown
+            setShowDropdown(true);
+        }
+    };
+
+    // iOS Native Collection Creation Modal
+    const showCreateCollectionModal = async () => {
+        try {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+
+            // Use native iOS prompt for collection name
+            const result = await NativeDialog.showPrompt({
+                title: 'Create New Collection',
+                message: 'Enter a name for your new collection:',
+                placeholder: 'Collection name...',
+                buttons: [
+                    {
+                        text: 'Create',
+                        style: 'default',
+                        action: async (name) => {
+                            if (name && name.trim()) {
+                                await handleCreateCollection(name.trim());
+                                return true;
+                            }
+                            return false;
+                        }
+                    },
+                    {
+                        text: 'Cancel',
+                        style: 'cancel',
+                        action: () => false
+                    }
+                ]
+            });
+
+        } catch (error) {
+            console.error('Error showing create collection modal:', error);
+            // Fallback to inline form
+            setShowCreateForm(true);
+        }
+    };
+
     const handleAddToCollection = async (collectionId) => {
         try {
+            // iOS haptic feedback for action
+            if (isIOS) {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.buttonTap();
+            }
+
             const response = await apiPost(`/api/collections/${collectionId}/recipes`, { recipeId });
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: `HTTP ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             const data = await response.json();
 
             if (data.success) {
-                setSuccess(`Added "${recipeName}" to collection!`);
+                // iOS success haptic
+                if (isIOS) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+                }
+
+                // Native success dialog
+                if (isIOS) {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'Added to Collection',
+                        message: `"${recipeName}" has been added to the collection!`
+                    });
+                } else {
+                    setSuccess(`Added "${recipeName}" to collection!`);
+                }
+
                 setShowDropdown(false);
 
                 // Update collections to reflect the change
@@ -79,32 +223,104 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                     ));
                 }
             } else {
+                // Handle different error types
                 if (data.error && data.error.includes('already in this collection')) {
-                    setError('Recipe is already in this collection');
+                    if (isIOS) {
+                        const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                        await MobileHaptics.notificationWarning();
+
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showAlert({
+                            title: 'Already Added',
+                            message: 'This recipe is already in this collection.'
+                        });
+                    } else {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showAlert({
+                            title: 'Already Added',
+                            message: 'Recipe is already in this collection'
+                        });
+                    }
                 } else if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                    if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
-                        window.location.href = data.upgradeUrl || '/pricing';
+                    if (isIOS) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showUpgradePrompt({
+                            feature: 'Recipe Collections',
+                            tier: 'Gold',
+                            currentLimit: data.error
+                        });
+                    } else {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        const confirmed = await NativeDialog.showConfirm({
+                            title: 'Upgrade Required',
+                            message: `${data.error}\n\nWould you like to upgrade now?`,
+                            confirmText: 'Upgrade',
+                            cancelText: 'Cancel'
+                        });
+                        if (confirmed) {
+                            window.location.href = data.upgradeUrl || '/pricing';
+                        }
                     }
                     return;
                 } else {
-                    throw new Error(data.error || 'Failed to add recipe to collection');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Failed to Add Recipe',
+                        message: data.error || 'Failed to add recipe to collection'
+                    });
+                    return;
                 }
             }
         } catch (error) {
             console.error('Error adding recipe to collection:', error);
-            setError(error.message || 'Failed to add recipe to collection');
+
+            // iOS error haptic
+            if (isIOS) {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Failed to Add',
+                    message: error.message || 'Failed to add recipe to collection. Please try again.'
+                });
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Failed to Add',
+                    message: error.message || 'Failed to add recipe to collection'
+                });
+            }
         }
     };
 
-    // NEW: Handle creating a new collection and adding the recipe to it
-    const handleCreateCollection = async (formData) => {
+    const handleCreateCollection = async (name, description = '') => {
         try {
             setCreatingCollection(true);
-            const name = formData.get('name');
-            const description = formData.get('description');
+
+            // iOS haptic for form submission
+            if (isIOS) {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.formSubmit();
+            }
 
             if (!name || name.trim().length === 0) {
-                setError('Collection name is required');
+                if (isIOS) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.error();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showAlert({
+                        title: 'Invalid Input',
+                        message: 'Collection name is required.'
+                    });
+                } else {
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Name Required',
+                        message: 'Collection name is required'
+                    });
+                }
                 return;
             }
 
@@ -115,13 +331,31 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
             });
 
             if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Network Error',
+                    message: `HTTP ${response.status}: ${response.statusText}`
+                });
+                return;
             }
 
             const data = await response.json();
 
             if (data.success) {
-                setSuccess(`Created collection "${name}" and added "${recipeName}"!`);
+                // iOS success haptic
+                if (isIOS) {
+                    const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                    await MobileHaptics.success();
+
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showSuccess({
+                        title: 'Collection Created',
+                        message: `Created "${name}" and added "${recipeName}"!`
+                    });
+                } else {
+                    setSuccess(`Created collection "${name}" and added "${recipeName}"!`);
+                }
+
                 setShowDropdown(false);
                 setShowCreateForm(false);
 
@@ -129,17 +363,55 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                 setCollections([...collections, data.collection]);
             } else {
                 if (data.code === 'USAGE_LIMIT_EXCEEDED') {
-                    if (confirm(`${data.error}\n\nWould you like to upgrade now?`)) {
-                        window.location.href = data.upgradeUrl || '/pricing';
+                    if (isIOS) {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showUpgradePrompt({
+                            feature: 'Recipe Collections',
+                            tier: 'Gold',
+                            currentLimit: data.error
+                        });
+                    } else {
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        const confirmed = await NativeDialog.showConfirm({
+                            title: 'Collection Limit',
+                            message: `${data.error}\n\nWould you like to upgrade now?`,
+                            confirmText: 'Upgrade',
+                            cancelText: 'Cancel'
+                        });
+                        if (confirmed) {
+                            window.location.href = data.upgradeUrl || '/pricing';
+                        }
                     }
                     return;
                 } else {
-                    throw new Error(data.error || 'Failed to create collection');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Creation Failed',
+                        message: data.error || 'Failed to create collection'
+                    });
+                    return;
                 }
             }
         } catch (error) {
             console.error('Error creating collection:', error);
-            setError(error.message || 'Failed to create collection');
+
+            // iOS error haptic
+            if (isIOS) {
+                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                await MobileHaptics.error();
+
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Failed to Create',
+                    message: error.message || 'Failed to create collection. Please try again.'
+                });
+            } else {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Creation Failed',
+                    message: error.message || 'Failed to create collection'
+                });
+            }
         } finally {
             setCreatingCollection(false);
         }
@@ -155,12 +427,27 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
         });
     };
 
+    // Main button click handler - uses native iOS action sheet or web dropdown
+    const handleButtonClick = async () => {
+        if (isIOS) {
+            await showIOSActionSheet();
+        } else {
+            setShowDropdown(!showDropdown);
+        }
+    };
+
     return (
         <FeatureGate
             feature={FEATURE_GATES.RECIPE_COLLECTIONS}
             fallback={
                 <TouchEnhancedButton
-                    onClick={() => window.location.href = '/pricing?source=add-to-collection'}
+                    onClick={async () => {
+                        if (isIOS) {
+                            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+                            await MobileHaptics.buttonTap();
+                        }
+                        window.location.href = '/pricing?source=add-to-collection';
+                    }}
                     className={`bg-gradient-to-r from-yellow-400 to-orange-500 text-white px-4 py-2 rounded-md font-medium hover:from-yellow-500 hover:to-orange-600 ${className}`}
                 >
                     📁 Collections (Gold)
@@ -170,17 +457,19 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
             <div className="relative">
                 {/* Main Button */}
                 <TouchEnhancedButton
-                    onClick={() => setShowDropdown(!showDropdown)}
+                    onClick={handleButtonClick}
                     className={`bg-purple-600 text-white px-4 py-2 rounded-md hover:bg-purple-700 flex items-center gap-2 ${className}`}
                 >
                     📁 Add to Collection
-                    <svg className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                    </svg>
+                    {!isIOS && (
+                        <svg className={`w-4 h-4 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                        </svg>
+                    )}
                 </TouchEnhancedButton>
 
-                {/* Dropdown */}
-                {showDropdown && (
+                {/* Web-style Dropdown - Only shown on non-iOS platforms */}
+                {!isIOS && showDropdown && (
                     <div className="absolute top-full left-0 mt-2 w-64 bg-white border border-gray-200 rounded-lg shadow-lg z-10">
                         <div className="p-4">
                             <h3 className="text-sm font-medium text-gray-900 mb-3">
@@ -197,7 +486,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                                     <div className="text-red-600 text-sm mb-3">{error}</div>
                                     <TouchEnhancedButton
                                         onClick={() => {
-                                            setError('');
+                                            ;
                                             fetchCollections();
                                         }}
                                         className="text-purple-600 hover:text-purple-700 text-sm"
@@ -206,7 +495,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                                     </TouchEnhancedButton>
                                 </div>
                             ) : showCreateForm ? (
-                                // NEW: Inline collection creation form
+                                // Inline collection creation form for web
                                 <div className="space-y-3">
                                     <div className="flex items-center justify-between">
                                         <h4 className="text-sm font-medium text-gray-900">Create New Collection</h4>
@@ -221,27 +510,40 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                                         onSubmit={(e) => {
                                             e.preventDefault();
                                             const formData = new FormData(e.target);
-                                            handleCreateCollection(formData);
+                                            const name = formData.get('name');
+                                            const description = formData.get('description');
+                                            handleCreateCollection(name, description);
                                         }}
                                         className="space-y-3"
                                     >
                                         <div>
-                                            <KeyboardOptimizedInput
+                                            <NativeTextInput
                                                 type="text"
                                                 name="name"
                                                 placeholder="Collection name"
                                                 required
                                                 maxLength={100}
-                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                                                validation={(value) => ({
+                                                    isValid: value && value.length >= 3 && value.length <= 100,
+                                                    message: value && value.length >= 3 && value.length <= 100
+                                                        ? 'Good collection name'
+                                                        : 'Name should be 3-100 characters'
+                                                })}
+                                                errorMessage="Collection name is required (3-100 characters)"
+                                                successMessage="Perfect collection name"
                                             />
                                         </div>
                                         <div>
-                                            <textarea
+                                            <NativeTextarea
                                                 name="description"
                                                 placeholder="Description (optional)"
                                                 rows={2}
                                                 maxLength={500}
-                                                className="w-full px-3 py-2 text-sm border border-gray-300 rounded-md focus:ring-purple-500 focus:border-purple-500"
+                                                autoExpand={true}
+                                                validation={(value) => ({
+                                                    isValid: true,
+                                                    message: value && value.length > 10 ? 'Great description' : ''
+                                                })}
                                             />
                                         </div>
                                         <div className="flex gap-2">
@@ -325,16 +627,16 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                     </div>
                 )}
 
-                {/* Click outside to close */}
-                {showDropdown && (
+                {/* Click outside to close (web only) */}
+                {!isIOS && showDropdown && (
                     <div
                         className="fixed inset-0 z-0"
                         onClick={() => setShowDropdown(false)}
                     />
                 )}
 
-                {/* Success/Error Messages */}
-                {success && (
+                {/* Success/Error Messages (web only) */}
+                {!isIOS && success && (
                     <div className="absolute top-full left-0 mt-2 w-64 bg-green-50 border border-green-200 rounded-lg p-3 z-10">
                         <div className="text-sm text-green-800">
                             ✓ {success}
@@ -342,7 +644,7 @@ export default function AddToCollectionButton({ recipeId, recipeName, className 
                     </div>
                 )}
 
-                {error && !showDropdown && (
+                {!isIOS && error && !showDropdown && (
                     <div className="absolute top-full left-0 mt-2 w-64 bg-red-50 border border-red-200 rounded-lg p-3 z-10">
                         <div className="text-sm text-red-800">
                             ⚠️ {error}

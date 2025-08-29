@@ -27,7 +27,6 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
     const fetchOrGenerateSuggestions = async () => {
         setLoading(true);
-        setError('');
 
         try {
             console.log('🔍 Fetching meal prep suggestions for:', mealPlanId);
@@ -49,7 +48,11 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
             }
         } catch (error) {
             console.error('❌ Error fetching meal prep suggestions:', error);
-            setError('Failed to load meal prep suggestions');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Failed',
+                message: 'Failed to load meal prep suggestions'
+            });
         } finally {
             setLoading(false);
         }
@@ -57,7 +60,6 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
 
     const generateSuggestions = async (regenerate = false) => {
         setLoading(true);
-        setError('');
 
         try {
             console.log('🔄 Generating meal prep suggestions...');
@@ -75,7 +77,12 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ API Error:', errorText);
-                throw new Error(`Failed to generate suggestions: ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Generation Failed',
+                    message: `Failed to generate suggestions: ${response.status}`
+                });
+                return;
             }
 
             const result = await response.json();
@@ -93,11 +100,20 @@ export default function MealPrepSuggestions({ mealPlanId, mealPlanName, onClose 
                     timeSaved: result.suggestions?.metrics?.timeSaved || 0
                 });
             } else {
-                throw new Error(result.error || 'Failed to generate suggestions');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Generation Failed',
+                    message: result.error || 'Failed to generate suggestions'
+                });
+                return;
             }
         } catch (error) {
             console.error('❌ Error generating meal prep suggestions:', error);
-            setError(error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Generation Error',
+                message: error.message
+            });
         } finally {
             setLoading(false);
         }

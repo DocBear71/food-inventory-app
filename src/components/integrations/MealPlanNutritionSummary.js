@@ -6,6 +6,7 @@ import React, { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import { FEATURE_GATES } from '@/lib/subscription-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export function MealPlanNutritionSummary({ data, loading, onRefresh }) {
     const router = useRouter();
@@ -21,23 +22,23 @@ export function MealPlanNutritionSummary({ data, loading, onRefresh }) {
     const nutritionGoals = data?.goals?.current || {};
 
     // Enhanced navigation function that determines best route based on subscription
-    const handleCreateMealPlan = () => {
+    const handleCreateMealPlan = async () => {
         if (!mealPlanningGate.hasAccess) {
             // Redirect to pricing if no access
-            router.push('/app/pricing');
+            await NativeNavigation.routerPush(router, '/app/pricing');
             return;
         }
 
         // Determine which meal planning interface to use based on subscription tier
         if (subscription?.plan === 'platinum') {
             // Platinum users get the enhanced experience with full price intelligence
-            router.push('/meal-planning/enhanced');
+            await NativeNavigation.routerPush(router, '/meal-planning/enhanced');
         } else if (subscription?.plan === 'gold') {
             // Gold users get smart meal planning with basic price intelligence
-            router.push('/meal-planning');
+            await NativeNavigation.routerPush(router, '/meal-planning');
         } else {
             // Fallback to basic meal planning
-            router.push('/meal-planning');
+            await NativeNavigation.routerPush(router, '/meal-planning');
         }
     };
 

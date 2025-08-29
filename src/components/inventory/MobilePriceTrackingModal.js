@@ -105,12 +105,20 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
                 setActiveTab('history');
             } else {
                 MobileHaptics?.error();
-                alert(data.error || 'Failed to add price');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Price Failed',
+                    message: data.error || 'Failed to add price'
+                });
             }
         } catch (error) {
-            console.error('Error adding price:', error);
+            console.error('Error adding quick price:', error);
             MobileHaptics?.error();
-            alert('Error adding price');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Add Price Error',
+                message: 'Error adding price'
+            });
         } finally {
             setLoading(false);
         }
@@ -143,12 +151,20 @@ export default function MobilePriceTrackingModal({ item, isOpen, onClose, onPric
                 setShowQuickAdd(false);
             } else {
                 MobileHaptics?.error();
-                alert(data.error || 'Failed to add price');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Price Failed',
+                    message: data.error || 'Failed to add price'
+                });
             }
         } catch (error) {
-            console.error('Error adding quick price:', error);
+            console.error('Error adding price:', error);
             MobileHaptics?.error();
-            alert('Error adding price');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Add Price Error',
+                message: 'Error adding price'
+            });
         } finally {
             setLoading(false);
         }

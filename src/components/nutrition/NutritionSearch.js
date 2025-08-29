@@ -7,7 +7,11 @@ import { apiGet } from '@/lib/api-config';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function NutritionSearch({
                                             onFoodSelected,
@@ -53,11 +57,19 @@ export default function NutritionSearch({
                 setFoods(data.foods || []);
                 setShowResults(true);
             } else {
-                setError(data.error || 'Failed to search foods');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Search Failed',
+                    message: data.error || 'Failed to search foods'
+                });
                 setFoods([]);
             }
         } catch (err) {
-            setError('Error searching for foods');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Search Error',
+                message: 'Error searching for foods'
+            });
             setFoods([]);
             console.error('Nutrition search error:', err);
         } finally {
@@ -117,14 +129,19 @@ export default function NutritionSearch({
                 <div className={`relative ${compact ? 'max-w-sm' : 'max-w-md'}`}>
                     {/* Disabled search input */}
                     <div className="relative">
-                        <KeyboardOptimizedInput
+                        <NativeTextInput
                             type="text"
                             value=""
                             disabled
                             placeholder="🔒 Gold feature - Search nutrition database"
-                            className={`w-full border-2 border-yellow-300 bg-yellow-50 text-yellow-700 rounded-md shadow-sm cursor-not-allowed ${
-                                compact ? 'px-3 py-2 text-sm' : 'px-4 py-3'
-                            }`}
+                            autoComplete="off"
+                            style={{
+                                borderWidth: '2px',
+                                borderColor: '#fcd34d',
+                                backgroundColor: '#fefce8',
+                                color: '#b45309',
+                                cursor: 'not-allowed'
+                            }}
                         />
                         <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
                             <div className="text-yellow-600">🔒</div>
@@ -156,7 +173,7 @@ export default function NutritionSearch({
                             </div>
 
                             <TouchEnhancedButton
-                                onClick={() => window.location.href = '/pricing?source=nutrition-search'}
+                                onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=nutrition-search', router })}
                                 className="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg font-medium hover:bg-yellow-700 text-sm"
                             >
                                 Upgrade to Gold - $4.99/month
@@ -207,14 +224,20 @@ function NutritionSearchContent({
         <div className={`relative ${compact ? 'max-w-sm' : 'max-w-md'}`}>
             {/* Search Input */}
             <div className="relative">
-                <KeyboardOptimizedInput
+                <NativeTextInput
                     type="text"
+                    inputMode="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                     placeholder={placeholder}
-                    className={`w-full border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 ${
-                        compact ? 'px-3 py-2 text-sm' : 'px-4 py-3'
-                    }`}
+                    autoComplete="off"
+                    validation={(value) => {
+                        if (!value) return { isValid: true, message: '' };
+                        if (value.length < 3) return { isValid: false, message: 'Type at least 3 characters to search' };
+                        return { isValid: true, message: `Searching nutrition database for "${value}"` };
+                    }}
+                    errorMessage="Need at least 3 characters to search"
+                    successMessage="Searching..."
                 />
                 {loading && (
                     <div className="absolute right-3 top-1/2 transform -translate-y-1/2">

@@ -13,7 +13,10 @@ import MealCompletionModal from '@/components/meal-planning/MealCompletionModal'
 import {apiGet, apiPost, apiPut} from '@/lib/api-config';
 import SmartSuggestionsModal from '@/components/meal-planning/SmartSuggestionsModal';
 import {VoiceInput} from '@/components/mobile/VoiceInput';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 export default function MealPlanningCalendar() {
     const {data: session} = useSafeSession();
@@ -264,7 +267,12 @@ export default function MealPlanningCalendar() {
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error('❌ API Error Response:', errorText);
-                throw new Error(`API Error: ${response.status} - ${errorText}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'API Error',
+                    message: `API Error: ${response.status} - ${errorText}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -285,7 +293,12 @@ export default function MealPlanningCalendar() {
                     // Keep modal open to show the "well optimized" message
                 }
             } else {
-                throw new Error(data.error || 'Failed to generate suggestions');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Suggestions Failed',
+                    message: data.error || 'Failed to generate suggestions'
+                });
+                return;
             }
         } catch (error) {
             console.error('💥 Error generating smart suggestions:', error);
@@ -407,7 +420,13 @@ export default function MealPlanningCalendar() {
             }
 
             // Show the detailed message
-            const userConfirmed = confirm(`${message}\n\nWould you like to proceed with this suggestion?`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            const userConfirmed = await NativeDialog.showConfirm({
+                title: 'Suggestion',
+                message: `${message}\n\nWould you like to proceed with this suggestion?`,
+                confirmText: 'Proceed',
+                cancelText: 'Cancel'
+            });
 
             if (userConfirmed) {
                 // Here you could implement automatic meal plan updates
@@ -483,17 +502,25 @@ export default function MealPlanningCalendar() {
                     showToast(`❌ Had trouble planning meals. Please try again.`, 'error');
                 }
             } else {
-                alert('❌ Could not understand meal planning request. Try saying something like "Add spaghetti to Monday dinner"');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showAlert({
+                    title: 'Voice Command Not Understood',
+                    message: 'Could not understand meal planning request. Try saying something like "Add spaghetti to Monday dinner"'
+                });
             }
         } catch (error) {
             console.error('Error processing voice meal planning:', error);
-            alert('❌ Error processing voice input. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Voice Processing Error',
+                message: 'Error processing voice input. Please try again.'
+            });
         } finally {
             setProcessingVoiceMeal(false);
         }
     };
 
-    const handleVoiceMealError = (error) => {
+    const handleVoiceMealError = async (error) => {
         console.error('🎤 Voice meal planning error:', error);
         setProcessingVoiceMeal(false);
 
@@ -506,7 +533,11 @@ export default function MealPlanningCalendar() {
             userMessage += 'Please try again.';
         }
 
-        alert(`🎤 ${userMessage}`);
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showAlert({
+            title: 'Voice Command Recognized',
+            message: userMessage
+        });
     };
 
     const parseVoiceMealPlanning = (transcript) => {
@@ -903,21 +934,28 @@ export default function MealPlanningCalendar() {
             }
         } catch (error) {
             console.error('Error updating meal completion:', error);
-            alert('Error completing meal. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Completion Failed',
+                message: 'Error completing meal. Please try again.'
+            });
         }
     };
 
     const handleUndoCompletion = async (meal, day) => {
         if (!mealPlan) return;
 
-        const confirmUndo = window.confirm(
-            `Are you sure you want to undo the completion of "${getMealDisplayName(meal)}"?\n\n` +
-            `This will:\n` +
-            `• Remove the completed status from the meal\n` +
-            `• NOT restore consumed ingredients to inventory\n` +
-            `• Keep the consumption history for your records\n\n` +
-            `Note: To restore ingredients to inventory, use the "Undo" button in Inventory History within 24 hours.`
-        );
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmUndo = await NativeDialog.showConfirm({
+            title: 'Undo Meal Completion',
+            message: `Undo the completion of "${getMealDisplayName(meal)}"?\n\nThis will:
+            \n• Remove the completed status
+            \n• NOT restore consumed ingredients
+            \n• Keep consumption history
+            \n\nNote: Use Inventory History to restore ingredients within 24 hours.`,
+            confirmText: 'Undo Completion',
+            cancelText: 'Keep as Completed'
+        });
 
         if (!confirmUndo) return;
 
@@ -953,11 +991,20 @@ export default function MealPlanningCalendar() {
 
                 showToast(`Meal completion status removed. Ingredients remain consumed in inventory history.`);
             } else {
-                throw new Error('Failed to update meal plan');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: 'Failed to update meal plan'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error undoing meal completion:', error);
-            alert('Error undoing completion. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Undo Failed',
+                message: 'Error undoing completion. Please try again.'
+            });
         }
     };
 
@@ -971,18 +1018,28 @@ export default function MealPlanningCalendar() {
         closeMealDropdowns();
     };
 
-    const handleEditMeal = (meal, day) => {
+    const handleEditMeal = async (meal, day) => {
         if (meal.entryType === 'simple') {
             setSelectedSlot({day, mealType: meal.mealType});
             setShowSimpleMealBuilder(true);
         } else if (meal.entryType === 'recipe') {
-            alert(`Recipe meal editing: You can remove this meal and add a different recipe, or modify the servings/notes.\n\nFull recipe editing should be done in the Recipe section.`);
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Recipe Meal Editing',
+                message: 'You can remove this meal and add a different recipe, or modify the servings/notes.\n\nFull recipe editing should be done in the Recipe section.'
+            });
         }
         closeMealDropdowns();
     };
 
-    const handleDeleteMeal = (day, actualIndex) => {
-        const confirmDelete = window.confirm('Are you sure you want to delete this meal?');
+    const handleDeleteMeal = async (day, actualIndex) => {
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        const confirmDelete = await NativeDialog.showConfirm({
+            title: 'Delete Meal',
+            message: 'Are you sure you want to delete this meal?',
+            confirmText: 'Delete Meal',
+            cancelText: 'Keep Meal'
+        });
         if (confirmDelete) {
             removeMealFromSlot(day, actualIndex);
         }
@@ -1558,12 +1615,16 @@ export default function MealPlanningCalendar() {
         if (!mealPlan) return;
 
         const conflicts = checkMealDietaryConflicts(simpleMealEntry);
-        if (conflicts.length > 0) {
-            const confirmAdd = window.confirm(
-                `This meal may conflict with your dietary preferences:\n\n${conflicts.join('\n')}\n\nDo you want to add it anyway?`
-            );
-            if (!confirmAdd) return;
-        }
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmAdd = await NativeDialog.showConfirm({
+            title: 'Dietary Conflicts Detected',
+            message: `This meal may conflict with your dietary preferences:
+            \n\n${conflicts.join('\n')}
+            \n\nDo you want to add it anyway?`,
+            confirmText: 'Add Anyway',
+            cancelText: 'Cancel'
+        });
+        if (!confirmAdd) return;
 
         const updatedMeals = {
             ...mealPlan.meals,
@@ -1635,7 +1696,12 @@ export default function MealPlanningCalendar() {
             });
 
             if (!response.ok) {
-                throw new Error(`Failed to generate shopping list: ${response.status}`);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Shopping List Generation Failed',
+                    message: `Failed to generate shopping list: ${response.status}`
+                });
+                return;
             }
 
             const data = await response.json();
@@ -1646,7 +1712,12 @@ export default function MealPlanningCalendar() {
                 setShoppingListData(data.shoppingList);
                 return data.shoppingList;
             } else {
-                throw new Error(data.error || 'Failed to generate shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Shopping List Generation Failed',
+                    message: data.error || 'Failed to generate shopping list'
+                });
+                return;
             }
         } catch (error) {
             console.error('❌ Error generating shopping list:', error);
@@ -2360,17 +2431,29 @@ export default function MealPlanningCalendar() {
                                 <div className="relative">
                                     <span
                                         className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="number"
+                                        inputMode="decimal"
+                                        pattern="[0-9]*\.?[0-9]*"
                                         step="0.01"
-                                        min="0"
                                         value={priceIntelligence.weeklyBudget}
                                         onChange={(e) => setPriceIntelligence(prev => ({
                                             ...prev,
                                             weeklyBudget: parseFloat(e.target.value) || 0
                                         }))}
-                                        className="pl-8 w-full border border-gray-300 rounded-lg px-3 py-2"
                                         placeholder="0.00"
+                                        autoComplete="off"
+                                        min="0"
+                                        max="10000"
+                                        validation={(value) => {
+                                            const num = parseFloat(value);
+                                            if (isNaN(num) || num < 0) return { isValid: false, message: 'Please enter a valid budget amount' };
+                                            if (num > 1000) return { isValid: false, message: 'Budget seems very high - please check' };
+                                            return { isValid: true, message: 'Budget amount looks good!' };
+                                        }}
+                                        errorMessage="Please enter a valid budget amount"
+                                        successMessage="Budget amount looks good!"
+                                        style={{ paddingLeft: '32px' }}
                                     />
                                 </div>
                                 <div className="text-xs text-gray-500 mt-1">
@@ -2426,12 +2509,17 @@ export default function MealPlanningCalendar() {
                                 {/* Compact filters */}
                                 <div className="space-y-2">
                                     {/* Search */}
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
-                                        placeholder="Search recipes..."
+                                        inputMode="search"
+                                        placeholder="Search recipes by title, description, tags, or ingredients..."
                                         value={recipeSearchQuery}
                                         onChange={(e) => setRecipeSearchQuery(e.target.value)}
-                                        className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 2 ? `Searching for "${value}"` : ''
+                                        })}
                                     />
 
                                     {/* Category Filter */}
@@ -3390,17 +3478,29 @@ export default function MealPlanningCalendar() {
                             <div className="relative">
                                 <span
                                     className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">$</span>
-                                <KeyboardOptimizedInput
+                                <NativeTextInput
                                     type="number"
+                                    inputMode="decimal"
+                                    pattern="[0-9]*\.?[0-9]*"
                                     step="0.01"
                                     min="0"
+                                    max="10000"
                                     value={priceIntelligence.weeklyBudget}
                                     onChange={(e) => setPriceIntelligence(prev => ({
                                         ...prev,
                                         weeklyBudget: parseFloat(e.target.value) || 0
                                     }))}
-                                    className="pl-8 w-full border border-gray-300 rounded-lg px-3 py-2"
                                     placeholder="0.00"
+                                    autoComplete="off"
+                                    validation={(value) => {
+                                        const num = parseFloat(value);
+                                        if (isNaN(num) || num < 0) return { isValid: false, message: 'Please enter a valid budget amount' };
+                                        if (num > 1000) return { isValid: false, message: 'Budget seems very high - please check' };
+                                        return { isValid: true, message: 'Budget amount looks good!' };
+                                    }}
+                                    errorMessage="Please enter a valid budget amount"
+                                    successMessage="Budget amount looks good!"
+                                    style={{ paddingLeft: '32px' }}
                                 />
                             </div>
                             <div className="text-xs text-gray-500 mt-1">
@@ -3457,12 +3557,17 @@ export default function MealPlanningCalendar() {
                             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                                 {/* Search */}
                                 <div className="md:col-span-2">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="search"
                                         placeholder="Search recipes by title, description, tags, or ingredients..."
                                         value={recipeSearchQuery}
                                         onChange={(e) => setRecipeSearchQuery(e.target.value)}
-                                        className="w-full px-4 py-2 border border-gray-300 rounded-md text-sm"
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 2 ? `Searching for "${value}"` : ''
+                                        })}
                                     />
                                 </div>
 

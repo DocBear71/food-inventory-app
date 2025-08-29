@@ -2,24 +2,30 @@
 
 import NextAuth from 'next-auth';
 // Try different import approaches
+
+// Method 3: Dynamic import
+import mod from "next-auth/providers/credentials";
+
 let CredentialsProvider;
 
 try {
     // Method 1: Direct import
-    CredentialsProvider = require('next-auth/providers/credentials').default;
+    CredentialsProvider = mod.default;
 } catch (e1) {
     try {
         // Method 2: Named import
-        const providers = require('next-auth/providers/credentials');
-        CredentialsProvider = providers.default || providers.CredentialsProvider;
+        CredentialsProvider = mod.default || mod.CredentialsProvider;
     } catch (e2) {
         try {
-            // Method 3: Dynamic import
-            const mod = require('next-auth/providers/credentials');
             CredentialsProvider = mod.default || mod;
         } catch (e3) {
             console.error('Failed to import CredentialsProvider:', e1, e2, e3);
-            throw new Error('Cannot import CredentialsProvider');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Credintials Provider Failed',
+                message: 'Cannot import CredentialsProvider'
+            });
+            return;
         }
     }
 }

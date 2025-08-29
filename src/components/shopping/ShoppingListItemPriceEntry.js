@@ -31,7 +31,11 @@ export default function ShoppingListItemPriceEntry({
             onClose();
         } catch (error) {
             console.error('Error updating price:', error);
-            alert('Failed to update price. Please try again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Update Failed',
+                message: 'Failed to update price. Please try again.'
+            });
         } finally {
             setLoading(false);
         }

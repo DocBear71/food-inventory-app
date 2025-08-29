@@ -50,7 +50,12 @@ export async function POST(request) {
         });
 
         if (!modalResponse.ok) {
-            throw new Error(`Modal API error: ${modalResponse.status}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Modal API Failed',
+                message: `Modal API error: ${modalResponse.status}`
+            });
+            return;
         }
 
         const result = await modalResponse.json();

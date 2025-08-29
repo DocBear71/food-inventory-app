@@ -18,7 +18,6 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
 
     const generateShoppingList = async () => {
         setLoading(true);
-        setError('');
 
         try {
             const response = await apiPost('/api/shopping/generate', {
@@ -28,7 +27,12 @@ export default function RecipeShoppingList({ recipeId, recipeName, onClose }) {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to generate shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Generate List Failed',
+                    message: result.error || 'Failed to generate shopping list'
+                });
+                return;
             }
 
             setShoppingList(result.shoppingList);

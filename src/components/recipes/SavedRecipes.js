@@ -4,6 +4,7 @@
 
 import React from 'react';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 const SavedRecipes = ({ onCountChange }) => {
     // This component is deprecated - recipes are now saved via collections only
@@ -37,7 +38,7 @@ const SavedRecipes = ({ onCountChange }) => {
 
             <div className="space-y-4">
                 <TouchEnhancedButton
-                    onClick={() => window.location.href = '/recipes?tab=collections'}
+                    onClick={() => NativeNavigation.navigateTo({ path: '/recipes?tab=collections', router })}
                     className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 text-lg"
                 >
                     📁 Go to Collections

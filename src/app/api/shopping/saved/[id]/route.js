@@ -89,14 +89,19 @@ export async function PUT(request, { params }) {
             'isTemplate', 'isArchived'
         ];
 
-        allowedUpdates.forEach(field => {
+        for (const field of allowedUpdates) {
             if (updates[field] !== undefined) {
                 if (field === 'name' && updates[field].length > 100) {
-                    throw new Error('Name must be 100 characters or less');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Name Error',
+                        message: 'Name must be 100 characters or less'
+                    });
+                    continue;
                 }
                 savedList[field] = updates[field];
             }
-        });
+        }
 
         // Handle special updates
         if (updates.markPurchased) {

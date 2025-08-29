@@ -118,7 +118,11 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                         console.log('🖼️ Gallery: Authentication issue, continuing without photos collection');
                         setPhotos([]);
                     } else {
-                        setError('Failed to load photo collection');
+                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                        await NativeDialog.showError({
+                            title: 'Load Failed',
+                            message: 'Failed to load photo collection'
+                        });
                         setPhotos([]);
                     }
                 } catch (parseError) {
@@ -131,7 +135,11 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
 
         } catch (error) {
             console.error('🖼️ Gallery: Error fetching photos:', error);
-            setError('Failed to load photos');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Photo Load Error',
+                message: 'Failed to load photos'
+            });
             setPhotos([]);
             setRecipeImageData(null);
         } finally {
@@ -154,7 +162,14 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
     };
 
     const deletePhoto = async (photo) => {
-        if (!confirm('Are you sure you want to delete this photo?')) {
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete Photo',
+            message: 'Are you sure you want to delete this photo?',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+        if (!confirmed) {
             return;
         }
 
@@ -176,11 +191,20 @@ export default function RecipePhotoGallery({ recipeId, canEdit = false, classNam
                 setShowModal(false);
             } else {
                 const errorData = await response.json();
-                throw new Error(errorData.error || 'Failed to delete photo');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: errorData.error || 'Failed to delete photo'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error deleting photo:', error);
-            setError('Failed to delete photo');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Error',
+                message: 'Failed to delete photo'
+            });
         }
     };
 

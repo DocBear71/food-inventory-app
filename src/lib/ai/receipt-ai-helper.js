@@ -98,7 +98,12 @@ export async function enhanceReceiptParsingWithAI(rawOcrText, extractedItems, im
         });
 
         if (!response.ok) {
-            throw new Error(`Modal API returned ${response.status}`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Modal API Failed',
+                message: `Modal API returned ${response.status}`
+            });
+            return;
         }
 
         const result = await response.json();
@@ -285,7 +290,12 @@ export async function aiClassifyFoodItem(itemName, existingCategory = "", contex
     });
 
     if (!response.ok) {
-        throw new Error('Classification API failed');
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showError({
+            title: 'Classification API Failed',
+            message: 'Classification API failed'
+        });
+        return;
     }
 
     return await response.json();

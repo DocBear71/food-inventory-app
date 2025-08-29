@@ -20,10 +20,14 @@ import PriceAnalyticsDashboard from '@/components/analytics/PriceAnalyticsDashbo
 import MobilePriceTrackingModal from '@/components/inventory/MobilePriceTrackingModal';
 import AdvancedPriceSearch from '@/components/inventory/AdvancedPriceSearch';
 import {VoiceInput} from '@/components/mobile/VoiceInput';
-import KeyboardOptimizedInput from '@/components/forms/KeyboardOptimizedInput';
+import {
+    NativeTextInput,
+    ValidationPatterns
+} from '@/components/forms/NativeIOSFormComponents';
 
 // Import smart display utilities
 import {formatInventoryDisplayText} from '@/lib/inventoryDisplayUtils';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Helper function to parse quantity/serving size and extract size info
 function parseProductSize(product) {
@@ -988,7 +992,12 @@ function InventoryContent() {
 
                 showToast(message);
             } else {
-                throw new Error(result.error || 'Failed to update inventory');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: result.error || 'Failed to update inventory'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error consuming items:', error);
@@ -1090,14 +1099,26 @@ function InventoryContent() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to create shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Creation Failed',
+                    message: result.error || 'Failed to create shopping list'
+                });
+                return;
             }
 
             showToast(`✅ Created new shopping list: "${listName}" with ${item.name}`, 'success');
 
             // Optionally show a link to view the shopping list
-            setTimeout(() => {
-                if (confirm(`Shopping list created! Would you like to view it now?`)) {
+            setTimeout(async () => {
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                const confirmed = await NativeDialog.showConfirm({
+                    title: 'Shopping List Created',
+                    message: 'Shopping list created! Would you like to view it now?',
+                    confirmText: 'View List',
+                    cancelText: 'Stay Here'
+                });
+                if (confirmed) {
                     window.location.href = '/shopping/saved';
                 }
             }, 1000);
@@ -1132,14 +1153,26 @@ function InventoryContent() {
             const result = await response.json();
 
             if (!response.ok) {
-                throw new Error(result.error || 'Failed to add item to shopping list');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Failed',
+                    message: result.error || 'Failed to add item to shopping list'
+                });
+                return;
             }
 
             showToast(`✅ Added ${item.name} to existing shopping list`, 'success');
 
             // Optionally show a link to view the shopping list
-            setTimeout(() => {
-                if (confirm(`Item added to shopping list! Would you like to view it now?`)) {
+            setTimeout(async () => {
+                const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+                const confirmed = await NativeDialog.showConfirm({
+                    title: 'Item Added',
+                    message: 'Item added to shopping list! Would you like to view it now?',
+                    confirmText: 'View List',
+                    cancelText: 'Stay Here'
+                });
+                if (confirmed) {
                     window.location.href = '/shopping/saved';
                 }
             }, 1000);
@@ -1440,13 +1473,26 @@ function InventoryContent() {
     // Form submission handler
     const handleSubmit = async (e) => {
         e.preventDefault();
+
+        // Add iOS form submission haptic
+        try {
+            const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
+            await MobileHaptics.formSubmit();
+        } catch (error) {
+            console.log('Form submit haptic failed:', error);
+        }
+
         setLoading(true);
 
         console.log('🔍 CLIENT: Starting form submission');
         console.log('🔍 CLIENT: Form data:', formData);
 
         if (!session?.user?.id) {
-            alert('Session expired. Please sign in again.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Session Expired',
+                message: 'Your session has expired. Please sign in again.'
+            });
             setLoading(false);
             return;
         }
@@ -1478,7 +1524,13 @@ function InventoryContent() {
             if (!contentType || !contentType.includes('application/json')) {
                 const textResponse = await response.text();
                 console.error('❌ CLIENT: Non-JSON response:', textResponse);
-                throw new Error('Server returned non-JSON response: ' + textResponse.substring(0, 200));
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Server Error',
+                    message: 'The server returned an unexpected response. Please try again.'
+                });
+                setLoading(false);
+                return;
             }
 
             const data = await response.json();
@@ -1514,14 +1566,26 @@ function InventoryContent() {
             } else {
                 console.error('❌ CLIENT: Server returned error:', data);
                 if (response.status === 401) {
-                    alert('Session expired. Please refresh the page and sign in again.');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Session Expired',
+                        message: 'Your session has expired. Please refresh the page and sign in again.'
+                    });
                 } else {
-                    alert(data.error || 'Failed to save item');
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    await NativeDialog.showError({
+                        title: 'Save Failed',
+                        message: data.error || 'Failed to save item. Please try again.'
+                    });
                 }
             }
         } catch (error) {
             console.error('❌ CLIENT: Fetch error:', error);
-            alert('Error saving item: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Save Error',
+                message: 'Unable to save item. Please check your connection and try again.'
+            });
         } finally {
             setLoading(false);
         }
@@ -1578,7 +1642,15 @@ function InventoryContent() {
     };
 
     const handleDelete = async (itemId) => {
-        if (!confirm('Are you sure you want to delete this item?')) return;
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Delete Item',
+            message: 'Are you sure you want to delete this item? This action cannot be undone.',
+            confirmText: 'Delete',
+            cancelText: 'Cancel'
+        });
+
+        if (!confirmed) return;
 
         try {
             const response = await apiDelete(`/api/inventory?itemId=${itemId}`);
@@ -1588,11 +1660,19 @@ function InventoryContent() {
             if (data.success) {
                 await fetchInventory();
             } else {
-                alert(data.error || 'Failed to delete item');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Delete Failed',
+                    message: data.error || 'Failed to delete item. Please try again.'
+                });
             }
         } catch (error) {
             console.error('Error deleting item:', error);
-            alert('Error deleting item');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Delete Error',
+                message: 'Unable to delete item. Please try again.'
+            });
         }
     };
 
@@ -1604,7 +1684,7 @@ function InventoryContent() {
         }));
     };
 
-    const handleProductFound = (product) => {
+    const handleProductFound = async (product) => {
         // Parse size information from the product using enhanced logic
         const sizeInfo = parseProductSize(product);
 
@@ -1614,11 +1694,13 @@ function InventoryContent() {
 
         if (hasExistingSecondary && hasNewSizeInfo) {
             // Ask user about conflict
-            const shouldOverwrite = confirm(
-                `The scanned product shows a size of ${sizeInfo.quantity} ${sizeInfo.unit}, ` +
-                `but you already have ${formData.secondaryQuantity} ${formData.secondaryUnit} entered. ` +
-                `\n\nWould you like to use the scanned size information?`
-            );
+            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+            const shouldOverwrite = await NativeDialog.showConfirm({
+                title: 'Size Information Conflict',
+                message: `The scanned product shows a size of ${sizeInfo.quantity} ${sizeInfo.unit}, but you already have ${formData.secondaryQuantity} ${formData.secondaryUnit} entered.\n\nWould you like to use the scanned size information?`,
+                confirmText: 'Use Scanned Size',
+                cancelText: 'Keep Current'
+            });
 
             if (!shouldOverwrite) {
                 // Don't update secondary quantity, just update other fields
@@ -1736,7 +1818,7 @@ function InventoryContent() {
     };
 
     // Handle bulk consumption for expired items
-    const handleBulkConsumeExpired = () => {
+    const handleBulkConsumeExpired = async () => {
         const expiredItems = inventory.filter(item => {
             const status = getExpirationStatus(item.expirationDate);
             return status.status === 'expired';
@@ -1747,7 +1829,15 @@ function InventoryContent() {
             return;
         }
 
-        if (confirm(`Remove ${expiredItems.length} expired items from inventory?`)) {
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        const confirmed = await NativeDialog.showConfirm({
+            title: 'Remove Expired Items',
+            message: `Remove ${expiredItems.length} expired items from inventory? This action cannot be undone.`,
+            confirmText: 'Remove All',
+            cancelText: 'Cancel'
+        });
+
+        if (confirmed) {
             const consumptions = expiredItems.map(item => ({
                 itemId: item._id,
                 reason: 'expired',
@@ -1873,7 +1963,7 @@ function InventoryContent() {
                                                 {usage.tier === 'gold' && ' Upgrade to Platinum for unlimited inventory items.'}
                                             </p>
                                             <TouchEnhancedButton
-                                                onClick={() => window.location.href = '/pricing'}
+                                                onClick={() => NativeNavigation.navigateTo({ path: '/pricing', router })}
                                                 className="mt-2 bg-red-600 text-white px-4 py-2 rounded-md hover:bg-red-700 text-sm"
                                             >
                                                 🚀 Upgrade Now
@@ -1944,7 +2034,7 @@ function InventoryContent() {
                                     feature={FEATURE_GATES.COMMON_ITEMS_WIZARD}
                                     fallback={
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/pricing?source=common-items-wizard'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=common-items-wizard', router })}
                                             className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-indigo-300 text-sm font-medium rounded-md shadow-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
                                         >
                                             <span className="hidden sm:inline">🔒 Quick Start (Gold)</span>
@@ -1968,7 +2058,7 @@ function InventoryContent() {
                                     feature={FEATURE_GATES.COMMON_ITEMS_WIZARD}
                                     fallback={
                                         <TouchEnhancedButton
-                                            onClick={() => window.location.href = '/pricing?source=common-items-wizard'}
+                                            onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=common-items-wizard', router })}
                                             className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-green-300 text-sm font-medium rounded-md shadow-sm text-green-700 bg-green-50 hover:bg-green-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
                                         >
                                             <span className="hidden sm:inline">🔒 Common Items (Gold)</span>
@@ -1990,7 +2080,7 @@ function InventoryContent() {
                                 feature={FEATURE_GATES.CONSUMPTION_HISTORY}
                                 fallback={
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=consumption-history'}
+                                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=consumption-history', router })}
                                         className="flex-1 sm:flex-initial inline-flex items-center justify-center px-3 py-2 border border-blue-300 text-sm font-medium rounded-md shadow-sm text-blue-700 bg-blue-50 hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
                                     >
                                         <span className="hidden sm:inline">🔒 History (Gold)</span>
@@ -2138,13 +2228,18 @@ function InventoryContent() {
                                     🔍 Search Inventory
                                 </label>
                                 <div className="relative">
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="text"
+                                        inputMode="search"
                                         id="search"
-                                        placeholder="Search by name, brand, category, location, or UPC..."
                                         value={searchQuery}
                                         onChange={(e) => setSearchQuery(e.target.value)}
-                                        className="w-full pl-10 pr-10 py-2 border border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        placeholder="Search by name, brand, category, location, or UPC..."
+                                        autoComplete="off"
+                                        validation={(value) => ({
+                                            isValid: true,
+                                            message: value && value.length > 2 ? `Found items matching "${value}"` : ''
+                                        })}
                                     />
 
                                     {searchQuery && (
@@ -2416,15 +2511,22 @@ function InventoryContent() {
                                         <label htmlFor="name" className="block text-sm font-medium text-gray-700">
                                             Item Name *
                                         </label>
-                                        <KeyboardOptimizedInput
+                                        <NativeTextInput
                                             type="text"
+                                            inputMode="text"
                                             id="name"
                                             name="name"
-                                            required
                                             value={formData.name}
                                             onChange={handleChange}
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                             placeholder="e.g., Organic Bananas"
+                                            autoComplete="off"
+                                            validation={(value) => ({
+                                                isValid: value && value.trim().length >= 2,
+                                                message: value && value.trim().length >= 2 ? 'Item name looks good' : ''
+                                            })}
+                                            errorMessage="Please enter an item name (at least 2 characters)"
+                                            successMessage="Item name looks good"
+                                            required
                                         />
                                     </div>
 
@@ -2432,14 +2534,19 @@ function InventoryContent() {
                                         <label htmlFor="brand" className="block text-sm font-medium text-gray-700">
                                             Brand
                                         </label>
-                                        <KeyboardOptimizedInput
+                                        <NativeTextInput
                                             type="text"
+                                            inputMode="text"
                                             id="brand"
                                             name="brand"
                                             value={formData.brand}
                                             onChange={handleChange}
-                                            className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
                                             placeholder="e.g., Dole"
+                                            autoComplete="off"
+                                            validation={(value) => ({
+                                                isValid: true,
+                                                message: value && value.length > 1 ? 'Brand added' : ''
+                                            })}
                                         />
                                     </div>
 
@@ -2615,13 +2722,25 @@ function InventoryContent() {
                                         Expiration Date
                                         <span className="text-sm text-gray-500 ml-1">(Important for tracking freshness)</span>
                                     </label>
-                                    <KeyboardOptimizedInput
+                                    <NativeTextInput
                                         type="date"
+                                        inputMode="none"
                                         id="expirationDate"
                                         name="expirationDate"
                                         value={formData.expirationDate}
                                         onChange={handleChange}
-                                        className="mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                                        placeholder="Select expiration date"
+                                        validation={(value) => {
+                                            if (!value) return { isValid: true, message: '' };
+                                            const today = new Date();
+                                            const expDate = new Date(value);
+                                            return {
+                                                isValid: expDate >= today,
+                                                message: expDate >= today ? 'Date set' : 'Date is in the past'
+                                            };
+                                        }}
+                                        errorMessage="Please select a future date"
+                                        successMessage="Expiration date set"
                                     />
                                     <p className="mt-1 text-xs text-gray-500">
                                         Setting expiration dates helps track freshness and prevents food waste
@@ -2755,7 +2874,7 @@ function InventoryContent() {
                                                             currentCount={0}
                                                             fallback={
                                                                 <TouchEnhancedButton
-                                                                    onClick={() => window.location.href = '/pricing?source=inventory-empty'}
+                                                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=inventory-empty', router })}
                                                                     className="bg-gradient-to-r from-blue-400 to-indigo-500 text-white px-6 py-3 rounded-md font-medium hover:from-blue-500 hover:to-indigo-600"
                                                                 >
                                                                     🚀 Upgrade to Add Items
@@ -3138,7 +3257,7 @@ function InventoryContent() {
                                     Maybe Later
                                 </TouchEnhancedButton>
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=price-tracking'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=price-tracking', router })}
                                     className="flex-1 bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-md font-semibold"
                                 >
                                     Upgrade Now

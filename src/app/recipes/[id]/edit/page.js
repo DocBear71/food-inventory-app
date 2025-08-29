@@ -10,6 +10,7 @@ import Footer from '@/components/legal/Footer';
 import UpdateNutritionButton from '@/components/nutrition/UpdateNutritionButton';
 import { apiGet, apiPut } from '@/lib/api-config';
 import NutritionModal from "@/components/nutrition/NutritionModal";
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // FIXED: Move AutoExpandingTextarea OUTSIDE the main component
 const AutoExpandingTextarea = ({ value, onChange, placeholder, className, ...props }) => {
@@ -203,11 +204,19 @@ export default function EditRecipePage() {
                     });
                 }
             } else {
-                setError(data.error || 'Failed to load recipe');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Load Failed',
+                    message: data.error || 'Failed to load recipe'
+                });
             }
         } catch (error) {
             console.error('Error fetching recipe:', error);
-            setError('Failed to load recipe');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Load Error',
+                message: 'Failed to load recipe'
+            });
         } finally {
             setFetchLoading(false);
         }
@@ -458,7 +467,7 @@ export default function EditRecipePage() {
         }
     }, [isMultiPart, activePart]);
 
-    const handleNutritionUpdate = (nutrition, analysisResult) => {
+    const handleNutritionUpdate = async (nutrition, analysisResult) => {
         setFormData(prev => ({
             ...prev,
             nutrition: nutrition || {}
@@ -471,7 +480,11 @@ export default function EditRecipePage() {
             nutritionCoverage: analysisResult.coverage
         }));
 
-        alert(`Nutrition updated successfully! Coverage: ${Math.round((analysisResult.coverage || 0) * 100)}%`);
+        const {NativeDialog} = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showSuccess({
+            title: 'Nutrition Updated',
+            message: `Nutrition updated successfully! Coverage: ${Math.round((analysisResult.coverage || 0) * 100)}%`
+        });
     };
 
     const handleSubmit = async (e) => {
@@ -517,11 +530,19 @@ export default function EditRecipePage() {
             if (data.success) {
                 router.push(`/recipes/${recipeId}`);
             } else {
-                alert(data.error || 'Failed to update recipe');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Update Failed',
+                    message: data.error || 'Failed to update recipe'
+                });
             }
         } catch (error) {
             console.error('Error updating recipe:', error);
-            alert('Error updating recipe');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Update Error',
+                message: 'Error updating recipe'
+            });
         } finally {
             setLoading(false);
         }
@@ -551,7 +572,7 @@ export default function EditRecipePage() {
                     <div className="text-center">
                         <div className="text-red-600 text-lg font-medium mb-4">{error}</div>
                         <TouchEnhancedButton
-                            onClick={() => router.back()}
+                            onClick={() => NativeNavigation.routerBack(router)}
                             className="bg-indigo-600 text-white px-4 py-3 rounded-md hover:bg-indigo-700 min-h-[48px]"
                         >
                             Go Back
@@ -573,7 +594,7 @@ export default function EditRecipePage() {
                         )}
                     </div>
                     <TouchEnhancedButton
-                        onClick={() => router.back()}
+                        onClick={() => NativeNavigation.routerBack(router)}
                         className="text-gray-600 hover:text-gray-800 px-4 py-3 min-h-[48px] self-start sm:self-center"
                     >
                         ← Back
@@ -1248,7 +1269,7 @@ export default function EditRecipePage() {
                     <div className="flex flex-col sm:flex-row justify-end space-y-3 sm:space-y-0 sm:space-x-4 pt-6 pb-8">
                         <TouchEnhancedButton
                             type="button"
-                            onClick={() => router.back()}
+                            onClick={() => NativeNavigation.routerBack(router)}
                             className="px-6 py-3 bg-gray-500 border border-gray-300 rounded-md text-white hover:bg-gray-700 font-medium min-h-[48px] order-2 sm:order-1"
                         >
                             Cancel

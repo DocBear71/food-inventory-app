@@ -9,6 +9,7 @@ import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { apiPost } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
     const [selectedItems, setSelectedItems] = useState(new Map());
@@ -159,7 +160,11 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
     // FIXED: Submit with better validation
     const handleSubmit = async () => {
         if (selectedItems.size === 0) {
-            alert('Please select at least one item to add to your inventory.');
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'No Items Selected',
+                message: 'Please select at least one item to add to your inventory.'
+            });
             return;
         }
 
@@ -187,7 +192,11 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
         });
 
         if (invalidItems.length > 0) {
-            alert(`Please set a quantity for: ${invalidItems.join(', ')}\n\nAt least one quantity field must be greater than 0.`);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Invalid Quantities',
+                message: `Please set a quantity for: ${invalidItems.join(', ')}\n\nAt least one quantity field must be greater than 0.`
+            });
             return;
         }
 
@@ -216,11 +225,20 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
                 });
                 onClose();
             } else {
-                throw new Error(data.error || 'Failed to add items');
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Add Failed',
+                    message: data.error || 'Failed to add items'
+                });
+                return;
             }
         } catch (error) {
             console.error('Error adding items:', error);
-            alert('Error adding items: ' + error.message);
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showError({
+                title: 'Add Error',
+                message: 'Error adding items: ' + error.message
+            });
             setCurrentStep('review'); // Go back to review step
         } finally {
             setIsSubmitting(false);
@@ -281,7 +299,7 @@ export default function CommonItemsWizard({ isOpen, onClose, onComplete }) {
 
                                 <div className="space-y-3">
                                     <TouchEnhancedButton
-                                        onClick={() => window.location.href = '/pricing?source=common-items-wizard'}
+                                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=common-items-wizard', router })}
                                         className="w-full bg-yellow-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-yellow-700"
                                     >
                                         Upgrade to Gold - $4.99/month

@@ -4,6 +4,7 @@
 import { useState } from 'react';
 import { usePWA } from '@/hooks/usePWA';
 import { TouchEnhancedButton } from './TouchEnhancedButton';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export function ComfortKitchenMobileEnhancements({ children }) {
     const [showMobileActions, setShowMobileActions] = useState(false);
@@ -66,7 +67,7 @@ export function ComfortKitchenMobileEnhancements({ children }) {
                 }}>
                     {capabilities.camera && (
                         <TouchEnhancedButton
-                            onClick={() => window.location.href = '/inventory?action=scan'}
+                            onClick={() => NativeNavigation.navigateTo({ path: '/inventory?action=scan', router })}
                             style={{
                                 width: '56px',
                                 height: '56px',
@@ -88,7 +89,7 @@ export function ComfortKitchenMobileEnhancements({ children }) {
                     )}
 
                     <TouchEnhancedButton
-                        onClick={() => window.location.href = '/shopping'}
+                        onClick={() => NativeNavigation.navigateTo({ path: '/shopping', router })}
                         style={{
                             width: '56px',
                             height: '56px',
@@ -109,7 +110,7 @@ export function ComfortKitchenMobileEnhancements({ children }) {
                     </TouchEnhancedButton>
 
                     <TouchEnhancedButton
-                        onClick={() => window.location.href = '/inventory?action=add'}
+                        onClick={() => NativeNavigation.navigateTo({ path: '/inventory?action=add', router })}
                         style={{
                             width: '56px',
                             height: '56px',
