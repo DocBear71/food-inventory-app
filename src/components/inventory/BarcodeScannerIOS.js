@@ -103,7 +103,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     // Load usage information
     const loadUsageInfo = useCallback(async () => {
         try {
-            const response = await apiGet('/api/upc/usage');
+            const response = await apiGet('/api/user/usage/barcode-scanning');
             if (response.ok) {
                 const data = await response.json();
                 setUsageInfo(data);
@@ -311,116 +311,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }, 4000);
     }, [playBeepSound]);
 
-    // FIXED: Capacitor scanner function with proper cleanup
-    const startCapacitorScan = useCallback(async () => {
-        if (!capacitorBarcodeScanner) {
-            provideScanFeedback('error', 'No scanner available - please check permissions');
-            setIsScanning(false);
-            return;
-        }
-
-        try {
-            console.log('📱 Starting Capacitor barcode scan...');
-            setIsScanning(true);
-            setError(null);
-            setScanFeedback('Opening camera...');
-
-            // FIXED: Stop any existing scan first
-            try {
-                await capacitorBarcodeScanner.stopScan();
-                console.log('📱 Stopped any existing scans');
-            } catch (stopError) {
-                // Ignore errors when stopping (no active scan)
-                console.log('📱 No active scan to stop');
-            }
-
-            // Request permissions
-            const permissions = await capacitorBarcodeScanner.requestPermissions();
-            if (permissions.camera !== 'granted') {
-                provideScanFeedback('error', 'Camera permission denied');
-                setIsScanning(false);
-                return;
-            }
-
-            setScanFeedback('📱 Camera ready, position barcode in frame...');
-
-            // Start scanning
-            const { barcodes } = await capacitorBarcodeScanner.scan();
-
-            console.log('📱 Capacitor scan result:', barcodes);
-
-            if (barcodes && barcodes.length > 0) {
-                const barcode = barcodes[0];
-                console.log('📱 Barcode detected:', barcode.rawValue);
-
-                const validation = analyzeAndValidateBarcode(barcode.rawValue);
-                if (!validation.valid) {
-                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
-                    setIsScanning(false);
-                    return;
-                }
-
-                const cleanCode = validation.cleanCode;
-
-                // Check for duplicates
-                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
-                if (processedCodesRef.current.has(sessionKey)) {
-                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
-                    setIsScanning(false);
-                    return;
-                }
-
-                processedCodesRef.current.add(sessionKey);
-                provideScanFeedback('success', '📱 Scan successful!', validation);
-
-                // Process the result
-                setTimeout(() => {
-                    if (mountedRef.current) {
-                        onBarcodeDetected(cleanCode);
-                        setTimeout(() => {
-                            if (mountedRef.current && onClose) {
-                                onClose();
-                            }
-                        }, 500);
-                    }
-                }, 300);
-
-            } else {
-                console.log('📱 No barcode found');
-                provideScanFeedback('error', 'No barcode detected - please try again');
-                setIsScanning(false);
-            }
-
-        } catch (error) {
-            console.error('📱 Capacitor scanning failed:', error);
-
-            // Handle user cancellation gracefully
-            if (error.message && (error.message.includes('cancelled') || error.message.includes('User cancelled'))) {
-                console.log('📱 Capacitor scan cancelled by user');
-                provideScanFeedback('info', 'Scan cancelled');
-                setIsScanning(false);
-
-                // FIXED: Ensure proper cleanup after cancellation
-                try {
-                    await capacitorBarcodeScanner.stopScan();
-                    console.log('📱 Cleanup completed after cancellation');
-                } catch (cleanupError) {
-                    console.log('📱 Cleanup error (ignored):', cleanupError.message);
-                }
-                return;
-            }
-
-            // Other errors
-            if (error.message && error.message.includes('PERMISSION_DENIED')) {
-                provideScanFeedback('error', 'Camera permission required');
-            } else {
-                provideScanFeedback('error', 'Scanner failed - please try again');
-            }
-            setIsScanning(false);
-        }
-    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
-
-
     // FIXED: Native iOS barcode scanner function with proper permission handling
     const startNativeScan = useCallback(async () => {
         if (!nativeBarcodeScanner) {
@@ -512,57 +402,214 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             }
 
         } catch (error) {
-            console.error('🍎 Native iOS scanning failed:', error);
+            console.error('Native iOS scanning failed:', error);
 
-            // FIXED: Handle specific error cases
+            // CRITICAL FIX: Always reset scanning state on any error
+            setIsScanning(false);
+            setError(null); // Clear any previous errors
+
+            // Handle specific error cases
             if (error.message && (
                 error.message.includes('cancelled') ||
                 error.message.includes('USER_CANCELLED') ||
                 error.message.includes('User cancelled')
             )) {
-                console.log('🍎 Native iOS scan cancelled by user');
+                console.log('Native iOS scan cancelled by user');
                 provideScanFeedback('info', 'Scan cancelled');
-                setIsScanning(false);
                 return;
             }
 
             if (error.message && error.message.includes('timeout')) {
-                console.log('🍎 Native iOS scan timeout');
+                console.log('Native iOS scan timeout');
                 provideScanFeedback('error', 'Scan timeout - please try again');
-                setIsScanning(false);
                 return;
             }
 
             if (error.message && error.message.includes('PERMISSION_DENIED')) {
                 provideScanFeedback('error', 'Camera permission required - check iOS Settings');
+                setError('Camera permission denied. Please check your browser settings.');
             } else if (error.message && error.message.includes('CAMERA_ERROR')) {
                 provideScanFeedback('error', 'Camera setup failed - please try again');
+                setError('Camera not available. Please try again.');
             } else {
-                console.log('🍎 Falling back to Capacitor scanner after native failure...');
+                console.log('Falling back to Capacitor scanner after native failure...');
                 provideScanFeedback('error', 'Native scan failed - trying fallback scanner...');
 
-                // FIXED: Automatic fallback to Capacitor scanner
+                // Automatic fallback to Capacitor scanner
                 setTimeout(async () => {
                     if (mountedRef.current && !scanInProgressRef.current) {
-                        console.log('🍎 Starting Capacitor fallback...');
+                        console.log('Starting Capacitor fallback...');
                         await startCapacitorScan();
                     }
                 }, 1000);
+                return; // Don't set error state if we're trying fallback
             }
-            setIsScanning(false);
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, startCapacitorScan]);
 
-    // Choose the appropriate scanner function
-    const startScan = useCallback(async () => {
-        if (useNativeScanner && nativeBarcodeScanner) {
-            await startNativeScan();
-        } else if (capacitorBarcodeScanner) {
-            await startCapacitorScan();
-        } else {
-            provideScanFeedback('error', 'No scanner available');
+    // FIXED: Capacitor scanner function with proper web camera permission handling
+    const startCapacitorScan = useCallback(async () => {
+        if (!capacitorBarcodeScanner) {
+            provideScanFeedback('error', 'Camera scanner not available');
+            setIsScanning(false);
+            return;
         }
-    }, [useNativeScanner, startNativeScan, startCapacitorScan, provideScanFeedback]);
+
+        try {
+            console.log('Starting Capacitor barcode scan...');
+            setIsScanning(true);
+            setError(null);
+            setScanFeedback('Requesting camera access...');
+
+            // FIXED: Stop any existing scan first
+            try {
+                await capacitorBarcodeScanner.stopScan();
+                console.log('Stopped any existing scans');
+            } catch (stopError) {
+                console.log('No active scan to stop');
+            }
+
+            // FIXED: For web/iOS Safari, manually request camera permission first
+            if (!window.Capacitor?.isNativePlatform) {
+                console.log('Web context detected - requesting camera permission via browser API');
+                try {
+                    // Request camera access through browser API first
+                    const stream = await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: 'environment',
+                            width: { ideal: 1280 },
+                            height: { ideal: 720 }
+                        }
+                    });
+
+                    // Stop the stream immediately - we just needed permission
+                    stream.getTracks().forEach(track => track.stop());
+                    console.log('Browser camera permission granted');
+                    setScanFeedback('Camera access granted - opening scanner...');
+
+                } catch (permissionError) {
+                    console.error('Browser camera permission denied:', permissionError);
+                    provideScanFeedback('error', 'Camera permission denied. Please allow camera access when prompted.');
+                    setIsScanning(false);
+                    setError('Camera permission required. Please refresh the page and allow camera access when prompted.');
+                    return;
+                }
+            }
+
+            // Request permissions through Capacitor
+            const permissions = await capacitorBarcodeScanner.requestPermissions();
+            console.log('Capacitor permissions result:', permissions);
+
+            if (permissions.camera !== 'granted') {
+                provideScanFeedback('error', 'Camera permission denied');
+                setIsScanning(false);
+                setError('Camera permission denied. Please check your browser settings and allow camera access.');
+                return;
+            }
+
+            setScanFeedback('Camera ready, position barcode in frame...');
+
+            // Start scanning
+            const { barcodes } = await capacitorBarcodeScanner.scan();
+            console.log('Capacitor scan result:', barcodes);
+
+            if (barcodes && barcodes.length > 0) {
+                const barcode = barcodes[0];
+                console.log('Barcode detected:', barcode.rawValue);
+
+                const validation = analyzeAndValidateBarcode(barcode.rawValue);
+                if (!validation.valid) {
+                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
+                    setIsScanning(false);
+                    return;
+                }
+
+                const cleanCode = validation.cleanCode;
+
+                // Check for duplicates
+                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
+                if (processedCodesRef.current.has(sessionKey)) {
+                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
+                    setIsScanning(false);
+                    return;
+                }
+
+                processedCodesRef.current.add(sessionKey);
+                provideScanFeedback('success', 'Scan successful!', validation);
+
+                // Process the result
+                setTimeout(() => {
+                    if (mountedRef.current) {
+                        onBarcodeDetected(cleanCode);
+                        setTimeout(() => {
+                            if (mountedRef.current && onClose) {
+                                onClose();
+                            }
+                        }, 500);
+                    }
+                }, 300);
+
+            } else {
+                console.log('No barcode found');
+                provideScanFeedback('error', 'No barcode detected - please try again');
+                setIsScanning(false);
+            }
+
+        } catch (error) {
+            console.error('Capacitor scanning failed:', error);
+            setIsScanning(false);
+
+            // Handle user cancellation gracefully
+            if (error.message && (error.message.includes('cancelled') || error.message.includes('User cancelled'))) {
+                console.log('Capacitor scan cancelled by user');
+                provideScanFeedback('info', 'Scan cancelled');
+
+                // Ensure proper cleanup after cancellation
+                try {
+                    await capacitorBarcodeScanner.stopScan();
+                    console.log('Cleanup completed after cancellation');
+                } catch (cleanupError) {
+                    console.log('Cleanup error (ignored):', cleanupError.message);
+                }
+                return;
+            }
+
+            // Other errors
+            if (error.message && error.message.includes('permission')) {
+                provideScanFeedback('error', 'Camera permission required');
+                setError('Camera permission denied. Please refresh and allow camera access when prompted.');
+            } else {
+                provideScanFeedback('error', 'Scanner failed - please try again');
+                setError('Scanner failed. Please check camera permissions and try again.');
+            }
+        }
+    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
+
+    // Choose the appropriate scanner function with proper permission handling
+    const startScan = useCallback(async () => {
+        // FIXED: Check if we're actually in a native app context or web context
+        const isActuallyNative = platformInfo.isNative && window.Capacitor?.isNativePlatform;
+
+        console.log('Starting scan - Environment check:', {
+            useNativeScanner,
+            isActuallyNative,
+            hasNativeScanner: !!nativeBarcodeScanner,
+            hasCapacitorScanner: !!capacitorBarcodeScanner
+        });
+
+        if (useNativeScanner && isActuallyNative && nativeBarcodeScanner) {
+            console.log('Attempting native iOS scan...');
+            await startNativeScan();
+        } else {
+            console.log('Using Capacitor scanner for web/PWA context...');
+            if (capacitorBarcodeScanner) {
+                await startCapacitorScan();
+            } else {
+                provideScanFeedback('error', 'No scanner available - camera permissions may be blocked');
+                setError('Camera not available. Please check browser permissions.');
+            }
+        }
+    }, [useNativeScanner, platformInfo, startNativeScan, startCapacitorScan, provideScanFeedback]);
 
     // FIXED: Scanner initialization with proper platform detection
     useEffect(() => {
@@ -740,6 +787,12 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         onClick={(e) => {
                             e.preventDefault();
                             e.stopPropagation();
+                            // FORCE CLOSE: Always allow closing regardless of scanner state
+                            console.log('Force closing scanner - resetting all states');
+                            setIsScanning(false);
+                            setError(null);
+                            setScanFeedback('');
+                            setBarcodeAnalysis(null);
                             handleScannerClose();
                         }}
                         className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md"
@@ -753,13 +806,39 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         <div className="text-center text-white px-6">
                             <div className="text-2xl mb-4">⚠️</div>
                             <h3 className="text-xl font-bold mb-2">Scanner Error</h3>
-                            <p className="text-red-200 mb-6">{error}</p>
-                            <TouchEnhancedButton
-                                onClick={handleScannerClose}
-                                className="bg-red-700 hover:bg-red-600 text-white py-3 px-6 rounded-lg"
-                            >
-                                Close Scanner
-                            </TouchEnhancedButton>
+                            <p className="text-red-200 mb-4">{error}</p>
+                            <p className="text-red-100 mb-6 text-sm">
+                                Camera permission may be denied in your browser settings.
+                                You can still close this scanner and enter UPC codes manually.
+                            </p>
+                            <div className="space-y-3">
+                                <TouchEnhancedButton
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setError(null);
+                                        setIsScanning(false);
+                                        setScanFeedback('');
+                                    }}
+                                    className="w-full bg-orange-600 hover:bg-orange-700 text-white py-2 px-4 rounded-lg font-medium"
+                                >
+                                    Try Again
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        setIsScanning(false);
+                                        setError(null);
+                                        setScanFeedback('');
+                                        setBarcodeAnalysis(null);
+                                        handleScannerClose();
+                                    }}
+                                    className="w-full bg-red-700 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-medium"
+                                >
+                                    Close Scanner
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
                     </div>
                 ) : (
@@ -833,11 +912,18 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                 onClick={(e) => {
                                     e.preventDefault();
                                     e.stopPropagation();
+                                    // FORCE CLOSE: Always allow closing regardless of scanner state
+                                    console.log('Force closing scanner via footer - resetting all states');
+                                    setIsScanning(false);
+                                    setError(null);
+                                    setScanFeedback('');
+                                    setBarcodeAnalysis(null);
+                                    scanInProgressRef.current = false;
                                     handleScannerClose();
                                 }}
                                 className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
                             >
-                                {isScanning ? 'Cancel Scan' : 'Close'}
+                                {isScanning ? 'Force Close' : 'Close'}
                             </TouchEnhancedButton>
                         </div>
                     </>
