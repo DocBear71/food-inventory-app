@@ -60,6 +60,50 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         loadUsageInfo();
     }, [loadUsageInfo]);
 
+    // Barcode format detection (simplified version)
+    const detectBarcodeFormat = useCallback((code) => {
+        const length = code.length;
+
+        if (length === 12 || length === 13) {
+            if (length === 12) {
+                return { format: 'UPC-A', region: 'US', country: 'United States' };
+            } else {
+                const prefix = code.substring(0, 3);
+                if (prefix >= '000' && prefix <= '019') {
+                    return { format: 'UPC-A', region: 'US', country: 'United States' };
+                } else if (prefix >= '020' && prefix <= '029') {
+                    return { format: 'EAN-13', region: 'US', country: 'United States (restricted)' };
+                } else if (prefix >= '400' && prefix <= '440') {
+                    return { format: 'EAN-13', region: 'DE', country: 'Germany' };
+                } else if (prefix >= '500' && prefix <= '509') {
+                    return { format: 'EAN-13', region: 'UK', country: 'United Kingdom' };
+                } else {
+                    return { format: 'EAN-13', region: 'INT', country: 'International' };
+                }
+            }
+        } else if (length === 8) {
+            return { format: 'EAN-8', region: 'INT', country: 'International' };
+        } else if (length === 6) {
+            return { format: 'UPC-E', region: 'US', country: 'United States' };
+        }
+
+        return { format: 'UNKNOWN', region: 'UNKNOWN', country: 'Unknown' };
+    }, []);
+
+    // Get regional hints for user
+    const getRegionalHints = useCallback((analysis, userRegion) => {
+        const hints = [];
+
+        if (analysis.region !== userRegion) {
+            hints.push({
+                type: 'info',
+                message: `This appears to be a ${analysis.country} product`
+            });
+        }
+
+        return hints;
+    }, []);
+
     // Enhanced international barcode validation and analysis
     const analyzeAndValidateBarcode = useCallback((code) => {
         let cleanCode = code.replace(/\D/g, '');
@@ -117,50 +161,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             message: `Valid ${analysis.format} barcode${analysis.country ? ` - ${analysis.analysis.country}` : ''}`
         };
     }, [detectBarcodeFormat, getRegionalHints, userRegion]);
-
-    // Barcode format detection (simplified version)
-    const detectBarcodeFormat = useCallback((code) => {
-        const length = code.length;
-
-        if (length === 12 || length === 13) {
-            if (length === 12) {
-                return { format: 'UPC-A', region: 'US', country: 'United States' };
-            } else {
-                const prefix = code.substring(0, 3);
-                if (prefix >= '000' && prefix <= '019') {
-                    return { format: 'UPC-A', region: 'US', country: 'United States' };
-                } else if (prefix >= '020' && prefix <= '029') {
-                    return { format: 'EAN-13', region: 'US', country: 'United States (restricted)' };
-                } else if (prefix >= '400' && prefix <= '440') {
-                    return { format: 'EAN-13', region: 'DE', country: 'Germany' };
-                } else if (prefix >= '500' && prefix <= '509') {
-                    return { format: 'EAN-13', region: 'UK', country: 'United Kingdom' };
-                } else {
-                    return { format: 'EAN-13', region: 'INT', country: 'International' };
-                }
-            }
-        } else if (length === 8) {
-            return { format: 'EAN-8', region: 'INT', country: 'International' };
-        } else if (length === 6) {
-            return { format: 'UPC-E', region: 'US', country: 'United States' };
-        }
-
-        return { format: 'UNKNOWN', region: 'UNKNOWN', country: 'Unknown' };
-    }, []);
-
-    // Get regional hints for user
-    const getRegionalHints = useCallback((analysis, userRegion) => {
-        const hints = [];
-
-        if (analysis.region !== userRegion) {
-            hints.push({
-                type: 'info',
-                message: `This appears to be a ${analysis.country} product`
-            });
-        }
-
-        return hints;
-    }, []);
 
     // Audio feedback
     const playBeepSound = useCallback(() => {

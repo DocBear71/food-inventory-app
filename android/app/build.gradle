@@ -8,8 +8,8 @@ android {
         applicationId "kitchen.docbearscomfort"
         minSdkVersion 26
         targetSdkVersion 35
-        versionCode 24
-        versionName "1.7.5"
+        versionCode 25
+        versionName "1.8.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // SIMPLIFIED: 16KB native library alignment (handled automatically by AGP 8.11+)
