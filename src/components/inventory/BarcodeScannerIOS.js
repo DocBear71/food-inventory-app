@@ -469,7 +469,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
 
-
     // FIXED: Native iOS barcode scanner function with proper permission handling
     const startNativeScan = useCallback(async () => {
         if (!nativeBarcodeScanner) {

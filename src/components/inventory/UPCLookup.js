@@ -1250,7 +1250,7 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
                 <div className="space-y-4">
                     <div>
                         <label htmlFor="upc" className="block text-sm font-medium text-gray-700 mb-2">
-                            {isIOS ? 'iOS UPC/Barcode Scanner (Enhanced for US Products)' : 'UPC/Barcode Scanner (Enhanced for US Products)'}
+                            {isIOS ? '🍎 iOS UPC/Barcode Scanner (Enhanced for US Products)' : '📱 UPC/Barcode Scanner (Enhanced for US Products)'}
                         </label>
 
                         <NativeTextInput
