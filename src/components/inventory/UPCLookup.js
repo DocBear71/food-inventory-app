@@ -169,9 +169,10 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
     const [userCurrencyInfo, setUserCurrencyInfo] = useState(null);
     const [isLoadingCurrency, setIsLoadingCurrency] = useState(true);
 
-    // FIXED: Platform detection on mount with proper state management
+    // FIXED: Platform detection on mount with correct method names from PlatformDetection
     useEffect(() => {
         const detectPlatform = () => {
+            // Use the correct method names from your PlatformDetection module
             const iosDetected = PlatformDetection.isIOS();
             const androidDetected = PlatformDetection.isAndroid();
 
@@ -179,9 +180,11 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
             setIsAndroid(androidDetected);
             setPlatformReady(true);
 
-            console.log('🔍 Platform detected:', {
+            console.log('Platform detected:', {
                 iOS: iosDetected,
                 Android: androidDetected,
+                isNative: PlatformDetection.isRunningInMobileApp(), // Correct method name
+                isPWA: PlatformDetection.isPWAInstalled(), // Correct method name
                 platformInfo: PlatformDetection.getPlatformInfo()
             });
         };

@@ -70,17 +70,17 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const subscription = useSubscription();
     const [usageInfo, setUsageInfo] = useState(null);
 
-    // FIXED: Initialize platform info immediately and properly
+    // FIXED: Initialize platform info immediately and properly with correct method names
     useEffect(() => {
         const initializePlatformInfo = async () => {
             console.log('🔍 Initializing platform detection...');
 
-            // Get platform info synchronously first
+            // Get platform info using the correct method names from PlatformDetection
             const detectedInfo = {
                 isIOS: PlatformDetection.isIOS(),
                 isAndroid: PlatformDetection.isAndroid(),
-                isNative: PlatformDetection.isNative(),
-                isPWA: PlatformDetection.isPWA(),
+                isNative: PlatformDetection.isRunningInMobileApp(), // Use correct method name
+                isPWA: PlatformDetection.isPWAInstalled(), // Use correct method name
                 userAgent: navigator.userAgent
             };
 
