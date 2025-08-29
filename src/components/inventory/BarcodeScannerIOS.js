@@ -311,6 +311,116 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }, 4000);
     }, [playBeepSound]);
 
+    // FIXED: Capacitor scanner function with proper cleanup
+    const startCapacitorScan = useCallback(async () => {
+        if (!capacitorBarcodeScanner) {
+            provideScanFeedback('error', 'No scanner available - please check permissions');
+            setIsScanning(false);
+            return;
+        }
+
+        try {
+            console.log('📱 Starting Capacitor barcode scan...');
+            setIsScanning(true);
+            setError(null);
+            setScanFeedback('Opening camera...');
+
+            // FIXED: Stop any existing scan first
+            try {
+                await capacitorBarcodeScanner.stopScan();
+                console.log('📱 Stopped any existing scans');
+            } catch (stopError) {
+                // Ignore errors when stopping (no active scan)
+                console.log('📱 No active scan to stop');
+            }
+
+            // Request permissions
+            const permissions = await capacitorBarcodeScanner.requestPermissions();
+            if (permissions.camera !== 'granted') {
+                provideScanFeedback('error', 'Camera permission denied');
+                setIsScanning(false);
+                return;
+            }
+
+            setScanFeedback('📱 Camera ready, position barcode in frame...');
+
+            // Start scanning
+            const { barcodes } = await capacitorBarcodeScanner.scan();
+
+            console.log('📱 Capacitor scan result:', barcodes);
+
+            if (barcodes && barcodes.length > 0) {
+                const barcode = barcodes[0];
+                console.log('📱 Barcode detected:', barcode.rawValue);
+
+                const validation = analyzeAndValidateBarcode(barcode.rawValue);
+                if (!validation.valid) {
+                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
+                    setIsScanning(false);
+                    return;
+                }
+
+                const cleanCode = validation.cleanCode;
+
+                // Check for duplicates
+                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
+                if (processedCodesRef.current.has(sessionKey)) {
+                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
+                    setIsScanning(false);
+                    return;
+                }
+
+                processedCodesRef.current.add(sessionKey);
+                provideScanFeedback('success', '📱 Scan successful!', validation);
+
+                // Process the result
+                setTimeout(() => {
+                    if (mountedRef.current) {
+                        onBarcodeDetected(cleanCode);
+                        setTimeout(() => {
+                            if (mountedRef.current && onClose) {
+                                onClose();
+                            }
+                        }, 500);
+                    }
+                }, 300);
+
+            } else {
+                console.log('📱 No barcode found');
+                provideScanFeedback('error', 'No barcode detected - please try again');
+                setIsScanning(false);
+            }
+
+        } catch (error) {
+            console.error('📱 Capacitor scanning failed:', error);
+
+            // Handle user cancellation gracefully
+            if (error.message && (error.message.includes('cancelled') || error.message.includes('User cancelled'))) {
+                console.log('📱 Capacitor scan cancelled by user');
+                provideScanFeedback('info', 'Scan cancelled');
+                setIsScanning(false);
+
+                // FIXED: Ensure proper cleanup after cancellation
+                try {
+                    await capacitorBarcodeScanner.stopScan();
+                    console.log('📱 Cleanup completed after cancellation');
+                } catch (cleanupError) {
+                    console.log('📱 Cleanup error (ignored):', cleanupError.message);
+                }
+                return;
+            }
+
+            // Other errors
+            if (error.message && error.message.includes('PERMISSION_DENIED')) {
+                provideScanFeedback('error', 'Camera permission required');
+            } else {
+                provideScanFeedback('error', 'Scanner failed - please try again');
+            }
+            setIsScanning(false);
+        }
+    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
+
+
     // FIXED: Native iOS barcode scanner function with proper permission handling
     const startNativeScan = useCallback(async () => {
         if (!nativeBarcodeScanner) {
@@ -442,115 +552,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             setIsScanning(false);
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, startCapacitorScan]);
-
-    // FIXED: Capacitor scanner function with proper cleanup
-    const startCapacitorScan = useCallback(async () => {
-        if (!capacitorBarcodeScanner) {
-            provideScanFeedback('error', 'No scanner available - please check permissions');
-            setIsScanning(false);
-            return;
-        }
-
-        try {
-            console.log('📱 Starting Capacitor barcode scan...');
-            setIsScanning(true);
-            setError(null);
-            setScanFeedback('Opening camera...');
-
-            // FIXED: Stop any existing scan first
-            try {
-                await capacitorBarcodeScanner.stopScan();
-                console.log('📱 Stopped any existing scans');
-            } catch (stopError) {
-                // Ignore errors when stopping (no active scan)
-                console.log('📱 No active scan to stop');
-            }
-
-            // Request permissions
-            const permissions = await capacitorBarcodeScanner.requestPermissions();
-            if (permissions.camera !== 'granted') {
-                provideScanFeedback('error', 'Camera permission denied');
-                setIsScanning(false);
-                return;
-            }
-
-            setScanFeedback('📱 Camera ready, position barcode in frame...');
-
-            // Start scanning
-            const { barcodes } = await capacitorBarcodeScanner.scan();
-
-            console.log('📱 Capacitor scan result:', barcodes);
-
-            if (barcodes && barcodes.length > 0) {
-                const barcode = barcodes[0];
-                console.log('📱 Barcode detected:', barcode.rawValue);
-
-                const validation = analyzeAndValidateBarcode(barcode.rawValue);
-                if (!validation.valid) {
-                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
-                    setIsScanning(false);
-                    return;
-                }
-
-                const cleanCode = validation.cleanCode;
-
-                // Check for duplicates
-                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
-                if (processedCodesRef.current.has(sessionKey)) {
-                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
-                    setIsScanning(false);
-                    return;
-                }
-
-                processedCodesRef.current.add(sessionKey);
-                provideScanFeedback('success', '📱 Scan successful!', validation);
-
-                // Process the result
-                setTimeout(() => {
-                    if (mountedRef.current) {
-                        onBarcodeDetected(cleanCode);
-                        setTimeout(() => {
-                            if (mountedRef.current && onClose) {
-                                onClose();
-                            }
-                        }, 500);
-                    }
-                }, 300);
-
-            } else {
-                console.log('📱 No barcode found');
-                provideScanFeedback('error', 'No barcode detected - please try again');
-                setIsScanning(false);
-            }
-
-        } catch (error) {
-            console.error('📱 Capacitor scanning failed:', error);
-
-            // Handle user cancellation gracefully
-            if (error.message && (error.message.includes('cancelled') || error.message.includes('User cancelled'))) {
-                console.log('📱 Capacitor scan cancelled by user');
-                provideScanFeedback('info', 'Scan cancelled');
-                setIsScanning(false);
-
-                // FIXED: Ensure proper cleanup after cancellation
-                try {
-                    await capacitorBarcodeScanner.stopScan();
-                    console.log('📱 Cleanup completed after cancellation');
-                } catch (cleanupError) {
-                    console.log('📱 Cleanup error (ignored):', cleanupError.message);
-                }
-                return;
-            }
-
-            // Other errors
-            if (error.message && error.message.includes('PERMISSION_DENIED')) {
-                provideScanFeedback('error', 'Camera permission required');
-            } else {
-                provideScanFeedback('error', 'Scanner failed - please try again');
-            }
-            setIsScanning(false);
-        }
-    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
 
     // Choose the appropriate scanner function
     const startScan = useCallback(async () => {
