@@ -640,44 +640,21 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
     // FIXED: Enhanced startScan with comprehensive debugging
     const startScan = useCallback(async () => {
-        addDebugInfo('START SCAN CALLED - Enhanced');
+        addDebugInfo('START SCAN CALLED - FORCED CAPACITOR MODE');
 
         try {
-            const isActuallyNative = platformInfo.isNative && window.Capacitor?.isNativePlatform;
-            const environmentInfo = {
-                useNativeScanner,
-                isActuallyNative,
-                hasNativeScanner: !!nativeBarcodeScanner,
-                hasCapacitorScanner: !!capacitorBarcodeScanner,
-                windowCapacitor: !!window.Capacitor,
-                capacitorIsNative: window.Capacitor?.isNativePlatform,
-                platformInfo
-            };
+            // TEMPORARY: Force Capacitor scanner usage
+            addDebugInfo('FORCING Capacitor scanner due to native permission issues');
+            setScanFeedback('Starting Capacitor camera scanner...');
 
-            addDebugInfo('Environment check before scan', environmentInfo);
-
-            setIsScanning(true);
-            setError(null);
-            setScanFeedback('Initializing scanner...');
-            addDebugInfo('Scanner state set to scanning');
-
-            // Determine which scanner to use
-            if (useNativeScanner && isActuallyNative && nativeBarcodeScanner) {
-                addDebugInfo('Attempting native iOS scan');
-                setScanFeedback('Starting native iOS scanner...');
-                await startNativeScan();
+            if (capacitorBarcodeScanner) {
+                await startCapacitorScan();
             } else {
-                addDebugInfo('Using Capacitor scanner for web/PWA context');
-                setScanFeedback('Starting camera scanner...');
-                if (capacitorBarcodeScanner) {
-                    await startCapacitorScan();
-                } else {
-                    const errorMsg = 'No scanner available - camera permissions may be blocked';
-                    addDebugInfo('Scanner error', errorMsg);
-                    provideScanFeedback('error', errorMsg);
-                    setError('Camera not available. Please check browser permissions.');
-                    setIsScanning(false);
-                }
+                const errorMsg = 'No scanner available - camera permissions may be blocked';
+                addDebugInfo('Scanner error', errorMsg);
+                provideScanFeedback('error', errorMsg);
+                setError('Camera not available. Please check browser permissions.');
+                setIsScanning(false);
             }
         } catch (error) {
             const errorInfo = {
@@ -689,7 +666,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             setError(`Scanner failed: ${error.message}`);
             setIsScanning(false);
         }
-    }, [useNativeScanner, platformInfo, startNativeScan, startCapacitorScan, provideScanFeedback, addDebugInfo]);
+    }, [startCapacitorScan, provideScanFeedback, addDebugInfo]);
 
     // FIXED: Scanner initialization with better error handling
     useEffect(() => {
