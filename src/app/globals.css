@@ -2509,7 +2509,7 @@ textarea {
 
 /* Safe area handling for mobile apps */
 .mobile-safe-layout {
-    padding-top: max(env(safe-area-inset-top, 24px), 24px);
+    padding-top: max(env(safe-area-inset-top, 88px), 88px);
     padding-bottom: max(env(safe-area-inset-bottom, 88px), 88px);
     padding-left: env(safe-area-inset-left, 0px);
     padding-right: env(safe-area-inset-right, 0px);
@@ -2567,14 +2567,14 @@ textarea {
 /* Enhanced mobile padding for better clearance */
 @media screen and (max-width: 768px) {
     .mobile-safe-layout {
-        padding-top: max(env(safe-area-inset-top, 32px), 32px) !important;
+        padding-top: max(env(safe-area-inset-top, 88px), 88px) !important;
         padding-bottom: max(env(safe-area-inset-bottom, 96px), 96px) !important;
     }
 }
 
 /* Capacitor app specific overrides */
 .capacitor-android .mobile-safe-layout {
-    padding-top: max(env(safe-area-inset-top, 32px), 32px) !important;
+    padding-top: max(env(safe-area-inset-top, 88px), 88px) !important;
     padding-bottom: max(env(safe-area-inset-bottom, 104px), 104px) !important;
 }
 
