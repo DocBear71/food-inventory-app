@@ -348,7 +348,7 @@ export default function LandingPage() {
 
                             <div className="inline-flex items-center bg-purple-100 text-purple-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
                                 <span className="mr-2">🆕</span>
-                                Version 1.7.0 - enhanced recipe discovery with advanced sorting options
+                                Version 1.8.0 - now with enhanced native iOS and Android integration
                             </div>
 
                             <h2 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6 leading-tight">
@@ -808,7 +808,7 @@ export default function LandingPage() {
                             Trusted by Food Enthusiasts Worldwide
                         </h2>
                         <p className="text-xl text-purple-100">
-                            Join thousands who are already managing their kitchens smarter with v1.7.0
+                            Join thousands who are already managing their kitchens smarter with v1.8.0
                         </p>
                     </div>
 
