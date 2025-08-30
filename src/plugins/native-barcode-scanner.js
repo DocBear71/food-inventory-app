@@ -1,4 +1,4 @@
-// file: /src/plugins/native-barcode-scanner.js v2 - FIXED with proper availability checking
+// file: /src/plugins/native-barcode-scanner.js v3 - FIXED plugin availability testing
 
 import { registerPlugin } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
@@ -17,29 +17,44 @@ const NativeBarcodeScanner = registerPlugin('NativeBarcodeScanner', {
  */
 export const isNativeScannerAvailable = async () => {
     try {
+        console.log('🔧 Testing native scanner availability...');
+
         // First check if we're on a native platform
         if (!Capacitor.isNativePlatform()) {
-            console.log('Not on native platform, native scanner not available');
+            console.log('❌ Not on native platform, native scanner not available');
             return false;
         }
 
         // Check if the plugin is registered and has the required method
         if (!NativeBarcodeScanner || typeof NativeBarcodeScanner.scanBarcode !== 'function') {
-            console.log('NativeBarcodeScanner plugin not properly registered');
+            console.log('❌ NativeBarcodeScanner plugin not properly registered');
             return false;
         }
 
-        // Try to call a test method to verify the plugin actually works
+        // CRITICAL FIX: Actually test if the Swift plugin responds
         try {
-            await NativeBarcodeScanner.checkPermissions();
-            console.log('Native scanner plugin verified as working');
+            console.log('🔧 Testing Swift plugin response...');
+            const result = await NativeBarcodeScanner.checkPermissions();
+            console.log('✅ Swift plugin responded successfully:', result);
+
+            // If we get here, the Swift plugin is working
             return true;
-        } catch (error) {
-            console.log('Native scanner plugin test failed:', error.message);
+
+        } catch (swiftError) {
+            console.log('❌ Swift plugin test failed:', swiftError.message);
+
+            // Check if it's the "not implemented" error (plugin not actually working)
+            if (swiftError.message && swiftError.message.includes('not implemented')) {
+                console.log('❌ Native plugin not implemented in Swift');
+                return false;
+            }
+
+            // Other errors might still indicate the plugin exists but has permission issues
+            // Still return false to be safe
             return false;
         }
     } catch (error) {
-        console.log('Native scanner availability check failed:', error.message);
+        console.log('❌ Native scanner availability check failed:', error.message);
         return false;
     }
 };
@@ -54,18 +69,18 @@ export const scanBarcode = async (options = {}) => {
         // Verify availability before attempting scan
         const isAvailable = await isNativeScannerAvailable();
         if (!isAvailable) {
-            throw new Error('Native scanner not available');
+            throw new Error('Native scanner not available - Swift plugin not responding');
         }
 
-        console.log('Starting native barcode scan with options:', options);
+        console.log('🍎 Starting native barcode scan with options:', options);
 
         const result = await NativeBarcodeScanner.scanBarcode(options);
 
-        console.log('Native scan completed:', result);
+        console.log('🍎 Native scan completed:', result);
         return result;
 
     } catch (error) {
-        console.error('Native barcode scan failed:', error);
+        console.error('🍎 Native barcode scan failed:', error);
         throw error;
     }
 };
@@ -82,10 +97,10 @@ export const checkPermissions = async () => {
         }
 
         const result = await NativeBarcodeScanner.checkPermissions();
-        console.log('Camera permissions status:', result);
+        console.log('🍎 Camera permissions status:', result);
         return result;
     } catch (error) {
-        console.error('Failed to check permissions:', error);
+        console.error('🍎 Failed to check permissions:', error);
         throw error;
     }
 };
@@ -102,10 +117,10 @@ export const requestPermissions = async () => {
         }
 
         const result = await NativeBarcodeScanner.requestPermissions();
-        console.log('Camera permissions requested:', result);
+        console.log('🍎 Camera permissions requested:', result);
         return result;
     } catch (error) {
-        console.error('Failed to request permissions:', error);
+        console.error('🍎 Failed to request permissions:', error);
         throw error;
     }
 };
