@@ -23,25 +23,15 @@ const initializeScanners = async (addDebugInfo) => {
     addDebugInfo('=== PLUGIN INITIALIZATION STARTED ===');
 
     try {
-        // Try to import native iOS scanner - test multiple paths
-        addDebugInfo('Attempting to import native iOS scanner module from @/plugins/native-barcode-scanner');
-        let nativeModule;
-
-        try {
-            nativeModule = await import('@/plugins/native-barcode-scanner');
-            addDebugInfo('✅ Successfully imported from @/plugins/native-barcode-scanner');
-        } catch (pathError) {
-            addDebugInfo('❌ Import failed from @/plugins/, trying /plugins/', { error: pathError.message });
-
-            try {
-                nativeModule = await import('../../plugins/native-barcode-scanner');
-                addDebugInfo('✅ Successfully imported from /plugins/native-barcode-scanner');
-            } catch (altPathError) {
-                addDebugInfo('❌ Import failed from /plugins/ too', { error: altPathError.message });
-                throw new Error(`Could not import native scanner from any path: ${pathError.message}`);
-            }
-        }
-        addDebugInfo('Native module import successful');
+        // Try to import native iOS scanner
+        addDebugInfo('Attempting to import native iOS scanner from @/plugins/native-barcode-scanner');
+        const nativeModule = await import('@/plugins/native-barcode-scanner');
+        addDebugInfo('Native module import successful - checking exports', {
+            hasIsAvailable: typeof nativeModule.isNativeScannerAvailable === 'function',
+            hasScanBarcode: typeof nativeModule.scanBarcode === 'function',
+            hasCheckPermissions: typeof nativeModule.checkPermissions === 'function',
+            exportedKeys: Object.keys(nativeModule)
+        });
 
         // Test if the plugin is available
         if (nativeModule.isNativeScannerAvailable) {
@@ -66,7 +56,7 @@ const initializeScanners = async (addDebugInfo) => {
             nativeBarcodeScanner = null;
         }
     } catch (error) {
-        addDebugInfo('❌ Native iOS scanner import failed', {
+        addDebugInfo('❌ Native iOS scanner import completely failed', {
             error: error.message,
             stack: error.stack,
             name: error.name
