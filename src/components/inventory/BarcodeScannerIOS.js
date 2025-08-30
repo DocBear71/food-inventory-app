@@ -30,6 +30,7 @@ const initializeScanners = async (addDebugInfo) => {
             exports: Object.keys(nativeModule),
             hasAvailabilityCheck: typeof nativeModule.isNativeScannerAvailable === 'function'
         });
+        addDebugInfo('TESTING: About to call isNativeScannerAvailable()');
 
         // Test if the plugin is available
         if (nativeModule.isNativeScannerAvailable) {
