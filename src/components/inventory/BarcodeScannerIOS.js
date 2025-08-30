@@ -638,35 +638,109 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, addDebugInfo, startCapacitorScan]);
 
-    // FIXED: Enhanced startScan with comprehensive debugging
+    // REPLACE the startScan function in your BarcodeScannerIOS.js with this debug version
     const startScan = useCallback(async () => {
-        addDebugInfo('START SCAN CALLED - FORCED CAPACITOR MODE');
+        addDebugInfo('FORCE NATIVE SCANNER - DEBUG VERSION');
 
         try {
-            // TEMPORARY: Force Capacitor scanner usage
-            addDebugInfo('FORCING Capacitor scanner due to native permission issues');
-            setScanFeedback('Starting Capacitor camera scanner...');
+            // FORCE native scanner usage for testing
+            if (!nativeBarcodeScanner) {
+                addDebugInfo('ERROR: Native scanner not available');
+                setError('Native scanner not loaded');
+                return;
+            }
 
-            if (capacitorBarcodeScanner) {
-                await startCapacitorScan();
+            addDebugInfo('Starting native iOS scan - forced mode');
+            setIsScanning(true);
+            setError(null);
+            setScanFeedback('Starting native iOS scanner...');
+
+            // Direct call to native scanner
+            console.log('🍎 DIRECT CALL to native scanner');
+
+            const result = await nativeBarcodeScanner.scanBarcode({
+                enableHapticFeedback: true,
+                enableAudioFeedback: true
+            });
+
+            addDebugInfo('Native scan result received', result);
+            console.log('🍎 Native scan complete:', result);
+
+            if (result.hasContent && result.content) {
+                addDebugInfo('Barcode detected', {
+                    content: result.content,
+                    format: result.format,
+                    source: result.source
+                });
+
+                // Validate barcode
+                const validation = analyzeAndValidateBarcode(result.content);
+                addDebugInfo('Barcode validation', validation);
+
+                if (!validation.valid) {
+                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
+                    setIsScanning(false);
+                    return;
+                }
+
+                const cleanCode = validation.cleanCode;
+                addDebugInfo('Clean barcode code', cleanCode);
+
+                // Check for duplicates
+                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
+                if (processedCodesRef.current.has(sessionKey)) {
+                    addDebugInfo('Duplicate barcode');
+                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
+                    setIsScanning(false);
+                    return;
+                }
+
+                processedCodesRef.current.add(sessionKey);
+                provideScanFeedback('success', 'Native iOS scan successful!', validation);
+
+                // CRITICAL: Call onBarcodeDetected with the clean code
+                addDebugInfo('Calling onBarcodeDetected', { cleanCode });
+                console.log('🍎 Calling onBarcodeDetected with:', cleanCode);
+
+                setTimeout(() => {
+                    if (mountedRef.current) {
+                        addDebugInfo('Executing onBarcodeDetected');
+                        onBarcodeDetected(cleanCode);
+
+                        // Close scanner after a delay
+                        setTimeout(() => {
+                            if (mountedRef.current && onClose) {
+                                addDebugInfo('Closing scanner');
+                                onClose();
+                            }
+                        }, 500);
+                    }
+                }, 300);
+
             } else {
-                const errorMsg = 'No scanner available - camera permissions may be blocked';
-                addDebugInfo('Scanner error', errorMsg);
-                provideScanFeedback('error', errorMsg);
-                setError('Camera not available. Please check browser permissions.');
+                addDebugInfo('No barcode content in result', result);
+                provideScanFeedback('error', 'No barcode detected - please try again');
                 setIsScanning(false);
             }
+
         } catch (error) {
-            const errorInfo = {
+            addDebugInfo('Native scan error', {
                 message: error.message,
                 stack: error.stack,
                 name: error.name
-            };
-            addDebugInfo('CRITICAL ERROR in startScan', errorInfo);
-            setError(`Scanner failed: ${error.message}`);
+            });
+
+            console.error('🍎 Native scan failed:', error);
             setIsScanning(false);
+
+            if (error.message && error.message.includes('cancelled')) {
+                addDebugInfo('Scan cancelled by user');
+                provideScanFeedback('info', 'Scan cancelled');
+            } else {
+                provideScanFeedback('error', `Native scan failed: ${error.message}`);
+            }
         }
-    }, [startCapacitorScan, provideScanFeedback, addDebugInfo]);
+    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, addDebugInfo]);
 
     // FIXED: Scanner initialization with better error handling
     useEffect(() => {
