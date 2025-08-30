@@ -8,6 +8,7 @@ import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
 import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
+import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const videoRef = useRef(null);
@@ -857,7 +858,7 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
                             </div>
                             <div className="space-y-3">
                                 <TouchEnhancedButton
-                                    onClick={() => window.location.href = '/pricing?source=upc-limit'}
+                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=upc-limit', router })}
                                     className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium"
                                 >
                                     Upgrade for Unlimited Scans

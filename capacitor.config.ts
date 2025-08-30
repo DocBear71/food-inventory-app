@@ -1,13 +1,12 @@
-// file: /src/capacitor.config.ts v3 - Added native iOS navigation support
+// file: /src/capacitor.config.ts v4 - CORRECTED - Removed invalid iOS permissions property
 
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
     appId: 'com.edward.docbearscomfort2025',
-    appName: "Doc Bear\'s Comfort Kitchen",
+    appName: "Doc Bear's Comfort Kitchen",
     webDir: 'out',
     
-    // ENHANCED: Better server config for iOS routing
     server: {
         url: 'https://docbearscomfort.kitchen',
         cleartext: true,
@@ -38,33 +37,25 @@ const config: CapacitorConfig = {
             splashImmersive: true
         },
         
-        // ENHANCED: App plugin configuration for native iOS navigation
         App: {
             launchUrl: 'index.html',
             handleUrl: (url: string) => {
-                console.log('📱 iOS handling shared URL:', url);
+                console.log('iOS handling shared URL:', url);
                 return { url };
             },
-            // Enable native iOS back button handling
             enableBackButtonHandler: true,
-            // Enable iOS swipe gestures  
             enableSwipeGestures: true
         },
         
-        // ENHANCED: Dialog plugin for native iOS alerts/confirmations
         Dialog: {
-            // Native iOS styling
             iosStyle: 'actionSheet',
             androidTheme: 'THEME_DEVICE_DEFAULT_LIGHT'
         },
         
-        // ENHANCED: ActionSheet plugin for native iOS action sheets
         ActionSheet: {
-            // Native iOS action sheet styling
             style: 'automatic'
         },
         
-        // ENHANCED: Browser plugin for external links
         Browser: {
             iosOptions: {
                 modalPresentationStyle: 'overFullScreen',
@@ -88,7 +79,12 @@ const config: CapacitorConfig = {
             permissions: ['camera', 'photos']
         },
         
-        // KEEP: Native Barcode Scanner (iOS optimized)
+        NativeBarcodeScanner: {
+            enableHapticFeedback: true,
+            enableAudioFeedback: true,
+            supportedFormats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39', 'QR_CODE']
+        },
+        
         BarcodeScanner: {
             targetedFormats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39', 'QR_CODE'],
             cameraDirection: 'back',
@@ -99,10 +95,7 @@ const config: CapacitorConfig = {
             enableTorch: false
         },
         
-        // KEEP: MLKit barcode scanner for fallback compatibility
-        CapacitorMlkitBarcodeScanning: {
-            // Keep this for potential fallback scenarios
-        },
+        CapacitorMlkitBarcodeScanning: {},
         
         Microphone: {
             permissions: ['microphone']
@@ -148,6 +141,7 @@ const config: CapacitorConfig = {
         allowsLinkPreview: false,
         webContentsDebuggingEnabled: true,
         scheme: 'App'
+        // REMOVED: permissions array - this property doesn't exist
     }
 };
 
