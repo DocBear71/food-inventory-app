@@ -45,9 +45,16 @@ export const isNativeScannerAvailable = async () => {
 
             // Check if it's the "not implemented" error (plugin not actually working)
             if (swiftError.message && swiftError.message.includes('not implemented')) {
-                console.log('❌ Native plugin not implemented in Swift');
+                console.log('❌ Native plugin not implemented in Swift - this is the core issue');
                 return false;
             }
+
+            // Log specific error details for debugging
+            console.log('❌ Swift error details:', {
+                message: swiftError.message,
+                code: swiftError.code,
+                stack: swiftError.stack
+            });
 
             // Other errors might still indicate the plugin exists but has permission issues
             // Still return false to be safe

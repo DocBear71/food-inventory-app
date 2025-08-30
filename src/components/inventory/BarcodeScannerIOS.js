@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/inventory/BarcodeScannerIOS.js v7 - Native scanner restored with all debugging fixes
+// file: /src/components/inventory/BarcodeScannerIOS.js v8 - Enhanced debug visibility for plugin testing
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -15,42 +15,68 @@ let nativeBarcodeScanner = null;
 let capacitorBarcodeScanner = null;
 let pluginLoadAttempted = false;
 
-// Safer plugin initialization with better error handling
-const initializeScanners = async () => {
+// Enhanced plugin initialization with visible debug information
+const initializeScanners = async (addDebugInfo) => {
     if (pluginLoadAttempted) return;
     pluginLoadAttempted = true;
 
+    addDebugInfo('=== PLUGIN INITIALIZATION STARTED ===');
+
     try {
         // Try to import native iOS scanner
+        addDebugInfo('Attempting to import native iOS scanner module');
         const nativeModule = await import('@/plugins/native-barcode-scanner');
+        addDebugInfo('Native module import successful');
 
-        // Verify the plugin actually works before using it
-        if (nativeModule.isNativeScannerAvailable && await nativeModule.isNativeScannerAvailable()) {
-            nativeBarcodeScanner = {
-                checkPermissions: nativeModule.checkPermissions,
-                requestPermissions: nativeModule.requestPermissions,
-                scanBarcode: nativeModule.scanBarcode,
-                isNativeScannerAvailable: nativeModule.isNativeScannerAvailable
-            };
-            console.log('✅ Native iOS scanner verified and loaded');
+        // Test if the plugin is available
+        if (nativeModule.isNativeScannerAvailable) {
+            addDebugInfo('Testing native scanner availability function');
+            const isAvailable = await nativeModule.isNativeScannerAvailable();
+            addDebugInfo('Native scanner availability test result', { isAvailable });
+
+            if (isAvailable) {
+                nativeBarcodeScanner = {
+                    checkPermissions: nativeModule.checkPermissions,
+                    requestPermissions: nativeModule.requestPermissions,
+                    scanBarcode: nativeModule.scanBarcode,
+                    isNativeScannerAvailable: nativeModule.isNativeScannerAvailable
+                };
+                addDebugInfo('✅ Native iOS scanner verified and loaded');
+            } else {
+                addDebugInfo('❌ Native scanner imported but availability test failed');
+                nativeBarcodeScanner = null;
+            }
         } else {
-            console.log('❌ Native scanner imported but not functional');
+            addDebugInfo('❌ Native scanner module missing isNativeScannerAvailable function');
             nativeBarcodeScanner = null;
         }
     } catch (error) {
-        console.log('❌ Native iOS scanner not available:', error.message);
+        addDebugInfo('❌ Native iOS scanner import failed', {
+            error: error.message,
+            stack: error.stack,
+            name: error.name
+        });
         nativeBarcodeScanner = null;
     }
 
     try {
         // Try to import Capacitor scanner
+        addDebugInfo('Attempting to import Capacitor scanner');
         const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning');
         capacitorBarcodeScanner = BarcodeScanner;
-        console.log('✅ Capacitor barcode scanner loaded');
+        addDebugInfo('✅ Capacitor barcode scanner loaded successfully');
     } catch (error) {
-        console.log('❌ Capacitor barcode scanner not available:', error.message);
+        addDebugInfo('❌ Capacitor barcode scanner import failed', {
+            error: error.message,
+            stack: error.stack
+        });
         capacitorBarcodeScanner = null;
     }
+
+    addDebugInfo('=== PLUGIN INITIALIZATION COMPLETED ===', {
+        nativeAvailable: nativeBarcodeScanner !== null,
+        capacitorAvailable: capacitorBarcodeScanner !== null
+    });
 };
 
 import NativeNavigation from "@/components/mobile/NativeNavigation.js";
@@ -75,7 +101,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const [barcodeAnalysis, setBarcodeAnalysis] = useState(null);
     const [userRegion, setUserRegion] = useState('US');
     const [debugInfo, setDebugInfo] = useState([]);
-    const [showDebug, setShowDebug] = useState(false);
+    const [showDebug, setShowDebug] = useState(true); // Default to showing debug for troubleshooting
 
     // State management refs
     const mountedRef = useRef(true);
@@ -90,10 +116,24 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const subscription = useSubscription();
     const [usageInfo, setUsageInfo] = useState(null);
 
+    // Helper function to add debug information - ENHANCED for visual debugging
+    const addDebugInfo = useCallback((message, data = null) => {
+        const timestamp = new Date().toLocaleTimeString();
+        const debugEntry = {
+            timestamp,
+            message,
+            data: data ? JSON.stringify(data, null, 2) : null
+        };
+
+        setDebugInfo(prev => [...prev.slice(-20), debugEntry]); // Keep more entries for troubleshooting
+        console.log(`DEBUG [${timestamp}]:`, message, data);
+    }, []);
+
+
     // Platform detection and plugin verification
     useEffect(() => {
         const initializePlatformInfo = async () => {
-            console.log('🔍 Initializing platform detection...');
+            addDebugInfo('🔍 Starting platform detection and plugin initialization');
 
             const detectedInfo = {
                 isIOS: PlatformDetection.isIOS(),
@@ -103,46 +143,56 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 userAgent: navigator.userAgent
             };
 
-            console.log('📱 Platform detected:', detectedInfo);
+            addDebugInfo('📱 Platform detection completed', detectedInfo);
             setPlatformInfo(detectedInfo);
 
-            // Initialize scanner modules
-            await initializeScanners();
+            // Initialize scanner modules with debug visibility
+            await initializeScanners(addDebugInfo);
 
-            // Determine which scanner to use with proper availability check
+            // ENHANCED: More thorough native scanner availability check with debug
             let shouldUseNative = false;
-            if (detectedInfo.isIOS && detectedInfo.isNative && nativeBarcodeScanner !== null) {
-                try {
-                    // Test if the native scanner actually works
-                    const isAvailable = await nativeBarcodeScanner.isNativeScannerAvailable();
-                    shouldUseNative = isAvailable === true;
-                    console.log(`🔧 Native scanner availability test: ${shouldUseNative}`);
-                } catch (testError) {
-                    console.log('🔧 Native scanner test failed:', testError.message);
-                    shouldUseNative = false;
+            addDebugInfo('🔧 Starting native scanner selection logic');
+
+            if (detectedInfo.isIOS && detectedInfo.isNative) {
+                addDebugInfo('✅ Platform requirements met for native scanner (iOS + Native)');
+
+                if (nativeBarcodeScanner !== null) {
+                    addDebugInfo('✅ Native scanner module loaded, testing availability');
+
+                    try {
+                        // Test if the native scanner actually works
+                        const isAvailable = await nativeBarcodeScanner.isNativeScannerAvailable();
+                        addDebugInfo('🔧 Native scanner availability test completed', { isAvailable });
+                        shouldUseNative = isAvailable === true;
+                    } catch (testError) {
+                        addDebugInfo('❌ Native scanner availability test threw error', {
+                            error: testError.message,
+                            code: testError.code,
+                            stack: testError.stack
+                        });
+                        shouldUseNative = false;
+                    }
+                } else {
+                    addDebugInfo('❌ Native scanner module is null (failed to load)');
                 }
+            } else {
+                addDebugInfo('❌ Platform requirements not met for native scanner', {
+                    isIOS: detectedInfo.isIOS,
+                    isNative: detectedInfo.isNative,
+                    reason: !detectedInfo.isIOS ? 'Not iOS' : 'Not running in native app'
+                });
             }
 
             setUseNativeScanner(shouldUseNative);
-
-            console.log(`🔧 Final scanner selection: ${shouldUseNative ? 'Native iOS AVFoundation' : 'Capacitor fallback'}`);
+            addDebugInfo(`🔧 Final scanner selection: ${shouldUseNative ? 'Native iOS AVFoundation' : 'Capacitor fallback'}`, {
+                useNativeScanner: shouldUseNative,
+                nativeAvailable: nativeBarcodeScanner !== null,
+                capacitorAvailable: capacitorBarcodeScanner !== null
+            });
         };
 
         initializePlatformInfo();
-    }, []);
-
-    // Helper function to add debug information
-    const addDebugInfo = useCallback((message, data = null) => {
-        const timestamp = new Date().toLocaleTimeString();
-        const debugEntry = {
-            timestamp,
-            message,
-            data: data ? JSON.stringify(data, null, 2) : null
-        };
-
-        setDebugInfo(prev => [...prev.slice(-15), debugEntry]);
-        console.log(`DEBUG [${timestamp}]:`, message, data);
-    }, []);
+    }, [addDebugInfo]);
 
     // Load usage information
     const loadUsageInfo = useCallback(async () => {
