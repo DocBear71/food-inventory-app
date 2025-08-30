@@ -254,7 +254,7 @@ export default function ProfilePage() {
     // Improved file validation
     const validateFile = async (file) => {
         const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'];
-        const maxSize = 1 * 1024 * 1024; // 1MB for Vercel
+        const maxSize = 1024 * 1024; // 1MB for Vercel
 
         if (!file) {
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
@@ -306,7 +306,7 @@ export default function ProfilePage() {
 
         try {
             // Validate file
-            validateFile(file);
+            await validateFile(file);
             setUploadProgress(10);
 
             console.log('File validated, starting compression check...');
@@ -486,10 +486,10 @@ export default function ProfilePage() {
     };
 
     // Redirect if not authenticated
-    useEffect(async () => {
+    useEffect(() => {
         if (status === 'loading') return;
         if (!session) {
-            await NativeNavigation.routerPush(router, '/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [session, status, router]);
 
@@ -628,10 +628,10 @@ export default function ProfilePage() {
     }, [session?.user?.id, status, fetchProfile]); // Add dependencies so it runs when session changes
 
 // Also, let's update the redirect effect to be more specific:
-    useEffect(async () => {
+    useEffect( () => {
         if (status === 'unauthenticated') {
             console.log('🔍 Redirecting to signin - not authenticated');
-            await NativeNavigation.routerPush(router, '/auth/signin');
+            NativeNavigation.routerPush(router, '/auth/signin');
         }
     }, [status, router]); // Only redirect on unauthenticated, not loading
 

@@ -209,8 +209,8 @@ function SignInContent() {
                 setRedirecting(true);
 
                 // Determine redirect URL
-                const callbackUrl = searchParams.get('callbackUrl') || '/inventory';
-                const cleanCallbackUrl = callbackUrl.startsWith('/') ? callbackUrl : '/inventory';
+                const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+                const cleanCallbackUrl = callbackUrl.startsWith('/') ? callbackUrl : '/dashboard';
 
                 // Redirect after short delay for user feedback
                 setTimeout(() => {

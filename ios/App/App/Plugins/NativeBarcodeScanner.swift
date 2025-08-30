@@ -4,6 +4,7 @@ import Foundation
 import Capacitor
 import AVFoundation
 import UIKit
+import AudioToolbox
 
 @objc(NativeBarcodeScanner)
 public class NativeBarcodeScanner: CAPPlugin, AVCaptureMetadataOutputObjectsDelegate {

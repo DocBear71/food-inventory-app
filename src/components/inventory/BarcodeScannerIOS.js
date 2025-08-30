@@ -207,20 +207,17 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     // Load usage information
     const loadUsageInfo = useCallback(async () => {
         try {
-            addDebugInfo('Loading usage info from API endpoint');
             const response = await apiGet('/api/upc/usage');
             if (response.ok) {
                 const data = await response.json();
                 setUsageInfo(data);
-                addDebugInfo('Usage info loaded successfully', data);
             } else {
-                addDebugInfo('Usage API failed', { status: response.status, statusText: response.statusText });
+                console.log('no usage info')
             }
         } catch (error) {
-            addDebugInfo('Usage loading error', { error: error.message, stack: error.stack });
             console.log('Could not load usage info:', error);
         }
-    }, [addDebugInfo]);
+    }, []);
 
     useEffect(() => {
         loadUsageInfo();

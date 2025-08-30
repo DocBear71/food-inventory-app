@@ -8,7 +8,7 @@ import { Capacitor } from '@capacitor/core';
  * Provides access to native iOS AVFoundation barcode scanning
  */
 const NativeBarcodeScanner = registerPlugin('NativeBarcodeScanner', {
-    web: () => import('./native-barcode-scanner.web').then(m => new m.NativeBarcodeScannerWeb()),
+    web: () => import('./native-barcode-scanner.web.js').then(m => new m.NativeBarcodeScannerWeb()),
 });
 
 /**
