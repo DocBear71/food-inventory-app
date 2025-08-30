@@ -1,6 +1,7 @@
-// file: /src/plugins/native-barcode-scanner.js v1 - JavaScript interface for native iOS barcode scanner
+// file: /src/plugins/native-barcode-scanner.js v2 - FIXED with proper availability checking
 
 import { registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 
 /**
  * Native Barcode Scanner Plugin Interface
@@ -11,31 +12,37 @@ const NativeBarcodeScanner = registerPlugin('NativeBarcodeScanner', {
 });
 
 /**
- * Barcode scanning options
- * @typedef {Object} ScanOptions
- * @property {string[]} [formats] - Array of barcode formats to scan for
- * @property {boolean} [enableHapticFeedback=true] - Enable haptic feedback on scan
- * @property {boolean} [enableAudioFeedback=true] - Enable audio feedback on scan
+ * Check if native barcode scanning is available
+ * @returns {Promise<boolean>} True if native scanning is available
  */
+export const isNativeScannerAvailable = async () => {
+    try {
+        // First check if we're on a native platform
+        if (!Capacitor.isNativePlatform()) {
+            console.log('Not on native platform, native scanner not available');
+            return false;
+        }
 
-/**
- * Barcode scan result
- * @typedef {Object} ScanResult
- * @property {boolean} hasContent - Whether a barcode was successfully scanned
- * @property {string} content - The barcode content/value
- * @property {string} format - The barcode format (e.g., 'EAN_13', 'UPC_E')
- * @property {string} type - The raw AVFoundation type
- * @property {boolean} cancelled - Whether the scan was cancelled by user
- * @property {string} source - Source of the scan ('native_ios_avfoundation' or 'web_fallback')
- */
+        // Check if the plugin is registered and has the required method
+        if (!NativeBarcodeScanner || typeof NativeBarcodeScanner.scanBarcode !== 'function') {
+            console.log('NativeBarcodeScanner plugin not properly registered');
+            return false;
+        }
 
-/**
- * Permission status result
- * @typedef {Object} PermissionStatus
- * @property {string} camera - Camera permission status ('granted', 'denied', 'prompt')
- */
-
-export { NativeBarcodeScanner };
+        // Try to call a test method to verify the plugin actually works
+        try {
+            await NativeBarcodeScanner.checkPermissions();
+            console.log('Native scanner plugin verified as working');
+            return true;
+        } catch (error) {
+            console.log('Native scanner plugin test failed:', error.message);
+            return false;
+        }
+    } catch (error) {
+        console.log('Native scanner availability check failed:', error.message);
+        return false;
+    }
+};
 
 /**
  * Scan a barcode using native iOS camera
@@ -44,15 +51,21 @@ export { NativeBarcodeScanner };
  */
 export const scanBarcode = async (options = {}) => {
     try {
-        console.log('🍎 Starting native barcode scan with options:', options);
+        // Verify availability before attempting scan
+        const isAvailable = await isNativeScannerAvailable();
+        if (!isAvailable) {
+            throw new Error('Native scanner not available');
+        }
+
+        console.log('Starting native barcode scan with options:', options);
 
         const result = await NativeBarcodeScanner.scanBarcode(options);
 
-        console.log('🍎 Native scan completed:', result);
+        console.log('Native scan completed:', result);
         return result;
 
     } catch (error) {
-        console.error('🍎 Native barcode scan failed:', error);
+        console.error('Native barcode scan failed:', error);
         throw error;
     }
 };
@@ -63,11 +76,16 @@ export const scanBarcode = async (options = {}) => {
  */
 export const checkPermissions = async () => {
     try {
+        const isAvailable = await isNativeScannerAvailable();
+        if (!isAvailable) {
+            throw new Error('Native scanner not available');
+        }
+
         const result = await NativeBarcodeScanner.checkPermissions();
-        console.log('🍎 Camera permissions status:', result);
+        console.log('Camera permissions status:', result);
         return result;
     } catch (error) {
-        console.error('🍎 Failed to check permissions:', error);
+        console.error('Failed to check permissions:', error);
         throw error;
     }
 };
@@ -78,21 +96,18 @@ export const checkPermissions = async () => {
  */
 export const requestPermissions = async () => {
     try {
+        const isAvailable = await isNativeScannerAvailable();
+        if (!isAvailable) {
+            throw new Error('Native scanner not available');
+        }
+
         const result = await NativeBarcodeScanner.requestPermissions();
-        console.log('🍎 Camera permissions requested:', result);
+        console.log('Camera permissions requested:', result);
         return result;
     } catch (error) {
-        console.error('🍎 Failed to request permissions:', error);
+        console.error('Failed to request permissions:', error);
         throw error;
     }
-};
-
-/**
- * Check if native barcode scanning is available
- * @returns {boolean} True if native scanning is available
- */
-export const isNativeScannerAvailable = () => {
-    return NativeBarcodeScanner && typeof NativeBarcodeScanner.scanBarcode === 'function';
 };
 
 /**
@@ -100,7 +115,7 @@ export const isNativeScannerAvailable = () => {
  */
 export const BarcodeFormats = {
     UPC_E: 'UPC_E',
-    UPC_A: 'UPC_A', // Note: UPC-A is typically represented as EAN-13 with leading zero
+    UPC_A: 'UPC_A',
     EAN_13: 'EAN_13',
     EAN_8: 'EAN_8',
     CODE_39: 'CODE_39',
@@ -140,4 +155,5 @@ export const ScannerErrors = {
     SCANNER_NOT_AVAILABLE: 'SCANNER_NOT_AVAILABLE'
 };
 
+export { NativeBarcodeScanner };
 export default NativeBarcodeScanner;
