@@ -23,9 +23,24 @@ const initializeScanners = async (addDebugInfo) => {
     addDebugInfo('=== PLUGIN INITIALIZATION STARTED ===');
 
     try {
-        // Try to import native iOS scanner
-        addDebugInfo('Attempting to import native iOS scanner module');
-        const nativeModule = await import('@/plugins/native-barcode-scanner');
+        // Try to import native iOS scanner - test multiple paths
+        addDebugInfo('Attempting to import native iOS scanner module from @/plugins/native-barcode-scanner');
+        let nativeModule;
+
+        try {
+            nativeModule = await import('@/plugins/native-barcode-scanner');
+            addDebugInfo('✅ Successfully imported from @/plugins/native-barcode-scanner');
+        } catch (pathError) {
+            addDebugInfo('❌ Import failed from @/plugins/, trying /plugins/', { error: pathError.message });
+
+            try {
+                nativeModule = await import('../../plugins/native-barcode-scanner');
+                addDebugInfo('✅ Successfully imported from /plugins/native-barcode-scanner');
+            } catch (altPathError) {
+                addDebugInfo('❌ Import failed from /plugins/ too', { error: altPathError.message });
+                throw new Error(`Could not import native scanner from any path: ${pathError.message}`);
+            }
+        }
         addDebugInfo('Native module import successful');
 
         // Test if the plugin is available
