@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/inventory/BarcodeScannerIOS.js v6 - FIXED plugin detection and data flow
+// file: /src/components/inventory/BarcodeScannerIOS.js v7 - Native scanner restored with all debugging fixes
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -10,12 +10,12 @@ import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
 import { PlatformDetection } from '@/utils/PlatformDetection';
 
-// FIXED: Better plugin detection with fallback handling
+// Plugin detection with fallback handling
 let nativeBarcodeScanner = null;
 let capacitorBarcodeScanner = null;
 let pluginLoadAttempted = false;
 
-// FIXED: Safer plugin initialization with better error handling
+// Safer plugin initialization with better error handling
 const initializeScanners = async () => {
     if (pluginLoadAttempted) return;
     pluginLoadAttempted = true;
@@ -24,7 +24,7 @@ const initializeScanners = async () => {
         // Try to import native iOS scanner
         const nativeModule = await import('@/plugins/native-barcode-scanner');
 
-        // FIXED: Verify the plugin actually works before using it
+        // Verify the plugin actually works before using it
         if (nativeModule.isNativeScannerAvailable && await nativeModule.isNativeScannerAvailable()) {
             nativeBarcodeScanner = {
                 checkPermissions: nativeModule.checkPermissions,
@@ -90,7 +90,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const subscription = useSubscription();
     const [usageInfo, setUsageInfo] = useState(null);
 
-    // FIXED: Better platform detection and plugin verification
+    // Platform detection and plugin verification
     useEffect(() => {
         const initializePlatformInfo = async () => {
             console.log('🔍 Initializing platform detection...');
@@ -109,7 +109,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             // Initialize scanner modules
             await initializeScanners();
 
-            // FIXED: More thorough check for native scanner availability
+            // Determine which scanner to use with proper availability check
             let shouldUseNative = false;
             if (detectedInfo.isIOS && detectedInfo.isNative && nativeBarcodeScanner !== null) {
                 try {
@@ -341,7 +341,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }, 4000);
     }, [playBeepSound]);
 
-    // FIXED: Improved Capacitor scanner with better state management
+    // Improved Capacitor scanner with better state management
     const startCapacitorScan = useCallback(async () => {
         if (!capacitorBarcodeScanner) {
             provideScanFeedback('error', 'Camera scanner not available');
@@ -406,7 +406,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 processedCodesRef.current.add(sessionKey);
                 provideScanFeedback('success', 'Capacitor scan successful!', validation);
 
-                // FIXED: Ensure proper data flow back to parent
+                // Ensure proper data flow back to parent
                 addDebugInfo('CRITICAL: Calling onBarcodeDetected', { cleanCode });
 
                 setTimeout(() => {
@@ -415,13 +415,13 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                             addDebugInfo('Executing onBarcodeDetected callback');
                             onBarcodeDetected(cleanCode);
 
-                            // FIXED: Add longer delay before closing to ensure data is processed
+                            // Add delay before closing to ensure data is processed
                             setTimeout(() => {
                                 if (mountedRef.current && onClose) {
                                     addDebugInfo('Closing scanner after successful scan');
                                     onClose();
                                 }
-                            }, 1000); // Increased delay
+                            }, 1000);
                         } catch (callbackError) {
                             addDebugInfo('Error calling onBarcodeDetected', { error: callbackError.message });
                             console.error('Error calling onBarcodeDetected:', callbackError);
@@ -462,9 +462,182 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, addDebugInfo]);
 
-    // FIXED: Main scanner function with proper fallback logic
+    // RESTORED: Native iOS barcode scanner with proper permission handling
+    const startNativeScan = useCallback(async () => {
+        addDebugInfo('STARTING NATIVE iOS SCAN');
+
+        if (!nativeBarcodeScanner) {
+            addDebugInfo('Native scanner not available, falling back to Capacitor');
+            console.log('🍎 Native scanner not available, falling back to Capacitor');
+            return startCapacitorScan();
+        }
+
+        try {
+            console.log('🍎 Starting native iOS AVFoundation barcode scan...');
+            addDebugInfo('Native iOS scan initiated');
+            setIsScanning(true);
+            setError(null);
+            setScanFeedback('Checking camera permissions...');
+
+            // Check permissions with proper error handling
+            let permissions;
+            try {
+                permissions = await nativeBarcodeScanner.checkPermissions();
+                addDebugInfo('Permission check result', permissions);
+                console.log('🍎 Initial camera permissions:', permissions);
+            } catch (permError) {
+                addDebugInfo('Permission check failed', { error: permError.message });
+                console.error('🍎 Permission check failed:', permError);
+                throw new Error('Permission check failed');
+            }
+
+            if (permissions.camera === 'prompt' || permissions.camera === 'denied') {
+                setScanFeedback('Requesting camera permission...');
+                addDebugInfo('Requesting camera permissions...');
+                console.log('🍎 Requesting camera permissions...');
+
+                try {
+                    permissions = await nativeBarcodeScanner.requestPermissions();
+                    addDebugInfo('Permission request result', permissions);
+                    console.log('🍎 Camera permissions after request:', permissions);
+                } catch (reqError) {
+                    addDebugInfo('Permission request failed', { error: reqError.message });
+                    console.error('🍎 Permission request failed:', reqError);
+                    throw new Error('Permission request failed');
+                }
+            }
+
+            if (permissions.camera !== 'granted') {
+                addDebugInfo('Camera permission denied', { status: permissions.camera });
+                console.log('🍎 Camera permission denied:', permissions.camera);
+                provideScanFeedback('error', 'Camera permission is required. Please enable camera access in Settings.');
+                setIsScanning(false);
+                return;
+            }
+
+            addDebugInfo('Camera permission granted, starting scan');
+            setScanFeedback('🍎 Opening native iOS camera...');
+
+            // Start native scan with proper timeout and error handling
+            const scanPromise = nativeBarcodeScanner.scanBarcode({
+                enableHapticFeedback: true,
+                enableAudioFeedback: true
+            });
+
+            // Add timeout to prevent hanging
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('Scan timeout')), 30000);
+            });
+
+            const result = await Promise.race([scanPromise, timeoutPromise]);
+            addDebugInfo('Native scan completed', result);
+            console.log('🍎 Native iOS scan result:', result);
+
+            if (result.hasContent && result.content) {
+                console.log('🍎 Native iOS barcode detected:', result.content);
+                addDebugInfo('Barcode detected', { content: result.content, format: result.format });
+
+                const validation = analyzeAndValidateBarcode(result.content);
+                if (!validation.valid) {
+                    addDebugInfo('Invalid barcode', validation);
+                    provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
+                    setIsScanning(false);
+                    return;
+                }
+
+                const cleanCode = validation.cleanCode;
+
+                // Check for duplicates
+                const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
+                if (processedCodesRef.current.has(sessionKey)) {
+                    addDebugInfo('Duplicate barcode detected');
+                    provideScanFeedback('warning', 'Already scanned this barcode in this session');
+                    setIsScanning(false);
+                    return;
+                }
+
+                processedCodesRef.current.add(sessionKey);
+                provideScanFeedback('success', '🍎 Native iOS scan successful!', validation);
+
+                // Process the result
+                setTimeout(() => {
+                    if (mountedRef.current) {
+                        addDebugInfo('Calling onBarcodeDetected', { cleanCode });
+                        onBarcodeDetected(cleanCode);
+                        setTimeout(() => {
+                            if (mountedRef.current && onClose) {
+                                addDebugInfo('Closing scanner');
+                                onClose();
+                            }
+                        }, 1000);
+                    }
+                }, 500);
+
+            } else {
+                addDebugInfo('No barcode found in result', result);
+                console.log('🍎 No barcode found in native result:', result);
+                provideScanFeedback('error', 'No barcode detected - please try again');
+                setIsScanning(false);
+            }
+
+        } catch (error) {
+            addDebugInfo('Native scan error', {
+                message: error.message,
+                stack: error.stack,
+                name: error.name
+            });
+            console.error('Native iOS scanning failed:', error);
+
+            setIsScanning(false);
+            setError(null);
+
+            // Handle specific error cases
+            if (error.message && (
+                error.message.includes('cancelled') ||
+                error.message.includes('USER_CANCELLED') ||
+                error.message.includes('User cancelled')
+            )) {
+                addDebugInfo('Scan cancelled by user');
+                console.log('Native iOS scan cancelled by user');
+                provideScanFeedback('info', 'Scan cancelled');
+                return;
+            }
+
+            if (error.message && error.message.includes('timeout')) {
+                addDebugInfo('Scan timeout');
+                console.log('Native iOS scan timeout');
+                provideScanFeedback('error', 'Scan timeout - please try again');
+                return;
+            }
+
+            if (error.message && (error.message.includes('PERMISSION_DENIED') || error.message.includes('Permission'))) {
+                addDebugInfo('Permission denied error');
+                provideScanFeedback('error', 'Camera permission required - check iOS Settings');
+                setError('Camera permission denied. Please check your browser settings.');
+            } else if (error.message && error.message.includes('CAMERA_ERROR')) {
+                addDebugInfo('Camera error');
+                provideScanFeedback('error', 'Camera setup failed - please try again');
+                setError('Camera not available. Please try again.');
+            } else {
+                addDebugInfo('Falling back to Capacitor scanner');
+                console.log('Falling back to Capacitor scanner after native failure...');
+                provideScanFeedback('warning', 'Native scan failed - trying fallback scanner...');
+
+                // Automatic fallback to Capacitor scanner
+                setTimeout(async () => {
+                    if (mountedRef.current && !scanInProgressRef.current) {
+                        console.log('Starting Capacitor fallback...');
+                        await startCapacitorScan();
+                    }
+                }, 1000);
+                return;
+            }
+        }
+    }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, addDebugInfo, startCapacitorScan]);
+
+    // RESTORED: Main scanner function with proper fallback logic
     const startScan = useCallback(async () => {
-        // FIXED: Always reset state first
+        // Always reset state first
         setIsScanning(true);
         setError(null);
         setScanFeedback('');
@@ -478,7 +651,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             capacitorAvailable: capacitorBarcodeScanner !== null
         });
 
-        // FIXED: Check if we should use native scanner and if it's actually available
+        // Check if we should use native scanner and if it's actually available
         if (useNativeScanner && nativeBarcodeScanner) {
             try {
                 addDebugInfo('Attempting native iOS scan');
@@ -490,72 +663,8 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     throw new Error('Native scanner not available');
                 }
 
-                setScanFeedback('Starting native iOS camera...');
-
-                const result = await nativeBarcodeScanner.scanBarcode({
-                    enableHapticFeedback: true,
-                    enableAudioFeedback: true
-                });
-
-                addDebugInfo('Native scan result', result);
-
-                if (result.hasContent && result.content) {
-                    addDebugInfo('Native scan successful', { content: result.content, format: result.format });
-
-                    const validation = analyzeAndValidateBarcode(result.content);
-                    if (!validation.valid) {
-                        addDebugInfo('Invalid barcode from native scan', validation);
-                        provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
-                        setIsScanning(false);
-                        scanInProgressRef.current = false;
-                        return;
-                    }
-
-                    const cleanCode = validation.cleanCode;
-                    addDebugInfo('Valid barcode processed', { cleanCode });
-
-                    // Check for duplicates
-                    const sessionKey = `${sessionIdRef.current}-${cleanCode}`;
-                    if (processedCodesRef.current.has(sessionKey)) {
-                        addDebugInfo('Duplicate barcode detected');
-                        provideScanFeedback('warning', 'Already scanned this barcode in this session');
-                        setIsScanning(false);
-                        scanInProgressRef.current = false;
-                        return;
-                    }
-
-                    processedCodesRef.current.add(sessionKey);
-                    provideScanFeedback('success', 'Native iOS scan successful!', validation);
-
-                    // FIXED: Ensure callback execution
-                    addDebugInfo('CRITICAL: About to call onBarcodeDetected', { cleanCode });
-
-                    setTimeout(() => {
-                        if (mountedRef.current) {
-                            try {
-                                addDebugInfo('Executing onBarcodeDetected callback NOW');
-                                onBarcodeDetected(cleanCode);
-
-                                setTimeout(() => {
-                                    if (mountedRef.current && onClose) {
-                                        addDebugInfo('Closing scanner after native scan success');
-                                        onClose();
-                                    }
-                                }, 1000);
-                            } catch (callbackError) {
-                                addDebugInfo('ERROR calling onBarcodeDetected', { error: callbackError.message });
-                                console.error('Error in onBarcodeDetected:', callbackError);
-                            }
-                        }
-                    }, 500);
-
-                } else {
-                    addDebugInfo('Native scan returned no content', result);
-                    provideScanFeedback('error', 'No barcode detected - please try again');
-                    setIsScanning(false);
-                    scanInProgressRef.current = false;
-                }
-
+                await startNativeScan();
+                scanInProgressRef.current = false;
                 return; // Don't fall through to Capacitor
 
             } catch (nativeError) {
@@ -576,14 +685,14 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             }
         }
 
-        // FIXED: Use Capacitor scanner (either as primary choice or fallback)
+        // Use Capacitor scanner (either as primary choice or fallback)
         addDebugInfo('Using Capacitor scanner');
         await startCapacitorScan();
         scanInProgressRef.current = false;
 
-    }, [useNativeScanner, analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback, addDebugInfo, startCapacitorScan]);
+    }, [useNativeScanner, provideScanFeedback, addDebugInfo, startCapacitorScan, startNativeScan]);
 
-    // FIXED: Better scanner initialization
+    // Better scanner initialization
     useEffect(() => {
         const initializeScanner = async () => {
             if (!isActive || isInitialized || !mountedRef.current) {
@@ -597,7 +706,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             }
 
             try {
-                // FIXED: Reset session state completely
+                // Reset session state completely
                 sessionIdRef.current = Date.now();
                 processedCodesRef.current = new Set();
                 scanInProgressRef.current = false;
@@ -655,7 +764,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         addDebugInfo('=== SCANNER CLEANUP COMPLETED ===');
     }, [addDebugInfo]);
 
-    // FIXED: Better close handler
+    // Better close handler
     const handleScannerClose = useCallback(async () => {
         addDebugInfo('=== SCANNER CLOSE REQUESTED ===');
 
@@ -730,7 +839,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-medium">
-                            {useNativeScanner ? '🍎 Native iOS Scanner' : '📱 Mobile Scanner'}
+                            {useNativeScanner ? 'Native iOS Scanner' : 'Mobile Scanner'}
                         </h3>
                         <div className="text-sm text-gray-300 mt-1">
                             {scanFeedback || `${useNativeScanner ? 'Native AVFoundation' : 'Capacitor'} optimized for ${userRegion} region`}
@@ -910,7 +1019,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                             Optimized for {userRegion} region • Enhanced accuracy
                                         </p>
 
-                                        {/* FIXED: Add status indicator */}
+                                        {/* Add status indicator */}
                                         <div className="mt-4 text-xs">
                                             <div className={`inline-flex items-center px-2 py-1 rounded ${
                                                 isScanning ? 'bg-yellow-600' : 'bg-green-600'
@@ -946,7 +1055,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                         <div className="mt-4 text-sm text-gray-300">
                                             <div className="animate-pulse">The camera will open automatically...</div>
 
-                                            {/* FIXED: Add manual cancel option during scan */}
+                                            {/* Add manual cancel option during scan */}
                                             <TouchEnhancedButton
                                                 onClick={(e) => {
                                                     e.preventDefault();
@@ -971,7 +1080,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                         </div>
                                     )}
 
-                                    {/* FIXED: Add test data button for debugging */}
+                                    {/* Add test data button for debugging */}
                                     {showDebug && (
                                         <div className="mt-6 pt-4 border-t border-gray-700">
                                             <TouchEnhancedButton
@@ -1006,7 +1115,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                             </div>
                         )}
 
-                        {/* FIXED: Enhanced Footer */}
+                        {/* Enhanced Footer */}
                         <div className="flex-shrink-0 bg-black px-4 py-3 space-y-2">
                             <TouchEnhancedButton
                                 onClick={handleScannerClose}
@@ -1015,7 +1124,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                 EMERGENCY CLOSE
                             </TouchEnhancedButton>
 
-                            {/* FIXED: Add reset session button */}
+                            {/* Add reset session button */}
                             <TouchEnhancedButton
                                 onClick={(e) => {
                                     e.preventDefault();
