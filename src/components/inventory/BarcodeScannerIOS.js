@@ -24,20 +24,18 @@ const initializeScanners = async (addDebugInfo) => {
 
     try {
         // Try to import native iOS scanner
-        addDebugInfo('Attempting to import native iOS scanner from @/plugins/native-barcode-scanner');
+        addDebugInfo('CRITICAL: Testing import @/plugins/native-barcode-scanner');
         const nativeModule = await import('@/plugins/native-barcode-scanner');
-        addDebugInfo('Native module import successful - checking exports', {
-            hasIsAvailable: typeof nativeModule.isNativeScannerAvailable === 'function',
-            hasScanBarcode: typeof nativeModule.scanBarcode === 'function',
-            hasCheckPermissions: typeof nativeModule.checkPermissions === 'function',
-            exportedKeys: Object.keys(nativeModule)
+        addDebugInfo('IMPORT SUCCESS: Native module loaded', {
+            exports: Object.keys(nativeModule),
+            hasAvailabilityCheck: typeof nativeModule.isNativeScannerAvailable === 'function'
         });
 
         // Test if the plugin is available
         if (nativeModule.isNativeScannerAvailable) {
-            addDebugInfo('Testing native scanner availability function');
+            addDebugInfo('Testing Swift plugin via isNativeScannerAvailable()');
             const isAvailable = await nativeModule.isNativeScannerAvailable();
-            addDebugInfo('Native scanner availability test result', { isAvailable });
+            addDebugInfo('Swift plugin test result', { isAvailable });
 
             if (isAvailable) {
                 nativeBarcodeScanner = {
@@ -46,20 +44,20 @@ const initializeScanners = async (addDebugInfo) => {
                     scanBarcode: nativeModule.scanBarcode,
                     isNativeScannerAvailable: nativeModule.isNativeScannerAvailable
                 };
-                addDebugInfo('✅ Native iOS scanner verified and loaded');
+                addDebugInfo('SUCCESS: Native iOS scanner fully verified');
             } else {
-                addDebugInfo('❌ Native scanner imported but availability test failed');
+                addDebugInfo('FAILED: Swift plugin availability test failed');
                 nativeBarcodeScanner = null;
             }
         } else {
-            addDebugInfo('❌ Native scanner module missing isNativeScannerAvailable function');
+            addDebugInfo('FAILED: Missing isNativeScannerAvailable function in module');
             nativeBarcodeScanner = null;
         }
     } catch (error) {
-        addDebugInfo('❌ Native iOS scanner import completely failed', {
+        addDebugInfo('IMPORT FAILED: Could not load native scanner', {
             error: error.message,
-            stack: error.stack,
-            name: error.name
+            code: error.code,
+            stack: error.stack?.split('\n')[0] // Just first line of stack
         });
         nativeBarcodeScanner = null;
     }
@@ -82,6 +80,13 @@ const initializeScanners = async (addDebugInfo) => {
         nativeAvailable: nativeBarcodeScanner !== null,
         capacitorAvailable: capacitorBarcodeScanner !== null
     });
+
+    // CRITICAL: Add summary of what happened to native scanner
+    if (nativeBarcodeScanner === null) {
+        addDebugInfo('🚨 NATIVE SCANNER FAILED - IMPORT OR AVAILABILITY TEST FAILED 🚨');
+    } else {
+        addDebugInfo('✅ NATIVE SCANNER SUCCESS - READY FOR USE');
+    }
 };
 
 import NativeNavigation from "@/components/mobile/NativeNavigation.js";
