@@ -2,21 +2,35 @@
 
 import { registerPlugin } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
+import {PlatformDetection} from "@/utils/PlatformDetection.js";
 
 /**
  * Native iOS Scanner Bridge
  * This presents a completely native iOS scanner that Apple will approve
  */
-const NativeScannerBridge = registerPlugin('NativeScannerBridge');
+const NativeScannerBridge = registerPlugin('NativeScannerBridge', {
+    web: () => import('./native-barcode-scanner.web').then(m => new m.NativeBarcodeScannerWeb()),
+});
 
 /**
- * Check if native iOS scanner is available
+ * Check if native iOS scanner is available and working
+ * @param {Function} addDebugInfo - Optional debug callback function
  * @returns {Promise<boolean>} True if native scanning is available
  */
 // We need to pass the debug function from the scanner component
 export const isNativeScannerAvailable = async (addDebugInfo = null) => {
     try {
         if (addDebugInfo) addDebugInfo('🔧 Testing native iOS scanner availability...');
+
+        if (!PlatformDetection.isIOS()) {
+            addDebugInfo('❌ Not iOS platform');
+            return false;
+        }
+
+        if (!PlatformDetection.isRunningInMobileApp()) {
+            addDebugInfo('❌ Not running in native mobile app');
+            return false;
+        }
 
         // First check if we're on a native platform
         if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
@@ -101,7 +115,9 @@ export const requestPermissions = async () => {
 };
 
 // Legacy function names for compatibility
-export const scanBarcode = presentNativeScanner;
+export const scanBarcode = async (options = {}) => {
+    return await presentNativeScanner(options);
+};
 
 /**
  * Error types that can be returned by the native scanner
@@ -114,4 +130,4 @@ export const ScannerErrors = {
     PRESENTATION_ERROR: 'PRESENTATION_ERROR'
 };
 
-export default NativeScannerBridge;
+export { NativeScannerBridge };
