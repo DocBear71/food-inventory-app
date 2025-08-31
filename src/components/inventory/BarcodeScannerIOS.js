@@ -712,32 +712,63 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         // Check if we should use native scanner and if it's actually available
         if (useNativeScanner && nativeBarcodeScanner) {
             try {
-                addDebugInfo('Attempting native iOS scan');
+                addDebugInfo('Presenting native iOS scanner modal');
 
-                // Verify native scanner is still available
-                const isStillAvailable = await nativeBarcodeScanner.isNativeScannerAvailable();
-                if (!isStillAvailable) {
-                    addDebugInfo('Native scanner no longer available, falling back');
-                    throw new Error('Native scanner not available');
+                // Present the completely native iOS scanner
+                const result = await nativeBarcodeScanner.presentNativeScanner({
+                    enableHapticFeedback: true,
+                    enableAudioFeedback: true
+                });
+
+                addDebugInfo('Native iOS scanner returned', result);
+
+                if (result.hasContent && result.content) {
+                    const validation = analyzeAndValidateBarcode(result.content);
+                    if (!validation.valid) {
+                        provideScanFeedback('error', `Invalid barcode: ${validation.message}`);
+                        setIsScanning(false);
+                        return;
+                    }
+
+                    const cleanCode = validation.cleanCode;
+                    provideScanFeedback('success', 'Native iOS scan successful!', validation);
+
+                    // Return the result
+                    setTimeout(() => {
+                        if (mountedRef.current) {
+                            addDebugInfo('Calling onBarcodeDetected', { cleanCode });
+                            onBarcodeDetected(cleanCode);
+                            setTimeout(() => {
+                                if (mountedRef.current && onClose) {
+                                    onClose();
+                                }
+                            }, 500);
+                        }
+                    }, 500);
+
+                } else if (result.cancelled) {
+                    addDebugInfo('Native iOS scanner cancelled by user');
+                    provideScanFeedback('info', 'Scan cancelled');
+                    setIsScanning(false);
+                } else {
+                    provideScanFeedback('error', 'No barcode detected');
+                    setIsScanning(false);
                 }
 
-                await startNativeScan();
                 scanInProgressRef.current = false;
                 return; // Don't fall through to Capacitor
 
             } catch (nativeError) {
-                addDebugInfo('Native scan failed', { error: nativeError.message, stack: nativeError.stack });
-                console.error('Native scan error:', nativeError);
+                addDebugInfo('Native iOS scanner error', { error: nativeError.message });
 
                 if (nativeError.message && nativeError.message.includes('cancelled')) {
-                    addDebugInfo('Native scan cancelled by user');
                     provideScanFeedback('info', 'Scan cancelled');
                     setIsScanning(false);
                     scanInProgressRef.current = false;
                     return;
                 }
 
-                // Fall through to Capacitor scanner
+                // Fall through to Capacitor only if native completely fails
                 addDebugInfo('Falling back to Capacitor scanner');
                 provideScanFeedback('warning', 'Native scanner failed, trying fallback...');
             }
@@ -897,7 +928,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div>
                         <h3 className="text-lg font-medium">
-                            {useNativeScanner ? 'Native iOS Scanner' : 'Mobile Scanner'}
+                            {useNativeScanner ? '🍎 Native iOS Scanner' : '📱 Mobile Scanner'}
                         </h3>
                         <div className="text-sm text-gray-300 mt-1">
                             {scanFeedback || `${useNativeScanner ? 'Native AVFoundation' : 'Capacitor'} optimized for ${userRegion} region`}
