@@ -23,31 +23,31 @@ const initializeScanners = async (addDebugInfo) => {
     addDebugInfo('=== PLUGIN INITIALIZATION STARTED ===');
 
     try {
-        // Try to import native iOS scanner
-        addDebugInfo('CRITICAL: Testing import @/plugins/native-barcode-scanner');
+        addDebugInfo('Attempting to import native iOS scanner from @/plugins/native-barcode-scanner');
         const nativeModule = await import('@/plugins/native-barcode-scanner');
-        addDebugInfo('IMPORT SUCCESS: Native module loaded', {
-            exports: Object.keys(nativeModule),
-            hasAvailabilityCheck: typeof nativeModule.isNativeScannerAvailable === 'function'
+        addDebugInfo('Native module import successful - checking exports', {
+            hasIsAvailable: typeof nativeModule.isNativeScannerAvailable === 'function',
+            hasScanBarcode: typeof nativeModule.presentNativeScanner === 'function',
+            hasCheckPermissions: typeof nativeModule.checkPermissions === 'function',
+            exportedKeys: Object.keys(nativeModule)
         });
-        addDebugInfo('TESTING: About to call isNativeScannerAvailable()');
 
-        // Test if the plugin is available
+        // Test if the plugin is available with debug
         if (nativeModule.isNativeScannerAvailable) {
-            addDebugInfo('Testing Swift plugin via isNativeScannerAvailable()');
+            addDebugInfo('Testing native scanner availability function with debug');
             const isAvailable = await nativeModule.isNativeScannerAvailable(addDebugInfo);
-            addDebugInfo('Swift plugin test result', { isAvailable });
+            addDebugInfo('Native scanner availability test result', { isAvailable });
 
             if (isAvailable) {
                 nativeBarcodeScanner = {
                     checkPermissions: nativeModule.checkPermissions,
                     requestPermissions: nativeModule.requestPermissions,
-                    scanBarcode: nativeModule.scanBarcode,
+                    presentNativeScanner: nativeModule.presentNativeScanner,
                     isNativeScannerAvailable: nativeModule.isNativeScannerAvailable
                 };
-                addDebugInfo('SUCCESS: Native iOS scanner fully verified');
+                addDebugInfo('SUCCESS: Native iOS scanner verified and loaded');
             } else {
-                addDebugInfo('FAILED: Swift plugin availability test failed');
+                addDebugInfo('FAILED: Native scanner imported but availability test failed');
                 nativeBarcodeScanner = null;
             }
         } else {
