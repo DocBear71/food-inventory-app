@@ -9,6 +9,7 @@ import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureG
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
 import { PlatformDetection } from '@/utils/PlatformDetection';
+import { registerPlugin } from '@capacitor/core';
 
 // Plugin detection with fallback handling
 let nativeBarcodeScanner = null;
@@ -143,7 +144,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const testNativeBridge = useCallback(async () => {
         try {
             addDebugInfo('DIRECT TEST: Importing registerPlugin from Capacitor');
-            const { registerPlugin } = await import('@capacitor/core');
 
             addDebugInfo('DIRECT TEST: Registering NativeScannerBridge directly');
             const DirectBridge = registerPlugin('NativeScannerBridge');

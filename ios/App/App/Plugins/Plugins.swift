@@ -1,16 +1,16 @@
-// file: ios/App/App/Plugins/Plugins.swift v1 - Register native barcode scanner plugin
+// file: ios/App/App/Plugins/Plugins.swift v2 - More explicit plugin registration
 
 import Foundation
 import Capacitor
 
+@_cdecl("registerPlugins")
 public func registerPlugins() -> [CAPPlugin.Type] {
-    return [
-        // Native Barcode Scanner Plugin
-        NativeBarcodeScanner.self,
-
-         // Native Haptic Feedback Plugin
-         HapticFeedback.self,
-
-        // Add other plugins here as needed...
+    NSLog("🍎 Registering custom plugins...")
+    let plugins: [CAPPlugin.Type] = [
+        NativeScannerBridge.self,
+        NativeBarcodeScannerViewController.self,
+        HapticFeedback.self
     ]
+    NSLog("🍎 Found %d plugins to register", plugins.count)
+    return plugins
 }
