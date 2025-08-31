@@ -35,7 +35,7 @@ const initializeScanners = async (addDebugInfo) => {
         // Test if the plugin is available
         if (nativeModule.isNativeScannerAvailable) {
             addDebugInfo('Testing Swift plugin via isNativeScannerAvailable()');
-            const isAvailable = await nativeModule.isNativeScannerAvailable();
+            const isAvailable = await nativeModule.isNativeScannerAvailable(addDebugInfo);
             addDebugInfo('Swift plugin test result', { isAvailable });
 
             if (isAvailable) {

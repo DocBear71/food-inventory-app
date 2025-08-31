@@ -13,27 +13,40 @@ const NativeScannerBridge = registerPlugin('NativeScannerBridge');
  * Check if native iOS scanner is available
  * @returns {Promise<boolean>} True if native scanning is available
  */
-export const isNativeScannerAvailable = async () => {
+// We need to pass the debug function from the scanner component
+export const isNativeScannerAvailable = async (addDebugInfo = null) => {
     try {
-        console.log('🍎 Testing native iOS scanner availability...');
+        if (addDebugInfo) addDebugInfo('🔧 Testing native iOS scanner availability...');
 
-        // Must be on native iOS platform
+        // First check if we're on a native platform
         if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
-            console.log('❌ Not on native iOS platform');
+            if (addDebugInfo) addDebugInfo('❌ Not on native iOS platform', {
+                isNative: Capacitor.isNativePlatform(),
+                platform: Capacitor.getPlatform()
+            });
             return false;
         }
+
+        if (addDebugInfo) addDebugInfo('✅ Platform check passed - testing NativeScannerBridge...');
 
         // Test if the native bridge responds
         try {
             const result = await NativeScannerBridge.checkPermissions();
-            console.log('✅ Native iOS scanner bridge responded:', result);
+            if (addDebugInfo) addDebugInfo('✅ NativeScannerBridge responded successfully', result);
             return result.nativeScanner === 'available';
-        } catch (error) {
-            console.log('❌ Native iOS scanner bridge test failed:', error.message);
+        } catch (bridgeError) {
+            if (addDebugInfo) addDebugInfo('❌ NativeScannerBridge test FAILED', {
+                error: bridgeError.message,
+                code: bridgeError.code,
+                type: typeof bridgeError
+            });
             return false;
         }
     } catch (error) {
-        console.log('❌ Native scanner availability check failed:', error.message);
+        if (addDebugInfo) addDebugInfo('❌ Availability check completely failed', {
+            error: error.message,
+            stack: error.stack?.split('\n')[0]
+        });
         return false;
     }
 };
