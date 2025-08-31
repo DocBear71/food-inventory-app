@@ -140,6 +140,28 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         console.log(`DEBUG [${timestamp}]:`, message, data);
     }, []);
 
+    const testNativeBridge = useCallback(async () => {
+        try {
+            addDebugInfo('DIRECT TEST: Importing registerPlugin from Capacitor');
+            const { registerPlugin } = await import('@capacitor/core');
+
+            addDebugInfo('DIRECT TEST: Registering NativeScannerBridge directly');
+            const DirectBridge = registerPlugin('NativeScannerBridge');
+
+            addDebugInfo('DIRECT TEST: Testing direct bridge call');
+            const result = await DirectBridge.checkPermissions();
+
+            addDebugInfo('DIRECT TEST SUCCESS: Bridge responded', result);
+            return true;
+        } catch (error) {
+            addDebugInfo('DIRECT TEST FAILED: Bridge not working', {
+                error: error.message,
+                code: error.code
+            });
+            return false;
+        }
+    }, [addDebugInfo]);
+
 
     // Platform detection and plugin verification
     useEffect(() => {
@@ -166,6 +188,10 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
             if (detectedInfo.isIOS && detectedInfo.isNative) {
                 addDebugInfo('✅ Platform requirements met for native scanner (iOS + Native)');
+                addDebugInfo('Platform is iOS + Native - testing bridge directly');
+                const bridgeWorks = await testNativeBridge();
+                addDebugInfo('Direct bridge test result', { bridgeWorks });
+
 
                 if (nativeBarcodeScanner !== null) {
                     addDebugInfo('✅ Native scanner module loaded, testing availability');
