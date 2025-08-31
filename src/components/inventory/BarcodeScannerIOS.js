@@ -967,18 +967,28 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                     {showDebug ? 'Hide Debug' : 'Show Debug Info'}
                                 </TouchEnhancedButton>
 
+                                // REPLACE the existing test button in your BarcodeScannerIOS.js with this:
                                 <TouchEnhancedButton
                                     onClick={async () => {
-                                        addDebugInfo('=== STARTING PLUGIN CONNECTION TEST ===');
+                                        addDebugInfo('=== STARTING VISUAL PLUGIN DEBUG ===');
 
-                                        const { testPluginConnection } = await import('@/plugins/native-barcode-scanner');
-                                        const success = await testPluginConnection(addDebugInfo);
+                                        const { visualPluginDebug } = await import('@/plugins/visual-plugin-debugger');
+                                        const results = await visualPluginDebug(addDebugInfo);
 
-                                        addDebugInfo(`Plugin connection test result: ${success ? 'SUCCESS' : 'FAILED'}`);
+                                        // Show results in a way visible on iPad
+                                        addDebugInfo('FINAL DIAGNOSIS:', {
+                                            success: results.summary.success,
+                                            reason: results.summary.reason,
+                                            step1_platform: results.step1.status,
+                                            step2_plugin: results.step2.status,
+                                            step3_methods: results.step3.status,
+                                            step4_test: results.step4.status,
+                                            foundMethods: results.step3.details.foundMethods
+                                        });
                                     }}
-                                    className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
+                                    className="mt-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm"
                                 >
-                                    TEST PLUGIN CONNECTION
+                                    VISUAL PLUGIN DEBUG
                                 </TouchEnhancedButton>
                             </div>
 
