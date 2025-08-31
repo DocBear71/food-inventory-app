@@ -43,8 +43,8 @@ export const isNativeScannerAvailable = async (debugCallback = null) => {
             return false;
         }
 
-        if (typeof NativeScannerBridge.checkPermissions !== 'function') {
-            debug('FAILED: checkPermissions method not found');
+        if (typeof NativeScannerBridge.getCameraPermissions !== 'function') {
+            debug('FAILED: getCameraPermissions method not found');
             debug('Available methods:', Object.keys(NativeScannerBridge));
             return false;
         }
@@ -54,7 +54,7 @@ export const isNativeScannerAvailable = async (debugCallback = null) => {
         debug('STEP 3: Testing Plugin Call');
 
         try {
-            const result = await NativeScannerBridge.checkPermissions();
+            const result = await NativeScannerBridge.getCameraPermissions();
             debug('✅ STEP 3 PASSED: Plugin call successful');
             debug('Full result object:', JSON.stringify(result, null, 2));
             debug('result.nativeScanner:', result.nativeScanner);
@@ -99,10 +99,10 @@ export const presentNativeScanner = async (options = {}) => {
 /**
  * Check permissions with detailed debugging
  */
-export const checkPermissions = async () => {
+export const getCameraPermissions = async () => {
     try {
-        console.log('🍎 Calling NativeScannerBridge.checkPermissions');
-        const result = await NativeScannerBridge.checkPermissions();
+        console.log('🍎 Calling NativeScannerBridge.getCameraPermissions');
+        const result = await NativeScannerBridge.getCameraPermissions();
         console.log('🍎 Permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
@@ -114,10 +114,10 @@ export const checkPermissions = async () => {
 /**
  * Request permissions with detailed debugging
  */
-export const requestPermissions = async () => {
+export const requestCameraPermissions = async () => {
     try {
-        console.log('🍎 Calling NativeScannerBridge.requestPermissions');
-        const result = await NativeScannerBridge.requestPermissions();
+        console.log('🍎 Calling NativeScannerBridge.requestCameraPermissions');
+        const result = await NativeScannerBridge.requestCameraPermissions();
         console.log('🍎 Request permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
@@ -145,13 +145,13 @@ export const testPluginConnection = async (debugCallback) => {
 
     debug('3. Direct Method Test:');
     try {
-        if (NativeScannerBridge && typeof NativeScannerBridge.checkPermissions === 'function') {
-            debug('  - checkPermissions method found, calling...');
-            const result = await NativeScannerBridge.checkPermissions();
+        if (NativeScannerBridge && typeof NativeScannerBridge.getCameraPermissions === 'function') {
+            debug('  - getCameraPermissions method found, calling...');
+            const result = await NativeScannerBridge.getCameraPermissions();
             debug('  - ✅ SUCCESS:', JSON.stringify(result, null, 2));
             return true;
         } else {
-            debug('  - ❌ checkPermissions method not found or not a function');
+            debug('  - ❌ getCameraPermissions method not found or not a function');
             return false;
         }
     } catch (error) {

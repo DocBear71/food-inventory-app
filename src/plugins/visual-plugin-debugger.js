@@ -40,7 +40,7 @@ export const visualPluginDebug = async (displayCallback) => {
 
         // Step 3: Method Discovery
         const methods = NativeScannerBridge ? Object.keys(NativeScannerBridge) : [];
-        const expectedMethods = ['presentNativeScanner', 'checkPermissions', 'requestPermissions'];
+        const expectedMethods = ['presentNativeScanner', 'getCameraPermissions', 'requestCameraPermissions'];
         const foundMethods = expectedMethods.filter(method =>
             NativeScannerBridge && typeof NativeScannerBridge[method] === 'function'
         );
@@ -66,11 +66,11 @@ export const visualPluginDebug = async (displayCallback) => {
         // Step 4: Method Test (only if we found methods)
         if (foundMethods.length > 0) {
             try {
-                // Test the simplest method first - checkPermissions
-                if (foundMethods.includes('checkPermissions')) {
-                    const permissionResult = await NativeScannerBridge.checkPermissions();
+                // Test the simplest method first - getCameraPermissions
+                if (foundMethods.includes('getCameraPermissions')) {
+                    const permissionResult = await NativeScannerBridge.getCameraPermissions();
                     results.step4.details = {
-                        testedMethod: "checkPermissions",
+                        testedMethod: "getCameraPermissions",
                         result: permissionResult,
                         success: true
                     };
@@ -86,7 +86,7 @@ export const visualPluginDebug = async (displayCallback) => {
                 }
             } catch (methodError) {
                 results.step4.details = {
-                    testedMethod: "checkPermissions",
+                    testedMethod: "getCameraPermissions",
                     result: null,
                     success: false,
                     error: {
