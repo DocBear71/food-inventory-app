@@ -805,11 +805,11 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 setBarcodeAnalysis(null);
                 setIsScanning(false);
 
-                addDebugInfo('Scanner initialization completed', {
-                    sessionId: sessionIdRef.current,
-                    useNativeScanner,
-                    platformInfo
-                });
+                // addDebugInfo('Scanner initialization completed', {
+                //     sessionId: sessionIdRef.current,
+                //     useNativeScanner,
+                //     platformInfo
+                // });
 
                 if (mountedRef.current) {
                     setIsInitialized(true);
