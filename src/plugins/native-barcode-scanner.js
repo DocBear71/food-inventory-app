@@ -1,133 +1,164 @@
-// file: /src/plugins/native-barcode-scanner.js v5 - Pure native iOS scanner bridge
+// file: /src/plugins/native-barcode-scanner.js v10 - ENHANCED debugging for iPad testing
 
 import { registerPlugin } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
-import {PlatformDetection} from "@/utils/PlatformDetection.js";
 
 /**
  * Native iOS Scanner Bridge
- * This presents a completely native iOS scanner that Apple will approve
  */
-const NativeScannerBridge = registerPlugin('NativeScannerBridge', {
-    web: () => import('./native-barcode-scanner.web').then(m => new m.NativeBarcodeScannerWeb()),
-});
+const NativeScannerBridge = registerPlugin('NativeScannerBridge');
 
 /**
- * Check if native iOS scanner is available and working
- * @param {Function} addDebugInfo - Optional debug callback function
+ * Check if native iOS scanner is available with comprehensive debugging
+ * @param {Function} debugCallback - Function to receive debug messages
  * @returns {Promise<boolean>} True if native scanning is available
  */
-// We need to pass the debug function from the scanner component
-export const isNativeScannerAvailable = async (addDebugInfo = null) => {
+export const isNativeScannerAvailable = async (debugCallback = null) => {
+    const debug = debugCallback || console.log;
+
     try {
-        if (addDebugInfo) addDebugInfo('🔧 Testing native iOS scanner availability...');
+        debug('STEP 1: Platform Detection');
+        debug('Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
+        debug('Capacitor.getPlatform():', Capacitor.getPlatform());
 
-        if (!PlatformDetection.isIOS()) {
-            addDebugInfo('❌ Not iOS platform');
+        // Must be on native iOS platform
+        if (!Capacitor.isNativePlatform()) {
+            debug('FAILED: Not a native platform');
             return false;
         }
 
-        if (!PlatformDetection.isRunningInMobileApp()) {
-            addDebugInfo('❌ Not running in native mobile app');
+        if (Capacitor.getPlatform() !== 'ios') {
+            debug('FAILED: Not iOS platform, got:', Capacitor.getPlatform());
             return false;
         }
 
-        // First check if we're on a native platform
-        if (!Capacitor.isNativePlatform() || Capacitor.getPlatform() !== 'ios') {
-            if (addDebugInfo) addDebugInfo('❌ Not on native iOS platform', {
-                isNative: Capacitor.isNativePlatform(),
-                platform: Capacitor.getPlatform()
-            });
+        debug('✅ STEP 1 PASSED: Platform is native iOS');
+
+        debug('STEP 2: Plugin Registration Check');
+        debug('NativeScannerBridge object:', typeof NativeScannerBridge);
+        debug('NativeScannerBridge methods:', Object.keys(NativeScannerBridge || {}));
+
+        if (!NativeScannerBridge) {
+            debug('FAILED: NativeScannerBridge is null/undefined');
             return false;
         }
 
-        if (addDebugInfo) addDebugInfo('✅ Platform check passed - testing NativeScannerBridge...');
+        if (typeof NativeScannerBridge.checkPermissions !== 'function') {
+            debug('FAILED: checkPermissions method not found');
+            debug('Available methods:', Object.keys(NativeScannerBridge));
+            return false;
+        }
 
-        // Test if the native bridge responds
+        debug('✅ STEP 2 PASSED: Plugin object and methods found');
+
+        debug('STEP 3: Testing Plugin Call');
+
         try {
             const result = await NativeScannerBridge.checkPermissions();
-            if (addDebugInfo) addDebugInfo('✅ NativeScannerBridge responded successfully', result);
-            return result.nativeScanner === 'available';
-        } catch (bridgeError) {
-            if (addDebugInfo) addDebugInfo('❌ NativeScannerBridge test FAILED', {
-                error: bridgeError.message,
-                code: bridgeError.code,
-                type: typeof bridgeError
-            });
+            debug('✅ STEP 3 PASSED: Plugin call successful');
+            debug('Full result object:', JSON.stringify(result, null, 2));
+            debug('result.nativeScanner:', result.nativeScanner);
+            debug('result.camera:', result.camera);
+
+            const isAvailable = result && result.nativeScanner === 'available';
+            debug('Final availability result:', isAvailable);
+
+            return isAvailable;
+
+        } catch (pluginError) {
+            debug('FAILED STEP 3: Plugin call threw error');
+            debug('Error message:', pluginError.message);
+            debug('Error code:', pluginError.code);
+            debug('Full error object:', JSON.stringify(pluginError, Object.getOwnPropertyNames(pluginError), 2));
             return false;
         }
-    } catch (error) {
-        if (addDebugInfo) addDebugInfo('❌ Availability check completely failed', {
-            error: error.message,
-            stack: error.stack?.split('\n')[0]
-        });
+
+    } catch (outerError) {
+        debug('CATASTROPHIC FAILURE in isNativeScannerAvailable');
+        debug('Outer error:', outerError.message);
+        debug('Stack trace:', outerError.stack);
         return false;
     }
 };
 
 /**
  * Present the native iOS barcode scanner
- * @param {Object} options - Scanner options (currently ignored, native scanner uses optimal settings)
- * @returns {Promise<ScanResult>} Promise that resolves with scan result
  */
 export const presentNativeScanner = async (options = {}) => {
     try {
-        console.log('🍎 Presenting native iOS barcode scanner');
-
+        console.log('🍎 Calling NativeScannerBridge.presentNativeScanner');
         const result = await NativeScannerBridge.presentNativeScanner(options);
-        console.log('🍎 Native iOS scanner result:', result);
-
+        console.log('🍎 Native scanner result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
-        console.error('🍎 Native iOS scanner failed:', error);
+        console.error('🍎 Native scanner error:', error.message);
         throw error;
     }
 };
 
 /**
- * Check camera permissions (uses native iOS permission system)
- * @returns {Promise<PermissionStatus>} Promise that resolves with permission status
+ * Check permissions with detailed debugging
  */
 export const checkPermissions = async () => {
     try {
+        console.log('🍎 Calling NativeScannerBridge.checkPermissions');
         const result = await NativeScannerBridge.checkPermissions();
-        console.log('🍎 Native iOS camera permissions:', result);
+        console.log('🍎 Permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
-        console.error('🍎 Failed to check native iOS permissions:', error);
+        console.error('🍎 Permissions error:', error.message);
         throw error;
     }
 };
 
 /**
- * Request camera permissions (uses native iOS permission system)
- * @returns {Promise<PermissionStatus>} Promise that resolves with permission status
+ * Request permissions with detailed debugging
  */
 export const requestPermissions = async () => {
     try {
+        console.log('🍎 Calling NativeScannerBridge.requestPermissions');
         const result = await NativeScannerBridge.requestPermissions();
-        console.log('🍎 Native iOS camera permissions requested:', result);
+        console.log('🍎 Request permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
-        console.error('🍎 Failed to request native iOS permissions:', error);
+        console.error('🍎 Request permissions error:', error.message);
         throw error;
     }
 };
 
-// Legacy function names for compatibility
-export const scanBarcode = async (options = {}) => {
-    return await presentNativeScanner(options);
+// Test function for debugging
+export const testPluginConnection = async (debugCallback) => {
+    const debug = debugCallback || console.log;
+
+    debug('=== PLUGIN CONNECTION TEST ===');
+
+    debug('1. Capacitor Info:');
+    debug('  - Native Platform:', Capacitor.isNativePlatform());
+    debug('  - Platform:', Capacitor.getPlatform());
+    debug('  - Plugin Info:', Capacitor.getPlugins ? Capacitor.getPlugins() : 'getPlugins not available');
+
+    debug('2. Plugin Object:');
+    debug('  - Type:', typeof NativeScannerBridge);
+    debug('  - Null check:', NativeScannerBridge === null);
+    debug('  - Undefined check:', NativeScannerBridge === undefined);
+    debug('  - Methods:', Object.keys(NativeScannerBridge || {}));
+
+    debug('3. Direct Method Test:');
+    try {
+        if (NativeScannerBridge && typeof NativeScannerBridge.checkPermissions === 'function') {
+            debug('  - checkPermissions method found, calling...');
+            const result = await NativeScannerBridge.checkPermissions();
+            debug('  - ✅ SUCCESS:', JSON.stringify(result, null, 2));
+            return true;
+        } else {
+            debug('  - ❌ checkPermissions method not found or not a function');
+            return false;
+        }
+    } catch (error) {
+        debug('  - ❌ Method call failed:', error.message);
+        return false;
+    }
 };
 
-/**
- * Error types that can be returned by the native scanner
- */
-export const ScannerErrors = {
-    PERMISSION_DENIED: 'PERMISSION_DENIED',
-    CAMERA_ERROR: 'CAMERA_ERROR',
-    USER_CANCELLED: 'USER_CANCELLED',
-    SCANNER_NOT_AVAILABLE: 'SCANNER_NOT_AVAILABLE',
-    PRESENTATION_ERROR: 'PRESENTATION_ERROR'
-};
-
-export { NativeScannerBridge };
+export const scanBarcode = presentNativeScanner;
+export default NativeScannerBridge;

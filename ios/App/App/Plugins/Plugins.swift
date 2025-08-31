@@ -8,7 +8,6 @@ public func registerPlugins() -> [CAPPlugin.Type] {
     NSLog("🍎 Registering custom plugins...")
     let plugins: [CAPPlugin.Type] = [
         NativeScannerBridge.self,
-        NativeBarcodeScannerViewController.self,
         HapticFeedback.self
     ]
     NSLog("🍎 Found %d plugins to register", plugins.count)

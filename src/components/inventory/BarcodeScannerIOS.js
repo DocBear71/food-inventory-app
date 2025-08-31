@@ -9,7 +9,6 @@ import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureG
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
 import { PlatformDetection } from '@/utils/PlatformDetection';
-import { registerPlugin } from '@capacitor/core';
 
 // Plugin detection with fallback handling
 let nativeBarcodeScanner = null;
@@ -144,6 +143,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const testNativeBridge = useCallback(async () => {
         try {
             addDebugInfo('DIRECT TEST: Importing registerPlugin from Capacitor');
+            const { registerPlugin } = await import('@capacitor/core');
 
             addDebugInfo('DIRECT TEST: Registering NativeScannerBridge directly');
             const DirectBridge = registerPlugin('NativeScannerBridge');
@@ -191,7 +191,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 addDebugInfo('Platform is iOS + Native - testing bridge directly');
                 const bridgeWorks = await testNativeBridge();
                 addDebugInfo('Direct bridge test result', { bridgeWorks });
-
 
                 if (nativeBarcodeScanner !== null) {
                     addDebugInfo('✅ Native scanner module loaded, testing availability');
@@ -966,6 +965,20 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                     className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded"
                                 >
                                     {showDebug ? 'Hide Debug' : 'Show Debug Info'}
+                                </TouchEnhancedButton>
+
+                                <TouchEnhancedButton
+                                    onClick={async () => {
+                                        addDebugInfo('=== STARTING PLUGIN CONNECTION TEST ===');
+
+                                        const { testPluginConnection } = await import('@/plugins/native-barcode-scanner');
+                                        const success = await testPluginConnection(addDebugInfo);
+
+                                        addDebugInfo(`Plugin connection test result: ${success ? 'SUCCESS' : 'FAILED'}`);
+                                    }}
+                                    className="mt-2 bg-yellow-600 hover:bg-yellow-700 text-white px-3 py-1 rounded text-sm"
+                                >
+                                    TEST PLUGIN CONNECTION
                                 </TouchEnhancedButton>
                             </div>
 

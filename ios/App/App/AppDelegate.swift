@@ -1,3 +1,5 @@
+// file: ios/App/App/AppDelegate.swift v3 - Properly configured for custom plugins
+
 import UIKit
 import Capacitor
 
@@ -6,6 +8,10 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     var window: UIWindow?
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
+
+        // Debug: Log app startup and plugin registration
+        NSLog("📱 App starting - registering custom plugins")
+
         return true
     }
 
