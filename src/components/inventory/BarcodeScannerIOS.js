@@ -9,7 +9,7 @@ import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureG
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
 import { PlatformDetection } from '@/utils/PlatformDetection';
-import MinimalNativeScanner from "@/plugins/minimal-native-scanner-test.js";
+// import MinimalNativeScanner from "@/plugins/minimal-native-scanner-test.js";
 
 // Plugin detection with fallback handling
 let DirectNativeScanner = null;
@@ -867,9 +867,9 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         return null;
     }
 
-    if (showDebug) {
-        return <MinimalNativeScanner />;
-    }
+    // if (showDebug) {
+    //     return <MinimalNativeScanner />;
+    // }
 
     return (
         <FeatureGate
