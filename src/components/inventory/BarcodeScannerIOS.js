@@ -9,7 +9,7 @@ import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureG
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
 import { PlatformDetection } from '@/utils/PlatformDetection';
-import JavaScriptDiagnosticTester from '@/components/debug/JavaScriptDiagnosticTester';
+import MinimalNativeScanner from "@/plugins/minimal-native-scanner-test.js";
 
 // Plugin detection with fallback handling
 let DirectNativeScanner = null;
@@ -868,7 +868,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     }
 
     if (showDebug) {
-        return <JavaScriptDiagnosticTester />;
+        return <MinimalNativeScanner />;
     }
 
     return (
@@ -921,67 +921,67 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
                             {/* Debug Toggle */}
                             <div className="mt-2">
-                                <TouchEnhancedButton
-                                    onClick={() => setShowDebug(!showDebug)}
-                                    className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded"
-                                >
-                                    {showDebug ? 'Hide Debug' : 'Show Debug Info'}
-                                </TouchEnhancedButton>
+                            {/*    <TouchEnhancedButton*/}
+                            {/*        onClick={() => setShowDebug(!showDebug)}*/}
+                            {/*        className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded"*/}
+                            {/*    >*/}
+                            {/*        {showDebug ? 'Hide Debug' : 'Show Debug Info'}*/}
+                            {/*    </TouchEnhancedButton>*/}
 
-                                {/*// REPLACE the VISUAL PLUGIN DEBUG button with:*/}
-                                <TouchEnhancedButton
-                                    onClick={async () => {
-                                        addDebugInfo('=== COMPREHENSIVE WEBKIT BRIDGE TEST ===');
+                            {/*    /!* REPLACE the VISUAL PLUGIN DEBUG button with:*!/*/}
+                            {/*    <TouchEnhancedButton*/}
+                            {/*        onClick={async () => {*/}
+                            {/*            addDebugInfo('=== COMPREHENSIVE WEBKIT BRIDGE TEST ===');*/}
 
-                                        const { testWebKitBridge } = await import('@/plugins/visual-webkit-tester');
-                                        const results = await testWebKitBridge(addDebugInfo);
+                            {/*            const { testWebKitBridge } = await import('@/plugins/visual-webkit-tester');*/}
+                            {/*            const results = await testWebKitBridge(addDebugInfo);*/}
 
-                                        addDebugInfo('WEBKIT TEST SUMMARY:', {
-                                            success: results.summary.success,
-                                            reason: results.summary.reason,
-                                            step1_platform: results.step1.status,
-                                            step2_webkit: results.step2.status,
-                                            step3_bridge: results.step3.status,
-                                            step4_communication: results.step4.status,
-                                            step5_timing: results.step5.status,
-                                            availableBridges: results.step3.details.availableBridges,
-                                            recommendations: results.summary.recommendations
-                                        });
+                            {/*            addDebugInfo('WEBKIT TEST SUMMARY:', {*/}
+                            {/*                success: results.summary.success,*/}
+                            {/*                reason: results.summary.reason,*/}
+                            {/*                step1_platform: results.step1.status,*/}
+                            {/*                step2_webkit: results.step2.status,*/}
+                            {/*                step3_bridge: results.step3.status,*/}
+                            {/*                step4_communication: results.step4.status,*/}
+                            {/*                step5_timing: results.step5.status,*/}
+                            {/*                availableBridges: results.step3.details.availableBridges,*/}
+                            {/*                recommendations: results.summary.recommendations*/}
+                            {/*            });*/}
 
-                                        // ADD THE MANUAL REGISTRATION ATTEMPT HERE
-                                        addDebugInfo('=== MANUAL REGISTRATION ATTEMPT ===');
+                            {/*            // ADD THE MANUAL REGISTRATION ATTEMPT HERE*/}
+                            {/*            addDebugInfo('=== MANUAL REGISTRATION ATTEMPT ===');*/}
 
-                                        try {
-                                            const { Capacitor } = await import('@capacitor/core');
-                                            addDebugInfo('Capacitor platform:', Capacitor.getPlatform());
-                                            addDebugInfo('Capacitor native:', Capacitor.isNativePlatform());
+                            {/*            try {*/}
+                            {/*                const { Capacitor } = await import('@capacitor/core');*/}
+                            {/*                addDebugInfo('Capacitor platform:', Capacitor.getPlatform());*/}
+                            {/*                addDebugInfo('Capacitor native:', Capacitor.isNativePlatform());*/}
 
-                                            // Wait and check again
-                                            setTimeout(() => {
-                                                const handlers = window.webkit?.messageHandlers ?
-                                                    Object.keys(window.webkit.messageHandlers) : [];
-                                                addDebugInfo('Message handlers after delay:', handlers);
+                            {/*                // Wait and check again*/}
+                            {/*                setTimeout(() => {*/}
+                            {/*                    const handlers = window.webkit?.messageHandlers ?*/}
+                            {/*                        Object.keys(window.webkit.messageHandlers) : [];*/}
+                            {/*                    addDebugInfo('Message handlers after delay:', handlers);*/}
 
-                                                if (handlers.length === 0) {
-                                                    addDebugInfo('DIAGNOSIS: Swift registration completely failed');
-                                                    addDebugInfo('LIKELY CAUSE: ViewController.swift not calling registerWithWebView');
-                                                } else {
-                                                    addDebugInfo('SUCCESS: Found message handlers:', handlers);
-                                                }
-                                            }, 2000);
+                            {/*                    if (handlers.length === 0) {*/}
+                            {/*                        addDebugInfo('DIAGNOSIS: Swift registration completely failed');*/}
+                            {/*                        addDebugInfo('LIKELY CAUSE: ViewController.swift not calling registerWithWebView');*/}
+                            {/*                    } else {*/}
+                            {/*                        addDebugInfo('SUCCESS: Found message handlers:', handlers);*/}
+                            {/*                    }*/}
+                            {/*                }, 2000);*/}
 
-                                        } catch (error) {
-                                            addDebugInfo('Capacitor test failed:', error.message);
-                                        }
-                                    }}
-                                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
-                                >
-                                    WEBKIT BRIDGE TEST
-                                </TouchEnhancedButton>
+                            {/*            } catch (error) {*/}
+                            {/*                addDebugInfo('Capacitor test failed:', error.message);*/}
+                            {/*            }*/}
+                            {/*        }}*/}
+                            {/*        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"*/}
+                            {/*    >*/}
+                            {/*        WEBKIT BRIDGE TEST*/}
+                            {/*    </TouchEnhancedButton>*/}
 
-                                <button onClick={() => setShowVisualDebugger(true)}>
-                                    🔧 Visual Plugin Debug
-                                </button>
+                            {/*    <button onClick={() => setShowVisualDebugger(true)}>*/}
+                            {/*        🔧 Visual Plugin Debug*/}
+                            {/*    </button>*/}
 
                                 <button
                                     onClick={async () => {
