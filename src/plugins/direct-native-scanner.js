@@ -30,7 +30,7 @@ class DirectNativeScanner {
             window.webkit.messageHandlers;
 
         this.isAvailable = isCapacitorIOS &&
-            window.webkit.messageHandlers.nativeScannerBridge;
+            window.webkit.messageHandlers.MinimalNativeScanner;
 
         console.log('Direct Native Scanner availability:', this.isAvailable);
         console.log('Capacitor iOS detected:', isCapacitorIOS);
@@ -47,7 +47,7 @@ class DirectNativeScanner {
 
         try {
             const message = { action, ...data };
-            window.webkit.messageHandlers.nativeScannerBridge.postMessage(message);
+            window.webkit.messageHandlers.MinimalNativeScanner.postMessage(message);
             console.log('Sent to native:', message);
             return Promise.resolve();
         } catch (error) {
@@ -170,7 +170,7 @@ class DirectNativeScanner {
         debug('  - iOS:', PlatformDetection.isIOS());
         debug('  - Native app:', PlatformDetection.isRunningInMobileApp());
         debug('  - WebKit available:', !!(window.webkit && window.webkit.messageHandlers));
-        debug('  - Bridge available:', !!(window.webkit?.messageHandlers?.nativeScannerBridge));
+        debug('  - Bridge available:', !!(window.webkit?.messageHandlers?.MinimalNativeScanner));
         debug('  - Overall available:', this.isAvailable);
 
         if (!this.isAvailable) {

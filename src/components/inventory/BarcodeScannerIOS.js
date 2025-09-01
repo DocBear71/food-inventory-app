@@ -16,6 +16,8 @@ import {
     testDirectNativeConnection
 } from '@/plugins/direct-native-scanner';
 
+import VisualPluginDebugger from '@/components/debug/VisualPluginDebugger';
+
 // Plugin detection with fallback handling
 let DirectNativeScanner = null;
 let capacitorBarcodeScanner = null;
@@ -106,6 +108,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     // Subscription hooks
     const subscription = useSubscription();
     const [usageInfo, setUsageInfo] = useState(null);
+    const [showVisualDebugger, setShowVisualDebugger] = useState(false);
 
     // Helper function to add debug information - ENHANCED for visual debugging
     const addDebugInfo = useCallback((message, data = null) => {
@@ -871,6 +874,10 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         return null;
     }
 
+    if (showDebug) {
+        return <VisualPluginDebugger />;
+    }
+
     return (
         <FeatureGate
             feature={FEATURE_GATES.UPC_SCANNING}
@@ -978,6 +985,10 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                 >
                                     WEBKIT BRIDGE TEST
                                 </TouchEnhancedButton>
+
+                                <button onClick={() => setShowVisualDebugger(true)}>
+                                    🔧 Visual Plugin Debug
+                                </button>
                             </div>
 
                             {/* Debug Information Display */}

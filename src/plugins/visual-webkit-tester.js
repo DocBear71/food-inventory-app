@@ -44,7 +44,7 @@ export const testWebKitBridge = async (displayCallback) => {
         debug('STEP 2 - WebKit:', results.step2.details);
 
         // Step 3: Specific Message Handler Detection
-        const bridgeName = 'nativeScannerBridge';
+        const bridgeName = 'MinimalNativeScanner';
         results.step3.details = {
             bridgeName: bridgeName,
             bridgeExists: !!(window.webkit?.messageHandlers?.[bridgeName]),
@@ -150,7 +150,7 @@ export const testWebKitBridge = async (displayCallback) => {
             results.summary.recommendations = ["App may not be running in proper WebView context"];
         } else if (results.step3.status === "FAIL") {
             results.summary.success = false;
-            results.summary.reason = "nativeScannerBridge message handler not registered";
+            results.summary.reason = "MinimalNativeScanner message handler not registered";
             results.summary.recommendations = [
                 "Check Swift NativeScannerManager registration",
                 "Verify ViewController.swift calls registerWithWebView",
