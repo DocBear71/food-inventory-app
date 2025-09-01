@@ -982,6 +982,33 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                 <button onClick={() => setShowVisualDebugger(true)}>
                                     🔧 Visual Plugin Debug
                                 </button>
+
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            console.log('Testing MinimalNativeScanner...');
+                                            const { testMinimalNativeScannerCapacitor7 } = await import('/src/plugins/minimal-native-scanner-test.js');
+                                            const results = await testMinimalNativeScannerCapacitor7();
+                                            console.log('Test results:', results);
+                                            alert(`Test completed: ${results.summary.success ? 'SUCCESS' : 'FAILED'}\n\n${results.summary.reason}`);
+                                        } catch (error) {
+                                            console.error('Test import failed:', error);
+                                            alert(`Import failed: ${error.message}`);
+                                        }
+                                    }}
+                                    style={{
+                                        backgroundColor: '#10B981',
+                                        color: 'white',
+                                        border: 'none',
+                                        padding: '12px 24px',
+                                        borderRadius: '8px',
+                                        fontSize: '16px',
+                                        cursor: 'pointer',
+                                        margin: '10px'
+                                    }}
+                                >
+                                    🧪 Test Capacitor 7.0 Plugin
+                                </button>
                             </div>
 
                             {/* Debug Information Display */}
