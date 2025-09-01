@@ -152,7 +152,6 @@ export const testWebKitBridge = async (displayCallback) => {
             results.summary.success = false;
             results.summary.reason = "MinimalNativeScanner message handler not registered";
             results.summary.recommendations = [
-                "Check Swift NativeScannerManager registration",
                 "Verify ViewController.swift calls registerWithWebView",
                 "Rebuild iOS app completely"
             ];

@@ -1,4 +1,4 @@
-// file: ios/App/App/Plugins/MinimalNativeScanner.swift v1 - Clean implementation avoiding all Capacitor conflicts
+// file: ios/App/App/Plugins/MinimalNativeScanner.swift v3 - Self-logging for remote debugging
 
 import Foundation
 import Capacitor
@@ -11,23 +11,85 @@ public class MinimalNativeScanner: CAPPlugin {
     private var currentCall: CAPPluginCall?
     private var nativeScannerVC: NativeBarcodeScannerViewController?
 
-    public override func load() {
-        super.load()
-        NSLog("🍎 MinimalNativeScanner loaded - Pure iOS implementation")
+    // Self-logging system for remote debugging
+    private static var diagnosticLogs: [String] = []
+
+    private func addDiagnosticLog(_ message: String) {
+        let timestamp = DateFormatter().string(from: Date())
+        let logEntry = "[\(timestamp)] \(message)"
+        MinimalNativeScanner.diagnosticLogs.append(logEntry)
+        NSLog("🎯 %@", message) // Still log to system in case it helps
+
+        // Keep only last 50 log entries to prevent memory issues
+        if MinimalNativeScanner.diagnosticLogs.count > 50 {
+            MinimalNativeScanner.diagnosticLogs.removeFirst()
+        }
     }
 
-    // Custom method names to avoid any Capacitor conflicts
+    public override func load() {
+        super.load()
+        addDiagnosticLog("MinimalNativeScanner load() called - Plugin initializing")
+
+        // Test method registration
+        let methodNames = ["scanWithNativeCamera", "getCameraStatus", "requestCameraAccess", "testMethod", "getDiagnosticLogs"]
+
+        addDiagnosticLog("Testing method registration:")
+        for methodName in methodNames {
+            let selector = NSSelectorFromString("\(methodName):")
+            let responds = self.responds(to: selector)
+            addDiagnosticLog("Method '\(methodName)' responds: \(responds ? "YES" : "NO")")
+        }
+
+        addDiagnosticLog("Plugin class: \(String(describing: type(of: self)))")
+        addDiagnosticLog("Plugin superclass: \(String(describing: type(of: self).superclass()))")
+        addDiagnosticLog("MinimalNativeScanner initialization complete")
+    }
+
+    // NEW: Method to retrieve diagnostic logs for display in app
+    @objc func getDiagnosticLogs(_ call: CAPPluginCall) {
+        addDiagnosticLog("getDiagnosticLogs called - returning \(MinimalNativeScanner.diagnosticLogs.count) log entries")
+
+        call.resolve([
+            "success": true,
+            "logs": MinimalNativeScanner.diagnosticLogs,
+            "count": MinimalNativeScanner.diagnosticLogs.count,
+            "timestamp": Date().timeIntervalSince1970
+        ])
+    }
+
+    // DIAGNOSTIC: Simple test method
+    @objc func testMethod(_ call: CAPPluginCall) {
+        addDiagnosticLog("testMethod called successfully - Bridge is working!")
+
+        call.resolve([
+            "success": true,
+            "message": "MinimalNativeScanner testMethod working",
+            "timestamp": Date().timeIntervalSince1970,
+            "methodsAvailable": [
+                "testMethod": "working",
+                "getDiagnosticLogs": "working",
+                "scanWithNativeCamera": "available",
+                "getCameraStatus": "available",
+                "requestCameraAccess": "available"
+            ]
+        ])
+    }
+
     @objc func scanWithNativeCamera(_ call: CAPPluginCall) {
-        NSLog("🍎 Starting native camera scan")
+        addDiagnosticLog("scanWithNativeCamera called")
         currentCall = call
 
         DispatchQueue.main.async {
+            self.addDiagnosticLog("Dispatched to main queue for camera check")
             self.checkCameraAndPresent()
         }
     }
 
     @objc func getCameraStatus(_ call: CAPPluginCall) {
+        addDiagnosticLog("getCameraStatus called")
+
         let cameraAuthStatus = AVCaptureDevice.authorizationStatus(for: .video)
+        addDiagnosticLog("Camera auth status: \(cameraAuthStatus.rawValue)")
 
         var status: String
         switch cameraAuthStatus {
@@ -41,72 +103,88 @@ public class MinimalNativeScanner: CAPPlugin {
             status = "prompt"
         }
 
+        addDiagnosticLog("Returning camera status: \(status)")
+
         call.resolve([
             "camera": status,
-            "nativeScanner": "available"
+            "nativeScanner": "available",
+            "diagnostic": "getCameraStatus completed successfully",
+            "rawAuthStatus": cameraAuthStatus.rawValue
         ])
     }
 
     @objc func requestCameraAccess(_ call: CAPPluginCall) {
-        AVCaptureDevice.requestAccess(for: .video) { granted in
+        addDiagnosticLog("requestCameraAccess called")
+
+        AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+            self?.addDiagnosticLog("Camera access request completed - granted: \(granted)")
+
             DispatchQueue.main.async {
                 call.resolve([
                     "camera": granted ? "granted" : "denied",
-                    "nativeScanner": "available"
+                    "nativeScanner": "available",
+                    "diagnostic": "requestCameraAccess completed"
                 ])
             }
         }
     }
 
     private func checkCameraAndPresent() {
+        addDiagnosticLog("checkCameraAndPresent called")
+
         let cameraAuthStatus = AVCaptureDevice.authorizationStatus(for: .video)
 
         switch cameraAuthStatus {
         case .authorized:
+            addDiagnosticLog("Camera authorized - presenting scanner")
             presentNativeScanner()
         case .notDetermined:
+            addDiagnosticLog("Camera permission not determined - requesting access")
             AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
                 DispatchQueue.main.async {
                     if granted {
+                        self?.addDiagnosticLog("Camera access granted after request")
                         self?.presentNativeScanner()
                     } else {
+                        self?.addDiagnosticLog("Camera access denied after request")
                         self?.currentCall?.reject("Camera permission denied", "PERMISSION_DENIED")
                         self?.currentCall = nil
                     }
                 }
             }
         case .denied, .restricted:
+            addDiagnosticLog("Camera access denied or restricted")
             currentCall?.reject("Camera permission required. Please enable camera access in Settings.", "PERMISSION_DENIED")
             currentCall = nil
         @unknown default:
+            addDiagnosticLog("Unknown camera permission status")
             currentCall?.reject("Unknown camera permission status", "PERMISSION_ERROR")
             currentCall = nil
         }
     }
 
     private func presentNativeScanner() {
-        // Create the native scanner
+        addDiagnosticLog("presentNativeScanner called - creating scanner view controller")
+
         nativeScannerVC = NativeBarcodeScannerViewController()
         nativeScannerVC?.delegate = self
 
-        // Present it modally with native iOS presentation style
         nativeScannerVC?.modalPresentationStyle = .fullScreen
         nativeScannerVC?.modalTransitionStyle = .coverVertical
 
-        // Find the root view controller and present
         if let rootViewController = UIApplication.shared.windows.first?.rootViewController {
             var topController = rootViewController
 
-            // Find the topmost view controller
             while let presentedViewController = topController.presentedViewController {
                 topController = presentedViewController
             }
 
-            // Present the native scanner
+            addDiagnosticLog("Presenting scanner view controller")
             topController.present(nativeScannerVC!, animated: true) {
-                NSLog("🍎 Native barcode scanner presented successfully")
+                self.addDiagnosticLog("Scanner view controller presented successfully")
             }
         } else {
+            addDiagnosticLog("ERROR: Could not find root view controller")
             currentCall?.reject("Could not present scanner", "PRESENTATION_ERROR")
             currentCall = nil
         }
@@ -117,9 +195,8 @@ public class MinimalNativeScanner: CAPPlugin {
 extension MinimalNativeScanner: NativeBarcodeScannerDelegate {
 
     func barcodeScannerDidScanBarcode(_ barcode: String, format: String) {
-        NSLog("🍎 Native scanner detected barcode: %@ (format: %@)", barcode, format)
+        addDiagnosticLog("Barcode scanned: \(barcode) format: \(format)")
 
-        // Return success result to JavaScript
         currentCall?.resolve([
             "hasContent": true,
             "content": barcode,
@@ -133,9 +210,8 @@ extension MinimalNativeScanner: NativeBarcodeScannerDelegate {
     }
 
     func barcodeScannerDidCancel() {
-        NSLog("🍎 Native scanner cancelled by user")
+        addDiagnosticLog("Scanner cancelled by user")
 
-        // Return cancelled result to JavaScript
         currentCall?.resolve([
             "hasContent": false,
             "content": "",
@@ -149,9 +225,8 @@ extension MinimalNativeScanner: NativeBarcodeScannerDelegate {
     }
 
     func barcodeScannerDidFail(with error: String) {
-        NSLog("🍎 Native scanner failed: %@", error)
+        addDiagnosticLog("Scanner failed with error: \(error)")
 
-        // Return error to JavaScript
         currentCall?.reject("Scanner failed", "SCANNER_ERROR", NSError(domain: "ScannerError", code: 1, userInfo: [NSLocalizedDescriptionKey: error]))
 
         currentCall = nil

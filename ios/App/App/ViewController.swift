@@ -9,12 +9,7 @@ class ViewController: CAPBridgeViewController {
     }
 
     override func capacitorDidLoad() {
-        // Register the direct native scanner manager
-        if let webView = self.webView {
-            NativeScannerManager.shared.registerWithWebView(webView, viewController: self)
-            NSLog("🍎 Direct native scanner registered successfully")
-        } else {
-            NSLog("❌ WebView not available for native scanner registration")
-        }
+        super.capacitorDidLoad()
+        NSLog("🍎 ViewController loaded - Capacitor plugins registered")
     }
 }
