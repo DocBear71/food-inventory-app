@@ -3,7 +3,7 @@
 import { registerPlugin } from '@capacitor/core';
 import { Capacitor } from '@capacitor/core';
 
-const NativeScannerBridge = registerPlugin('NativeScannerBridge');
+const MinimalNativeScanner = registerPlugin('MinimalNativeScanner');
 
 /**
  * Visual plugin debugger that shows results on screen
@@ -31,18 +31,18 @@ export const visualPluginDebug = async (displayCallback) => {
 
         // Step 2: Plugin Object Check
         results.step2.details = {
-            exists: NativeScannerBridge !== null && NativeScannerBridge !== undefined,
-            type: typeof NativeScannerBridge,
-            isNull: NativeScannerBridge === null,
-            isUndefined: NativeScannerBridge === undefined
+            exists: MinimalNativeScanner !== null && MinimalNativeScanner !== undefined,
+            type: typeof MinimalNativeScanner,
+            isNull: MinimalNativeScanner === null,
+            isUndefined: MinimalNativeScanner === undefined
         };
-        results.step2.status = (NativeScannerBridge && typeof NativeScannerBridge === 'object') ? "PASS" : "FAIL";
+        results.step2.status = (MinimalNativeScanner && typeof MinimalNativeScanner === 'object') ? "PASS" : "FAIL";
 
         // Step 3: Method Discovery
-        const methods = NativeScannerBridge ? Object.keys(NativeScannerBridge) : [];
-        const expectedMethods = ['presentNativeScanner', 'getCameraPermissions', 'requestCameraPermissions'];
+        const methods = MinimalNativeScanner ? Object.keys(MinimalNativeScanner) : [];
+        const expectedMethods = ['scanWithNativeCamera', 'getCameraStatus', 'requestCameraAccess'];
         const foundMethods = expectedMethods.filter(method =>
-            NativeScannerBridge && typeof NativeScannerBridge[method] === 'function'
+            MinimalNativeScanner && typeof MinimalNativeScanner[method] === 'function'
         );
 
         results.step3.details = {
@@ -54,8 +54,8 @@ export const visualPluginDebug = async (displayCallback) => {
 
         // Check each expected method
         expectedMethods.forEach(methodName => {
-            if (NativeScannerBridge && NativeScannerBridge[methodName]) {
-                results.step3.details.methodTypes[methodName] = typeof NativeScannerBridge[methodName];
+            if (MinimalNativeScanner && MinimalNativeScanner[methodName]) {
+                results.step3.details.methodTypes[methodName] = typeof MinimalNativeScanner[methodName];
             } else {
                 results.step3.details.methodTypes[methodName] = "NOT_FOUND";
             }
@@ -66,11 +66,11 @@ export const visualPluginDebug = async (displayCallback) => {
         // Step 4: Method Test (only if we found methods)
         if (foundMethods.length > 0) {
             try {
-                // Test the simplest method first - getCameraPermissions
-                if (foundMethods.includes('getCameraPermissions')) {
-                    const permissionResult = await NativeScannerBridge.getCameraPermissions();
+                // Test the simplest method first - getCameraStatus
+                if (foundMethods.includes('getCameraStatus')) {
+                    const permissionResult = await MinimalNativeScanner.getCameraStatus();
                     results.step4.details = {
-                        testedMethod: "getCameraPermissions",
+                        testedMethod: "getCameraStatus",
                         result: permissionResult,
                         success: true
                     };
@@ -86,7 +86,7 @@ export const visualPluginDebug = async (displayCallback) => {
                 }
             } catch (methodError) {
                 results.step4.details = {
-                    testedMethod: "getCameraPermissions",
+                    testedMethod: "getCameraStatus",
                     result: null,
                     success: false,
                     error: {

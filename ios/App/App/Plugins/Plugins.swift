@@ -7,7 +7,7 @@ import Capacitor
 public func registerPlugins() -> [CAPPlugin.Type] {
     NSLog("🍎 Registering custom plugins...")
     let plugins: [CAPPlugin.Type] = [
-        NativeScannerBridge.self,
+        MinimalNativeScanner.self,
         HapticFeedback.self
     ]
     NSLog("🍎 Found %d plugins to register", plugins.count)

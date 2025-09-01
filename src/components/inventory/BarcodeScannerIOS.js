@@ -11,7 +11,7 @@ import { apiGet } from '@/lib/api-config';
 import { PlatformDetection } from '@/utils/PlatformDetection';
 
 // Plugin detection with fallback handling
-let NativeScannerBridge = null;
+let MinimalNativeScanner = null;
 let capacitorBarcodeScanner = null;
 let pluginLoadAttempted = false;
 
@@ -23,36 +23,36 @@ const initializeScanners = async (addDebugInfo) => {
     addDebugInfo('=== PLUGIN INITIALIZATION STARTED ===');
 
     try {
-        addDebugInfo('Attempting to import native iOS scanner from @/plugins/native-barcode-scanner');
-        const nativeModule = await import('@/plugins/native-barcode-scanner');
+        addDebugInfo('Attempting to import MinimalNativeScanner from @/plugins/minimal-native-scanner');
+        const nativeModule = await import('@/plugins/minimal-native-scanner');
         addDebugInfo('Native module import successful - checking exports', {
-            hasIsAvailable: typeof nativeModule.isNativeScannerAvailable === 'function',
-            hasScanBarcode: typeof nativeModule.presentNativeScanner === 'function',
-            hasCheckPermissions: typeof nativeModule.getCameraPermissions === 'function',
+            hasIsAvailable: typeof nativeModule.isMinimalScannerAvailable === 'function',
+            hasScanBarcode: typeof nativeModule.scanWithNativeCamera === 'function',
+            hasCheckPermissions: typeof nativeModule.getCameraStatus === 'function',
             exportedKeys: Object.keys(nativeModule)
         });
 
         // Test if the plugin is available with debug
-        if (nativeModule.isNativeScannerAvailable) {
-            addDebugInfo('Testing native scanner availability function with debug');
-            const isAvailable = await nativeModule.isNativeScannerAvailable(addDebugInfo);
-            addDebugInfo('Native scanner availability test result', { isAvailable });
+        if (nativeModule.isMinimalScannerAvailable) {
+            addDebugInfo('Testing minimal scanner availability function with debug');
+            const isAvailable = await nativeModule.isMinimalScannerAvailable(addDebugInfo);
+            addDebugInfo('Minimal scanner availability test result', { isAvailable });
 
             if (isAvailable) {
-                NativeScannerBridge = {
-                    getCameraPermissions: nativeModule.getCameraPermissions,
-                    requestCameraPermissions: nativeModule.requestCameraPermissions,
-                    presentNativeScanner: nativeModule.presentNativeScanner,
-                    isNativeScannerAvailable: nativeModule.isNativeScannerAvailable
+                MinimalNativeScanner = {
+                    getCameraStatus: nativeModule.getCameraStatus,
+                    requestCameraAccess: nativeModule.requestCameraAccess,
+                    scanWithNativeCamera: nativeModule.scanWithNativeCamera,
+                    isMinimalScannerAvailable: nativeModule.isMinimalScannerAvailable
                 };
-                addDebugInfo('SUCCESS: Native iOS scanner verified and loaded');
+                addDebugInfo('SUCCESS: Minimal native scanner verified and loaded');
             } else {
-                addDebugInfo('FAILED: Native scanner imported but availability test failed');
-                NativeScannerBridge = null;
+                addDebugInfo('FAILED: Minimal scanner imported but availability test failed');
+                MinimalNativeScanner = null;
             }
         } else {
-            addDebugInfo('FAILED: Missing isNativeScannerAvailable function in module');
-            NativeScannerBridge = null;
+            addDebugInfo('FAILED: Missing isMinimalScannerAvailable function in module');
+            MinimalNativeScanner = null;
         }
     } catch (error) {
         addDebugInfo('IMPORT FAILED: Could not load native scanner', {
@@ -60,7 +60,7 @@ const initializeScanners = async (addDebugInfo) => {
             code: error.code,
             stack: error.stack?.split('\n')[0] // Just first line of stack
         });
-        NativeScannerBridge = null;
+        MinimalNativeScanner = null;
     }
 
     try {
@@ -78,12 +78,12 @@ const initializeScanners = async (addDebugInfo) => {
     }
 
     addDebugInfo('=== PLUGIN INITIALIZATION COMPLETED ===', {
-        nativeAvailable: NativeScannerBridge !== null,
+        nativeAvailable: MinimalNativeScanner !== null,
         capacitorAvailable: capacitorBarcodeScanner !== null
     });
 
     // CRITICAL: Add summary of what happened to native scanner
-    if (NativeScannerBridge === null) {
+    if (MinimalNativeScanner === null) {
         addDebugInfo('🚨 NATIVE SCANNER FAILED - IMPORT OR AVAILABILITY TEST FAILED 🚨');
     } else {
         addDebugInfo('✅ NATIVE SCANNER SUCCESS - READY FOR USE');
@@ -145,8 +145,8 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             addDebugInfo('DIRECT TEST: Importing registerPlugin from Capacitor');
             const { registerPlugin } = await import('@capacitor/core');
 
-            addDebugInfo('DIRECT TEST: Registering NativeScannerBridge directly');
-            const DirectBridge = registerPlugin('NativeScannerBridge');
+            addDebugInfo('DIRECT TEST: Registering MinimalNativeScanner directly');
+            const DirectBridge = registerPlugin('MinimalNativeScanner');
 
             addDebugInfo('DIRECT TEST: Testing direct bridge call');
             const result = await DirectBridge.getCameraPermissions();
@@ -192,12 +192,12 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 const bridgeWorks = await testNativeBridge();
                 addDebugInfo('Direct bridge test result', { bridgeWorks });
 
-                if (NativeScannerBridge !== null) {
+                if (MinimalNativeScanner !== null) {
                     addDebugInfo('✅ Native scanner module loaded, testing availability');
 
                     try {
                         // Test if the native scanner actually works
-                        const isAvailable = await NativeScannerBridge.isNativeScannerAvailable();
+                        const isAvailable = await MinimalNativeScanner.isMinimalScannerAvailable();
                         addDebugInfo('🔧 Native scanner availability test completed', { isAvailable });
                         shouldUseNative = isAvailable === true;
                     } catch (testError) {
@@ -222,7 +222,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             setUseNativeScanner(shouldUseNative);
             addDebugInfo(`🔧 Final scanner selection: ${shouldUseNative ? 'Native iOS AVFoundation' : 'Capacitor fallback'}`, {
                 useNativeScanner: shouldUseNative,
-                nativeAvailable: NativeScannerBridge !== null,
+                nativeAvailable: MinimalNativeScanner !== null,
                 capacitorAvailable: capacitorBarcodeScanner !== null
             });
         };
@@ -549,7 +549,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const startNativeScan = useCallback(async () => {
         addDebugInfo('STARTING NATIVE iOS SCAN');
 
-        if (!NativeScannerBridge) {
+        if (!MinimalNativeScanner) {
             addDebugInfo('Native scanner not available, falling back to Capacitor');
             console.log('🍎 Native scanner not available, falling back to Capacitor');
             return startCapacitorScan();
@@ -565,7 +565,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             // Check permissions with proper error handling
             let permissions;
             try {
-                permissions = await NativeScannerBridge.getCameraPermissions();
+                permissions = await MinimalNativeScanner.getCameraStatus();
                 addDebugInfo('Permission check result', permissions);
                 console.log('🍎 Initial camera permissions:', permissions);
             } catch (permError) {
@@ -580,7 +580,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 console.log('🍎 Requesting camera permissions...');
 
                 try {
-                    permissions = await NativeScannerBridge.requestCameraPermissions();
+                    permissions = await MinimalNativeScanner.requestCameraAccess();
                     addDebugInfo('Permission request result', permissions);
                     console.log('🍎 Camera permissions after request:', permissions);
                 } catch (reqError) {
@@ -602,7 +602,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             setScanFeedback('🍎 Opening native iOS camera...');
 
             // Start native scan with proper timeout and error handling
-            const scanPromise = NativeScannerBridge.scanBarcode({
+            const scanPromise = MinimalNativeScanner.scanBarcode({
                 enableHapticFeedback: true,
                 enableAudioFeedback: true
             });
@@ -730,17 +730,17 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         addDebugInfo('=== STARTING SCAN SEQUENCE ===');
         addDebugInfo('Scanner availability check', {
             useNativeScanner,
-            nativeAvailable: NativeScannerBridge !== null,
+            nativeAvailable: MinimalNativeScanner !== null,
             capacitorAvailable: capacitorBarcodeScanner !== null
         });
 
         // Check if we should use native scanner and if it's actually available
-        if (useNativeScanner && NativeScannerBridge) {
+        if (useNativeScanner && MinimalNativeScanner) {
             try {
                 addDebugInfo('Presenting native iOS scanner modal');
 
                 // Present the completely native iOS scanner
-                const result = await NativeScannerBridge.presentNativeScanner({
+                const result = await MinimalNativeScanner.scanWithNativeCamera({
                     enableHapticFeedback: true,
                     enableAudioFeedback: true
                 });
@@ -967,28 +967,19 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                     {showDebug ? 'Hide Debug' : 'Show Debug Info'}
                                 </TouchEnhancedButton>
 
-                                // REPLACE the existing test button in your BarcodeScannerIOS.js with this:
+                                {/*// REPLACE the VISUAL PLUGIN DEBUG button with:*/}
                                 <TouchEnhancedButton
                                     onClick={async () => {
-                                        addDebugInfo('=== STARTING VISUAL PLUGIN DEBUG ===');
+                                        addDebugInfo('=== TESTING MINIMAL NATIVE SCANNER ===');
 
-                                        const { visualPluginDebug } = await import('@/plugins/visual-plugin-debugger');
-                                        const results = await visualPluginDebug(addDebugInfo);
+                                        const { testMinimalPluginConnection } = await import('@/plugins/minimal-native-scanner');
+                                        const success = await testMinimalPluginConnection(addDebugInfo);
 
-                                        // Show results in a way visible on iPad
-                                        addDebugInfo('FINAL DIAGNOSIS:', {
-                                            success: results.summary.success,
-                                            reason: results.summary.reason,
-                                            step1_platform: results.step1.status,
-                                            step2_plugin: results.step2.status,
-                                            step3_methods: results.step3.status,
-                                            step4_test: results.step4.status,
-                                            foundMethods: results.step3.details.foundMethods
-                                        });
+                                        addDebugInfo(`Minimal plugin test result: ${success ? 'SUCCESS' : 'FAILED'}`);
                                     }}
-                                    className="mt-2 bg-purple-600 hover:bg-purple-700 text-white px-3 py-1 rounded text-sm"
+                                    className="mt-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
                                 >
-                                    VISUAL PLUGIN DEBUG
+                                    TEST MINIMAL SCANNER
                                 </TouchEnhancedButton>
                             </div>
 
@@ -1014,7 +1005,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                         <div>useNativeScanner: {useNativeScanner ? 'true' : 'false'}</div>
                                         <div>hasError: {error ? 'true' : 'false'}</div>
                                         <div>platformReady: {platformInfo ? 'true' : 'false'}</div>
-                                        <div>nativeAvailable: {NativeScannerBridge ? 'true' : 'false'}</div>
+                                        <div>nativeAvailable: {MinimalNativeScanner ? 'true' : 'false'}</div>
                                         <div>capacitorAvailable: {capacitorBarcodeScanner ? 'true' : 'false'}</div>
                                         <div>scanInProgress: {scanInProgressRef.current ? 'true' : 'false'}</div>
                                         {platformInfo && (

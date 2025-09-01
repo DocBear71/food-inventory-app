@@ -6,7 +6,7 @@ import { Capacitor } from '@capacitor/core';
 /**
  * Native iOS Scanner Bridge
  */
-const NativeScannerBridge = registerPlugin('NativeScannerBridge');
+const MinimalNativeScanner = registerPlugin('MinimalNativeScanner');
 
 /**
  * Check if native iOS scanner is available with comprehensive debugging
@@ -35,17 +35,17 @@ export const isNativeScannerAvailable = async (debugCallback = null) => {
         debug('✅ STEP 1 PASSED: Platform is native iOS');
 
         debug('STEP 2: Plugin Registration Check');
-        debug('NativeScannerBridge object:', typeof NativeScannerBridge);
-        debug('NativeScannerBridge methods:', Object.keys(NativeScannerBridge || {}));
+        debug('MinimalNativeScanner object:', typeof MinimalNativeScanner);
+        debug('MinimalNativeScanner methods:', Object.keys(MinimalNativeScanner || {}));
 
-        if (!NativeScannerBridge) {
-            debug('FAILED: NativeScannerBridge is null/undefined');
+        if (!MinimalNativeScanner) {
+            debug('FAILED: MinimalNativeScanner is null/undefined');
             return false;
         }
 
-        if (typeof NativeScannerBridge.getCameraPermissions !== 'function') {
+        if (typeof MinimalNativeScanner.getCameraPermissions !== 'function') {
             debug('FAILED: getCameraPermissions method not found');
-            debug('Available methods:', Object.keys(NativeScannerBridge));
+            debug('Available methods:', Object.keys(MinimalNativeScanner));
             return false;
         }
 
@@ -54,7 +54,7 @@ export const isNativeScannerAvailable = async (debugCallback = null) => {
         debug('STEP 3: Testing Plugin Call');
 
         try {
-            const result = await NativeScannerBridge.getCameraPermissions();
+            const result = await MinimalNativeScanner.getCameraPermissions();
             debug('✅ STEP 3 PASSED: Plugin call successful');
             debug('Full result object:', JSON.stringify(result, null, 2));
             debug('result.nativeScanner:', result.nativeScanner);
@@ -86,8 +86,8 @@ export const isNativeScannerAvailable = async (debugCallback = null) => {
  */
 export const presentNativeScanner = async (options = {}) => {
     try {
-        console.log('🍎 Calling NativeScannerBridge.presentNativeScanner');
-        const result = await NativeScannerBridge.presentNativeScanner(options);
+        console.log('🍎 Calling MinimalNativeScanner.presentNativeScanner');
+        const result = await MinimalNativeScanner.presentNativeScanner(options);
         console.log('🍎 Native scanner result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
@@ -101,8 +101,8 @@ export const presentNativeScanner = async (options = {}) => {
  */
 export const getCameraPermissions = async () => {
     try {
-        console.log('🍎 Calling NativeScannerBridge.getCameraPermissions');
-        const result = await NativeScannerBridge.getCameraPermissions();
+        console.log('🍎 Calling MinimalNativeScanner.getCameraPermissions');
+        const result = await MinimalNativeScanner.getCameraPermissions();
         console.log('🍎 Permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
@@ -116,8 +116,8 @@ export const getCameraPermissions = async () => {
  */
 export const requestCameraPermissions = async () => {
     try {
-        console.log('🍎 Calling NativeScannerBridge.requestCameraPermissions');
-        const result = await NativeScannerBridge.requestCameraPermissions();
+        console.log('🍎 Calling MinimalNativeScanner.requestCameraPermissions');
+        const result = await MinimalNativeScanner.requestCameraPermissions();
         console.log('🍎 Request permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
@@ -138,16 +138,16 @@ export const testPluginConnection = async (debugCallback) => {
     debug('  - Plugin Info:', Capacitor.getPlugins ? Capacitor.getPlugins() : 'getPlugins not available');
 
     debug('2. Plugin Object:');
-    debug('  - Type:', typeof NativeScannerBridge);
-    debug('  - Null check:', NativeScannerBridge === null);
-    debug('  - Undefined check:', NativeScannerBridge === undefined);
-    debug('  - Methods:', Object.keys(NativeScannerBridge || {}));
+    debug('  - Type:', typeof MinimalNativeScanner);
+    debug('  - Null check:', MinimalNativeScanner === null);
+    debug('  - Undefined check:', MinimalNativeScanner === undefined);
+    debug('  - Methods:', Object.keys(MinimalNativeScanner || {}));
 
     debug('3. Direct Method Test:');
     try {
-        if (NativeScannerBridge && typeof NativeScannerBridge.getCameraPermissions === 'function') {
+        if (MinimalNativeScanner && typeof MinimalNativeScanner.getCameraPermissions === 'function') {
             debug('  - getCameraPermissions method found, calling...');
-            const result = await NativeScannerBridge.getCameraPermissions();
+            const result = await MinimalNativeScanner.getCameraPermissions();
             debug('  - ✅ SUCCESS:', JSON.stringify(result, null, 2));
             return true;
         } else {
@@ -161,4 +161,4 @@ export const testPluginConnection = async (debugCallback) => {
 };
 
 export const scanBarcode = presentNativeScanner;
-export default NativeScannerBridge;
+export default MinimalNativeScanner;
