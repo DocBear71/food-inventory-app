@@ -947,6 +947,32 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                             availableBridges: results.step3.details.availableBridges,
                                             recommendations: results.summary.recommendations
                                         });
+
+                                        // ADD THE MANUAL REGISTRATION ATTEMPT HERE
+                                        addDebugInfo('=== MANUAL REGISTRATION ATTEMPT ===');
+
+                                        try {
+                                            const { Capacitor } = await import('@capacitor/core');
+                                            addDebugInfo('Capacitor platform:', Capacitor.getPlatform());
+                                            addDebugInfo('Capacitor native:', Capacitor.isNativePlatform());
+
+                                            // Wait and check again
+                                            setTimeout(() => {
+                                                const handlers = window.webkit?.messageHandlers ?
+                                                    Object.keys(window.webkit.messageHandlers) : [];
+                                                addDebugInfo('Message handlers after delay:', handlers);
+
+                                                if (handlers.length === 0) {
+                                                    addDebugInfo('DIAGNOSIS: Swift registration completely failed');
+                                                    addDebugInfo('LIKELY CAUSE: ViewController.swift not calling registerWithWebView');
+                                                } else {
+                                                    addDebugInfo('SUCCESS: Found message handlers:', handlers);
+                                                }
+                                            }, 2000);
+
+                                        } catch (error) {
+                                            addDebugInfo('Capacitor test failed:', error.message);
+                                        }
                                     }}
                                     className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                                 >
