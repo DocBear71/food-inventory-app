@@ -931,18 +931,26 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                 {/*// REPLACE the VISUAL PLUGIN DEBUG button with:*/}
                                 <TouchEnhancedButton
                                     onClick={async () => {
-                                        addDebugInfo('=== TESTING DIRECT NATIVE SCANNER ===');
+                                        addDebugInfo('=== COMPREHENSIVE WEBKIT BRIDGE TEST ===');
 
-                                        if (DirectNativeScanner) {
-                                            const success = await DirectNativeScanner.testDirectNativeConnection(addDebugInfo);
-                                            addDebugInfo(`Direct native test result: ${success ? 'SUCCESS' : 'FAILED'}`);
-                                        } else {
-                                            addDebugInfo('Direct native scanner not available');
-                                        }
+                                        const { testWebKitBridge } = await import('@/plugins/visual-webkit-tester');
+                                        const results = await testWebKitBridge(addDebugInfo);
+
+                                        addDebugInfo('WEBKIT TEST SUMMARY:', {
+                                            success: results.summary.success,
+                                            reason: results.summary.reason,
+                                            step1_platform: results.step1.status,
+                                            step2_webkit: results.step2.status,
+                                            step3_bridge: results.step3.status,
+                                            step4_communication: results.step4.status,
+                                            step5_timing: results.step5.status,
+                                            availableBridges: results.step3.details.availableBridges,
+                                            recommendations: results.summary.recommendations
+                                        });
                                     }}
-                                    className="mt-2 bg-green-600 hover:bg-green-700 text-white px-3 py-1 rounded text-sm"
+                                    className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"
                                 >
-                                    TEST DIRECT NATIVE
+                                    WEBKIT BRIDGE TEST
                                 </TouchEnhancedButton>
                             </div>
 
