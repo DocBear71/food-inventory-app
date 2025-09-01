@@ -9,7 +9,7 @@ import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureG
 import {FEATURE_GATES} from '@/lib/subscription-config';
 import { apiGet } from '@/lib/api-config';
 import { PlatformDetection } from '@/utils/PlatformDetection';
-// import MinimalNativeScanner from "@/plugins/minimal-native-scanner-test.js";
+import VisualPluginDiagnostic from '@/components/debug/VisualPluginDiagnostic';
 
 // Plugin detection with fallback handling
 let DirectNativeScanner = null;
@@ -66,6 +66,7 @@ const initializeScanners = async (addDebugInfo) => {
 };
 
 import NativeNavigation from "@/components/mobile/NativeNavigation.js";
+import MinimalPluginTest from "@/components/debug/MinimalPluginTest.js";
 
 export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}) {
     const scannerContainerRef = useRef(null);
@@ -88,6 +89,8 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const [userRegion, setUserRegion] = useState('US');
     const [debugInfo, setDebugInfo] = useState([]);
     const [showDebug, setShowDebug] = useState(true); // Default to showing debug for troubleshooting
+    const [showVisualDiagnostic, setShowVisualDiagnostic] = useState(false);
+    const [showPluginTest, setShowPluginTest] = useState(false);
 
     // State management refs
     const mountedRef = useRef(true);
@@ -101,7 +104,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     // Subscription hooks
     const subscription = useSubscription();
     const [usageInfo, setUsageInfo] = useState(null);
-    const [showVisualDebugger, setShowVisualDebugger] = useState(false);
+    const [showEnhancedDebug, setShowEnhancedDebug] = useState(false);
 
     // Helper function to add debug information - ENHANCED for visual debugging
     const addDebugInfo = useCallback((message, data = null) => {
@@ -867,9 +870,61 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         return null;
     }
 
-    // if (showDebug) {
-    //     return <MinimalNativeScanner />;
-    // }
+    if (showEnhancedDebug) {
+        return (
+            <div style={{ position: 'relative' }}>
+                {/* Back button to return to scanner */}
+                <button
+                    onClick={() => setShowEnhancedDebug(false)}
+                    style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '20px',
+                        zIndex: 1000,
+                        backgroundColor: '#EF4444',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    ← Back to Scanner
+                </button>
+
+                <MinimalPluginTest />
+            </div>
+        );
+    }
+
+    if (showVisualDiagnostic) {
+        return (
+            <div style={{ position: 'relative' }}>
+                {/* Back button to return to scanner */}
+                <button
+                    onClick={() => setShowVisualDiagnostic(false)}
+                    style={{
+                        position: 'absolute',
+                        top: '20px',
+                        left: '20px',
+                        zIndex: 1000,
+                        backgroundColor: '#EF4444',
+                        color: 'white',
+                        border: 'none',
+                        padding: '10px 20px',
+                        borderRadius: '8px',
+                        fontSize: '14px',
+                        cursor: 'pointer'
+                    }}
+                >
+                    ← Back to Scanner
+                </button>
+
+                <VisualPluginDiagnostic />
+            </div>
+        );
+    }
 
     return (
         <FeatureGate
@@ -920,95 +975,46 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                             {scanFeedback || `${useNativeScanner ? 'Native AVFoundation' : 'Capacitor'} optimized for ${userRegion} region`}
 
                             {/* Debug Toggle */}
-                            <div className="mt-2">
-                            {/*    <TouchEnhancedButton*/}
-                            {/*        onClick={() => setShowDebug(!showDebug)}*/}
-                            {/*        className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded"*/}
-                            {/*    >*/}
-                            {/*        {showDebug ? 'Hide Debug' : 'Show Debug Info'}*/}
-                            {/*    </TouchEnhancedButton>*/}
-
-                            {/*    /!* REPLACE the VISUAL PLUGIN DEBUG button with:*!/*/}
-                            {/*    <TouchEnhancedButton*/}
-                            {/*        onClick={async () => {*/}
-                            {/*            addDebugInfo('=== COMPREHENSIVE WEBKIT BRIDGE TEST ===');*/}
-
-                            {/*            const { testWebKitBridge } = await import('@/plugins/visual-webkit-tester');*/}
-                            {/*            const results = await testWebKitBridge(addDebugInfo);*/}
-
-                            {/*            addDebugInfo('WEBKIT TEST SUMMARY:', {*/}
-                            {/*                success: results.summary.success,*/}
-                            {/*                reason: results.summary.reason,*/}
-                            {/*                step1_platform: results.step1.status,*/}
-                            {/*                step2_webkit: results.step2.status,*/}
-                            {/*                step3_bridge: results.step3.status,*/}
-                            {/*                step4_communication: results.step4.status,*/}
-                            {/*                step5_timing: results.step5.status,*/}
-                            {/*                availableBridges: results.step3.details.availableBridges,*/}
-                            {/*                recommendations: results.summary.recommendations*/}
-                            {/*            });*/}
-
-                            {/*            // ADD THE MANUAL REGISTRATION ATTEMPT HERE*/}
-                            {/*            addDebugInfo('=== MANUAL REGISTRATION ATTEMPT ===');*/}
-
-                            {/*            try {*/}
-                            {/*                const { Capacitor } = await import('@capacitor/core');*/}
-                            {/*                addDebugInfo('Capacitor platform:', Capacitor.getPlatform());*/}
-                            {/*                addDebugInfo('Capacitor native:', Capacitor.isNativePlatform());*/}
-
-                            {/*                // Wait and check again*/}
-                            {/*                setTimeout(() => {*/}
-                            {/*                    const handlers = window.webkit?.messageHandlers ?*/}
-                            {/*                        Object.keys(window.webkit.messageHandlers) : [];*/}
-                            {/*                    addDebugInfo('Message handlers after delay:', handlers);*/}
-
-                            {/*                    if (handlers.length === 0) {*/}
-                            {/*                        addDebugInfo('DIAGNOSIS: Swift registration completely failed');*/}
-                            {/*                        addDebugInfo('LIKELY CAUSE: ViewController.swift not calling registerWithWebView');*/}
-                            {/*                    } else {*/}
-                            {/*                        addDebugInfo('SUCCESS: Found message handlers:', handlers);*/}
-                            {/*                    }*/}
-                            {/*                }, 2000);*/}
-
-                            {/*            } catch (error) {*/}
-                            {/*                addDebugInfo('Capacitor test failed:', error.message);*/}
-                            {/*            }*/}
-                            {/*        }}*/}
-                            {/*        className="mt-2 bg-blue-600 hover:bg-blue-700 text-white px-3 py-1 rounded text-sm"*/}
-                            {/*    >*/}
-                            {/*        WEBKIT BRIDGE TEST*/}
-                            {/*    </TouchEnhancedButton>*/}
-
-                            {/*    <button onClick={() => setShowVisualDebugger(true)}>*/}
-                            {/*        🔧 Visual Plugin Debug*/}
-                            {/*    </button>*/}
-
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            console.log('Testing MinimalNativeScanner...');
-                                            const { testMinimalNativeScannerCapacitor7 } = await import('/src/plugins/minimal-native-scanner-test.js');
-                                            const results = await testMinimalNativeScannerCapacitor7();
-                                            console.log('Test results:', results);
-                                            alert(`Test completed: ${results.summary.success ? 'SUCCESS' : 'FAILED'}\n\n${results.summary.reason}`);
-                                        } catch (error) {
-                                            console.error('Test import failed:', error);
-                                            alert(`Import failed: ${error.message}`);
-                                        }
-                                    }}
-                                    style={{
-                                        backgroundColor: '#10B981',
-                                        color: 'white',
-                                        border: 'none',
-                                        padding: '12px 24px',
-                                        borderRadius: '8px',
-                                        fontSize: '16px',
-                                        cursor: 'pointer',
-                                        margin: '10px'
-                                    }}
+                            <div className="mt-2 space-y-2">
+                                <TouchEnhancedButton
+                                    onClick={() => setShowDebug(!showDebug)}
+                                    className="text-xs bg-gray-800 text-gray-300 px-2 py-1 rounded"
                                 >
-                                    🧪 Test Capacitor 7.0 Plugin
-                                </button>
+                                    {showDebug ? 'Hide Debug' : 'Show Debug Info'}
+                                </TouchEnhancedButton>
+
+                                <div className="flex flex-col gap-2 mt-3">
+                                    <button
+                                        onClick={() => setShowVisualDiagnostic(true)}
+                                        style={{
+                                            backgroundColor: '#10B981',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '12px 24px',
+                                            borderRadius: '8px',
+                                            fontSize: '16px',
+                                            cursor: 'pointer',
+                                            fontWeight: 'bold'
+                                        }}
+                                    >
+                                        🔬 Visual Plugin Test (MacInCloud)
+                                    </button>
+
+                                    <button
+                                        onClick={() => setShowEnhancedDebug(true)}
+                                        style={{
+                                            backgroundColor: '#8B5CF6',
+                                            color: 'white',
+                                            border: 'none',
+                                            padding: '12px 24px',
+                                            borderRadius: '8px',
+                                            fontSize: '16px',
+                                            cursor: 'pointer'
+                                        }}
+                                    >
+                                        🔧 Original Enhanced Diagnostic
+                                    </button>
+                                </div>
                             </div>
 
                             {/* Debug Information Display */}
