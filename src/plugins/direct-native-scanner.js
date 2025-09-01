@@ -22,15 +22,21 @@ class DirectNativeScanner {
 
     //test to compile
 
+    // REPLACE the checkAvailability method with:
     checkAvailability() {
-        this.isAvailable = PlatformDetection.isIOS() &&
-            PlatformDetection.isRunningInMobileApp() &&
-            typeof window !== 'undefined' &&
+        // Force iOS detection for Capacitor apps - bypass faulty platform detection
+        const isCapacitorIOS = typeof window !== 'undefined' &&
             window.webkit &&
-            window.webkit.messageHandlers &&
+            window.webkit.messageHandlers;
+
+        this.isAvailable = isCapacitorIOS &&
             window.webkit.messageHandlers.nativeScannerBridge;
 
         console.log('Direct Native Scanner availability:', this.isAvailable);
+        console.log('Capacitor iOS detected:', isCapacitorIOS);
+        console.log('Available message handlers:',
+            window.webkit?.messageHandlers ?
+                Object.keys(window.webkit.messageHandlers) : []);
     }
 
     // Send message to native iOS
