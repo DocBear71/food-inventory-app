@@ -20,6 +20,8 @@ class DirectNativeScanner {
         }
     }
 
+    //test to compile
+
     checkAvailability() {
         this.isAvailable = PlatformDetection.isIOS() &&
             PlatformDetection.isRunningInMobileApp() &&
