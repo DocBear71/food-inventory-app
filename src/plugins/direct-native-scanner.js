@@ -8,14 +8,16 @@ class DirectNativeScanner {
         this.pendingCallbacks = new Map();
         this.callbackId = 0;
 
-        // Set up global handlers for native responses
+        // Set up global handlers
         if (typeof window !== 'undefined') {
             window.handleNativeScanResult = this.handleScanResult.bind(this);
             window.handleNativePermissionResult = this.handlePermissionResult.bind(this);
-        }
 
-        // Check availability
-        this.checkAvailability();
+            // Add a delay before checking availability to ensure Swift registration is complete
+            setTimeout(() => {
+                this.checkAvailability();
+            }, 1000);
+        }
     }
 
     checkAvailability() {
