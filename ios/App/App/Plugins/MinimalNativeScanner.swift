@@ -18,7 +18,8 @@ public class MinimalNativeScanner: CAPPlugin, CAPBridgedPlugin {
         CAPPluginMethod(name: "getCameraStatus", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "requestCameraAccess", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "testMethod", returnType: CAPPluginReturnPromise),
-        CAPPluginMethod(name: "getDiagnosticLogs", returnType: CAPPluginReturnPromise)
+        CAPPluginMethod(name: "getDiagnosticLogs", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "getViewControllerDiagnosticLogs", returnType: CAPPluginReturnPromise)
     ]
 
     private var currentCall: CAPPluginCall?
@@ -125,6 +126,23 @@ public class MinimalNativeScanner: CAPPlugin, CAPBridgedPlugin {
                 "superclass": String(describing: MinimalNativeScanner.superclass()),
                 "protocols": "CAPPlugin, CAPBridgedPlugin"
             ]
+        ])
+    }
+
+    @objc func getViewControllerDiagnosticLogs(_ call: CAPPluginCall) {
+        addDiagnosticLog("getViewControllerDiagnosticLogs called")
+
+        // Get logs from ViewController
+        let viewControllerLogs = ViewController.getDiagnosticLogs()
+
+        addDiagnosticLog("Retrieved \(viewControllerLogs.count) logs from ViewController")
+
+        call.resolve([
+            "success": true,
+            "logs": viewControllerLogs,
+            "count": viewControllerLogs.count,
+            "timestamp": Date().timeIntervalSince1970,
+            "source": "ViewController diagnostic system"
         ])
     }
 

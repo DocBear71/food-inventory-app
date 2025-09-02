@@ -432,23 +432,34 @@ const VisualPluginDiagnostic = () => {
                     </button>
                     <button
                         onClick={async () => {
-                            setCurrentStep('Getting ViewController diagnostic logs...');
-                            const vcLogs = await getViewControllerLogs();
+                            setCurrentStep('Getting ViewController diagnostic logs via plugin...');
+                            try {
+                                const result = await MinimalNativeScanner.getViewControllerDiagnosticLogs();
 
-                            setLogs(prev => [...prev, {
-                                step: 'ViewController Diagnostics',
-                                status: vcLogs.length > 0 ? 'SUCCESS' : 'NO_LOGS',
-                                details: {
-                                    logs: vcLogs,
-                                    count: vcLogs.length,
-                                    message: vcLogs.length > 0 ?
-                                        'ViewController diagnostic logs retrieved' :
-                                        'No ViewController logs found - this indicates Swift compilation issues'
-                                },
-                                timestamp: Date.now()
-                            }]);
+                                setLogs(prev => [...prev, {
+                                    step: 'ViewController Diagnostics',
+                                    status: result.logs && result.logs.length > 0 ? 'SUCCESS' : 'NO_LOGS',
+                                    details: {
+                                        logs: result.logs || [],
+                                        count: result.count || 0,
+                                        message: result.logs && result.logs.length > 0 ?
+                                            'ViewController diagnostic logs retrieved successfully' :
+                                            'No ViewController logs found',
+                                        rawResult: result
+                                    },
+                                    timestamp: Date.now()
+                                }]);
 
-                            setCurrentStep('ViewController diagnostics complete');
+                                setCurrentStep('ViewController diagnostics complete');
+                            } catch (error) {
+                                setLogs(prev => [...prev, {
+                                    step: 'ViewController Diagnostics',
+                                    status: 'ERROR',
+                                    details: { error: error.message },
+                                    timestamp: Date.now()
+                                }]);
+                                setCurrentStep('ViewController diagnostics failed');
+                            }
                         }}
                         style={{
                             backgroundColor: '#8B5CF6',
