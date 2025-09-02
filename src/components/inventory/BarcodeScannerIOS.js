@@ -637,9 +637,10 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         </div>
                     ) : (
                         <>
-                            {/* Loading State */}
-                            {isLoading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black">
+                            {/* Always show content - either loading or ready interface */}
+                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                                {isLoading ? (
+                                    /* Loading State */
                                     <div className="text-center text-white px-4">
                                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                         <div className="text-lg font-medium mb-2">
@@ -649,12 +650,8 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                             Enhanced for {userRegion} products • Powered by MLKit
                                         </div>
                                     </div>
-                                </div>
-                            )}
-
-                            {/* Scanner Ready Interface - Enhanced with International Context */}
-                            {!isLoading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                                ) : (
+                                    /* Scanner Ready Interface */
                                     <div className="text-center text-white px-6 max-w-md mx-auto">
                                         <div className="mb-8">
                                             {/* Enhanced Icon Design with International Theme */}
@@ -695,8 +692,8 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                             Supports UPC, EAN, Code 128/39/93, ITF, Data Matrix, QR codes from 40+ countries
                                         </div>
                                     </div>
-                                </div>
-                            )}
+                                )}
+                            </div>
                         </>
                     )}
                 </div>
