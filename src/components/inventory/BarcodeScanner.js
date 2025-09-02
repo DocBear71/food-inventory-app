@@ -44,14 +44,6 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
     const [usageInfo, setUsageInfo] = useState(null);
     const [isLoadingUsage, setIsLoadingUsage] = useState(true);
 
-    // Load usage information and user preferences
-    useEffect(() => {
-        if (isActive) {
-            loadUsageInfo();
-            loadUserRegion();
-        }
-    }, [isActive]);
-
     const loadUsageInfo = useCallback(async () => {
         try {
             setIsLoadingUsage(true);
@@ -89,6 +81,14 @@ export default function BarcodeScanner({onBarcodeDetected, onClose, isActive}) {
             console.error('Failed to load user region:', error);
         }
     }, []);
+
+    // Load usage information and user preferences
+    useEffect(() => {
+        if (isActive) {
+            loadUsageInfo();
+            loadUserRegion();
+        }
+    }, [isActive, loadUsageInfo, loadUserRegion]);
 
     // Enhanced international barcode validation and analysis
     const analyzeAndValidateBarcode = useCallback((code) => {

@@ -607,27 +607,29 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         const cleanBarcode = validation.cleanCode;
         console.log(`✅ Valid barcode detected: ${cleanBarcode} (original: ${barcode})`);
 
-        // Update both local and parent state
+        // Update both local and parent state immediately
         setLocalUPC(cleanBarcode);
         if (onUPCChange) {
             onUPCChange(cleanBarcode);
         }
 
-        // FIXED: Set closing flag and close scanner with proper cleanup
+        // Start automatic lookup IMMEDIATELY while closing scanner
+        console.log('🔍 Starting IMMEDIATE auto-lookup for scanned barcode:', cleanBarcode);
+
+        // Don't await this - let it run in parallel with scanner closing
+        const lookupPromise = handleUPCLookupWithImmediateUpdate(cleanBarcode).catch(error => {
+            console.error('Auto-lookup failed:', error);
+        });
+
+        // FIXED: Set closing flag and close scanner with shorter delay
         scannerClosingRef.current = true;
         console.log('🔄 Closing scanner after successful scan...');
 
         // Close scanner immediately
         setShowScanner(false);
 
-        // FIXED: Wait for scanner to fully close before processing
+        // Shorter delay just for UI cleanup, lookup already started
         setTimeout(async () => {
-            if (!processingBarcodeRef.current) {
-                console.log('Processing was cancelled, skipping lookup');
-                scannerClosingRef.current = false;
-                return;
-            }
-
             // Scroll to UPC input after scanner closes
             const scrollToInput = () => {
                 const upcInput = document.querySelector('input[name="upc"]') ||
@@ -647,22 +649,16 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
 
             scrollToInput();
 
-            // Process the barcode
-            try {
-                console.log('🔍 Starting auto-lookup for scanned barcode:', cleanBarcode);
-                await handleUPCLookupWithImmediateUpdate(cleanBarcode);
-            } catch (error) {
-                console.error('Auto-lookup failed:', error);
-                // Silently fail - UPC is already in the input field
-            } finally {
-                // FIXED: Proper cleanup with timing
-                setTimeout(() => {
-                    processingBarcodeRef.current = false;
-                    scannerClosingRef.current = false;
-                    console.log('✅ Ready for next barcode scan');
-                }, 1000);
-            }
-        }, 800); // Increased delay to ensure scanner fully closes
+            // Wait for lookup to complete
+            await lookupPromise;
+
+            // FIXED: Proper cleanup with shorter timing
+            setTimeout(() => {
+                processingBarcodeRef.current = false;
+                scannerClosingRef.current = false;
+                console.log('✅ Ready for next barcode scan');
+            }, 300);
+        }, 200); // Much shorter delay - just for visual smoothness
     };
 
     // AI classification function
@@ -918,8 +914,14 @@ export default function UPCLookup({onProductFound, onUPCChange, currentUPC = ''}
         // Auto-lookup when UPC looks complete with better validation
         const validation = validateAndCleanUPC(upc);
         if (validation.valid && validation.cleanCode.length >= 8) {
-            console.log('Auto-triggering lookup for complete UPC:', validation.cleanCode);
-            handleUPCLookupWithImmediateUpdate(validation.cleanCode);
+            // Only auto-lookup if this wasn't just scanned (to avoid double lookups)
+            if (lastProcessedBarcodeRef.current !== validation.cleanCode ||
+                (Date.now() - lastProcessedTimeRef.current) > 2000) {
+                console.log('Auto-triggering lookup for manually entered complete UPC:', validation.cleanCode);
+                handleUPCLookupWithImmediateUpdate(validation.cleanCode);
+            } else {
+                console.log('Skipping manual auto-lookup - this UPC was just scanned');
+            }
         }
     };
 
