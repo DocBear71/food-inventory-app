@@ -45,6 +45,7 @@ const VisualPluginDiagnostic = () => {
 
         const results = {
             step1: { name: "Platform & Plugin Check", status: "unknown", details: {}, icon: "📱" },
+            step15: {name: "Plugin Test", status: 'unknown', details: {}, icon: "X"},
             step2: { name: "Method Discovery", status: "unknown", details: {}, icon: "🔧" },
             step3: { name: "Test Method Call", status: "unknown", details: {}, icon: "🧪" },
             step4: { name: "Camera Status Test", status: "unknown", details: {}, icon: "📷" },
@@ -103,6 +104,20 @@ const VisualPluginDiagnostic = () => {
                     timestamp: Date.now()
                 }]);
 
+                results.step15.details = {
+                    step: 'TestPlugin Check',
+                    status: testPluginResult && !testPluginResult.error ? 'PASS' : 'FAIL',
+                    details: {
+                        pluginDiscovery: testPluginDetails,
+                        methodCall: testPluginResult,
+                        message: testPluginResult && !testPluginResult.error ?
+                            'TestPlugin working correctly' :
+                            'TestPlugin also fails - systemic issue'
+                    },
+                    timestamp: Date.now()
+                }
+
+                addVisualLog('STEP 1.5 - TestPlugin Check:', results.step15.details );
             } catch (error) {
                 setLogs(prev => [...prev, {
                     step: 'TestPlugin Check',
@@ -113,6 +128,17 @@ const VisualPluginDiagnostic = () => {
                     },
                     timestamp: Date.now()
                 }]);
+
+                results.step15.details = {
+                    step: 'TestPlugin Check',
+                    status: 'FAIL',
+                    details: {
+                        error: error.message,
+                        message: 'TestPlugin registration failed'
+                    },
+                    timestamp: Date.now()
+                }
+                addVisualLog('STEP 1.5 - Failed TestPlugin Check:', results.step15.details );
             }
 
             // Step 2: Method Discovery
