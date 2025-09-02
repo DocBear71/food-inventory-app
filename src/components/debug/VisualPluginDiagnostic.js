@@ -595,6 +595,84 @@ const VisualPluginDiagnostic = () => {
                 <div><strong>Time:</strong> {new Date().toLocaleTimeString()}</div>
                 <div><strong>Logs:</strong> All output shown on screen + downloadable</div>
             </div>
+
+            {/* NEW: Registration Logs Section */}
+            {logs.length > 0 && (
+                <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#1f2937', borderRadius: '8px' }}>
+                    <h3 style={{ color: '#10B981', margin: '0 0 15px 0', fontSize: '18px' }}>
+                        📋 Registration Logs ({logs.find(log => log.hasRegistrationLogs)?.registrationLogCount || 0} entries)
+                    </h3>
+
+                    {logs.map((log, index) => (
+                        log.registrationLogs && log.registrationLogs.length > 0 && (
+                            <div key={index} style={{ marginBottom: '15px' }}>
+                                <div style={{
+                                    backgroundColor: '#374151',
+                                    padding: '10px',
+                                    borderRadius: '6px',
+                                    maxHeight: '300px',
+                                    overflowY: 'auto',
+                                    border: '2px solid #10B981'
+                                }}>
+                                    <div style={{
+                                        color: '#10B981',
+                                        fontWeight: 'bold',
+                                        marginBottom: '10px',
+                                        fontSize: '14px'
+                                    }}>
+                                        🔧 iOS Plugin Registration Process:
+                                    </div>
+
+                                    {log.registrationLogs.map((regLog, regIndex) => (
+                                        <div key={regIndex} style={{
+                                            color: '#E5E7EB',
+                                            fontSize: '12px',
+                                            marginBottom: '5px',
+                                            padding: '3px 6px',
+                                            backgroundColor: regLog.includes('✅') ? '#065F46' :
+                                                regLog.includes('❌') ? '#7F1D1D' : '#1F2937',
+                                            borderRadius: '4px',
+                                            fontFamily: 'monospace'
+                                        }}>
+                                            {regLog}
+                                        </div>
+                                    ))}
+
+                                    {log.pluginInfo && (
+                                        <div style={{
+                                            marginTop: '10px',
+                                            padding: '8px',
+                                            backgroundColor: '#4F46E5',
+                                            borderRadius: '4px'
+                                        }}>
+                                            <div style={{ color: '#C7D2FE', fontSize: '12px', fontWeight: 'bold' }}>
+                                                Plugin Class Info:
+                                            </div>
+                                            <div style={{ color: '#E0E7FF', fontSize: '11px' }}>
+                                                Class: {log.pluginInfo.className}<br/>
+                                                Superclass: {log.pluginInfo.superclass}<br/>
+                                                Protocols: {log.pluginInfo.protocols}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        )
+                    ))}
+
+                    {logs.every(log => !log.registrationLogs || log.registrationLogs.length === 0) && (
+                        <div style={{
+                            color: '#EF4444',
+                            fontSize: '14px',
+                            padding: '10px',
+                            backgroundColor: '#7F1D1D',
+                            borderRadius: '6px'
+                        }}>
+                            ❌ No registration logs found - this indicates the registration process may not be running
+                        </div>
+                    )}
+                </div>
+            )}
         </div>
     );
 };

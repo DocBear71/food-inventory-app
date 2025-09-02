@@ -9,7 +9,12 @@ class ViewController: CAPBridgeViewController {
     }
 
     override func capacitorDidLoad() {
-        super.capacitorDidLoad()
-        NSLog("🍎 ViewController loaded - Capacitor plugins registered")
+    super.capacitorDidLoad()
+    NSLog("🍎 ViewController loaded - Capacitor plugins registered")
+
+    if let bridge = self.bridge {
+        bridge.registerPluginInstance(MinimalNativeScanner())
     }
+    NSLog("🍎 ViewController loaded - Custom plugins registered for Capacitor 7.0")
+}
 }
