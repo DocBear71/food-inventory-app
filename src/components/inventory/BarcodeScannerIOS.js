@@ -1,5 +1,5 @@
 'use client';
-// file: /src/components/inventory/BarcodeScannerIOS.js v13 - Enhanced full-screen modal with Android UI parity
+// file: /src/components/inventory/BarcodeScannerIOS.js v15 - Clean MLKit with full international support
 
 import {useEffect, useRef, useState, useCallback} from 'react';
 import {TouchEnhancedButton} from '@/components/mobile/TouchEnhancedButton';
@@ -19,22 +19,12 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
-    const [isScanning, setIsScanning] = useState(false);
     const [scanFeedback, setScanFeedback] = useState('');
-    const [isMobile, setIsMobile] = useState(false);
     const [permissionState, setPermissionState] = useState('unknown');
 
-    // Enhanced barcode analysis state with international support
+    // Enhanced barcode analysis state
     const [barcodeAnalysis, setBarcodeAnalysis] = useState(null);
     const [userRegion, setUserRegion] = useState('US');
-
-    // Platform detection state
-    const [platformInfo, setPlatformInfo] = useState({
-        isIOS: false,
-        isAndroid: false,
-        isNative: false,
-        isPWA: false
-    });
 
     // State management refs
     const mountedRef = useRef(true);
@@ -199,7 +189,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         };
     }, []);
 
-    // Get regional hints and warnings
+    // Get regional hints and warnings for international context
     const getRegionalHints = useCallback((analysis, userRegion) => {
         const hints = [];
 
@@ -248,7 +238,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         return hints;
     }, []);
 
-    // Enhanced international barcode analysis and validation
+    // Enhanced international barcode validation with comprehensive analysis
     const analyzeAndValidateBarcode = useCallback((code) => {
         let cleanCode = code.replace(/\D/g, '');
         console.log(`MLKit iOS: Analyzing barcode: "${code}" -> "${cleanCode}"`);
@@ -306,7 +296,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         };
     }, [detectBarcodeFormat, getRegionalHints, userRegion]);
 
-    // Load user's region preference from currency
+    // Load user region and usage info with comprehensive currency mapping
     const loadUserRegion = useCallback(async () => {
         try {
             const response = await apiGet('/api/user/profile');
@@ -329,12 +319,10 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }
     }, []);
 
-    // Load usage information and user preferences
     const loadUsageInfo = useCallback(async () => {
         try {
             setIsLoadingUsage(true);
             const response = await apiGet('/api/upc/usage');
-
             if (response.ok) {
                 const data = await response.json();
                 setUsageInfo(data);
@@ -346,143 +334,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }
     }, []);
 
-    // Keyboard dismissal utility
-    const dismissKeyboard = useCallback(() => {
-        try {
-            // Blur any active input elements
-            const activeElement = document.activeElement;
-            if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'TEXTAREA')) {
-                activeElement.blur();
-            }
-
-            // Force keyboard dismissal on iOS
-            if (window.visualViewport) {
-                window.scrollTo(0, 0);
-            }
-
-            // Additional iOS keyboard dismissal
-            const inputs = document.querySelectorAll('input, textarea');
-            inputs.forEach(input => {
-                input.blur();
-                input.style.transform = 'translateZ(0)';
-            });
-
-            console.log('MLKit iOS: Keyboard dismissed');
-        } catch (error) {
-            console.error('Failed to dismiss keyboard:', error);
-        }
-    }, []);
-
-    // Platform and device detection
-    useEffect(() => {
-        const checkMobile = () => {
-            const isMobileDevice = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-            setIsMobile(isMobileDevice || window.innerWidth <= 768);
-        };
-
-        const detectPlatform = () => {
-            const detectedInfo = {
-                isIOS: PlatformDetection.isIOS(),
-                isAndroid: PlatformDetection.isAndroid(),
-                isNative: Capacitor.isNativePlatform(),
-                isPWA: PlatformDetection.isPWAInstalled(),
-                platform: Capacitor.getPlatform()
-            };
-            setPlatformInfo(detectedInfo);
-            console.log('MLKit iOS: Platform detection:', detectedInfo);
-        };
-
-        checkMobile();
-        detectPlatform();
-
-        window.addEventListener('resize', checkMobile);
-        return () => window.removeEventListener('resize', checkMobile);
-    }, []);
-
-    // Initialize on component activation
-    useEffect(() => {
-        if (isActive && !isInitialized && mountedRef.current) {
-            // Dismiss keyboard immediately when scanner opens
-            dismissKeyboard();
-
-            sessionIdRef.current = Date.now();
-            processedCodesRef.current = new Set();
-            setIsInitialized(true);
-            setIsLoading(false);
-            loadUserRegion();
-        }
-    }, [isActive, isInitialized, loadUserRegion, dismissKeyboard]);
-
-    // Load usage information
-    useEffect(() => {
-        if (isActive) {
-            loadUsageInfo();
-        }
-    }, [isActive, loadUsageInfo]);
-
-    // Enhanced camera permission handling
-    const requestCameraPermission = useCallback(async () => {
-        setPermissionState('requesting');
-
-        if (Capacitor.isNativePlatform()) {
-            try {
-                const { camera } = await MLKitBarcodeScanner.requestPermissions();
-                if (camera === 'granted' || camera === 'limited') {
-                    setPermissionState('granted');
-                    return true;
-                } else {
-                    setPermissionState('denied');
-                    setError('Camera permission denied. Please enable camera access in settings.');
-                    return false;
-                }
-            } catch (error) {
-                setPermissionState('denied');
-                setError(`Camera permission failed: ${error.message}`);
-                return false;
-            }
-        } else {
-            try {
-                // Test camera access for web
-                const testStream = await navigator.mediaDevices.getUserMedia({
-                    video: {
-                        facingMode: "environment",
-                        width: { ideal: 1280, max: 1920 },
-                        height: { ideal: 720, max: 1080 }
-                    }
-                });
-                testStream.getTracks().forEach(track => track.stop());
-                setPermissionState('granted');
-                return true;
-            } catch (error) {
-                setPermissionState('denied');
-                setError('Camera access denied. Please allow camera access and try again.');
-                return false;
-            }
-        }
-    }, []);
-
-    // Audio feedback
-    const playBeepSound = useCallback(() => {
-        try {
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-
-            oscillator.frequency.value = 800;
-            gainNode.gain.setValueAtTime(0.3, audioContext.currentTime);
-            gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
-
-            oscillator.start(audioContext.currentTime);
-            oscillator.stop(audioContext.currentTime + 0.1);
-        } catch (error) {
-            console.log('Audio feedback not available');
-        }
-    }, []);
-
-    // Enhanced visual and audio feedback with regional context
+    // Enhanced feedback system with international context
     const provideScanFeedback = useCallback((type, message, analysis = null) => {
         let feedbackMessage = message;
 
@@ -506,9 +358,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     case 'warning':
                         await MobileHaptics.warning();
                         break;
-                    case 'processing':
-                        await MobileHaptics.light();
-                        break;
                     default:
                         await MobileHaptics.light();
                         break;
@@ -520,37 +369,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
         triggerHapticFeedback();
 
-        // Visual feedback with regional colors
-        if (scannerContainerRef.current && mountedRef.current) {
-            let color = '#10B981'; // Default success color
-
-            if (type === 'success') {
-                // Regional color coding
-                if (analysis?.analysis?.region === 'UK') color = '#3B82F6'; // Blue for UK
-                else if (analysis?.analysis?.region === 'EU') color = '#8B5CF6'; // Purple for EU
-                else if (analysis?.analysis?.region === 'DE') color = '#8B5CF6'; // Purple for Germany
-                else if (analysis?.analysis?.region === 'US') color = '#10B981'; // Green for US
-            } else if (type === 'processing') {
-                color = '#F59E0B'; // Orange for processing
-            } else {
-                color = '#EF4444'; // Red for errors
-            }
-
-            scannerContainerRef.current.style.backgroundColor = color;
-            scannerContainerRef.current.style.transition = 'background-color 0.3s';
-
-            setTimeout(() => {
-                if (scannerContainerRef.current && mountedRef.current) {
-                    scannerContainerRef.current.style.backgroundColor = '';
-                }
-            }, 500);
-        }
-
-        // Audio feedback for success
-        if (type === 'success') {
-            playBeepSound();
-        }
-
         // Clear feedback after delay
         setTimeout(() => {
             if (mountedRef.current) {
@@ -558,9 +376,9 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 setBarcodeAnalysis(null);
             }
         }, 4000); // Longer timeout for international context
-    }, [playBeepSound]);
+    }, []);
 
-    // Process MLKit barcode result with enhanced international analysis
+    // Process barcode result with enhanced international analysis
     const processBarcodeResult = useCallback((code) => {
         const now = Date.now();
 
@@ -590,7 +408,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             return false;
         }
 
-        // Mark as processed immediately
+        // Mark as processed
         processedCodesRef.current.add(sessionKey);
         scanInProgressRef.current = true;
         lastScanTimeRef.current = now;
@@ -612,34 +430,22 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         return true;
     }, [analyzeAndValidateBarcode, onBarcodeDetected, onClose, provideScanFeedback]);
 
-    // Enhanced error handling with international context
-    const handleScanError = useCallback(async (error) => {
-        console.error('MLKit iOS: Scanner error:', error);
-
-        if (error.message.includes('Permission') || error.message.includes('permission')) {
-            setError('Camera permission required. Please allow camera access and try again.');
-        } else if (error.message.includes('NotFoundError') || error.message.includes('no camera')) {
-            setError('No camera found. Please ensure your device has a camera.');
-        } else if (error.message.includes('NotReadableError')) {
-            setError('Camera is in use by another application. Please close other camera apps and try again.');
-        } else {
-            setError('Scanner initialization failed. Please try again.');
-        }
-
-        setIsInitialized(false);
-        setIsLoading(false);
-        setIsScanning(false);
-    }, []);
-
-    // Enhanced MLKit scanning for native platforms with international support
+    // Enhanced MLKit implementation with comprehensive international format support
     const startMLKitScanning = useCallback(async () => {
         try {
-            // Dismiss keyboard before starting scan
-            dismissKeyboard();
+            console.log('MLKit iOS: Starting enhanced international barcode scanner...');
 
-            provideScanFeedback('processing', 'Opening enhanced international scanner...');
+            // Request permissions if needed
+            if (Capacitor.isNativePlatform()) {
+                const { camera } = await MLKitBarcodeScanner.requestPermissions();
+                if (camera !== 'granted') {
+                    setError('Camera permission denied');
+                    return;
+                }
+            }
 
-            const { barcodes } = await MLKitBarcodeScanner.scan({
+            // Configure and start scan with comprehensive format support
+            const result = await MLKitBarcodeScanner.scan({
                 formats: [
                     'UPC_A', 'UPC_E', 'EAN_8', 'EAN_13',
                     'CODE_128', 'CODE_39', 'CODE_93',
@@ -648,91 +454,40 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 lensFacing: 'back'
             });
 
-            if (barcodes && barcodes.length > 0) {
-                const barcode = barcodes[0];
+            if (result.barcodes && result.barcodes.length > 0) {
+                const barcode = result.barcodes[0];
                 console.log('MLKit iOS: Barcode detected', {
                     value: barcode.rawValue,
                     format: barcode.format
                 });
 
-                // Process the barcode result using the enhanced analysis
-                const processed = processBarcodeResult(barcode.rawValue);
-
-                if (!processed) {
-                    // Processing failed (duplicate, invalid, etc.) - already handled by processBarcodeResult
-                    return;
-                }
+                // Process the barcode result using enhanced international analysis
+                processBarcodeResult(barcode.rawValue);
             } else {
                 provideScanFeedback('error', 'No barcode detected');
             }
         } catch (error) {
             console.error('MLKit iOS: Scan error', error);
-            if (!error.message.includes('cancelled')) {
-                provideScanFeedback('error', 'MLKit scanning failed');
+            if (!error.message.includes('cancelled') && !error.message.includes('User cancelled')) {
+                provideScanFeedback('error', 'Enhanced international scanning failed');
             }
         }
-    }, [dismissKeyboard, provideScanFeedback, processBarcodeResult]);
+    }, [processBarcodeResult, provideScanFeedback]);
 
-    // Main scanner initialization
+    // Initialize scanner
     useEffect(() => {
-        const initializeScanner = async () => {
-            if (!isActive || isInitialized || !mountedRef.current) {
-                return;
-            }
-
-            // Wait for platform info
-            if (!platformInfo.isIOS && !platformInfo.isAndroid && !platformInfo.isPWA) {
-                console.log('MLKit iOS: Waiting for platform detection...');
-                return;
-            }
-
-            try {
-                // Reset session state completely
-                sessionIdRef.current = Date.now();
-                processedCodesRef.current = new Set();
-                scanInProgressRef.current = false;
-
-                setError(null);
-                setIsScanning(true);
-                setScanFeedback('');
-                setBarcodeAnalysis(null);
-
-                console.log(`MLKit iOS: Starting enhanced international scanner session: ${sessionIdRef.current}`);
-
-                const hasPermission = await requestCameraPermission();
-                if (!hasPermission) {
-                    setIsLoading(false);
-                    return;
-                }
-
-                if (Capacitor.isNativePlatform()) {
-                    console.log('MLKit iOS: Native platform - using enhanced MLKit');
-                    setIsInitialized(true);
-                    setIsLoading(false);
-                    setTimeout(() => startMLKitScanning(), 800);
-                } else {
-                    console.log('MLKit iOS: Web platform - MLKit fallback');
-                    await handleScanError(new Error('MLKit requires native platform'));
-                }
-            } catch (error) {
-                console.error('MLKit iOS: Scanner setup error:', error);
-                if (mountedRef.current) {
-                    await handleScanError(error);
-                    setIsLoading(false);
-                }
-            }
-        };
-
-        if (isActive && mountedRef.current) {
-            initializeScanner();
+        if (isActive && !isInitialized && mountedRef.current) {
+            sessionIdRef.current = Date.now();
+            processedCodesRef.current = new Set();
+            setIsInitialized(true);
+            setIsLoading(false);
+            loadUserRegion();
+            loadUsageInfo();
         }
-    }, [isActive, isInitialized, platformInfo, requestCameraPermission, startMLKitScanning, handleScanError]);
+    }, [isActive, isInitialized, loadUserRegion, loadUsageInfo]);
 
-    // Cleanup function
-    const cleanupScanner = useCallback(async () => {
-        console.log('MLKit iOS: Cleaning up enhanced international scanner...');
-
-        setIsScanning(false);
+    // Cleanup
+    const cleanupScanner = useCallback(() => {
         scanInProgressRef.current = false;
         setIsInitialized(false);
         setIsLoading(true);
@@ -740,50 +495,27 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         setPermissionState('unknown');
         setScanFeedback('');
         setBarcodeAnalysis(null);
-
         processedCodesRef.current = new Set();
         sessionIdRef.current = Date.now();
         lastScanTimeRef.current = 0;
-
-        console.log('MLKit iOS: Scanner cleanup completed');
     }, []);
 
-    // Close handler
-    const handleScannerClose = useCallback(async () => {
-        console.log('MLKit iOS: Enhanced scanner close requested');
-        await cleanupScanner();
-
+    const handleScannerClose = useCallback(() => {
+        cleanupScanner();
         setTimeout(() => {
             if (mountedRef.current && onClose) {
                 onClose();
             }
-        }, 200);
+        }, 100);
     }, [cleanupScanner, onClose]);
 
-    // Enhanced retry scanner initialization
-    const retryScanner = useCallback(async () => {
-        console.log('MLKit iOS: Retrying enhanced international scanner initialization...');
-
+    const retryScanner = useCallback(() => {
         setError(null);
         setIsLoading(true);
-        setIsInitialized(false);
-        setIsScanning(true);
-        setScanFeedback('');
-        setBarcodeAnalysis(null);
-
-        sessionIdRef.current = Date.now();
-        processedCodesRef.current = new Set();
-
-        await cleanupScanner();
-
-        setTimeout(() => {
-            if (mountedRef.current) {
-                setIsInitialized(false);
-            }
-        }, 500);
+        cleanupScanner();
+        setTimeout(() => setIsInitialized(false), 300);
     }, [cleanupScanner]);
 
-    // Cleanup on unmount
     useEffect(() => {
         mountedRef.current = true;
         return () => {
@@ -833,29 +565,10 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 </div>
             }
         >
-            {/* FULL-SCREEN MODAL - Covers entire viewport with no background bleed-through */}
-            <div
-                className="fixed inset-0 bg-black z-[9999] flex flex-col"
-                style={{
-                    // Ensure complete coverage on all iOS devices
-                    position: 'fixed',
-                    top: '0',
-                    left: '0',
-                    right: '0',
-                    bottom: '0',
-                    width: '100vw',
-                    height: '100vh',
-                    zIndex: 9999,
-                    // Prevent any scrolling or interaction with background
-                    overscrollBehavior: 'none',
-                    touchAction: 'none',
-                    // iOS specific fixes
-                    WebkitOverflowScrolling: 'touch',
-                    WebkitTransform: 'translateZ(0)'
-                }}
-            >
+            {/* CLEAN FULL-SCREEN INTERFACE WITH INTERNATIONAL SUPPORT */}
+            <div className="fixed inset-0 bg-black z-50 flex flex-col">
                 {/* Enhanced Header with International Context */}
-                <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center safe-area-top">
+                <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div className="flex-1">
                         <h3 className="text-lg font-medium">MLKit International Scanner</h3>
                         <div className="text-sm text-gray-300 mt-1">
@@ -893,19 +606,18 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     <TouchEnhancedButton
                         onClick={handleScannerClose}
                         className="text-white text-2xl font-bold w-10 h-10 flex items-center justify-center bg-gray-800 rounded-full hover:bg-gray-700 flex-shrink-0 ml-4"
-                        style={{ minWidth: '40px', minHeight: '40px' }}
                     >
                         ×
                     </TouchEnhancedButton>
                 </div>
 
-                {/* Main Scanner Content Area */}
+                {/* Main Content */}
                 <div className="flex-1 relative bg-black overflow-hidden" ref={scannerContainerRef}>
                     {/* Error Display */}
                     {error ? (
                         <div className="absolute inset-0 flex items-center justify-center p-4">
                             <div className="bg-white rounded-lg p-6 text-center max-w-sm mx-auto">
-                                <div className="text-red-600 mb-4 text-2xl">📷</div>
+                                <div className="text-red-600 mb-4 text-2xl">⚠️</div>
                                 <div className="text-red-600 font-medium mb-4">{error}</div>
                                 <div className="space-y-3">
                                     <TouchEnhancedButton
@@ -927,11 +639,11 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         <>
                             {/* Loading State */}
                             {isLoading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-black z-30">
+                                <div className="absolute inset-0 flex items-center justify-center bg-black">
                                     <div className="text-center text-white px-4">
                                         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                         <div className="text-lg font-medium mb-2">
-                                            {permissionState === 'requesting' ? 'Requesting camera permission...' : 'Starting international scanner...'}
+                                            Starting international scanner...
                                         </div>
                                         <div className="text-sm opacity-75">
                                             Enhanced for {userRegion} products • Powered by MLKit
@@ -940,43 +652,48 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                 </div>
                             )}
 
-                            {/* Scanner Ready Interface - Matches Android Design */}
+                            {/* Scanner Ready Interface - Enhanced with International Context */}
                             {!isLoading && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
                                     <div className="text-center text-white px-6 max-w-md mx-auto">
-                                        {/* Large Icon Container - Matches Android */}
                                         <div className="mb-8">
+                                            {/* Enhanced Icon Design with International Theme */}
                                             <div
                                                 className="w-40 h-40 mx-auto mb-6 border-4 border-white rounded-2xl flex items-center justify-center"
                                                 style={{
-                                                    borderColor: '#ffffff',
-                                                    boxShadow: '0 0 20px rgba(255, 255, 255, 0.3)'
+                                                    borderColor: '#3B82F6',
+                                                    backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                                                    boxShadow: '0 0 30px rgba(59, 130, 246, 0.3)'
                                                 }}
                                             >
                                                 <span className="text-8xl">🌍</span>
                                             </div>
 
-                                            {/* Title and Description - Matches Android Layout */}
+                                            {/* International Scanner Messaging */}
                                             <h2 className="text-3xl font-bold mb-4">International Scanner Ready</h2>
                                             <p className="text-gray-300 text-lg mb-2">
                                                 Enhanced barcode scanning with global product support
                                             </p>
-                                            <p className="text-sm text-blue-300">
-                                                Optimized for {userRegion} region
+                                            <p className="text-sm text-blue-300 mb-2">
+                                                Optimized for {userRegion} region • Supports 40+ countries
+                                            </p>
+                                            <p className="text-xs text-gray-400">
+                                                Comprehensive GS1 prefix support with regional hints
                                             </p>
                                         </div>
 
-                                        {/* Start Scanning Button - Matches Android Style */}
+                                        {/* Enhanced Scan Button */}
                                         <TouchEnhancedButton
                                             onClick={startMLKitScanning}
-                                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg w-full max-w-xs"
-                                            style={{
-                                                minHeight: '60px',
-                                                fontSize: '18px'
-                                            }}
+                                            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg w-full max-w-xs mb-4"
+                                            style={{ minHeight: '60px', fontSize: '18px' }}
                                         >
-                                            📸 Start Scanning
+                                            📸 Start International Scan
                                         </TouchEnhancedButton>
+
+                                        <div className="text-xs text-gray-500 text-center max-w-xs mx-auto">
+                                            Supports UPC, EAN, Code 128/39/93, ITF, Data Matrix, QR codes from 40+ countries
+                                        </div>
                                     </div>
                                 </div>
                             )}
@@ -984,14 +701,13 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     )}
                 </div>
 
-                {/* Footer - Always visible for consistent close option */}
-                <div className="flex-shrink-0 bg-black px-4 py-3 safe-area-bottom">
+                {/* Footer */}
+                <div className="flex-shrink-0 bg-black px-4 py-3">
                     <TouchEnhancedButton
                         onClick={handleScannerClose}
                         className="w-full bg-gray-700 hover:bg-gray-600 text-white py-3 px-6 rounded-lg text-lg font-medium"
-                        style={{ minHeight: '50px' }}
                     >
-                        {isScanning ? 'Cancel Scan' : 'Close'}
+                        Close
                     </TouchEnhancedButton>
                 </div>
             </div>
