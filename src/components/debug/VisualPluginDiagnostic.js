@@ -71,6 +71,49 @@ const VisualPluginDiagnostic = () => {
             results.step1.status = (isNative && platform === 'ios' && !!MinimalNativeScanner) ? "PASS" : "FAIL";
 
             addVisualLog('STEP 1 - Platform Check:', results.step1.details);
+            try {
+                setCurrentStep('Testing simple TestPlugin...');
+
+                const TestPlugin = registerPlugin('TestPlugin');
+
+                const testPluginDetails = {
+                    pluginExists: !!TestPlugin,
+                    pluginType: typeof TestPlugin,
+                    availableMethods: TestPlugin ? Object.keys(TestPlugin) : []
+                };
+
+                // Try to call the simple test method
+                let testPluginResult = null;
+                try {
+                    testPluginResult = await TestPlugin.simpleTest();
+                } catch (testError) {
+                    testPluginResult = { error: testError.message, code: testError.code };
+                }
+
+                setLogs(prev => [...prev, {
+                    step: 'TestPlugin Check',
+                    status: testPluginResult && !testPluginResult.error ? 'PASS' : 'FAIL',
+                    details: {
+                        pluginDiscovery: testPluginDetails,
+                        methodCall: testPluginResult,
+                        message: testPluginResult && !testPluginResult.error ?
+                            'TestPlugin working correctly' :
+                            'TestPlugin also fails - systemic issue'
+                    },
+                    timestamp: Date.now()
+                }]);
+
+            } catch (error) {
+                setLogs(prev => [...prev, {
+                    step: 'TestPlugin Check',
+                    status: 'FAIL',
+                    details: {
+                        error: error.message,
+                        message: 'TestPlugin registration failed'
+                    },
+                    timestamp: Date.now()
+                }]);
+            }
 
             // Step 2: Method Discovery
             setCurrentStep('Step 2: Discovering available methods...');
