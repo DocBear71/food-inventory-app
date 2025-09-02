@@ -351,6 +351,32 @@ const VisualPluginDiagnostic = () => {
         }
     };
 
+    const getViewControllerLogs = async () => {
+        try {
+            // Try to access the ViewController diagnostic logs directly
+            if (window.webkit && window.webkit.messageHandlers) {
+                // This is a hack to try to access ViewController logs
+                const result = await new Promise((resolve) => {
+                    // Create a temporary plugin to get ViewController logs
+                    const tempScript = `
+                        if (window.bridge && window.bridge.getViewController) {
+                            const vc = window.bridge.getViewController();
+                            if (vc && vc.getViewControllerDiagnosticLogs) {
+                                return vc.getViewControllerDiagnosticLogs();
+                            }
+                        }
+                        return [];
+                    `;
+                    resolve([]);
+                });
+                return result;
+            }
+            return [];
+        } catch (error) {
+            return [`Error accessing ViewController logs: ${error.message}`];
+        }
+    };
+
     const downloadLogs = () => {
         const logText = logs.map(log =>
             `[${log.timestamp}] ${log.message}${log.data ? '\n' + log.data : ''}`
@@ -404,7 +430,39 @@ const VisualPluginDiagnostic = () => {
                     >
                         {isLoading ? '⏳ Running...' : '🔬 Run Full Diagnostic'}
                     </button>
+                    <button
+                        onClick={async () => {
+                            setCurrentStep('Getting ViewController diagnostic logs...');
+                            const vcLogs = await getViewControllerLogs();
 
+                            setLogs(prev => [...prev, {
+                                step: 'ViewController Diagnostics',
+                                status: vcLogs.length > 0 ? 'SUCCESS' : 'NO_LOGS',
+                                details: {
+                                    logs: vcLogs,
+                                    count: vcLogs.length,
+                                    message: vcLogs.length > 0 ?
+                                        'ViewController diagnostic logs retrieved' :
+                                        'No ViewController logs found - this indicates Swift compilation issues'
+                                },
+                                timestamp: Date.now()
+                            }]);
+
+                            setCurrentStep('ViewController diagnostics complete');
+                        }}
+                        style={{
+                            backgroundColor: '#8B5CF6',
+                            color: 'white',
+                            border: 'none',
+                            padding: '12px 24px',
+                            borderRadius: '8px',
+                            fontSize: '16px',
+                            cursor: 'pointer',
+                            margin: '10px'
+                        }}
+                    >
+                        🔍 Get ViewController Logs
+                    </button>
                     <button
                         onClick={quickTest}
                         style={{
