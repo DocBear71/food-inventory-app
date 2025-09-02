@@ -141,6 +141,30 @@ const VisualPluginDiagnostic = () => {
                 addVisualLog('STEP 1.5 - Failed TestPlugin Check:', results.step15.details );
             }
 
+            // Test MLKit Barcode Scanner (known working plugin)
+            try {
+                const { BarcodeScanner } = await import('@capacitor-mlkit/barcode-scanning');
+
+                const mlkitDetails = {
+                    pluginExists: !!BarcodeScanner,
+                    pluginType: typeof BarcodeScanner,
+                    availableMethods: BarcodeScanner ? Object.keys(BarcodeScanner) : []
+                };
+
+                // Test if MLKit methods are accessible
+                let mlkitResult = null;
+                try {
+                    mlkitResult = await BarcodeScanner.isSupported();
+                } catch (mlkitError) {
+                    mlkitResult = { error: mlkitError.message, code: mlkitError.code };
+                }
+
+                addVisualLog('MLKit Test:', { discovery: mlkitDetails, methodCall: mlkitResult });
+
+            } catch (error) {
+                addVisualLog('MLKit Import Failed:', error.message);
+            }
+
             // Step 2: Method Discovery
             setCurrentStep('Step 2: Discovering available methods...');
             await new Promise(resolve => setTimeout(resolve, 1000));
