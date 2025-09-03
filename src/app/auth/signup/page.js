@@ -348,7 +348,7 @@ function SignUpContent() {
         }
 
         try {
-            const response = await apiPost('/api/auth/signup', {
+            const response = await apiPost('/api/auth/register', {
                 ...formData,
                 tier: urlTier,
                 billing: urlBilling,
