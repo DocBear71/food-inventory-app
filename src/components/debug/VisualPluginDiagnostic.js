@@ -525,6 +525,46 @@ const VisualPluginDiagnostic = () => {
                     </button>
                     <button
                         onClick={async () => {
+                            setLogs([]);
+                            addVisualLog('Testing HapticFeedback plugin...');
+
+                            try {
+                                const HapticFeedback = registerPlugin('HapticFeedback');
+
+                                const hapticDetails = {
+                                    pluginExists: !!HapticFeedback,
+                                    pluginType: typeof HapticFeedback,
+                                    availableMethods: HapticFeedback ? Object.getOwnPropertyNames(HapticFeedback) : []
+                                };
+
+                                addVisualLog('HapticFeedback Discovery:', hapticDetails);
+
+                                // Try to call impact method
+                                const result = await HapticFeedback.impact({ style: 'light' });
+
+                                addVisualLog('HapticFeedback SUCCESS:', result);
+
+                            } catch (error) {
+                                addVisualLog('HapticFeedback FAILED:', {
+                                    error: error.message,
+                                    code: error.code
+                                });
+                            }
+                        }}
+                        style={{
+                            backgroundColor: '#F59E0B',
+                            color: 'white',
+                            border: 'none',
+                            padding: '12px 24px',
+                            borderRadius: '8px',
+                            fontSize: '16px',
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Test HapticFeedback Plugin
+                    </button>
+                    <button
+                        onClick={async () => {
                             setCurrentStep('Getting ViewController diagnostic logs via plugin...');
                             try {
                                 const result = await MinimalNativeScanner.getViewControllerDiagnosticLogs();
