@@ -358,9 +358,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     case 'warning':
                         await MobileHaptics.warning();
                         break;
-                    case 'processing':
-                        await MobileHaptics.light();
-                        break;
                     default:
                         await MobileHaptics.light();
                         break;
@@ -512,11 +509,22 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
         }, 100);
     }, [cleanupScanner, onClose]);
 
-    const retryScanner = useCallback(() => {
-        setError(null);
-        setIsLoading(true);
-        cleanupScanner();
-        setTimeout(() => setIsInitialized(false), 300);
+    // Enhanced retry scanner initialization with native error handling
+    const retryScanner = useCallback(async () => {
+        try {
+            console.log('MLKit iOS: Retrying enhanced international scanner initialization...');
+
+            setError(null);
+            setIsLoading(true);
+            cleanupScanner();
+            setTimeout(() => setIsInitialized(false), 300);
+        } catch (error) {
+            console.error('MLKit iOS: Retry failed:', error);
+            await NativeDialog.showError({
+                title: 'Scanner Retry Failed',
+                message: 'Unable to restart the scanner. Please close and try again.'
+            });
+        }
     }, [cleanupScanner]);
 
     useEffect(() => {
@@ -589,6 +597,8 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     WebkitTransform: 'translateZ(0)'
                 }}
             >
+            {/* CLEAN FULL-SCREEN INTERFACE WITH INTERNATIONAL SUPPORT */}
+            <div className="fixed inset-0 bg-black z-50 flex flex-col">
                 {/* Enhanced Header with International Context */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div className="flex-1">
@@ -628,7 +638,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     <TouchEnhancedButton
                         onClick={handleScannerClose}
                         className="text-white text-2xl font-bold w-10 h-10 flex items-center justify-center bg-gray-800 rounded-full hover:bg-gray-700 flex-shrink-0 ml-4"
-                        style={{ minWidth: '40px', minHeight: '40px' }}
                     >
                         ×
                     </TouchEnhancedButton>
@@ -721,6 +730,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     )}
                 </div>
 
+
                 {/* Footer */}
                 <div className="flex-shrink-0 bg-black px-4 py-3">
                     <TouchEnhancedButton
@@ -730,6 +740,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         Close
                     </TouchEnhancedButton>
                 </div>
+            </div>
             </div>
         </FeatureGate>
     );
