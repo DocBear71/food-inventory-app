@@ -7,10 +7,10 @@ import {MobileHaptics} from '@/components/mobile/MobileHaptics';
 import {useSubscription, useFeatureGate} from '@/hooks/useSubscription';
 import FeatureGate, {UsageLimitDisplay} from '@/components/subscription/FeatureGate';
 import {FEATURE_GATES} from '@/lib/subscription-config';
-import { apiGet } from '@/lib/api-config';
-import { PlatformDetection } from '@/utils/PlatformDetection';
-import { BarcodeScanner as MLKitBarcodeScanner } from '@capacitor-mlkit/barcode-scanning';
-import { Capacitor } from '@capacitor/core';
+import {apiGet} from '@/lib/api-config';
+import {PlatformDetection} from '@/utils/PlatformDetection';
+import {BarcodeScanner as MLKitBarcodeScanner} from '@capacitor-mlkit/barcode-scanning';
+import {Capacitor} from '@capacitor/core';
 import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}) {
@@ -66,75 +66,75 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
             // Enhanced GS1 prefix detection with country mapping
             const prefixMapping = {
                 // US and Canada
-                '000-019': { region: 'US', country: 'United States' },
-                '030-039': { region: 'US', country: 'United States', type: 'drugs' },
-                '040-049': { region: 'RESTRICTED', country: 'Reserved', type: 'internal' },
-                '050-059': { region: 'US', country: 'United States', type: 'coupons' },
-                '060-139': { region: 'US', country: 'United States' },
+                '000-019': {region: 'US', country: 'United States'},
+                '030-039': {region: 'US', country: 'United States', type: 'drugs'},
+                '040-049': {region: 'RESTRICTED', country: 'Reserved', type: 'internal'},
+                '050-059': {region: 'US', country: 'United States', type: 'coupons'},
+                '060-139': {region: 'US', country: 'United States'},
 
                 // International regions
-                '200-299': { region: 'RESTRICTED', country: 'Internal use', type: 'internal' },
-                '300-379': { region: 'FR', country: 'France' },
-                '380': { region: 'BG', country: 'Bulgaria' },
-                '383': { region: 'SI', country: 'Slovenia' },
-                '385': { region: 'HR', country: 'Croatia' },
-                '387': { region: 'BA', country: 'Bosnia Herzegovina' },
-                '400-440': { region: 'DE', country: 'Germany' },
-                '450-459': { region: 'JP', country: 'Japan' },
-                '460-469': { region: 'RU', country: 'Russia' },
-                '500-509': { region: 'UK', country: 'United Kingdom' },
-                '520-521': { region: 'GR', country: 'Greece' },
-                '528': { region: 'LB', country: 'Lebanon' },
-                '529': { region: 'CY', country: 'Cyprus' },
-                '530': { region: 'AL', country: 'Albania' },
-                '531': { region: 'MK', country: 'North Macedonia' },
-                '535': { region: 'MT', country: 'Malta' },
-                '539': { region: 'IE', country: 'Ireland' },
-                '540-549': { region: 'BE', country: 'Belgium/Luxembourg' },
-                '560': { region: 'PT', country: 'Portugal' },
-                '569': { region: 'IS', country: 'Iceland' },
-                '570-579': { region: 'DK', country: 'Denmark' },
-                '590': { region: 'PL', country: 'Poland' },
-                '594': { region: 'RO', country: 'Romania' },
-                '599': { region: 'HU', country: 'Hungary' },
-                '600-601': { region: 'ZA', country: 'South Africa' },
-                '640-649': { region: 'FI', country: 'Finland' },
-                '690-695': { region: 'CN', country: 'China' },
-                '700-709': { region: 'NO', country: 'Norway' },
-                '729': { region: 'IL', country: 'Israel' },
-                '730-739': { region: 'SE', country: 'Sweden' },
-                '754-755': { region: 'CA', country: 'Canada' },
-                '760-769': { region: 'CH', country: 'Switzerland' },
-                '770-771': { region: 'CO', country: 'Colombia' },
-                '773': { region: 'UY', country: 'Uruguay' },
-                '775': { region: 'PE', country: 'Peru' },
-                '777': { region: 'BO', country: 'Bolivia' },
-                '778-779': { region: 'AR', country: 'Argentina' },
-                '780': { region: 'CL', country: 'Chile' },
-                '784': { region: 'PY', country: 'Paraguay' },
-                '786': { region: 'EC', country: 'Ecuador' },
-                '789-790': { region: 'BR', country: 'Brazil' },
-                '800-839': { region: 'IT', country: 'Italy' },
-                '840-849': { region: 'ES', country: 'Spain' },
-                '850': { region: 'CU', country: 'Cuba' },
-                '858': { region: 'SK', country: 'Slovakia' },
-                '859': { region: 'CZ', country: 'Czech Republic' },
-                '860': { region: 'RS', country: 'Serbia' },
-                '867': { region: 'KP', country: 'North Korea' },
-                '868-869': { region: 'TR', country: 'Turkey' },
-                '870-879': { region: 'NL', country: 'Netherlands' },
-                '880': { region: 'KR', country: 'South Korea' },
-                '885': { region: 'TH', country: 'Thailand' },
-                '888': { region: 'SG', country: 'Singapore' },
-                '890': { region: 'IN', country: 'India' },
-                '893': { region: 'VN', country: 'Vietnam' },
-                '896': { region: 'PK', country: 'Pakistan' },
-                '899': { region: 'ID', country: 'Indonesia' },
-                '900-919': { region: 'AT', country: 'Austria' },
-                '930-939': { region: 'AU', country: 'Australia' },
-                '940-949': { region: 'NZ', country: 'New Zealand' },
-                '955': { region: 'MY', country: 'Malaysia' },
-                '958': { region: 'MO', country: 'Macau' }
+                '200-299': {region: 'RESTRICTED', country: 'Internal use', type: 'internal'},
+                '300-379': {region: 'FR', country: 'France'},
+                '380': {region: 'BG', country: 'Bulgaria'},
+                '383': {region: 'SI', country: 'Slovenia'},
+                '385': {region: 'HR', country: 'Croatia'},
+                '387': {region: 'BA', country: 'Bosnia Herzegovina'},
+                '400-440': {region: 'DE', country: 'Germany'},
+                '450-459': {region: 'JP', country: 'Japan'},
+                '460-469': {region: 'RU', country: 'Russia'},
+                '500-509': {region: 'UK', country: 'United Kingdom'},
+                '520-521': {region: 'GR', country: 'Greece'},
+                '528': {region: 'LB', country: 'Lebanon'},
+                '529': {region: 'CY', country: 'Cyprus'},
+                '530': {region: 'AL', country: 'Albania'},
+                '531': {region: 'MK', country: 'North Macedonia'},
+                '535': {region: 'MT', country: 'Malta'},
+                '539': {region: 'IE', country: 'Ireland'},
+                '540-549': {region: 'BE', country: 'Belgium/Luxembourg'},
+                '560': {region: 'PT', country: 'Portugal'},
+                '569': {region: 'IS', country: 'Iceland'},
+                '570-579': {region: 'DK', country: 'Denmark'},
+                '590': {region: 'PL', country: 'Poland'},
+                '594': {region: 'RO', country: 'Romania'},
+                '599': {region: 'HU', country: 'Hungary'},
+                '600-601': {region: 'ZA', country: 'South Africa'},
+                '640-649': {region: 'FI', country: 'Finland'},
+                '690-695': {region: 'CN', country: 'China'},
+                '700-709': {region: 'NO', country: 'Norway'},
+                '729': {region: 'IL', country: 'Israel'},
+                '730-739': {region: 'SE', country: 'Sweden'},
+                '754-755': {region: 'CA', country: 'Canada'},
+                '760-769': {region: 'CH', country: 'Switzerland'},
+                '770-771': {region: 'CO', country: 'Colombia'},
+                '773': {region: 'UY', country: 'Uruguay'},
+                '775': {region: 'PE', country: 'Peru'},
+                '777': {region: 'BO', country: 'Bolivia'},
+                '778-779': {region: 'AR', country: 'Argentina'},
+                '780': {region: 'CL', country: 'Chile'},
+                '784': {region: 'PY', country: 'Paraguay'},
+                '786': {region: 'EC', country: 'Ecuador'},
+                '789-790': {region: 'BR', country: 'Brazil'},
+                '800-839': {region: 'IT', country: 'Italy'},
+                '840-849': {region: 'ES', country: 'Spain'},
+                '850': {region: 'CU', country: 'Cuba'},
+                '858': {region: 'SK', country: 'Slovakia'},
+                '859': {region: 'CZ', country: 'Czech Republic'},
+                '860': {region: 'RS', country: 'Serbia'},
+                '867': {region: 'KP', country: 'North Korea'},
+                '868-869': {region: 'TR', country: 'Turkey'},
+                '870-879': {region: 'NL', country: 'Netherlands'},
+                '880': {region: 'KR', country: 'South Korea'},
+                '885': {region: 'TH', country: 'Thailand'},
+                '888': {region: 'SG', country: 'Singapore'},
+                '890': {region: 'IN', country: 'India'},
+                '893': {region: 'VN', country: 'Vietnam'},
+                '896': {region: 'PK', country: 'Pakistan'},
+                '899': {region: 'ID', country: 'Indonesia'},
+                '900-919': {region: 'AT', country: 'Austria'},
+                '930-939': {region: 'AU', country: 'Australia'},
+                '940-949': {region: 'NZ', country: 'New Zealand'},
+                '955': {region: 'MY', country: 'Malaysia'},
+                '958': {region: 'MO', country: 'Macau'}
             };
 
             // Find matching prefix range
@@ -437,7 +437,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
 
             // Request permissions if needed
             if (Capacitor.isNativePlatform()) {
-                const { camera } = await MLKitBarcodeScanner.requestPermissions();
+                const {camera} = await MLKitBarcodeScanner.requestPermissions();
                 if (camera !== 'granted') {
                     setError('Camera permission denied');
                     return;
@@ -559,7 +559,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                             </div>
                             <div className="space-y-3">
                                 <TouchEnhancedButton
-                                    onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=upc-limit' })}
+                                    onClick={() => NativeNavigation.navigateTo({path: '/pricing?source=upc-limit'})}
                                     className="w-full bg-blue-600 text-white py-2 px-4 rounded-md font-medium"
                                 >
                                     Upgrade for Unlimited Scans
@@ -597,8 +597,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     WebkitTransform: 'translateZ(0)'
                 }}
             >
-            {/* CLEAN FULL-SCREEN INTERFACE WITH INTERNATIONAL SUPPORT */}
-            <div className="fixed inset-0 bg-black z-50 flex flex-col">
+
                 {/* Enhanced Header with International Context */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div className="flex-1">
@@ -670,11 +669,13 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     ) : (
                         <>
                             {/* Always show content - either loading or ready interface */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
+                            <div
+                                className="absolute inset-0 flex items-center justify-center bg-gradient-to-b from-gray-900 to-black">
                                 {isLoading ? (
                                     /* Loading State */
                                     <div className="text-center text-white px-4">
-                                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+                                        <div
+                                            className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
                                         <div className="text-lg font-medium mb-2">
                                             Starting international scanner...
                                         </div>
@@ -715,13 +716,14 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                                         <TouchEnhancedButton
                                             onClick={startMLKitScanning}
                                             className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-xl text-xl shadow-lg w-full max-w-xs mb-4"
-                                            style={{ minHeight: '60px', fontSize: '18px' }}
+                                            style={{minHeight: '60px', fontSize: '18px'}}
                                         >
                                             📸 Start International Scan
                                         </TouchEnhancedButton>
 
                                         <div className="text-xs text-gray-500 text-center max-w-xs mx-auto">
-                                            Supports UPC, EAN, Code 128/39/93, ITF, Data Matrix, QR codes from 40+ countries
+                                            Supports UPC, EAN, Code 128/39/93, ITF, Data Matrix, QR codes from 40+
+                                            countries
                                         </div>
                                     </div>
                                 )}
@@ -740,7 +742,6 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                         Close
                     </TouchEnhancedButton>
                 </div>
-            </div>
             </div>
         </FeatureGate>
     );
