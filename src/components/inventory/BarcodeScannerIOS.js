@@ -358,6 +358,9 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     case 'warning':
                         await MobileHaptics.warning();
                         break;
+                    case 'processing':
+                        await MobileHaptics.light();
+                        break;
                     default:
                         await MobileHaptics.light();
                         break;
@@ -565,8 +568,27 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                 </div>
             }
         >
-            {/* CLEAN FULL-SCREEN INTERFACE WITH INTERNATIONAL SUPPORT */}
-            <div className="fixed inset-0 bg-black z-50 flex flex-col">
+            {/* FULL-SCREEN MODAL - Covers entire viewport with no background bleed-through */}
+            <div
+                className="fixed inset-0 bg-black z-[9999] flex flex-col"
+                style={{
+                    // Ensure complete coverage on all iOS devices
+                    position: 'fixed',
+                    top: '0',
+                    left: '0',
+                    right: '0',
+                    bottom: '0',
+                    width: '100vw',
+                    height: '100vh',
+                    zIndex: 9999,
+                    // Prevent any scrolling or interaction with background
+                    overscrollBehavior: 'none',
+                    touchAction: 'none',
+                    // iOS specific fixes
+                    WebkitOverflowScrolling: 'touch',
+                    WebkitTransform: 'translateZ(0)'
+                }}
+            >
                 {/* Enhanced Header with International Context */}
                 <div className="flex-shrink-0 bg-black text-white px-4 py-3 flex justify-between items-center">
                     <div className="flex-1">
@@ -606,6 +628,7 @@ export default function BarcodeScannerIOS({onBarcodeDetected, onClose, isActive}
                     <TouchEnhancedButton
                         onClick={handleScannerClose}
                         className="text-white text-2xl font-bold w-10 h-10 flex items-center justify-center bg-gray-800 rounded-full hover:bg-gray-700 flex-shrink-0 ml-4"
+                        style={{ minWidth: '40px', minHeight: '40px' }}
                     >
                         ×
                     </TouchEnhancedButton>
