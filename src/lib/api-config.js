@@ -25,13 +25,13 @@ export function getApiUrl(endpoint) {
 
 // Simple function to get session headers for mobile (synchronous)
 export function getSessionHeadersSync() {
-    const headers = {};
+    const headers = {
+        'Content-Type': 'application/json'
+    };
 
     // For mobile platforms, try to get session data from Capacitor storage
     if (Capacitor.isNativePlatform()) {
         try {
-            // Try to get session data from Capacitor Preferences synchronously
-            // This is a simplified approach - we'll manually add the admin user info
             const adminEmail = 'e.g.mckeown@gmail.com';
             const adminId = '683f7f2f777a0e7ab3dd17d4';
 
@@ -72,7 +72,14 @@ export async function fetchWithSession(url, options = {}) {
         }
     };
 
-    return fetch(url, enhancedOptions);
+    try {
+        const response = await fetch(url, enhancedOptions);
+        console.log('🔍 Response status:', response.status);
+        return response;
+    } catch (error) {
+        console.error('🔍 Fetch error:', error);
+        throw error;
+    }
 }
 
 // Convenient API helper functions
@@ -111,7 +118,6 @@ export async function apiPut(endpoint, data, options = {}) {
     });
 }
 
-// FIXED: apiDelete now properly handles request bodies like apiPost and apiPut
 export async function apiDelete(endpoint, data = null, options = {}) {
     const url = getApiUrl(endpoint);
 
@@ -121,7 +127,6 @@ export async function apiDelete(endpoint, data = null, options = {}) {
         ...options
     };
 
-    // If data is provided, add JSON headers and serialize the body
     if (data !== null && data !== undefined) {
         deleteOptions.headers = {
             'Content-Type': 'application/json',
