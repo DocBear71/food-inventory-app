@@ -380,7 +380,7 @@ function SignUpContent() {
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // 🍎 Success haptic feedback
+                // Success haptic feedback
                 try {
                     const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
                     await MobileHaptics.success();
@@ -389,7 +389,7 @@ function SignUpContent() {
                 }
 
                 setSuccess(data.message || 'Account created successfully! Please check your email to verify your account.');
-                setShowSuccessMessage(true);
+
 
                 // Clear form
                 setFormData({
@@ -404,7 +404,6 @@ function SignUpContent() {
                 if (successMessageRef.current) {
                     successMessageRef.current.scrollIntoView({ behavior: 'smooth' });
                 }
-
             } else {
                 // 🍎 Error haptic feedback
                 try {
