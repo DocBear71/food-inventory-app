@@ -625,18 +625,24 @@ export const NativeCheckbox = forwardRef(({
             }
         }
 
-        // Create synthetic event that matches what your form expects
+        // Create a more complete synthetic event that matches native checkbox events
+        const newChecked = !checked;
         const syntheticEvent = {
             target: {
-                name,
-                checked: !checked,
-                value: !checked
+                name: name,
+                checked: newChecked,
+                value: newChecked,
+                type: 'checkbox'
             },
             currentTarget: {
-                name,
-                checked: !checked,
-                value: !checked
-            }
+                name: name,
+                checked: newChecked,
+                value: newChecked,
+                type: 'checkbox'
+            },
+            type: 'change',
+            preventDefault: () => {},
+            stopPropagation: () => {}
         };
 
         onChange(syntheticEvent);
