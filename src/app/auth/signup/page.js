@@ -350,9 +350,30 @@ function SignUpContent() {
         try {
             const response = await apiPost('/api/auth/register', {
                 ...formData,
-                tier: urlTier,
-                billing: urlBilling,
-                trial: urlTrial,
+
+                // Required legal acceptance
+                acceptedTerms,
+                acceptedPrivacy,
+                acceptanceDate: new Date().toISOString(),
+
+                // International compliance fields
+                isEUUser,
+                acceptedDataProcessing: isEUUser ? acceptedDataProcessing : null,
+                acceptedVoiceProcessing,
+                acceptedInternationalTransfers,
+
+                // Minor protection fields
+                isMinor,
+                parentEmail: isMinor ? parentEmail : null,
+                acceptedMinorConsent: isMinor ? acceptedMinorConsent : null,
+
+                // Optional marketing
+                acceptedMarketing,
+
+                // Subscription fields
+                selectedTier: urlTier,
+                billingCycle: urlBilling,
+                startTrial: urlTrial === 'true',
                 source: urlSource
             });
 
