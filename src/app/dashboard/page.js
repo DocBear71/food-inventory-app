@@ -26,11 +26,6 @@ export default function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [showNotifications, setShowNotifications] = useState(false);
 
-
-// TEMPORARY iOS DEBUG PANEL - REMOVE AFTER FIXING
-    const showDebug = process.env.NODE_ENV === 'development' || true; // Force show for debugging
-
-
     // FIXED: Use router.push instead of redirect
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -171,23 +166,6 @@ export default function Dashboard() {
                     </p>
                 </div>
             </div>
-
-            {/* TEMPORARY DEBUG PANEL FOR iOS - REMOVE AFTER FIXING */}
-            {showDebug && (
-                <div className="bg-yellow-50 border-2 border-yellow-300 rounded-lg p-4 mb-6">
-                    <h3 className="font-bold text-yellow-900 mb-2">DEBUG: Subscription Data (iOS Testing)</h3>
-                    <div className="text-xs text-yellow-800 space-y-1">
-                        <div>Tier: {subscription.tier || 'undefined'}</div>
-                        <div>Status: {subscription.status || 'undefined'}</div>
-                        <div>hasUsedFreeTrial: {String(subscription.hasUsedFreeTrial)}</div>
-                        <div>isTrialActive: {String(subscription.isTrialActive)}</div>
-                        <div>Session Email: {session?.user?.email || 'undefined'}</div>
-                        <div>Session Subscription Tier: {session?.user?.subscription?.tier || 'undefined'}</div>
-                        <div>Session hasUsedFreeTrial: {String(session?.user?.subscription?.hasUsedFreeTrial)}</div>
-                        <div>Trial Should Show: {String(subscription.tier === 'free' && subscription.status !== 'trial' && !subscription.hasUsedFreeTrial)}</div>
-                    </div>
-                </div>
-            )}
 
             {/* Free Trial Promotion */}
             {subscription.tier === 'free' &&
