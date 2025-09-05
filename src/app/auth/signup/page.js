@@ -52,6 +52,7 @@ function SignUpContent() {
     const [acceptedMinorConsent, setAcceptedMinorConsent] = useState(false);
     const [isMinor, setIsMinor] = useState(false);
     const [parentEmail, setParentEmail] = useState('');
+    const [showPricingModal, setShowPricingModal] = useState(false);
 
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
@@ -391,6 +392,7 @@ function SignUpContent() {
     const closeModal = () => {
         setShowPrivacyModal(false);
         setShowTermsModal(false);
+        setShowPricingModal(false);
         document.body.style.overflow = 'unset';
     };
 
@@ -510,7 +512,7 @@ function SignUpContent() {
                                     After creating your account, activate your free 7-day Platinum trial for unlimited access to all features.
                                 </p>
                                 <TouchEnhancedButton
-                                    onClick={() => router.push('/pricing')}
+                                    onClick={() => setShowPricingModal(true)}
                                     className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
                                 >
                                     View All Plans & Features
@@ -1028,6 +1030,110 @@ function SignUpContent() {
             <Footer/>
 
             {/* Rest of modals remain the same... */}
+
+            <Modal
+                isOpen={showPricingModal}
+                onClose={closeModal}
+                title="Compare Plans"
+                size="large"
+            >
+                <div className="p-6">
+                    <div className="text-center mb-6">
+                        <p className="text-gray-600">
+                            Everyone starts with a free account. After signup, you can activate a 7-day free trial or subscribe anytime.
+                        </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {tiers.map((tier) => {
+                            const savings = getSavingsPercentage(tier);
+                            return (
+                                <div
+                                    key={tier.id}
+                                    className={`border-2 rounded-lg p-6 border-gray-200 hover:border-gray-300`}
+                                >
+                                    <div className="text-center mb-4">
+                                        <h3 className={`text-xl font-bold ${tier.textColor} mb-2`}>
+                                            {tier.name}
+                                            {tier.trialAvailable && (
+                                                <span className="block text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full mt-1">
+                                        7-Day Free Trial
+                                    </span>
+                                            )}
+                                        </h3>
+                                        <p className="text-gray-600 text-sm mb-4">{tier.description}</p>
+
+                                        <div className="mb-4">
+                                            {tier.price.monthly === 0 ? (
+                                                <div>
+                                                    <span className="text-3xl font-bold text-gray-900">Free</span>
+                                                    <div className="text-xs text-gray-500 mt-1">Forever</div>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <div className="flex items-center justify-center">
+                                            <span className="text-3xl font-bold text-gray-900">
+                                                ${tier.price.annual}
+                                            </span>
+                                                        <span className="text-gray-600 ml-1 text-sm">/year</span>
+                                                    </div>
+                                                    {savings && (
+                                                        <div className="text-xs text-green-600 font-semibold mt-1">
+                                                            Save {savings}% vs monthly
+                                                        </div>
+                                                    )}
+                                                    <div className="text-sm text-gray-500 mt-1">
+                                                        ${tier.price.monthly}/month if billed monthly
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <h4 className="font-semibold text-gray-900 text-sm">What's Included:</h4>
+                                        <ul className="space-y-1">
+                                            {tier.features.slice(0, 6).map((feature, index) => (
+                                                <li key={index} className="flex items-start space-x-2">
+                                                    <svg className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                    </svg>
+                                                    <span className="text-sm text-gray-700">{feature.name}</span>
+                                                </li>
+                                            ))}
+                                            {tier.features.length > 6 && (
+                                                <li className="text-sm text-gray-500 pl-6">
+                                                    + {tier.features.length - 6} more features
+                                                </li>
+                                            )}
+                                        </ul>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+
+                    <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-semibold text-blue-900 mb-2">After Creating Your Free Account:</h4>
+                        <ul className="text-sm text-blue-800 space-y-1">
+                            <li>✓ Start using free features immediately</li>
+                            <li>✓ Activate 7-day Platinum trial anytime (no credit card needed)</li>
+                            <li>✓ Subscribe to Gold or Platinum when ready</li>
+                            <li>✓ Cancel or downgrade anytime</li>
+                        </ul>
+                    </div>
+
+                    <div className="mt-4 text-center">
+                        <TouchEnhancedButton
+                            onClick={closeModal}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium"
+                        >
+                            Got It - Create Free Account
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
+            </Modal>
+
             <Modal
                 isOpen={showPrivacyModal}
                 onClose={closeModal}
