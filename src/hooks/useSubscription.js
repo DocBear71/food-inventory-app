@@ -350,13 +350,17 @@ export function SubscriptionProvider({ children }) {
         if (session?.user?.subscription?.tier && session?.user?.subscription?.status) {
             console.log('📋 Using session subscription object:', session.user.subscription);
             console.log('📋 Session subscription status:', session.user.subscription.status);
+
+            // FIXED: Ensure proper boolean conversion for hasUsedFreeTrial
+            const hasUsedFreeTrial = Boolean(session.user.subscription.hasUsedFreeTrial);
+
             setSubscriptionData({
                 tier: session.user.subscription.tier,
                 status: session.user.subscription.status,
                 isAdmin: session.user.isAdmin || false,
                 isActive: session.user.subscription.status === 'active',
                 isTrialActive: session.user.subscription.status === 'trial',
-                hasUsedFreeTrial: session.user.subscription.hasUsedFreeTrial || false,
+                hasUsedFreeTrial: hasUsedFreeTrial,
                 usage: session.user.usage || {},
                 subscription: session.user.subscription,
                 timestamp: new Date().toISOString()
@@ -371,12 +375,19 @@ export function SubscriptionProvider({ children }) {
                 subscriptionTier: session.user.subscriptionTier,
                 effectiveTier: session.user.effectiveTier
             });
+
+            // FIXED: Better extraction of hasUsedFreeTrial from multiple possible locations
+            const hasUsedFreeTrial = Boolean(
+                session.user.subscription?.hasUsedFreeTrial ||
+                session.user.hasUsedFreeTrial
+            );
+
             setSubscriptionData({
                 tier: session.user.effectiveTier || session.user.subscriptionTier,
                 isAdmin: session.user.isAdmin || false,
                 isActive: true,
                 isTrialActive: false,
-                hasUsedFreeTrial: session.user.subscription?.hasUsedFreeTrial || session.user.hasUsedFreeTrial || false,
+                hasUsedFreeTrial: hasUsedFreeTrial,
                 usage: session.user.usage || {},
                 timestamp: new Date().toISOString()
             });
