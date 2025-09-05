@@ -346,6 +346,59 @@ export default function AccountPage() {
                     </div>
                 </div>
 
+                {/* Free Trial Activation */}
+                {subscription.tier === 'free' && subscription.status !== 'trial' && !subscription.hasUsedFreeTrial && (
+                    <div className="bg-gradient-to-r from-indigo-50 to-purple-50 shadow rounded-lg p-6">
+                        <div className="text-center">
+                            <div className="text-4xl mb-4">✨</div>
+                            <h2 className="text-xl font-bold text-gray-900 mb-2">
+                                Ready to Experience Premium Features?
+                            </h2>
+                            <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
+                                Activate your free 7-day Platinum trial and get unlimited inventory tracking,
+                                advanced meal planning, nutrition goals, and priority support. No credit card required.
+                            </p>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 text-sm">
+                                <div className="text-center">
+                                    <div className="text-2xl mb-2">🚀</div>
+                                    <div className="font-semibold text-gray-900">Unlimited Everything</div>
+                                    <p className="text-gray-600">No limits on inventory, recipes, or scans</p>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl mb-2">🍽️</div>
+                                    <div className="font-semibold text-gray-900">Advanced Meal Planning</div>
+                                    <p className="text-gray-600">Plan weeks ahead with nutrition tracking</p>
+                                </div>
+                                <div className="text-center">
+                                    <div className="text-2xl mb-2">⭐</div>
+                                    <div className="font-semibold text-gray-900">Priority Support</div>
+                                    <p className="text-gray-600">Get help faster with premium support</p>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+                                <TouchEnhancedButton
+                                    onClick={() => NativeNavigation.routerPush(router, '/account/billing?trial=true')}
+                                    className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-3 rounded-lg font-semibold"
+                                >
+                                    Start 7-Day Free Trial
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => NativeNavigation.routerPush(router, '/pricing')}
+                                    className="bg-white hover:bg-gray-50 text-purple-600 border border-purple-600 px-8 py-3 rounded-lg font-semibold"
+                                >
+                                    Compare All Plans
+                                </TouchEnhancedButton>
+                            </div>
+
+                            <p className="text-xs text-gray-500 mt-3">
+                                No credit card required • Cancel anytime • Full access to all Platinum features
+                            </p>
+                        </div>
+                    </div>
+                )}
+
                 {/* Subscription Overview */}
                 <div className="bg-white shadow rounded-lg p-6">
                     <h2 className="text-xl font-semibold text-gray-900 mb-4">Subscription Overview</h2>
@@ -719,6 +772,65 @@ export default function AccountPage() {
                             >
                                 Enable 2FA
                             </TouchEnhancedButton>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Account Management */}
+                <div className="bg-white shadow rounded-lg p-6">
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Account Management</h2>
+
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between py-3 border-b border-gray-200">
+                            <div>
+                                <div className="font-medium text-gray-900">Export Your Data</div>
+                                <div className="text-sm text-gray-600">Download your recipes, meal plans, and inventory data</div>
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={async () => {
+                                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                    await NativeDialog.showAlert({
+                                        title: 'Export Coming Soon',
+                                        message: 'Data export functionality will be available soon. Contact support if you need your data immediately.'
+                                    });
+                                }}
+                                className="text-indigo-600 hover:text-indigo-700 text-sm font-medium"
+                            >
+                                Export Data
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="flex items-center justify-between py-3 border-b border-gray-200">
+                            <div>
+                                <div className="font-medium text-gray-900">Pause Account</div>
+                                <div className="text-sm text-gray-600">Temporarily suspend your account instead of deleting</div>
+                            </div>
+                            <TouchEnhancedButton
+                                onClick={() => setShowContactModal(true)}
+                                className="text-orange-600 hover:text-orange-700 text-sm font-medium"
+                            >
+                                Contact Support
+                            </TouchEnhancedButton>
+                        </div>
+
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <div className="font-medium text-red-900">Delete Account</div>
+                                    <div className="text-sm text-red-700 mb-3">
+                                        Permanently delete your account and all associated data. This action cannot be undone.
+                                    </div>
+                                    <div className="text-xs text-red-600">
+                                        Alternative: Visit our <a href="/account-deletion" className="underline hover:no-underline">account deletion page</a> for detailed information and options.
+                                    </div>
+                                </div>
+                                <TouchEnhancedButton
+                                    onClick={() => NativeNavigation.routerPush(router, '/profile?tab=security')}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg font-medium text-sm"
+                                >
+                                    Delete Account
+                                </TouchEnhancedButton>
+                            </div>
                         </div>
                     </div>
                 </div>

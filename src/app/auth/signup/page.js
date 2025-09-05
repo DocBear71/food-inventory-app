@@ -25,11 +25,6 @@ function SignUpContent() {
 
     // Create ref for success message section to scroll to
     const successMessageRef = useRef(null);
-
-    // Get URL parameters from pricing page
-    const urlTier = searchParams.get('tier') || 'free';
-    const urlBilling = searchParams.get('billing') || 'annual';
-    const urlTrial = searchParams.get('trial') === 'true';
     const urlSource = searchParams.get('source');
 
     const [formData, setFormData] = useState({
@@ -44,12 +39,6 @@ function SignUpContent() {
     const [isEUUser, setIsEUUser] = useState(false);
     const [detectedCountry, setDetectedCountry] = useState('');
     const [showInternationalNotice, setShowInternationalNotice] = useState(false);
-
-    // Pricing selection state
-    const [selectedTier, setSelectedTier] = useState(urlTier);
-    const [billingCycle, setBillingCycle] = useState(urlBilling);
-    const [showPricingModal, setShowPricingModal] = useState(false);
-
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -63,6 +52,7 @@ function SignUpContent() {
     const [acceptedMinorConsent, setAcceptedMinorConsent] = useState(false);
     const [isMinor, setIsMinor] = useState(false);
     const [parentEmail, setParentEmail] = useState('');
+    const [showPricingModal, setShowPricingModal] = useState(false);
 
     const [showPrivacyModal, setShowPrivacyModal] = useState(false);
     const [showTermsModal, setShowTermsModal] = useState(false);
@@ -85,61 +75,6 @@ function SignUpContent() {
         ...euCountries.sort(),
         'Japan', 'South Korea', 'Singapore', 'Other'
     ].sort();
-
-    // NEW: Detect user region and show appropriate compliance notices
-    useEffect(() => {
-        const detectUserRegion = () => {
-            try {
-                // Simple EU detection based on timezone
-                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-                const euTimezones = [
-                    'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'Europe/Rome',
-                    'Europe/Madrid', 'Europe/Amsterdam', 'Europe/Brussels', 'Europe/Vienna',
-                    'Europe/Prague', 'Europe/Warsaw', 'Europe/Stockholm', 'Europe/Copenhagen',
-                    'Europe/Helsinki', 'Europe/Dublin', 'Europe/Lisbon', 'Europe/Athens',
-                    'Europe/Budapest', 'Europe/Bucharest', 'Europe/Sofia', 'Europe/Zagreb',
-                    'Europe/Ljubljana', 'Europe/Bratislava', 'Europe/Vilnius', 'Europe/Riga',
-                    'Europe/Tallinn', 'Europe/Luxembourg', 'Europe/Malta', 'Europe/Nicosia'
-                ];
-
-                const isEU = euTimezones.includes(timezone);
-                setIsEUUser(isEU);
-
-                // Try to detect country from timezone
-                if (timezone.startsWith('Europe/')) {
-                    const city = timezone.split('/')[1];
-                    const countryMap = {
-                        'London': 'United Kingdom',
-                        'Berlin': 'Germany',
-                        'Paris': 'France',
-                        'Rome': 'Italy',
-                        'Madrid': 'Spain',
-                        'Amsterdam': 'Netherlands',
-                        'Brussels': 'Belgium',
-                        // Add more mappings as needed
-                    };
-                    setDetectedCountry(countryMap[city] || '');
-                }
-
-                if (isEU) {
-                    setShowInternationalNotice(true);
-                }
-            } catch (error) {
-                console.error('Error detecting region:', error);
-            }
-        };
-
-        detectUserRegion();
-    }, []);
-
-    // NEW: Update EU status when country is selected
-    useEffect(() => {
-        if (formData.country) {
-            const isEUCountry = euCountries.includes(formData.country);
-            setIsEUUser(isEUCountry);
-            setShowInternationalNotice(isEUCountry);
-        }
-    }, [formData.country]);
 
     const tiers = [
         {
@@ -201,6 +136,62 @@ function SignUpContent() {
         }
     ];
 
+
+    // NEW: Detect user region and show appropriate compliance notices
+    useEffect(() => {
+        const detectUserRegion = () => {
+            try {
+                // Simple EU detection based on timezone
+                const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                const euTimezones = [
+                    'Europe/London', 'Europe/Berlin', 'Europe/Paris', 'Europe/Rome',
+                    'Europe/Madrid', 'Europe/Amsterdam', 'Europe/Brussels', 'Europe/Vienna',
+                    'Europe/Prague', 'Europe/Warsaw', 'Europe/Stockholm', 'Europe/Copenhagen',
+                    'Europe/Helsinki', 'Europe/Dublin', 'Europe/Lisbon', 'Europe/Athens',
+                    'Europe/Budapest', 'Europe/Bucharest', 'Europe/Sofia', 'Europe/Zagreb',
+                    'Europe/Ljubljana', 'Europe/Bratislava', 'Europe/Vilnius', 'Europe/Riga',
+                    'Europe/Tallinn', 'Europe/Luxembourg', 'Europe/Malta', 'Europe/Nicosia'
+                ];
+
+                const isEU = euTimezones.includes(timezone);
+                setIsEUUser(isEU);
+
+                // Try to detect country from timezone
+                if (timezone.startsWith('Europe/')) {
+                    const city = timezone.split('/')[1];
+                    const countryMap = {
+                        'London': 'United Kingdom',
+                        'Berlin': 'Germany',
+                        'Paris': 'France',
+                        'Rome': 'Italy',
+                        'Madrid': 'Spain',
+                        'Amsterdam': 'Netherlands',
+                        'Brussels': 'Belgium',
+                        // Add more mappings as needed
+                    };
+                    setDetectedCountry(countryMap[city] || '');
+                }
+
+                if (isEU) {
+                    setShowInternationalNotice(true);
+                }
+            } catch (error) {
+                console.error('Error detecting region:', error);
+            }
+        };
+
+        detectUserRegion();
+    }, []);
+
+    // NEW: Update EU status when country is selected
+    useEffect(() => {
+        if (formData.country) {
+            const isEUCountry = euCountries.includes(formData.country);
+            setIsEUUser(isEUCountry);
+            setShowInternationalNotice(isEUCountry);
+        }
+    }, [formData.country]);
+
     const validatePassword = (password) => {
         const errors = [];
         if (password.length < 8) errors.push('at least 8 characters');
@@ -226,10 +217,6 @@ function SignUpContent() {
         const monthlyCost = tier.price.monthly * 12;
         const savings = ((monthlyCost - tier.price.annual) / monthlyCost) * 100;
         return Math.round(savings);
-    };
-
-    const getSelectedTierData = () => {
-        return tiers.find(tier => tier.id === selectedTier);
     };
 
     // Auto-scroll to success message when it appears
@@ -268,6 +255,10 @@ function SignUpContent() {
         e.preventDefault();
         setLoading(true);
         setSuccess('');
+        setError(''); // Clear any previous errors
+
+        // Visual debugging - show progress
+        setError('DEBUG: Starting signup process...');
 
         // iOS-specific form validation
         if (PlatformDetection.isIOS()) {
@@ -277,8 +268,9 @@ function SignUpContent() {
                 activeElement.blur();
             }
 
-            // Wait for iOS to process input changes
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Visual debug checkpoint
+            setError('DEBUG: iOS processing complete, validating fields...');
+            await new Promise(resolve => setTimeout(resolve, 500)); // Give time to see message
         }
 
         // 🍎 Native iOS form submit haptic
@@ -288,6 +280,10 @@ function SignUpContent() {
         } catch (error) {
             console.log('Form submit haptic failed:', error);
         }
+
+        // Visual debug - show what we're validating
+        setError(`DEBUG: Validating - Name: ${!!formData.name}, Email: ${!!formData.email}, Password: ${!!formData.password}, Confirm: ${!!formData.confirmPassword}, Terms: ${acceptedTerms}, Privacy: ${acceptedPrivacy}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Validate required fields
         if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
@@ -347,6 +343,10 @@ function SignUpContent() {
             return;
         }
 
+        // Visual debug - about to make API call
+        setError('DEBUG: All validation passed, making API call...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         try {
             const response = await apiPost('/api/auth/register', {
                 ...formData,
@@ -368,16 +368,16 @@ function SignUpContent() {
                 acceptedMinorConsent: isMinor ? acceptedMinorConsent : null,
 
                 // Optional marketing
-                acceptedMarketing,
-
-                // Subscription fields
-                selectedTier: urlTier,
-                billingCycle: urlBilling,
-                startTrial: urlTrial === 'true',
-                source: urlSource
+                acceptedMarketing
             });
 
+            // Visual debug - got response
+            setError(`DEBUG: Got response - OK: ${response.ok}, Status: ${response.status}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             const data = await response.json();
+            setError(`DEBUG: Parsed JSON - Success: ${data.success}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             if (response.ok && data.success) {
                 // Success haptic feedback
@@ -390,8 +390,7 @@ function SignUpContent() {
 
                 setSuccess(data.message || 'Account created successfully! Please check your email to verify your account.');
 
-
-                // Clear form
+                // Clear form and scroll to success message (same as before)
                 setFormData({
                     name: '',
                     email: '',
@@ -400,7 +399,6 @@ function SignUpContent() {
                     country: '',
                 });
 
-                // Scroll to success message
                 if (successMessageRef.current) {
                     successMessageRef.current.scrollIntoView({behavior: 'smooth'});
                 }
@@ -505,7 +503,6 @@ function SignUpContent() {
     const passwordReqs = getPasswordRequirements(formData.password);
     const passwordsMatch = formData.password && formData.confirmPassword && formData.password === formData.confirmPassword;
     const passwordsDontMatch = formData.password && formData.confirmPassword && formData.password !== formData.confirmPassword;
-    const selectedTierData = getSelectedTierData();
 
     return (
         <>
@@ -552,121 +549,44 @@ function SignUpContent() {
                         </div>
                     )}
 
-                    {/* Pricing Tier Selection */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-medium text-gray-900">Choose Your Plan</h3>
-                            <TouchEnhancedButton
-                                onClick={() => setShowPricingModal(true)}
-                                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                            >
-                                Compare Plans
-                            </TouchEnhancedButton>
-                        </div>
+                    {/* Free Account Information */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                        <div className="text-center">
+                            <div className="text-4xl mb-3">🎉</div>
+                            <h3 className="text-lg font-semibold text-blue-900 mb-3">
+                                Everyone Starts with a Free Account
+                            </h3>
+                            <p className="text-blue-800 mb-4">
+                                Create your free account now and explore our basic features. Once you're ready,
+                                you can activate a <strong>7-day free Platinum trial</strong> (no credit card required)
+                                to experience all premium features.
+                            </p>
 
-                        {/* Billing Cycle Toggle */}
-                        {selectedTier !== 'free' && (
-                            <div className="flex items-center justify-center mb-4">
-                                <div className="bg-gray-100 p-1 rounded-lg">
-                                    <TouchEnhancedButton
-                                        onClick={() => setBillingCycle('monthly')}
-                                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                                            billingCycle === 'monthly'
-                                                ? 'bg-white text-gray-900 shadow-sm'
-                                                : 'text-gray-600'
-                                        }`}
-                                    >
-                                        Monthly
-                                    </TouchEnhancedButton>
-                                    <TouchEnhancedButton
-                                        onClick={() => setBillingCycle('annual')}
-                                        className={`px-3 py-1 rounded text-sm font-medium transition-all relative ${
-                                            billingCycle === 'annual'
-                                                ? 'bg-white text-gray-900 shadow-sm'
-                                                : 'text-gray-600'
-                                        }`}
-                                    >
-                                        Annual
-                                        {billingCycle === 'annual' && selectedTier !== 'free' && (
-                                            <span
-                                                className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-1 rounded-full">
-                                                Save {getSavingsPercentage(selectedTierData)}%
-                                            </span>
-                                        )}
-                                    </TouchEnhancedButton>
-                                </div>
+                            <div className="bg-white rounded-lg p-4 mb-4">
+                                <h4 className="font-semibold text-gray-900 mb-2">Free Account Includes:</h4>
+                                <ul className="text-sm text-gray-700 space-y-1">
+                                    <li>✅ Up to 50 inventory items</li>
+                                    <li>✅ 100 starter recipes</li>
+                                    <li>✅ Basic recipe matching</li>
+                                    <li>✅ Simple shopping lists</li>
+                                    <li>✅ UPC scanning (10/month)</li>
+                                    <li>✅ Receipt scanning (2/month)</li>
+                                </ul>
                             </div>
-                        )}
 
-                        {/* Tier Selection */}
-                        <div className="space-y-2">
-                            {tiers.map((tier) => (
-                                <div
-                                    key={tier.id}
-                                    className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                                        selectedTier === tier.id
-                                            ? `${tier.borderColor} ${tier.bgColor}`
-                                            : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                                    onClick={() => setSelectedTier(tier.id)}
+                            <div className="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg p-4">
+                                <h4 className="font-semibold text-purple-900 mb-2">Ready for More?</h4>
+                                <p className="text-purple-800 text-sm mb-3">
+                                    After creating your account, activate your free 7-day Platinum trial for unlimited access to all features.
+                                </p>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowPricingModal(true)}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
                                 >
-                                    <div className="flex items-center">
-                                        <input
-                                            type="radio"
-                                            name="tier"
-                                            value={tier.id}
-                                            checked={selectedTier === tier.id}
-                                            onChange={() => setSelectedTier(tier.id)}
-                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                                        />
-                                        <div className="ml-3 flex-1">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h4 className={`font-semibold ${tier.textColor}`}>
-                                                        {tier.name}
-                                                        {tier.trialAvailable && (
-                                                            <span
-                                                                className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                                                7-Day Free Trial
-                                                            </span>
-                                                        )}
-                                                    </h4>
-                                                    <p className="text-sm text-gray-600">{tier.description}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    {tier.price.monthly === 0 ? (
-                                                        <span className="text-2xl font-bold text-gray-900">Free</span>
-                                                    ) : (
-                                                        <div>
-                                                            <span className="text-2xl font-bold text-gray-900">
-                                                                ${billingCycle === 'annual' ? tier.price.annual : tier.price.monthly}
-                                                            </span>
-                                                            <span className="text-gray-600 text-sm">
-                                                                /{billingCycle === 'annual' ? 'year' : 'month'}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Trial Info */}
-                        {selectedTier !== 'free' && (
-                            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                <div className="flex items-center">
-                                    <span className="text-green-600 text-sm">🎉</span>
-                                    <p className="ml-2 text-sm text-green-800">
-                                        <strong>7-Day Free Trial</strong> - Get full Platinum access! No payment
-                                        required now.
-                                        You'll be able to choose your subscription after the trial ends.
-                                    </p>
-                                </div>
+                                    View All Plans & Features
+                                </TouchEnhancedButton>
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     {/* Success message with ref for auto-scroll and spam notice */}
@@ -1178,6 +1098,7 @@ function SignUpContent() {
             <Footer/>
 
             {/* Rest of modals remain the same... */}
+
             <Modal
                 isOpen={showPricingModal}
                 onClose={closeModal}
@@ -1185,24 +1106,27 @@ function SignUpContent() {
                 size="large"
             >
                 <div className="p-6">
+                    <div className="text-center mb-6">
+                        <p className="text-gray-600">
+                            Everyone starts with a free account. After signup, you can activate a 7-day free trial or subscribe anytime.
+                        </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         {tiers.map((tier) => {
                             const savings = getSavingsPercentage(tier);
                             return (
                                 <div
                                     key={tier.id}
-                                    className={`border-2 rounded-lg p-6 ${
-                                        selectedTier === tier.id ? `${tier.borderColor} ${tier.bgColor}` : 'border-gray-200'
-                                    }`}
+                                    className={`border-2 rounded-lg p-6 border-gray-200 hover:border-gray-300`}
                                 >
                                     <div className="text-center mb-4">
                                         <h3 className={`text-xl font-bold ${tier.textColor} mb-2`}>
                                             {tier.name}
                                             {tier.trialAvailable && (
-                                                <span
-                                                    className="block text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full mt-1">
-                                                    7-Day Free Trial
-                                                </span>
+                                                <span className="block text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full mt-1">
+                                        7-Day Free Trial
+                                    </span>
                                             )}
                                         </h3>
                                         <p className="text-gray-600 text-sm mb-4">{tier.description}</p>
@@ -1216,35 +1140,22 @@ function SignUpContent() {
                                             ) : (
                                                 <div>
                                                     <div className="flex items-center justify-center">
-                                                        <span className="text-3xl font-bold text-gray-900">
-                                                            ${billingCycle === 'annual' ? tier.price.annual : tier.price.monthly}
-                                                        </span>
-                                                        <span className="text-gray-600 ml-1 text-sm">
-                                                            /{billingCycle === 'annual' ? 'year' : 'month'}
-                                                        </span>
+                                            <span className="text-3xl font-bold text-gray-900">
+                                                ${tier.price.annual}
+                                            </span>
+                                                        <span className="text-gray-600 ml-1 text-sm">/year</span>
                                                     </div>
-                                                    {billingCycle === 'annual' && savings && (
+                                                    {savings && (
                                                         <div className="text-xs text-green-600 font-semibold mt-1">
                                                             Save {savings}% vs monthly
                                                         </div>
                                                     )}
+                                                    <div className="text-sm text-gray-500 mt-1">
+                                                        ${tier.price.monthly}/month if billed monthly
+                                                    </div>
                                                 </div>
                                             )}
                                         </div>
-
-                                        <TouchEnhancedButton
-                                            onClick={() => {
-                                                setSelectedTier(tier.id);
-                                                closeModal();
-                                            }}
-                                            className={`w-full py-2 px-4 rounded-lg font-semibold text-sm transition-all ${
-                                                selectedTier === tier.id
-                                                    ? 'bg-indigo-600 text-white'
-                                                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
-                                            }`}
-                                        >
-                                            {selectedTier === tier.id ? 'Selected' : 'Select Plan'}
-                                        </TouchEnhancedButton>
                                     </div>
 
                                     <div className="space-y-2">
@@ -1252,11 +1163,8 @@ function SignUpContent() {
                                         <ul className="space-y-1">
                                             {tier.features.map((feature, index) => (
                                                 <li key={index} className="flex items-start space-x-2">
-                                                    <svg className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0"
-                                                         fill="currentColor" viewBox="0 0 20 20">
-                                                        <path fillRule="evenodd"
-                                                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                                                              clipRule="evenodd"/>
+                                                    <svg className="w-4 h-4 text-green-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                                                     </svg>
                                                     <span className="text-sm text-gray-700">{feature}</span>
                                                 </li>
@@ -1269,14 +1177,22 @@ function SignUpContent() {
                     </div>
 
                     <div className="mt-6 p-4 bg-blue-50 rounded-lg">
-                        <h4 className="font-semibold text-blue-900 mb-2">🎉 Free Trial Details</h4>
+                        <h4 className="font-semibold text-blue-900 mb-2">After Creating Your Free Account:</h4>
                         <ul className="text-sm text-blue-800 space-y-1">
-                            <li>• 7-day trial includes full <strong>Platinum</strong> access regardless of selected tier
-                            </li>
-                            <li>• No payment required during signup</li>
-                            <li>• After trial: choose to subscribe or continue with Free plan</li>
-                            <li>• Cancel anytime during trial with no charges</li>
+                            <li>✓ Start using free features immediately</li>
+                            <li>✓ Activate 7-day Platinum trial anytime (no credit card needed)</li>
+                            <li>✓ Subscribe to Gold or Platinum when ready</li>
+                            <li>✓ Cancel or downgrade anytime</li>
                         </ul>
+                    </div>
+
+                    <div className="mt-4 text-center">
+                        <TouchEnhancedButton
+                            onClick={closeModal}
+                            className="bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2 rounded-lg font-medium"
+                        >
+                            Got It - Create Free Account
+                        </TouchEnhancedButton>
                     </div>
                 </div>
             </Modal>

@@ -352,10 +352,11 @@ export function SubscriptionProvider({ children }) {
             console.log('📋 Session subscription status:', session.user.subscription.status);
             setSubscriptionData({
                 tier: session.user.subscription.tier,
-                status: session.user.subscription.status,  // ADD THIS LINE
+                status: session.user.subscription.status,
                 isAdmin: session.user.isAdmin || false,
                 isActive: session.user.subscription.status === 'active',
                 isTrialActive: session.user.subscription.status === 'trial',
+                hasUsedFreeTrial: session.user.subscription.hasUsedFreeTrial || false,
                 usage: session.user.usage || {},
                 subscription: session.user.subscription,
                 timestamp: new Date().toISOString()
@@ -375,6 +376,7 @@ export function SubscriptionProvider({ children }) {
                 isAdmin: session.user.isAdmin || false,
                 isActive: true,
                 isTrialActive: false,
+                hasUsedFreeTrial: session.user.subscription?.hasUsedFreeTrial || session.user.hasUsedFreeTrial || false,
                 usage: session.user.usage || {},
                 timestamp: new Date().toISOString()
             });

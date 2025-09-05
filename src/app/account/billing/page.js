@@ -804,7 +804,7 @@ function BillingContent() {
     const isOnTrial = subscription.isTrialActive;
     const canStartTrial = subscription.tier === 'free' &&
         !subscription.isTrialActive &&
-        !subscription.subscriptionData?.hasUsedFreeTrial;
+        !subscription.hasUsedFreeTrial;
     const effectiveTier = subscription.isAdmin ? 'platinum' :
         subscription.isExpired ? 'free' :
             subscription.originalTier || subscription.tier;
@@ -827,6 +827,91 @@ function BillingContent() {
                         </TouchEnhancedButton>
                     </div>
                 </div>
+
+                {/* Trial Activation Section */}
+                {subscription.tier === 'free' && subscription.status !== 'trial' && (
+                    <div className="bg-white shadow rounded-lg p-6">
+                        <div className="text-center">
+                            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+                                Activate Your 7-Day Free Trial
+                            </h2>
+                            <p className="text-gray-600 mb-6 max-w-lg mx-auto">
+                                Experience all Platinum features completely free for 7 days.
+                                No credit card required, cancel anytime.
+                            </p>
+
+                            <div className="bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg p-6 mb-6">
+                                <h3 className="font-semibold text-purple-900 mb-4">Trial Includes Full Access To:</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-purple-800">
+                                    <div className="flex items-center">
+                                        <span className="text-green-600 mr-2">✓</span>
+                                        Unlimited inventory items
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="text-green-600 mr-2">✓</span>
+                                        Unlimited receipt scanning
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="text-green-600 mr-2">✓</span>
+                                        Advanced meal planning
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="text-green-600 mr-2">✓</span>
+                                        Nutrition goal tracking
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="text-green-600 mr-2">✓</span>
+                                        Priority support
+                                    </div>
+                                    <div className="flex items-center">
+                                        <span className="text-green-600 mr-2">✓</span>
+                                        All premium features
+                                    </div>
+                                </div>
+                            </div>
+
+                            <TouchEnhancedButton
+                                onClick={async () => {
+                                    try {
+                                        setLoading(true);
+                                        const response = await apiPost('/api/subscription/activate-trial', {
+                                            tier: 'platinum'
+                                        });
+
+                                        const data = await response.json();
+
+                                        if (response.ok) {
+                                            setSuccess('Free trial activated! You now have 7 days of full Platinum access.');
+                                            subscription.refetch();
+                                        } else {
+                                            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                            await NativeDialog.showError({
+                                                title: 'Trial Activation Failed',
+                                                message: data.error || 'Failed to activate trial'
+                                            });
+                                        }
+                                    } catch (error) {
+                                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                                        await NativeDialog.showError({
+                                            title: 'Network Error',
+                                            message: 'Please try again'
+                                        });
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                disabled={loading}
+                                className="bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white px-8 py-3 rounded-lg font-semibold text-lg"
+                            >
+                                {loading ? 'Activating Trial...' : 'Activate Free Trial Now'}
+                            </TouchEnhancedButton>
+
+                            <p className="text-xs text-gray-500 mt-4">
+                                After your trial ends, you can choose to subscribe or continue with the free plan
+                            </p>
+                        </div>
+                    </div>
+                )}
 
                 {/* Status Messages */}
                 {error && (
