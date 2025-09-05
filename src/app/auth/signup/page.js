@@ -388,10 +388,28 @@ function SignUpContent() {
                     console.log('Success haptic failed:', error);
                 }
 
+                // Handle subscription flow for paid plans
+                if (selectedTier !== 'free') {
+                    console.log('Account created successfully, redirecting to complete subscription for:', selectedTier);
+
+                    // Redirect to billing page to complete subscription
+                    const billingParams = new URLSearchParams({
+                        tier: selectedTier,
+                        billing: billingCycle || 'annual',
+                        trial: 'true',
+                        source: 'signup-completion',
+                        newUser: 'true',
+                        email: data.user?.email // Pass email so user can sign in
+                    });
+
+                    router.push(`/account/billing?${billingParams.toString()}`);
+                    return;
+                }
+
+                // For free accounts - show success message
                 setSuccess(data.message || 'Account created successfully! Please check your email to verify your account.');
 
-
-                // Clear form
+                // Clear form and scroll to success message (same as before)
                 setFormData({
                     name: '',
                     email: '',
@@ -400,7 +418,6 @@ function SignUpContent() {
                     country: '',
                 });
 
-                // Scroll to success message
                 if (successMessageRef.current) {
                     successMessageRef.current.scrollIntoView({behavior: 'smooth'});
                 }
