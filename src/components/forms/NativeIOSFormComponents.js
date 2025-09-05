@@ -598,7 +598,7 @@ export const NativeSelect = forwardRef(({
 NativeSelect.displayName = 'NativeSelect';
 
 /**
- * Enhanced Checkbox with native iOS styling
+ * FIXED: Enhanced Checkbox with native iOS touch handling - Apple Review Issue #2 Fix
  */
 export const NativeCheckbox = forwardRef(({
                                               name,
@@ -612,48 +612,84 @@ export const NativeCheckbox = forwardRef(({
                                               ...props
                                           }, ref) => {
     const isIOS = PlatformDetection.isIOS();
+    const checkboxId = id || name || `checkbox-${Math.random().toString(36).substr(2, 9)}`;
 
-    const handleChange = async (e) => {
+    const handleToggle = async () => {
+        if (disabled || !onChange) return;
+
         if (isIOS) {
-            await MobileHaptics.selection();
+            try {
+                await MobileHaptics.selection();
+            } catch (error) {
+                console.log('Haptic feedback failed:', error);
+            }
         }
 
-        if (onChange) onChange(e);
+        // Create a more complete synthetic event that matches native checkbox events
+        const newChecked = !checked;
+        const syntheticEvent = {
+            target: {
+                name: name,
+                checked: newChecked,
+                value: newChecked,
+                type: 'checkbox'
+            },
+            currentTarget: {
+                name: name,
+                checked: newChecked,
+                value: newChecked,
+                type: 'checkbox'
+            },
+            type: 'change',
+            preventDefault: () => {},
+            stopPropagation: () => {}
+        };
+
+        onChange(syntheticEvent);
     };
 
     return (
-        <label className={`flex items-center cursor-pointer ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${className}`}>
+        <div
+            className={`flex items-center cursor-pointer select-none ${disabled ? 'opacity-50 cursor-not-allowed' : 'hover:bg-gray-50'} ${className} p-2 -m-2 rounded-md transition-colors`}
+            onClick={handleToggle}
+            style={{
+                minHeight: '44px',
+                touchAction: 'manipulation'
+            }}
+        >
             <input
                 ref={ref}
                 type="checkbox"
                 name={name}
-                id={id || name}
+                id={checkboxId}
                 checked={checked}
-                onChange={handleChange}
+                onChange={() => {}} // Prevent default handling
                 disabled={disabled}
                 className={`
                     w-5 h-5 text-blue-600 border-2 border-gray-300 rounded
-                    focus:ring-blue-500 focus:ring-2
+                    focus:ring-blue-500 focus:ring-2 focus:ring-offset-1
                     ${isIOS ? 'rounded-md' : 'rounded'}
                     ${checked ? 'bg-blue-600 border-blue-600' : 'bg-white'}
-                    transition-colors duration-200
+                    transition-all duration-200 cursor-pointer
+                    pointer-events-none
                 `}
                 style={{
                     WebkitAppearance: 'none',
                     appearance: 'none',
                     backgroundImage: checked ? `url("data:image/svg+xml,%3csvg viewBox='0 0 16 16' fill='white' xmlns='http://www.w3.org/2000/svg'%3e%3cpath d='m13.854 3.646-7.5 7.5a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6 10.293l7.146-7.147a.5.5 0 0 1 .708.708z'/%3e%3c/svg%3e")` : 'none',
-                    backgroundSize: '16px',
+                    backgroundSize: '14px',
                     backgroundPosition: 'center',
                     backgroundRepeat: 'no-repeat'
                 }}
                 {...props}
             />
+
             {(label || children) && (
-                <span className={`ml-3 text-gray-900 ${isIOS ? 'text-base' : 'text-sm'}`}>
+                <span className={`ml-3 text-gray-900 leading-5 ${isIOS ? 'text-base' : 'text-sm'} ${disabled ? 'text-gray-400' : 'text-gray-900'}`}>
                     {label || children}
                 </span>
             )}
-        </label>
+        </div>
     );
 });
 

@@ -1,143 +1,164 @@
-// file: /src/plugins/native-barcode-scanner.js v1 - JavaScript interface for native iOS barcode scanner
+// file: /src/plugins/native-barcode-scanner.js v10 - ENHANCED debugging for iPad testing
 
 import { registerPlugin } from '@capacitor/core';
+import { Capacitor } from '@capacitor/core';
 
 /**
- * Native Barcode Scanner Plugin Interface
- * Provides access to native iOS AVFoundation barcode scanning
+ * Native iOS Scanner Bridge
  */
-const NativeBarcodeScanner = registerPlugin('NativeBarcodeScanner', {
-    web: () => import('./native-barcode-scanner.web').then(m => new m.NativeBarcodeScannerWeb()),
-});
+const MinimalNativeScanner = registerPlugin('MinimalNativeScanner');
 
 /**
- * Barcode scanning options
- * @typedef {Object} ScanOptions
- * @property {string[]} [formats] - Array of barcode formats to scan for
- * @property {boolean} [enableHapticFeedback=true] - Enable haptic feedback on scan
- * @property {boolean} [enableAudioFeedback=true] - Enable audio feedback on scan
+ * Check if native iOS scanner is available with comprehensive debugging
+ * @param {Function} debugCallback - Function to receive debug messages
+ * @returns {Promise<boolean>} True if native scanning is available
  */
+export const isNativeScannerAvailable = async (debugCallback = null) => {
+    const debug = debugCallback || console.log;
 
-/**
- * Barcode scan result
- * @typedef {Object} ScanResult
- * @property {boolean} hasContent - Whether a barcode was successfully scanned
- * @property {string} content - The barcode content/value
- * @property {string} format - The barcode format (e.g., 'EAN_13', 'UPC_E')
- * @property {string} type - The raw AVFoundation type
- * @property {boolean} cancelled - Whether the scan was cancelled by user
- * @property {string} source - Source of the scan ('native_ios_avfoundation' or 'web_fallback')
- */
-
-/**
- * Permission status result
- * @typedef {Object} PermissionStatus
- * @property {string} camera - Camera permission status ('granted', 'denied', 'prompt')
- */
-
-export { NativeBarcodeScanner };
-
-/**
- * Scan a barcode using native iOS camera
- * @param {ScanOptions} [options] - Scanning options
- * @returns {Promise<ScanResult>} Promise that resolves with scan result
- */
-export const scanBarcode = async (options = {}) => {
     try {
-        console.log('🍎 Starting native barcode scan with options:', options);
+        debug('STEP 1: Platform Detection');
+        debug('Capacitor.isNativePlatform():', Capacitor.isNativePlatform());
+        debug('Capacitor.getPlatform():', Capacitor.getPlatform());
 
-        const result = await NativeBarcodeScanner.scanBarcode(options);
+        // Must be on native iOS platform
+        if (!Capacitor.isNativePlatform()) {
+            debug('FAILED: Not a native platform');
+            return false;
+        }
 
-        console.log('🍎 Native scan completed:', result);
+        if (Capacitor.getPlatform() !== 'ios') {
+            debug('FAILED: Not iOS platform, got:', Capacitor.getPlatform());
+            return false;
+        }
+
+        debug('✅ STEP 1 PASSED: Platform is native iOS');
+
+        debug('STEP 2: Plugin Registration Check');
+        debug('MinimalNativeScanner object:', typeof MinimalNativeScanner);
+        debug('MinimalNativeScanner methods:', Object.keys(MinimalNativeScanner || {}));
+
+        if (!MinimalNativeScanner) {
+            debug('FAILED: MinimalNativeScanner is null/undefined');
+            return false;
+        }
+
+        if (typeof MinimalNativeScanner.getCameraPermissions !== 'function') {
+            debug('FAILED: getCameraPermissions method not found');
+            debug('Available methods:', Object.keys(MinimalNativeScanner));
+            return false;
+        }
+
+        debug('✅ STEP 2 PASSED: Plugin object and methods found');
+
+        debug('STEP 3: Testing Plugin Call');
+
+        try {
+            const result = await MinimalNativeScanner.getCameraPermissions();
+            debug('✅ STEP 3 PASSED: Plugin call successful');
+            debug('Full result object:', JSON.stringify(result, null, 2));
+            debug('result.nativeScanner:', result.nativeScanner);
+            debug('result.camera:', result.camera);
+
+            const isAvailable = result && result.nativeScanner === 'available';
+            debug('Final availability result:', isAvailable);
+
+            return isAvailable;
+
+        } catch (pluginError) {
+            debug('FAILED STEP 3: Plugin call threw error');
+            debug('Error message:', pluginError.message);
+            debug('Error code:', pluginError.code);
+            debug('Full error object:', JSON.stringify(pluginError, Object.getOwnPropertyNames(pluginError), 2));
+            return false;
+        }
+
+    } catch (outerError) {
+        debug('CATASTROPHIC FAILURE in isNativeScannerAvailable');
+        debug('Outer error:', outerError.message);
+        debug('Stack trace:', outerError.stack);
+        return false;
+    }
+};
+
+/**
+ * Present the native iOS barcode scanner
+ */
+export const presentNativeScanner = async (options = {}) => {
+    try {
+        console.log('🍎 Calling MinimalNativeScanner.presentNativeScanner');
+        const result = await MinimalNativeScanner.presentNativeScanner(options);
+        console.log('🍎 Native scanner result:', JSON.stringify(result, null, 2));
         return result;
-
     } catch (error) {
-        console.error('🍎 Native barcode scan failed:', error);
+        console.error('🍎 Native scanner error:', error.message);
         throw error;
     }
 };
 
 /**
- * Check camera permissions
- * @returns {Promise<PermissionStatus>} Promise that resolves with permission status
+ * Check permissions with detailed debugging
  */
-export const checkPermissions = async () => {
+export const getCameraPermissions = async () => {
     try {
-        const result = await NativeBarcodeScanner.checkPermissions();
-        console.log('🍎 Camera permissions status:', result);
+        console.log('🍎 Calling MinimalNativeScanner.getCameraPermissions');
+        const result = await MinimalNativeScanner.getCameraPermissions();
+        console.log('🍎 Permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
-        console.error('🍎 Failed to check permissions:', error);
+        console.error('🍎 Permissions error:', error.message);
         throw error;
     }
 };
 
 /**
- * Request camera permissions
- * @returns {Promise<PermissionStatus>} Promise that resolves with permission status
+ * Request permissions with detailed debugging
  */
-export const requestPermissions = async () => {
+export const requestCameraPermissions = async () => {
     try {
-        const result = await NativeBarcodeScanner.requestPermissions();
-        console.log('🍎 Camera permissions requested:', result);
+        console.log('🍎 Calling MinimalNativeScanner.requestCameraPermissions');
+        const result = await MinimalNativeScanner.requestCameraPermissions();
+        console.log('🍎 Request permissions result:', JSON.stringify(result, null, 2));
         return result;
     } catch (error) {
-        console.error('🍎 Failed to request permissions:', error);
+        console.error('🍎 Request permissions error:', error.message);
         throw error;
     }
 };
 
-/**
- * Check if native barcode scanning is available
- * @returns {boolean} True if native scanning is available
- */
-export const isNativeScannerAvailable = () => {
-    return NativeBarcodeScanner && typeof NativeBarcodeScanner.scanBarcode === 'function';
+// Test function for debugging
+export const testPluginConnection = async (debugCallback) => {
+    const debug = debugCallback || console.log;
+
+    debug('=== PLUGIN CONNECTION TEST ===');
+
+    debug('1. Capacitor Info:');
+    debug('  - Native Platform:', Capacitor.isNativePlatform());
+    debug('  - Platform:', Capacitor.getPlatform());
+    debug('  - Plugin Info:', Capacitor.getPlugins ? Capacitor.getPlugins() : 'getPlugins not available');
+
+    debug('2. Plugin Object:');
+    debug('  - Type:', typeof MinimalNativeScanner);
+    debug('  - Null check:', MinimalNativeScanner === null);
+    debug('  - Undefined check:', MinimalNativeScanner === undefined);
+    debug('  - Methods:', Object.keys(MinimalNativeScanner || {}));
+
+    debug('3. Direct Method Test:');
+    try {
+        if (MinimalNativeScanner && typeof MinimalNativeScanner.getCameraPermissions === 'function') {
+            debug('  - getCameraPermissions method found, calling...');
+            const result = await MinimalNativeScanner.getCameraPermissions();
+            debug('  - ✅ SUCCESS:', JSON.stringify(result, null, 2));
+            return true;
+        } else {
+            debug('  - ❌ getCameraPermissions method not found or not a function');
+            return false;
+        }
+    } catch (error) {
+        debug('  - ❌ Method call failed:', error.message);
+        return false;
+    }
 };
 
-/**
- * Barcode format constants
- */
-export const BarcodeFormats = {
-    UPC_E: 'UPC_E',
-    UPC_A: 'UPC_A', // Note: UPC-A is typically represented as EAN-13 with leading zero
-    EAN_13: 'EAN_13',
-    EAN_8: 'EAN_8',
-    CODE_39: 'CODE_39',
-    CODE_93: 'CODE_93',
-    CODE_128: 'CODE_128',
-    ITF: 'ITF',
-    ITF_14: 'ITF_14',
-    PDF_417: 'PDF_417',
-    QR_CODE: 'QR_CODE',
-    DATA_MATRIX: 'DATA_MATRIX',
-    AZTEC: 'AZTEC',
-    CODABAR: 'CODABAR'
-};
-
-/**
- * Default scanning options optimized for grocery/product scanning
- */
-export const DefaultScanOptions = {
-    formats: [
-        BarcodeFormats.EAN_13,
-        BarcodeFormats.UPC_E,
-        BarcodeFormats.CODE_128,
-        BarcodeFormats.CODE_39,
-        BarcodeFormats.ITF_14
-    ],
-    enableHapticFeedback: true,
-    enableAudioFeedback: true
-};
-
-/**
- * Error types that can be thrown by the scanner
- */
-export const ScannerErrors = {
-    PERMISSION_DENIED: 'PERMISSION_DENIED',
-    CAMERA_ERROR: 'CAMERA_ERROR',
-    USER_CANCELLED: 'USER_CANCELLED',
-    SCANNER_NOT_AVAILABLE: 'SCANNER_NOT_AVAILABLE'
-};
-
-export default NativeBarcodeScanner;
+export const scanBarcode = presentNativeScanner;
+export default MinimalNativeScanner;

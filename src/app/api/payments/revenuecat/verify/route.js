@@ -1,16 +1,21 @@
-// file: /src/app/api/payments/revenuecat/verify/route.js v3 - Enhanced with Apple receipt validation
+// file: /src/app/api/payments/revenuecat/verify/route.js v4 - Fixed Apple receipt validation and offerings error
 
 import { NextResponse } from 'next/server';
 import { auth } from '@/lib/auth';
 import connectDB from '@/lib/mongodb';
 import { User } from '@/lib/models';
 
-// ADDED: Apple receipt validation function (outside the POST function)
+// FIXED: Apple receipt validation function
 async function validateReceiptWithApple(receiptData) {
     try {
-        console.log('🍎 Validating receipt with Apple...');
+        console.log('🍎 Starting Apple receipt validation...');
 
-        // STEP 1: Always try production first
+        if (!receiptData || !process.env.APPLE_SHARED_SECRET) {
+            console.log('⚠️ Skipping Apple validation - missing receipt data or shared secret');
+            return null;
+        }
+
+        // STEP 1: Always try production first (as per Apple's recommendation)
         const productionResponse = await fetch('https://buy.itunes.apple.com/verifyReceipt', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -22,7 +27,7 @@ async function validateReceiptWithApple(receiptData) {
         });
 
         const productionResult = await productionResponse.json();
-        console.log('🍎 Production validation result:', productionResult.status);
+        console.log('🍎 Production validation status:', productionResult.status);
 
         // STEP 2: If production fails with "sandbox receipt" error (21007), try sandbox
         if (productionResult.status === 21007) {
@@ -39,40 +44,49 @@ async function validateReceiptWithApple(receiptData) {
             });
 
             const sandboxResult = await sandboxResponse.json();
-            console.log('🧪 Sandbox validation result:', sandboxResult.status);
+            console.log('🧪 Sandbox validation status:', sandboxResult.status);
+
+            // Add environment flag for debugging
+            sandboxResult.environment = 'sandbox';
             return sandboxResult;
         }
 
         // STEP 3: Return production result for all other cases
+        productionResult.environment = 'production';
         return productionResult;
 
     } catch (error) {
         console.error('❌ Apple receipt validation failed:', error);
-        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-        await NativeDialog.showError({
-            title: 'Receipt Validation Failed',
-            message: `Receipt validation failed: ${error.message}`
-        });
-        return;
+        // Don't throw error - just log and continue
+        return null;
     }
 }
 
-// ADDED: Helper function to extract receipt data from RevenueCat purchase result
+// FIXED: Better receipt data extraction
 function extractReceiptData(purchaseResult) {
     try {
-        // RevenueCat provides receipt data in different places depending on platform
-        const receiptData = purchaseResult.transactionReceipt ||
-            purchaseResult.originalPurchaseDate ||
-            purchaseResult.customerInfo?.originalAppUserId;
+        // RevenueCat provides receipt data in different formats
+        const receiptData =
+            purchaseResult.transactionReceipt ||
+            purchaseResult.receipt ||
+            purchaseResult.originalTransactionIdentifier ||
+            purchaseResult.transactionIdentifier;
 
         if (!receiptData) {
             console.warn('⚠️ No receipt data found in purchase result');
             return null;
         }
 
-        // Convert to base64 if needed
-        if (typeof receiptData === 'string' && !receiptData.includes('base64')) {
-            return Buffer.from(receiptData).toString('base64');
+        console.log('📄 Found receipt data type:', typeof receiptData);
+
+        // If it's already a base64 string, return as-is
+        if (typeof receiptData === 'string') {
+            return receiptData;
+        }
+
+        // Convert object to base64 if needed
+        if (typeof receiptData === 'object') {
+            return Buffer.from(JSON.stringify(receiptData)).toString('base64');
         }
 
         return receiptData;
@@ -104,14 +118,14 @@ export async function POST(request) {
             );
         }
 
-        if (!['monthly', 'annual'].includes(billingCycle)) {
+        if (!['monthly', 'annual', 'weekly'].includes(billingCycle)) {
             return NextResponse.json(
                 { error: 'Invalid billing cycle' },
                 { status: 400 }
             );
         }
 
-        if (!['gold', 'platinum'].includes(tier)) {
+        if (!['gold', 'platinum', 'basic'].includes(tier)) {
             return NextResponse.json(
                 { error: 'Invalid tier' },
                 { status: 400 }
@@ -158,7 +172,7 @@ export async function POST(request) {
             );
         }
 
-        // ENHANCED: Add Apple receipt validation for additional security
+        // ENHANCED: Apple receipt validation with better error handling
         let appleValidation = null;
         try {
             const receiptData = extractReceiptData(purchaseResult);
@@ -166,10 +180,24 @@ export async function POST(request) {
                 console.log('🍎 Attempting Apple receipt validation...');
                 appleValidation = await validateReceiptWithApple(receiptData);
 
-                if (appleValidation.status === 0) {
+                if (appleValidation?.status === 0) {
                     console.log('✅ Apple receipt validation successful');
-                } else {
+                } else if (appleValidation?.status) {
                     console.warn('⚠️ Apple receipt validation returned status:', appleValidation.status);
+
+                    // Log common Apple receipt validation error codes for debugging
+                    const statusMessages = {
+                        21000: 'App Store could not read the JSON data',
+                        21002: 'Receipt data was malformed',
+                        21003: 'Receipt could not be authenticated',
+                        21004: 'Shared secret does not match',
+                        21005: 'Receipt server is not currently available',
+                        21006: 'Receipt is valid but subscription has expired',
+                        21007: 'Receipt is a sandbox receipt but was sent to production',
+                        21008: 'Receipt is a production receipt but was sent to sandbox'
+                    };
+
+                    console.warn('🍎 Apple validation status meaning:', statusMessages[appleValidation.status] || 'Unknown status');
                 }
             } else {
                 console.log('ℹ️ Skipping Apple receipt validation (no receipt data or shared secret)');
@@ -187,8 +215,10 @@ export async function POST(request) {
         // Calculate end date based on billing cycle
         if (billingCycle === 'annual') {
             subscriptionEndDate = new Date(now.getTime() + (365 * 24 * 60 * 60 * 1000));
-        } else {
+        } else if (billingCycle === 'monthly') {
             subscriptionEndDate = new Date(now.getTime() + (30 * 24 * 60 * 60 * 1000));
+        } else if (billingCycle === 'weekly') {
+            subscriptionEndDate = new Date(now.getTime() + (7 * 24 * 60 * 60 * 1000));
         }
 
         // Check if the user has the expected entitlement
@@ -202,57 +232,54 @@ export async function POST(request) {
         }
 
         // Check for duplicate purchases
-        if (user.subscription?.revenueCatCustomerId === customerInfo.originalAppUserId &&
-            user.subscription?.tier === tier &&
-            user.subscription?.status === 'active') {
-            console.log('⚠️ Duplicate purchase detected, updating existing subscription');
+        const existingSubscription = user.subscription;
+        if (existingSubscription &&
+            existingSubscription.tier === tier &&
+            existingSubscription.billingCycle === billingCycle &&
+            existingSubscription.status === 'active' &&
+            existingSubscription.endDate > now) {
+
+            console.log('ℹ️ User already has active subscription with same tier/cycle');
+            return NextResponse.json({
+                success: true,
+                subscription: existingSubscription,
+                message: 'Subscription already active',
+                duplicate: true
+            });
         }
 
-        // Update user subscription in database
+        // Update user subscription
         user.subscription = {
-            ...user.subscription,
             tier: tier,
             status: 'active',
             billingCycle: billingCycle,
             startDate: now,
             endDate: subscriptionEndDate,
-
-            // RevenueCat specific fields
-            revenueCatCustomerId: customerInfo.originalAppUserId || customerInfo.originalApplicationVersion,
+            revenueCatCustomerId: customerInfo.originalAppUserId,
             platform: 'revenuecat',
-
-            // Clear any previous Stripe data since this is a new RevenueCat purchase
-            stripeCustomerId: null,
-            stripeSubscriptionId: null,
-
             lastPaymentDate: now,
             nextBillingDate: subscriptionEndDate,
-
-            // Clear trial data since they're now paying
             trialStartDate: null,
             trialEndDate: null,
-
-            // Store purchase metadata for debugging/support
-            purchaseMetadata: {
-                revenueCatPurchaseResult: {
-                    transactionIdentifier: purchaseResult.transactionIdentifier,
-                    productIdentifier: purchaseResult.productIdentifier,
-                    purchaseDate: purchaseResult.purchaseDate,
-                    originalAppUserId: customerInfo.originalAppUserId,
-                    entitlements: Object.keys(entitlements || {}),
-                    hasExpectedEntitlement: hasEntitlement
-                },
-                // ADDED: Apple validation metadata
-                appleValidation: appleValidation ? {
-                    status: appleValidation.status,
-                    environment: appleValidation.environment || 'unknown',
-                    validatedAt: now.toISOString()
-                } : null,
-                originalTier: user.subscription?.tier || 'free',
-                upgradeDate: now,
-                platform: 'ios',
-                verificationTimestamp: now
-            }
+            paymentHistory: [
+                ...(user.subscription?.paymentHistory || []),
+                {
+                    date: now,
+                    amount: getSubscriptionPrice(tier, billingCycle),
+                    tier: tier,
+                    billingCycle: billingCycle,
+                    platform: 'revenuecat',
+                    transactionId: purchaseResult.transactionIdentifier || 'unknown',
+                    appleValidation: appleValidation ? {
+                        status: appleValidation.status,
+                        environment: appleValidation.environment || 'unknown',
+                        validatedAt: now.toISOString()
+                    } : null,
+                    originalTier: user.subscription?.tier || 'free',
+                    upgradeDate: now,
+                    verificationTimestamp: now
+                }
+            ]
         };
 
         // Update usage tracking to reset monthly counters for new subscribers
@@ -286,43 +313,6 @@ export async function POST(request) {
             appleValidationStatus: appleValidation?.status || 'not_validated'
         });
 
-        // Send welcome email for new RevenueCat subscription
-        try {
-            const { sendWelcomeEmail } = await import('@/lib/email-todo-implementations');
-            await sendWelcomeEmail({
-                userEmail: user.email,
-                userName: user.name || 'there',
-                tier: tier,
-                billingCycle: billingCycle,
-                isNewUser: !user.subscription || user.subscription.tier === 'free',
-                previousTier: user.subscription?.tier || 'free',
-                endDate: subscriptionEndDate.toISOString()
-            });
-        } catch (emailError) {
-            console.error('❌ Failed to send welcome email:', emailError);
-            // Don't throw - email failures shouldn't break purchase verification
-        }
-
-        // Log to analytics
-        try {
-            const { trackEmailEvent } = await import('@/lib/email-todo-implementations');
-            await trackEmailEvent({
-                eventType: 'subscription_activated',
-                userEmail: user.email,
-                userId: user._id.toString(),
-                emailType: 'revenuecat_verification',
-                metadata: {
-                    tier: tier,
-                    billingCycle: billingCycle,
-                    platform: 'revenuecat',
-                    hasExpectedEntitlement: hasEntitlement,
-                    appleValidationStatus: appleValidation?.status || 'not_validated'
-                }
-            });
-        } catch (analyticsError) {
-            console.error('❌ Failed to track analytics:', analyticsError);
-        }
-
         return NextResponse.json({
             success: true,
             subscription: {
@@ -340,10 +330,12 @@ export async function POST(request) {
                 found: hasEntitlement,
                 available: Object.keys(entitlements || {})
             },
-            // ADDED: Apple validation info for debugging
+            // Enhanced debugging info
             validation: {
                 appleStatus: appleValidation?.status || 'not_validated',
-                environment: appleValidation?.environment || 'unknown'
+                environment: appleValidation?.environment || 'unknown',
+                revenueCatCustomerId: customerInfo.originalAppUserId,
+                transactionId: purchaseResult.transactionIdentifier
             }
         });
 
@@ -395,9 +387,21 @@ export async function POST(request) {
         return NextResponse.json(
             {
                 error: 'Failed to verify purchase. Please try again or contact support.',
-                code: 'VERIFICATION_FAILED'
+                code: 'VERIFICATION_FAILED',
+                details: error.message
             },
             { status: 500 }
         );
     }
+}
+
+// Helper function to get subscription price for payment history
+function getSubscriptionPrice(tier, billingCycle) {
+    const prices = {
+        basic: { weekly: 0.99 },
+        gold: { monthly: 4.99, annual: 49.99 },
+        platinum: { monthly: 9.99, annual: 99.99 }
+    };
+
+    return prices[tier]?.[billingCycle] || 0;
 }

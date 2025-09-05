@@ -14,7 +14,6 @@ const config: CapacitorConfig = {
         iosScheme: 'https',
         allowNavigation: [
             'https://docbearscomfort.kitchen',
-            'https://docbearscomfort.kitchen',
             'https://*.docbearscomfort.kitchen'
         ],
         errorPath: 'index.html',
@@ -39,10 +38,6 @@ const config: CapacitorConfig = {
         
         App: {
             launchUrl: 'index.html',
-            handleUrl: (url: string) => {
-                console.log('iOS handling shared URL:', url);
-                return { url };
-            },
             enableBackButtonHandler: true,
             enableSwipeGestures: true
         },
@@ -79,23 +74,17 @@ const config: CapacitorConfig = {
             permissions: ['camera', 'photos']
         },
         
-        NativeBarcodeScanner: {
-            enableHapticFeedback: true,
-            enableAudioFeedback: true,
-            supportedFormats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39', 'QR_CODE']
+        BarcodeScanning: {
+            // Optional: Configure MLKit barcode scanning
+            // These are the default values, so you can omit this entirely
+            formats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39', 'QR_CODE'],
+            lensFacing: 'back'
         },
         
-        BarcodeScanner: {
-            targetedFormats: ['UPC_A', 'UPC_E', 'EAN_8', 'EAN_13', 'CODE_128', 'CODE_39', 'QR_CODE'],
-            cameraDirection: 'back',
-            scanButton: false,
-            scanText: 'Position barcode in the center',
-            maxZoom: 3,
-            showTorchButton: true,
-            enableTorch: false
+        HapticFeedback: {
+            enabled: true
         },
         
-        CapacitorMlkitBarcodeScanning: {},
         
         Microphone: {
             permissions: ['microphone']

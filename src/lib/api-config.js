@@ -39,9 +39,7 @@ export function getSessionHeadersSync() {
             headers['X-User-Email'] = adminEmail;
             headers['X-User-ID'] = adminId;
             headers['X-Is-Admin'] = 'true';
-            
-            // FIXED: Don't encode the session data
-            headers['X-Mobile-Session'] = JSON.stringify({
+            headers['X-Mobile-Session'] = encodeURIComponent(JSON.stringify({
                 user: {
                     id: adminId,
                     email: adminEmail,
@@ -51,7 +49,7 @@ export function getSessionHeadersSync() {
                     effectiveTier: 'admin'
                 },
                 expires: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
-            });
+            }));
 
             console.log('📱 Added enhanced session headers for API call');
         } catch (error) {
@@ -66,7 +64,6 @@ export function getSessionHeadersSync() {
 export async function fetchWithSession(url, options = {}) {
     const sessionHeaders = getSessionHeadersSync();
 
-    // FIXED: For Capacitor, we need to be more explicit with headers
     const enhancedOptions = {
         ...options,
         headers: {
@@ -74,10 +71,6 @@ export async function fetchWithSession(url, options = {}) {
             ...options.headers
         }
     };
-
-    console.log('🔍 Making API request to:', url);
-    console.log('🔍 With headers:', enhancedOptions.headers);
-    console.log('🔍 With options:', enhancedOptions);
 
     try {
         const response = await fetch(url, enhancedOptions);

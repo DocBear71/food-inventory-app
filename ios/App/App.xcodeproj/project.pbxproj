@@ -7,6 +7,12 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		231D62472E63615E002717C2 /* HapticFeedback.swift in Sources */ = {isa = PBXBuildFile; fileRef = 231D62422E63615E002717C2 /* HapticFeedback.swift */; };
+		236B888F2E667F03000CD089 /* TestPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = 236B888E2E667F03000CD089 /* TestPlugin.swift */; };
+		236C8FF62E64E94A0006EC78 /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 236C8FF52E64E94A0006EC78 /* ViewController.swift */; };
+		23B2C13C2E67CC1200715128 /* Plugins.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B2C13B2E67CC1200715128 /* Plugins.swift */; };
+		23B2C13E2E67D45600715128 /* MinimalNativeScanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23B2C13D2E67D45600715128 /* MinimalNativeScanner.swift */; };
+		23D96C8B2E63D9A0001AB5B8 /* NativeBarcodeScannerViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23D96C892E63D9A0001AB5B8 /* NativeBarcodeScannerViewController.swift */; };
 		2FAD9763203C412B000D30F8 /* config.xml in Resources */ = {isa = PBXBuildFile; fileRef = 2FAD9762203C412B000D30F8 /* config.xml */; };
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
@@ -18,6 +24,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		231D62422E63615E002717C2 /* HapticFeedback.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HapticFeedback.swift; sourceTree = "<group>"; };
+		231D62512E63A6BD002717C2 /* App-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "App-Bridging-Header.h"; sourceTree = "<group>"; };
+		236B888E2E667F03000CD089 /* TestPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TestPlugin.swift; sourceTree = "<group>"; };
+		236C8FF52E64E94A0006EC78 /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
+		23B2C13B2E67CC1200715128 /* Plugins.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Plugins.swift; sourceTree = "<group>"; };
+		23B2C13D2E67D45600715128 /* MinimalNativeScanner.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinimalNativeScanner.swift; sourceTree = "<group>"; };
+		23D96C892E63D9A0001AB5B8 /* NativeBarcodeScannerViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NativeBarcodeScannerViewController.swift; sourceTree = "<group>"; };
 		2FAD9762203C412B000D30F8 /* config.xml */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = config.xml; sourceTree = "<group>"; };
 		50379B222058CBB4000EE86E /* capacitor.config.json */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.json; path = capacitor.config.json; sourceTree = "<group>"; };
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -44,6 +57,16 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		231D62452E63615E002717C2 /* Plugins */ = {
+			isa = PBXGroup;
+			children = (
+				23B2C13D2E67D45600715128 /* MinimalNativeScanner.swift */,
+				231D62422E63615E002717C2 /* HapticFeedback.swift */,
+				23D96C892E63D9A0001AB5B8 /* NativeBarcodeScannerViewController.swift */,
+			);
+			path = Plugins;
+			sourceTree = "<group>";
+		};
 		27E2DDA53C4D2A4D1A88CE4A /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
@@ -73,6 +96,10 @@
 		504EC3061FED79650016851F /* App */ = {
 			isa = PBXGroup;
 			children = (
+				23B2C13B2E67CC1200715128 /* Plugins.swift */,
+				236B888E2E667F03000CD089 /* TestPlugin.swift */,
+				236C8FF52E64E94A0006EC78 /* ViewController.swift */,
+				231D62452E63615E002717C2 /* Plugins */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -81,6 +108,7 @@
 				504EC3131FED79650016851F /* Info.plist */,
 				2FAD9762203C412B000D30F8 /* config.xml */,
 				50B271D01FEDC1A000F3C39B /* public */,
+				231D62512E63A6BD002717C2 /* App-Bridging-Header.h */,
 			);
 			path = App;
 			sourceTree = "<group>";
@@ -127,7 +155,7 @@
 				TargetAttributes = {
 					504EC3031FED79650016851F = {
 						CreatedOnToolsVersion = 9.2;
-						LastSwiftMigration = 1100;
+						LastSwiftMigration = 1640;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -209,7 +237,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				23B2C13C2E67CC1200715128 /* Plugins.swift in Sources */,
+				23B2C13E2E67D45600715128 /* MinimalNativeScanner.swift in Sources */,
+				236C8FF62E64E94A0006EC78 /* ViewController.swift in Sources */,
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
+				23D96C8B2E63D9A0001AB5B8 /* NativeBarcodeScannerViewController.swift in Sources */,
+				236B888F2E667F03000CD089 /* TestPlugin.swift in Sources */,
+				231D62472E63615E002717C2 /* HapticFeedback.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -347,6 +381,7 @@
 			baseConfigurationReference = FC68EB0AF532CFC21C3344DD /* Pods-App.debug.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -360,6 +395,8 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -370,6 +407,7 @@
 			baseConfigurationReference = AF51FD2D460BCFE21FA515B2 /* Pods-App.release.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CLANG_ENABLE_MODULES = YES;
 				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
@@ -382,6 +420,7 @@
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "";
+				SWIFT_OBJC_BRIDGING_HEADER = "App/App-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

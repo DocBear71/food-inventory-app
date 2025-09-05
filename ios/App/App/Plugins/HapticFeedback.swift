@@ -2,7 +2,9 @@
 
 import Foundation
 import Capacitor
+import AVFoundation
 import UIKit
+import AudioToolbox
 
 @objc(HapticFeedback)
 public class HapticFeedback: CAPPlugin {

@@ -1,0 +1,18 @@
+💊   Capacitor Doctor  💊 
+
+Latest Dependencies:
+
+  @capacitor/cli: 7.4.3
+  @capacitor/core: 7.4.3
+  @capacitor/android: 7.4.3
+  @capacitor/ios: 7.4.3
+
+Installed Dependencies:
+
+  @capacitor/cli: 7.4.2
+  @capacitor/core: 7.4.1
+  @capacitor/android: 7.4.1
+  @capacitor/ios: 7.4.2
+
+[success] iOS looking great! 👌
+[success] Android looking great! 👌

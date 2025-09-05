@@ -54,7 +54,7 @@
     "mammoth": "^1.4.21",
     "mongodb": "^6.17.0",
     "mongoose": "^8.16.3",
-    "multer": "^2.0.1",
+    "multer": "^2.0.2",
     "next": "15.3.3",
     "next-auth": "^5.0.0-beta.25",
     "openai": "^5.8.3",
