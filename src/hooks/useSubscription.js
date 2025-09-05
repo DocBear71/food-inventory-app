@@ -211,7 +211,7 @@ export function SubscriptionProvider({ children }) {
             setIsFetching(false);
             setLoading(false);
         }
-    }, [session?.user?.id, retryCount, isFetching, clearSubscriptionCache]);
+    }, [isFetching, retryCount, clearSubscriptionCache, session?.user?.subscriptionTier, session?.user?.effectiveTier, session?.user?.isAdmin, session?.user?.id]);
 
     // Add this after the fetchSubscriptionData function
     const refreshFromDatabase = useCallback(async () => {

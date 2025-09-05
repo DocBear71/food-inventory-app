@@ -33,6 +33,9 @@ function BillingContent() {
     const [isRestoring, setIsRestoring] = useState(false);
     const [purchaseSteps, setPurchaseSteps] = useState([]);
 
+    // TEMPORARY iOS DEBUG PANEL - REMOVE AFTER FIXING
+    const showDebug = process.env.NODE_ENV === 'development' || true;
+
     // ENHANCED: Better debug tracking for iPad issues
     const addPurchaseStep = (step, data = {}) => {
         const timestamp = new Date().toISOString();
@@ -828,8 +831,24 @@ function BillingContent() {
                     </div>
                 </div>
 
+                {/* TEMPORARY DEBUG PANEL FOR iOS - REMOVE AFTER FIXING */}
+                {showDebug && (
+                    <div className="bg-red-50 border-2 border-red-300 rounded-lg p-4 mb-6">
+                        <h3 className="font-bold text-red-900 mb-2">ACCOUNT DEBUG: Subscription Data</h3>
+                        <div className="text-xs text-red-800 space-y-1">
+                            <div>Tier: {subscription.tier || 'undefined'}</div>
+                            <div>Status: {subscription.status || 'undefined'}</div>
+                            <div>hasUsedFreeTrial: {String(subscription.hasUsedFreeTrial)}</div>
+                            <div>isTrialActive: {String(subscription.isTrialActive)}</div>
+                            <div>Session Email: {session?.user?.email || 'undefined'}</div>
+                            <div>Session Subscription: {JSON.stringify(session?.user?.subscription || {})}</div>
+                            <div>Trial Should Show: {String(subscription.tier === 'free' && subscription.status !== 'trial' && !subscription.hasUsedFreeTrial)}</div>
+                        </div>
+                    </div>
+                )}
+
                 {/* Trial Activation Section */}
-                {subscription.tier === 'free' && subscription.status !== 'trial' && (
+                {canStartTrial && (
                     <div className="bg-white shadow rounded-lg p-6">
                         <div className="text-center">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4">
