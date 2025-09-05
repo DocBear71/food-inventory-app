@@ -6,12 +6,14 @@ import { useSafeSession } from '@/hooks/useSafeSession';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
+import { useSubscription } from '@/hooks/useSubscription';
 import Footer from '@/components/legal/Footer';
 import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Separate component for search params to wrap in Suspense
 function PricingContent() {
     const { data: session, status } = useSafeSession();
+    const subscription = useSubscription();
     const router = useRouter();
     const searchParams = useSearchParams();
     const [billingCycle, setBillingCycle] = useState('annual');
@@ -136,9 +138,11 @@ function PricingContent() {
                 { name: 'Unlimited price tracking & alerts', included: false },
                 { name: 'Price drop email notifications', included: false }
             ],
-            cta: billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial',
+            cta: (session && subscription.hasUsedFreeTrial)
+                ? (billingCycle === 'annual' ? 'Subscribe Gold Annual' : 'Subscribe Gold Monthly')
+                : (billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial'),
             popular: true,
-            trialAvailable: true,
+            trialAvailable: session ? !subscription.hasUsedFreeTrial : true,
             bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50',
             borderColor: 'border-blue-300',
             textColor: 'text-blue-900',
@@ -174,9 +178,11 @@ function PricingContent() {
                 { name: 'Price trend analysis & insights', included: true },
                 { name: 'Export price data & shopping analytics', included: true }
             ],
-            cta: billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial',
+            cta: (session && subscription.hasUsedFreeTrial)
+                ? (billingCycle === 'annual' ? 'Subscribe Platinum Annual' : 'Subscribe Platinum Monthly')
+                : (billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial'),
             popular: false,
-            trialAvailable: true,
+            trialAvailable: session ? !subscription.hasUsedFreeTrial : true,
             bgColor: 'bg-gradient-to-br from-purple-50 to-violet-50',
             borderColor: 'border-purple-300',
             textColor: 'text-purple-900',
@@ -193,7 +199,8 @@ function PricingContent() {
                     billing: tierId === 'basic' ? 'weekly' : billingCycle
                 });
 
-                if (isTrialSignup) {
+                // Only add trial param if user hasn't used free trial
+                if (isTrialSignup && !subscription.hasUsedFreeTrial) {
                     params.append('trial', 'true');
                 }
 
@@ -398,7 +405,10 @@ function PricingContent() {
 
                                         {tier.trialAvailable && !isCurrentTier && (
                                             <p className="text-xs text-gray-500 mt-2">
-                                                No credit card required
+                                                {session && subscription.hasUsedFreeTrial
+                                                    ? 'Subscription starts immediately'
+                                                    : 'No credit card required'
+                                                }
                                             </p>
                                         )}
 
