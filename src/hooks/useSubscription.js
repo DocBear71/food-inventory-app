@@ -450,6 +450,7 @@ export function SubscriptionProvider({ children }) {
 
 export function useSubscription() {
     const context = useContext(SubscriptionContext);
+    const { data: session } = useSafeSession();
     if (!context) {
         throw new Error('useSubscription must be used within a SubscriptionProvider');
     }
@@ -574,7 +575,9 @@ export function useSubscription() {
         billingCycle: subscriptionData?.billingCycle,
         isActive: subscriptionData?.isActive !== false,
         isTrialActive: subscriptionData?.isTrialActive || false,
-        hasUsedFreeTrial: subscriptionData?.hasUsedFreeTrial || false,
+        hasUsedFreeTrial: subscriptionData?.hasUsedFreeTrial ||
+            context.session?.user?.subscription?.hasUsedFreeTrial ||
+            false,
         daysUntilTrialEnd: subscriptionData?.daysUntilTrialEnd,
 
         // Date fields
