@@ -268,6 +268,10 @@ function SignUpContent() {
         e.preventDefault();
         setLoading(true);
         setSuccess('');
+        setError(''); // Clear any previous errors
+
+        // Visual debugging - show progress
+        setError('DEBUG: Starting signup process...');
 
         // iOS-specific form validation
         if (PlatformDetection.isIOS()) {
@@ -277,8 +281,9 @@ function SignUpContent() {
                 activeElement.blur();
             }
 
-            // Wait for iOS to process input changes
-            await new Promise(resolve => setTimeout(resolve, 100));
+            // Visual debug checkpoint
+            setError('DEBUG: iOS processing complete, validating fields...');
+            await new Promise(resolve => setTimeout(resolve, 500)); // Give time to see message
         }
 
         // 🍎 Native iOS form submit haptic
@@ -288,6 +293,10 @@ function SignUpContent() {
         } catch (error) {
             console.log('Form submit haptic failed:', error);
         }
+
+        // Visual debug - show what we're validating
+        setError(`DEBUG: Validating - Name: ${!!formData.name}, Email: ${!!formData.email}, Password: ${!!formData.password}, Confirm: ${!!formData.confirmPassword}, Terms: ${acceptedTerms}, Privacy: ${acceptedPrivacy}`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
 
         // Validate required fields
         if (!formData.name || !formData.email || !formData.password || !formData.confirmPassword) {
@@ -347,6 +356,10 @@ function SignUpContent() {
             return;
         }
 
+        // Visual debug - about to make API call
+        setError('DEBUG: All validation passed, making API call...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+
         try {
             const response = await apiPost('/api/auth/register', {
                 ...formData,
@@ -377,7 +390,13 @@ function SignUpContent() {
                 source: urlSource
             });
 
+            // Visual debug - got response
+            setError(`DEBUG: Got response - OK: ${response.ok}, Status: ${response.status}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
+
             const data = await response.json();
+            setError(`DEBUG: Parsed JSON - Success: ${data.success}`);
+            await new Promise(resolve => setTimeout(resolve, 500));
 
             if (response.ok && data.success) {
                 // Success haptic feedback
@@ -702,14 +721,32 @@ function SignUpContent() {
                                 <div className="ml-3">
                                     <p className="font-medium">{success}</p>
 
-                                    {/* Navigation to Sign In */}
+                                    {/* Conditional Navigation Based on Selected Tier */}
                                     <div className="mt-4">
-                                        <Link
-                                            href="/auth/signin"
-                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-                                        >
-                                            Continue to Sign In →
-                                        </Link>
+                                        {selectedTier !== 'free' ? (
+                                            <TouchEnhancedButton
+                                                onClick={() => {
+                                                    const billingParams = new URLSearchParams({
+                                                        tier: selectedTier,
+                                                        billing: billingCycle || 'annual',
+                                                        trial: 'true',
+                                                        source: 'signup-completion',
+                                                        newUser: 'true'
+                                                    });
+                                                    router.push(`/account/billing?${billingParams.toString()}`);
+                                                }}
+                                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                                            >
+                                                Complete Your {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)} Subscription →
+                                            </TouchEnhancedButton>
+                                        ) : (
+                                            <Link
+                                                href="/auth/signin"
+                                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                                            >
+                                                Continue to Sign In →
+                                            </Link>
+                                        )}
                                     </div>
 
                                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
