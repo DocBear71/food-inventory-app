@@ -807,7 +807,8 @@ function BillingContent() {
     const isOnTrial = subscription.isTrialActive;
     const canStartTrial = subscription.tier === 'free' &&
         !subscription.isTrialActive &&
-        !subscription.hasUsedFreeTrial;
+        !subscription.hasUsedFreeTrial &&
+        !session?.user?.subscription?.hasUsedFreeTrial;
     const effectiveTier = subscription.isAdmin ? 'platinum' :
         subscription.isExpired ? 'free' :
             subscription.originalTier || subscription.tier;

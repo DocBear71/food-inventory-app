@@ -366,7 +366,10 @@ export default function AccountPage() {
                 )}
 
                 {/* Free Trial Activation */}
-                {subscription.tier === 'free' && subscription.status !== 'trial' && !subscription.hasUsedFreeTrial && (
+                {subscription.tier === 'free' &&
+                    subscription.status !== 'trial' &&
+                    !subscription.hasUsedFreeTrial &&
+                    !session?.user?.subscription?.hasUsedFreeTrial && (
                     <div className="bg-gradient-to-r from-indigo-50 to-purple-50 shadow rounded-lg p-6">
                         <div className="text-center">
                             <div className="text-4xl mb-4">✨</div>

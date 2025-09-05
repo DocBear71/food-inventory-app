@@ -190,7 +190,10 @@ export default function Dashboard() {
             )}
 
             {/* Free Trial Promotion */}
-            {subscription.tier === 'free' && subscription.status !== 'trial' && !subscription.hasUsedFreeTrial && (
+            {subscription.tier === 'free' &&
+                subscription.status !== 'trial' &&
+                !subscription.hasUsedFreeTrial &&
+                !session?.user?.subscription?.hasUsedFreeTrial && (
                 <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6 mb-6">
                     <div className="flex items-center justify-between">
                         <div className="flex-1">
