@@ -185,25 +185,30 @@ function PricingContent() {
     ];
 
     const handleSignup = (tierId, isTrialSignup = false) => {
-        const params = new URLSearchParams({
-            tier: tierId,
-            billing: tierId === 'basic' ? 'weekly' : billingCycle
-        });
-
-        if (isTrialSignup) {
-            params.append('trial', 'true');
-        }
-
-        if (source) {
-            params.append('source', source);
-        }
-
         if (session) {
-            // If user is logged in, go to account upgrade/billing page
-            router.push(`/account/billing?${params.toString()}`);
+            // If user is logged in, go to billing page
+            if (isTrialSignup || tierId !== 'free') {
+                const params = new URLSearchParams({
+                    tier: tierId,
+                    billing: tierId === 'basic' ? 'weekly' : billingCycle
+                });
+
+                if (isTrialSignup) {
+                    params.append('trial', 'true');
+                }
+
+                if (source) {
+                    params.append('source', source);
+                }
+
+                router.push(`/account/billing?${params.toString()}`);
+            } else {
+                // For free tier, go to dashboard
+                router.push('/dashboard');
+            }
         } else {
-            // If not logged in, go to signup
-            router.push(`/auth/signup?${params.toString()}`);
+            // If not logged in, always go to signup (which creates free accounts)
+            router.push('/auth/signup');
         }
     };
 

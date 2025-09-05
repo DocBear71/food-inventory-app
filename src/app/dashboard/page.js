@@ -167,6 +167,39 @@ export default function Dashboard() {
                 </div>
             </div>
 
+            {/* Free Trial Promotion */}
+            {subscription.tier === 'free' && subscription.status !== 'trial' && (
+                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6 mb-6">
+                    <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                            <h3 className="text-lg font-semibold text-purple-900 mb-2">
+                                Try Platinum Free for 7 Days!
+                            </h3>
+                            <p className="text-purple-800 mb-3">
+                                Get unlimited inventory, advanced meal planning, nutrition tracking, and all premium features. No credit card required.
+                            </p>
+                            <div className="flex flex-col sm:flex-row gap-2">
+                                <TouchEnhancedButton
+                                    onClick={() => NativeNavigation.routerPush(router, '/account/billing?trial=true')}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded-lg font-medium"
+                                >
+                                    Start Free Trial
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => NativeNavigation.routerPush(router, '/pricing')}
+                                    className="bg-white hover:bg-gray-50 text-purple-600 border border-purple-600 px-6 py-2 rounded-lg font-medium"
+                                >
+                                    View All Plans
+                                </TouchEnhancedButton>
+                            </div>
+                        </div>
+                        <div className="hidden sm:block ml-6 text-6xl">
+                            🎁
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* Stats cards - Stack on mobile */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-6">
                 <div className="bg-white overflow-hidden shadow rounded-lg">

@@ -25,11 +25,6 @@ function SignUpContent() {
 
     // Create ref for success message section to scroll to
     const successMessageRef = useRef(null);
-
-    // Get URL parameters from pricing page
-    const urlTier = searchParams.get('tier') || 'free';
-    const urlBilling = searchParams.get('billing') || 'annual';
-    const urlTrial = searchParams.get('trial') === 'true';
     const urlSource = searchParams.get('source');
 
     const [formData, setFormData] = useState({
@@ -46,8 +41,6 @@ function SignUpContent() {
     const [showInternationalNotice, setShowInternationalNotice] = useState(false);
 
     // Pricing selection state
-    const [selectedTier, setSelectedTier] = useState(urlTier);
-    const [billingCycle, setBillingCycle] = useState(urlBilling);
     const [showPricingModal, setShowPricingModal] = useState(false);
 
     const [loading, setLoading] = useState(false);
@@ -381,13 +374,7 @@ function SignUpContent() {
                 acceptedMinorConsent: isMinor ? acceptedMinorConsent : null,
 
                 // Optional marketing
-                acceptedMarketing,
-
-                // Subscription fields
-                selectedTier: urlTier,
-                billingCycle: urlBilling,
-                startTrial: urlTrial === 'true',
-                source: urlSource
+                acceptedMarketing
             });
 
             // Visual debug - got response
@@ -407,25 +394,6 @@ function SignUpContent() {
                     console.log('Success haptic failed:', error);
                 }
 
-                // Handle subscription flow for paid plans
-                if (selectedTier !== 'free') {
-                    console.log('Account created successfully, redirecting to complete subscription for:', selectedTier);
-
-                    // Redirect to billing page to complete subscription
-                    const billingParams = new URLSearchParams({
-                        tier: selectedTier,
-                        billing: billingCycle || 'annual',
-                        trial: 'true',
-                        source: 'signup-completion',
-                        newUser: 'true',
-                        email: data.user?.email // Pass email so user can sign in
-                    });
-
-                    router.push(`/account/billing?${billingParams.toString()}`);
-                    return;
-                }
-
-                // For free accounts - show success message
                 setSuccess(data.message || 'Account created successfully! Please check your email to verify your account.');
 
                 // Clear form and scroll to success message (same as before)
@@ -588,121 +556,44 @@ function SignUpContent() {
                         </div>
                     )}
 
-                    {/* Pricing Tier Selection */}
-                    <div className="bg-white rounded-lg border border-gray-200 p-4">
-                        <div className="flex items-center justify-between mb-3">
-                            <h3 className="text-lg font-medium text-gray-900">Choose Your Plan</h3>
-                            <TouchEnhancedButton
-                                onClick={() => setShowPricingModal(true)}
-                                className="text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-                            >
-                                Compare Plans
-                            </TouchEnhancedButton>
-                        </div>
+                    {/* Free Account Information */}
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+                        <div className="text-center">
+                            <div className="text-4xl mb-3">🎉</div>
+                            <h3 className="text-lg font-semibold text-blue-900 mb-3">
+                                Everyone Starts with a Free Account
+                            </h3>
+                            <p className="text-blue-800 mb-4">
+                                Create your free account now and explore our basic features. Once you're ready,
+                                you can activate a <strong>7-day free Platinum trial</strong> (no credit card required)
+                                to experience all premium features.
+                            </p>
 
-                        {/* Billing Cycle Toggle */}
-                        {selectedTier !== 'free' && (
-                            <div className="flex items-center justify-center mb-4">
-                                <div className="bg-gray-100 p-1 rounded-lg">
-                                    <TouchEnhancedButton
-                                        onClick={() => setBillingCycle('monthly')}
-                                        className={`px-3 py-1 rounded text-sm font-medium transition-all ${
-                                            billingCycle === 'monthly'
-                                                ? 'bg-white text-gray-900 shadow-sm'
-                                                : 'text-gray-600'
-                                        }`}
-                                    >
-                                        Monthly
-                                    </TouchEnhancedButton>
-                                    <TouchEnhancedButton
-                                        onClick={() => setBillingCycle('annual')}
-                                        className={`px-3 py-1 rounded text-sm font-medium transition-all relative ${
-                                            billingCycle === 'annual'
-                                                ? 'bg-white text-gray-900 shadow-sm'
-                                                : 'text-gray-600'
-                                        }`}
-                                    >
-                                        Annual
-                                        {billingCycle === 'annual' && selectedTier !== 'free' && (
-                                            <span
-                                                className="absolute -top-1 -right-1 bg-green-500 text-white text-xs px-1 rounded-full">
-                                                Save {getSavingsPercentage(selectedTierData)}%
-                                            </span>
-                                        )}
-                                    </TouchEnhancedButton>
-                                </div>
+                            <div className="bg-white rounded-lg p-4 mb-4">
+                                <h4 className="font-semibold text-gray-900 mb-2">Free Account Includes:</h4>
+                                <ul className="text-sm text-gray-700 space-y-1">
+                                    <li>✅ Up to 50 inventory items</li>
+                                    <li>✅ 100 starter recipes</li>
+                                    <li>✅ Basic recipe matching</li>
+                                    <li>✅ Simple shopping lists</li>
+                                    <li>✅ UPC scanning (10/month)</li>
+                                    <li>✅ Receipt scanning (2/month)</li>
+                                </ul>
                             </div>
-                        )}
 
-                        {/* Tier Selection */}
-                        <div className="space-y-2">
-                            {tiers.map((tier) => (
-                                <div
-                                    key={tier.id}
-                                    className={`relative border-2 rounded-lg p-4 cursor-pointer transition-all ${
-                                        selectedTier === tier.id
-                                            ? `${tier.borderColor} ${tier.bgColor}`
-                                            : 'border-gray-200 hover:border-gray-300'
-                                    }`}
-                                    onClick={() => setSelectedTier(tier.id)}
+                            <div className="bg-gradient-to-r from-purple-100 to-indigo-100 rounded-lg p-4">
+                                <h4 className="font-semibold text-purple-900 mb-2">Ready for More?</h4>
+                                <p className="text-purple-800 text-sm mb-3">
+                                    After creating your account, activate your free 7-day Platinum trial for unlimited access to all features.
+                                </p>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowPricingModal(true)}
+                                    className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
                                 >
-                                    <div className="flex items-center">
-                                        <input
-                                            type="radio"
-                                            name="tier"
-                                            value={tier.id}
-                                            checked={selectedTier === tier.id}
-                                            onChange={() => setSelectedTier(tier.id)}
-                                            className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300"
-                                        />
-                                        <div className="ml-3 flex-1">
-                                            <div className="flex items-center justify-between">
-                                                <div>
-                                                    <h4 className={`font-semibold ${tier.textColor}`}>
-                                                        {tier.name}
-                                                        {tier.trialAvailable && (
-                                                            <span
-                                                                className="ml-2 text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                                                7-Day Free Trial
-                                                            </span>
-                                                        )}
-                                                    </h4>
-                                                    <p className="text-sm text-gray-600">{tier.description}</p>
-                                                </div>
-                                                <div className="text-right">
-                                                    {tier.price.monthly === 0 ? (
-                                                        <span className="text-2xl font-bold text-gray-900">Free</span>
-                                                    ) : (
-                                                        <div>
-                                                            <span className="text-2xl font-bold text-gray-900">
-                                                                ${billingCycle === 'annual' ? tier.price.annual : tier.price.monthly}
-                                                            </span>
-                                                            <span className="text-gray-600 text-sm">
-                                                                /{billingCycle === 'annual' ? 'year' : 'month'}
-                                                            </span>
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-
-                        {/* Trial Info */}
-                        {selectedTier !== 'free' && (
-                            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
-                                <div className="flex items-center">
-                                    <span className="text-green-600 text-sm">🎉</span>
-                                    <p className="ml-2 text-sm text-green-800">
-                                        <strong>7-Day Free Trial</strong> - Get full Platinum access! No payment
-                                        required now.
-                                        You'll be able to choose your subscription after the trial ends.
-                                    </p>
-                                </div>
+                                    View All Plans & Features
+                                </TouchEnhancedButton>
                             </div>
-                        )}
+                        </div>
                     </div>
 
                     {/* Success message with ref for auto-scroll and spam notice */}
@@ -721,32 +612,14 @@ function SignUpContent() {
                                 <div className="ml-3">
                                     <p className="font-medium">{success}</p>
 
-                                    {/* Conditional Navigation Based on Selected Tier */}
+                                    {/* Navigation to Sign In */}
                                     <div className="mt-4">
-                                        {selectedTier !== 'free' ? (
-                                            <TouchEnhancedButton
-                                                onClick={() => {
-                                                    const billingParams = new URLSearchParams({
-                                                        tier: selectedTier,
-                                                        billing: billingCycle || 'annual',
-                                                        trial: 'true',
-                                                        source: 'signup-completion',
-                                                        newUser: 'true'
-                                                    });
-                                                    router.push(`/account/billing?${billingParams.toString()}`);
-                                                }}
-                                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
-                                            >
-                                                Complete Your {selectedTier.charAt(0).toUpperCase() + selectedTier.slice(1)} Subscription →
-                                            </TouchEnhancedButton>
-                                        ) : (
-                                            <Link
-                                                href="/auth/signin"
-                                                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
-                                            >
-                                                Continue to Sign In →
-                                            </Link>
-                                        )}
+                                        <Link
+                                            href="/auth/signin"
+                                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 transition-colors"
+                                        >
+                                            Continue to Sign In →
+                                        </Link>
                                     </div>
 
                                     <div className="mt-3 p-3 bg-yellow-50 border border-yellow-200 rounded-md">
