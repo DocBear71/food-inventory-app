@@ -76,6 +76,67 @@ function SignUpContent() {
         'Japan', 'South Korea', 'Singapore', 'Other'
     ].sort();
 
+    const tiers = [
+        {
+            id: 'free',
+            name: 'Free',
+            price: {monthly: 0, annual: 0},
+            description: 'Perfect for getting started with basic inventory management',
+            features: [
+                'Up to 50 inventory items',
+                '100 starter recipes',
+                'Basic "What Can I Make?" matching',
+                'Simple shopping lists',
+                'UPC scanning (10/month)',
+                'Receipt scanning (2/month)'
+            ],
+            bgColor: 'bg-gray-50',
+            borderColor: 'border-gray-200',
+            textColor: 'text-gray-900'
+        },
+        {
+            id: 'gold',
+            name: 'Gold',
+            price: {monthly: 4.99, annual: 49.99},
+            description: 'Essential tools for active home cooks',
+            features: [
+                'Up to 250 inventory items',
+                'Access to 500 recipes',
+                'Advanced "What Can I Make?"',
+                'Full meal planning (2 weeks)',
+                'Unlimited UPC scanning',
+                'Receipt scanning (20/month)',
+                'Email notifications & alerts',
+                'Plus more'
+            ],
+            bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50',
+            borderColor: 'border-blue-300',
+            textColor: 'text-blue-900',
+            trialAvailable: true
+        },
+        {
+            id: 'platinum',
+            name: 'Platinum',
+            price: {monthly: 9.99, annual: 99.99},
+            description: 'Complete kitchen management',
+            features: [
+                'Unlimited inventory items',
+                'All Gold features',
+                'Unlimited meal planning',
+                'Advanced meal prep tools',
+                'Nutrition goal tracking',
+                'Dietary restriction & Ingredients to avoid control',
+                'Priority support & early access',
+                'Plus much more'
+            ],
+            bgColor: 'bg-gradient-to-br from-purple-50 to-violet-50',
+            borderColor: 'border-purple-300',
+            textColor: 'text-purple-900',
+            trialAvailable: true
+        }
+    ];
+
+
     // NEW: Detect user region and show appropriate compliance notices
     useEffect(() => {
         const detectUserRegion = () => {
@@ -149,6 +210,13 @@ function SignUpContent() {
             number: /[0-9]/.test(password),
             special: /[!@#$%^&*]/.test(password)
         };
+    };
+
+    const getSavingsPercentage = (tier) => {
+        if (tier.price.monthly === 0) return null;
+        const monthlyCost = tier.price.monthly * 12;
+        const savings = ((monthlyCost - tier.price.annual) / monthlyCost) * 100;
+        return Math.round(savings);
     };
 
     // Auto-scroll to success message when it appears
