@@ -404,13 +404,13 @@ function BillingContent() {
             })));
 
             // ENHANCED: Find the correct package with better matching logic
-            const targetProductId = `${tier}_${billingCycle}`;
-            let packageToPurchase = packages.find(p => p.identifier === targetProductId);
+            const targetPackageId = `${tier}_${billingCycle}_package`;
+            let packageToPurchase = packages.find(p => p.identifier === targetPackageId);
 
             // If exact match not found, try alternative matching
             if (!packageToPurchase) {
                 // Try matching by product identifier
-                packageToPurchase = packages.find(p => p.product?.identifier === targetProductId);
+                packageToPurchase = packages.find(p => p.product?.identifier === targetPackageId);
             }
 
             // If still not found, try more flexible matching
@@ -428,21 +428,21 @@ function BillingContent() {
             }
 
             if (!packageToPurchase) {
-                console.error('❌ Could not find package for:', targetProductId);
+                console.error('❌ Could not find package for:', targetPackageId);
                 console.log('Available packages:', packages.map(p => ({
                     id: p.identifier,
                     productId: p.product?.identifier
                 })));
 
                 addPurchaseStep('PACKAGE_NOT_FOUND', {
-                    targetProductId,
+                    targetPackageId,
                     availablePackages: packages.map(p => p.identifier)
                 });
 
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
                     title: 'Subscription Not Available',
-                    message: `The ${tier} ${billingCycle} subscription is not currently available. This may be due to pending App Store review.`
+                    message: `The ${tier} ${billingCycle} subscription package is not currently available. Looking for: ${targetPackageId}`
                 });
                 return;
             }
