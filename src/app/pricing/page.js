@@ -307,7 +307,7 @@ function PricingContent() {
                             >
                                 {tier.badge && (
                                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                                        <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg ${
+                                        <span className={`px-4 py-2 rounded-full text-sm font-bold shadow-lg whitespace-nowrap ${
                                             tier.id === 'basic' ? 'bg-green-600 text-white' : 'bg-blue-600 text-white'
                                         }`}>
                                             {tier.badge}
