@@ -510,7 +510,7 @@ function SignUpContent() {
                                     After creating your account, activate your free 7-day Platinum trial for unlimited access to all features.
                                 </p>
                                 <TouchEnhancedButton
-                                    onClick={() => setShowPricingModal(true)}
+                                    onClick={() => router.push('/pricing')}
                                     className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
                                 >
                                     View All Plans & Features
