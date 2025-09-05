@@ -23,6 +23,11 @@ function PricingContent() {
     const source = searchParams.get('source');
     const currentTier = searchParams.get('current');
 
+    // Helper function to check if user has used free trial (bypass hook issue on iOS)
+    const hasUserUsedFreeTrial = () => {
+        return subscription.hasUsedFreeTrial || session?.user?.subscription?.hasUsedFreeTrial;
+    };
+
     useEffect(() => {
         // Set billing cycle from URL params if provided
         const billing = searchParams.get('billing');
@@ -138,11 +143,11 @@ function PricingContent() {
                 { name: 'Unlimited price tracking & alerts', included: false },
                 { name: 'Price drop email notifications', included: false }
             ],
-            cta: (session && subscription.hasUsedFreeTrial)
+            cta: (session && hasUserUsedFreeTrial())
                 ? (billingCycle === 'annual' ? 'Subscribe Gold Annual' : 'Subscribe Gold Monthly')
                 : (billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial'),
             popular: true,
-            trialAvailable: session ? !subscription.hasUsedFreeTrial : true,
+            trialAvailable: session ? !hasUserUsedFreeTrial() : true,
             bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-50',
             borderColor: 'border-blue-300',
             textColor: 'text-blue-900',
@@ -178,11 +183,11 @@ function PricingContent() {
                 { name: 'Price trend analysis & insights', included: true },
                 { name: 'Export price data & shopping analytics', included: true }
             ],
-            cta: (session && subscription.hasUsedFreeTrial)
+            cta: (session && hasUserUsedFreeTrial())
                 ? (billingCycle === 'annual' ? 'Subscribe Platinum Annual' : 'Subscribe Platinum Monthly')
                 : (billingCycle === 'annual' ? 'Start 7-Day Free Trial' : 'Start 7-Day Free Trial'),
             popular: false,
-            trialAvailable: session ? !subscription.hasUsedFreeTrial : true,
+            trialAvailable: session ? !hasUserUsedFreeTrial() : true,
             bgColor: 'bg-gradient-to-br from-purple-50 to-violet-50',
             borderColor: 'border-purple-300',
             textColor: 'text-purple-900',
@@ -200,7 +205,7 @@ function PricingContent() {
                 });
 
                 // Only add trial param if user hasn't used free trial
-                if (isTrialSignup && !subscription.hasUsedFreeTrial) {
+                if (isTrialSignup && !hasUserUsedFreeTrial()) {
                     params.append('trial', 'true');
                 }
 
@@ -405,7 +410,7 @@ function PricingContent() {
 
                                         {tier.trialAvailable && !isCurrentTier && (
                                             <p className="text-xs text-gray-500 mt-2">
-                                                {session && subscription.hasUsedFreeTrial
+                                                {session && hasUserUsedFreeTrial()
                                                     ? 'Subscription starts immediately'
                                                     : 'No credit card required'
                                                 }
