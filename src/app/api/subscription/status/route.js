@@ -54,10 +54,21 @@ export async function GET(request) {
         console.log('🔍 Initial isUserAdmin from database:', isUserAdmin);
 
 // CRITICAL: Check if user has an active paid subscription FIRST
+        // CRITICAL: Check if user has an active paid subscription FIRST
         const hasPaidSubscription = user.subscription &&
             user.subscription.tier !== 'free' &&
             user.subscription.status === 'active' &&
-            (user.subscription.platform === 'revenuecat' || user.subscription.platform === 'stripe');
+            (user.subscription.platform === 'revenuecat' ||
+                user.subscription.platform === 'stripe' ||
+                // Handle subscriptions without platform field (legacy RevenueCat)
+                (!user.subscription.platform && user.subscription.hasUsedFreeTrial === true));
+
+// FIX: If we detect a paid subscription without platform, set it
+        if (hasPaidSubscription && !user.subscription.platform && user.subscription.hasUsedFreeTrial) {
+            console.log('🔧 Setting missing platform field for paid subscription');
+            user.subscription.platform = 'revenuecat';
+            await user.save();
+        }
 
         console.log('💳 Paid subscription check:', {
             hasPaidSubscription,

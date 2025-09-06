@@ -1093,6 +1093,23 @@ function BillingContent() {
                         >
                             Refresh Session
                         </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={async () => {
+                                try {
+                                    const response = await apiPost('/api/subscription/status', {});
+                                    if (response.ok) {
+                                        const data = await response.json();
+                                        setSuccess('Raw subscription data: ' + JSON.stringify(data.subscription || data));
+                                    }
+                                } catch (err) {
+                                    setError('Error: ' + err.message);
+                                }
+                            }}
+                            className="bg-yellow-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                            Show Raw Data
+                        </TouchEnhancedButton>
                     </div>
                 </div>
 
