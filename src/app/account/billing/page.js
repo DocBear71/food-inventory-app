@@ -1007,21 +1007,94 @@ function BillingContent() {
                 {error && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                         {error}
-                        {/* ENHANCED: Show debug info for purchases on development */}
-                        {process.env.NODE_ENV === 'development' && purchaseSteps.length > 0 && (
-                            <details className="mt-4">
-                                <summary className="cursor-pointer text-sm font-medium">Debug Information</summary>
-                                <div className="mt-2 text-xs bg-red-50 p-2 rounded">
-                                    {purchaseSteps.map((step, index) => (
-                                        <div key={index} className="mb-1">
-                                            <strong>{step.step}:</strong> {JSON.stringify(step.data)}
-                                        </div>
-                                    ))}
-                                </div>
-                            </details>
-                        )}
                     </div>
                 )}
+
+                {/* VISUAL DEBUG PANEL - Always visible for testing */}
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <h3 className="text-blue-900 font-semibold mb-3">🔍 Debug Information</h3>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">
+                        <div>
+                            <h4 className="font-medium text-blue-800 mb-2">Subscription Status:</h4>
+                            <div className="bg-white p-2 rounded border">
+                                <div><strong>Tier:</strong> {subscription.tier || 'undefined'}</div>
+                                <div><strong>Status:</strong> {subscription.status || 'undefined'}</div>
+                                <div><strong>Platform:</strong> {subscription.subscription?.platform || 'undefined'}</div>
+                                <div><strong>Is Admin:</strong> {subscription.isAdmin ? 'Yes' : 'No'}</div>
+                                <div><strong>Is Active:</strong> {subscription.isActive ? 'Yes' : 'No'}</div>
+                                <div><strong>Has Used Trial:</strong> {subscription.hasUsedFreeTrial ? 'Yes' : 'No'}</div>
+                            </div>
+                        </div>
+
+                        <div>
+                            <h4 className="font-medium text-blue-800 mb-2">Session Info:</h4>
+                            <div className="bg-white p-2 rounded border">
+                                <div><strong>User ID:</strong> {session?.user?.id?.slice(-8) || 'undefined'}</div>
+                                <div><strong>Email:</strong> {session?.user?.email || 'undefined'}</div>
+                                <div><strong>Session Tier:</strong> {session?.user?.subscriptionTier || 'undefined'}</div>
+                                <div><strong>Platform Type:</strong> {platform?.type || 'undefined'}</div>
+                                <div><strong>Is iOS:</strong> {platform?.isIOS ? 'Yes' : 'No'}</div>
+                                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {purchaseSteps.length > 0 && (
+                        <div className="mt-4">
+                            <h4 className="font-medium text-blue-800 mb-2">Purchase Steps:</h4>
+                            <div className="bg-white p-2 rounded border max-h-32 overflow-y-auto">
+                                {purchaseSteps.slice(-5).map((step, index) => (
+                                    <div key={index} className="text-xs mb-1 border-b pb-1">
+                                        <strong>{step.step}:</strong> {step.timestamp.slice(-8)}
+                                        {step.data && Object.keys(step.data).length > 0 && (
+                                            <div className="text-gray-600 ml-2">
+                                                {Object.entries(step.data).map(([key, value]) => (
+                                                    <div key={key}>{key}: {typeof value === 'object' ? JSON.stringify(value).slice(0, 50) : String(value)}</div>
+                                                ))}
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="mt-3 flex gap-2">
+                        <TouchEnhancedButton
+                            onClick={() => subscription.refetch()}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                            Force Refresh Subscription
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={() => window.location.reload()}
+                            className="bg-gray-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                            Reload Page
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={async () => {
+                                try {
+                                    const response = await apiPost('/api/auth/refresh-session');
+                                    if (response.ok) {
+                                        setSuccess('Session refreshed successfully!');
+                                        setTimeout(() => window.location.reload(), 1000);
+                                    } else {
+                                        setError('Failed to refresh session');
+                                    }
+                                } catch (err) {
+                                    setError('Error refreshing session: ' + err.message);
+                                }
+                            }}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-xs"
+                        >
+                            Refresh Session
+                        </TouchEnhancedButton>
+                    </div>
+                </div>
 
                 {success && (
                     <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">

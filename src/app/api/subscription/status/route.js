@@ -53,49 +53,54 @@ export async function GET(request) {
         let isUserAdmin = user.isAdmin === true;
         console.log('🔍 Initial isUserAdmin from database:', isUserAdmin);
 
-        // Double-check with email if isAdmin field is not set correctly
-        if (!isUserAdmin) {
+// CRITICAL: Check if user has an active paid subscription FIRST
+        const hasPaidSubscription = user.subscription &&
+            user.subscription.tier !== 'free' &&
+            user.subscription.status === 'active' &&
+            (user.subscription.platform === 'revenuecat' || user.subscription.platform === 'stripe');
+
+        console.log('💳 Paid subscription check:', {
+            hasPaidSubscription,
+            tier: user.subscription?.tier,
+            status: user.subscription?.status,
+            platform: user.subscription?.platform
+        });
+
+// Only override with admin if NO paid subscription exists
+        if (!isUserAdmin && !hasPaidSubscription) {
             const adminEmails = [
                 'e.g.mckeown@gmail.com',              // Your email
                 'admin@docbearscomfortkitchen.com',
-                // Add more admin emails as needed
             ];
 
-            console.log('🔍 Checking email against admin list...');
-            console.log('📧 User email (lowercase):', user.email.toLowerCase());
-            console.log('📋 Admin emails list:', adminEmails);
+            console.log('🔍 Checking email against admin list (no paid subscription found)...');
 
             if (adminEmails.includes(user.email.toLowerCase())) {
                 console.log('🔧 ✅ User email matches admin list, setting admin status');
                 isUserAdmin = true;
 
                 // Update the user record to have correct admin status
-                console.log('💾 Updating user admin status in database...');
                 user.isAdmin = true;
                 if (!user.subscription) {
                     user.subscription = {};
                 }
-                user.subscription.tier = 'admin';
-                user.subscription.status = 'active';
+                // Only set admin subscription if no paid subscription exists
+                if (!hasPaidSubscription) {
+                    user.subscription.tier = 'admin';
+                    user.subscription.status = 'active';
+                }
 
                 try {
                     await user.save();
-                    console.log('✅ User admin status updated and saved to database');
-
-                    // **VERIFY THE SAVE WORKED:**
-                    const verifyUser = await User.findById(session.user.id).select('+isAdmin');
-                    console.log('🔍 Verification after save:');
-                    console.log('   - isAdmin:', verifyUser.isAdmin);
-                    console.log('   - subscription.tier:', verifyUser.subscription?.tier);
-                    console.log('   - subscription.status:', verifyUser.subscription?.status);
+                    console.log('✅ User admin status updated (but paid subscription preserved)');
                 } catch (saveError) {
                     console.error('❌ Error saving admin status:', saveError);
                 }
-            } else {
-                console.log('❌ Email does not match admin list');
-                console.log('📧 Provided email:', user.email.toLowerCase());
-                console.log('📋 Expected admin emails:', adminEmails);
             }
+        } else if (hasPaidSubscription) {
+            console.log('💳 User has paid subscription - NOT overriding with admin status');
+            // Keep isUserAdmin as false to show their paid subscription tier
+            isUserAdmin = false;
         }
 
         console.log('🎯 Final isUserAdmin decision:', isUserAdmin);

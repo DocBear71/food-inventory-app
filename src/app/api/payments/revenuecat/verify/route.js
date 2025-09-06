@@ -257,7 +257,7 @@ export async function POST(request) {
             startDate: now,
             endDate: subscriptionEndDate,
             revenueCatCustomerId: customerInfo.originalAppUserId,
-            platform: 'revenuecat',
+            platform: 'revenuecat', // CRITICAL: Always set platform for RevenueCat
             lastPaymentDate: now,
             nextBillingDate: subscriptionEndDate,
             trialStartDate: null,
@@ -271,7 +271,7 @@ export async function POST(request) {
                     amount: getSubscriptionPrice(tier, billingCycle),
                     tier: tier,
                     billingCycle: billingCycle,
-                    platform: 'revenuecat',
+                    platform: 'revenuecat', // CRITICAL: Set platform in payment history too
                     transactionId: purchaseResult.transactionIdentifier || 'unknown',
                     appleValidation: appleValidation ? {
                         status: appleValidation.status,
@@ -284,6 +284,16 @@ export async function POST(request) {
                 }
             ]
         };
+
+        // CRITICAL: Verify the platform was saved correctly
+        console.log('✅ Subscription data being saved:', {
+            tier: user.subscription.tier,
+            status: user.subscription.status,
+            platform: user.subscription.platform, // Should be 'revenuecat'
+            revenueCatCustomerId: user.subscription.revenueCatCustomerId,
+            billingCycle: user.subscription.billingCycle,
+            hasUsedFreeTrial: user.subscription.hasUsedFreeTrial
+        });
 
         // Update usage tracking to reset monthly counters for new subscribers
         if (!user.usageTracking) {
