@@ -1097,10 +1097,16 @@ function BillingContent() {
                         <TouchEnhancedButton
                             onClick={async () => {
                                 try {
-                                    const response = await apiPost('/api/subscription/status', {});
+                                    // Use GET method instead of POST
+                                    const response = await fetch('/api/subscription/status', {
+                                        method: 'GET',
+                                        headers: { 'Cache-Control': 'no-cache' }
+                                    });
                                     if (response.ok) {
                                         const data = await response.json();
-                                        setSuccess('Raw subscription data: ' + JSON.stringify(data.subscription || data));
+                                        setSuccess('Raw data: ' + JSON.stringify(data, null, 2).substring(0, 500) + '...');
+                                    } else {
+                                        setError('Failed to get raw data: ' + response.status);
                                     }
                                 } catch (err) {
                                     setError('Error: ' + err.message);
@@ -1111,60 +1117,30 @@ function BillingContent() {
                             Show Raw Data
                         </TouchEnhancedButton>
 
-                        // ADD this button to your debug panel in the billing page:
-
                         <TouchEnhancedButton
                             onClick={async () => {
                                 try {
-                                    setSuccess('Fixing platform field...');
+                                    setSuccess('Forcing database save to add platform field...');
 
-                                    // Make a direct API call to update the subscription
-                                    const response = await fetch('/api/subscription/status', {
-                                        method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                            action: 'fix_platform',
-                                            platform: 'revenuecat'
-                                        })
+                                    // Force a refresh which should trigger the platform fix logic
+                                    const response = await fetch('/api/subscription/status?' + Date.now(), {
+                                        method: 'GET',
+                                        headers: { 'Cache-Control': 'no-cache' }
                                     });
 
                                     if (response.ok) {
-                                        setSuccess('✅ Platform field added! Refreshing...');
-                                        // Force refresh after 1 second
-                                        setTimeout(() => {
-                                            subscription.refetch();
-                                            window.location.reload();
-                                        }, 1000);
+                                        setSuccess('✅ Platform check completed! Refreshing page...');
+                                        setTimeout(() => window.location.reload(), 1000);
                                     } else {
-                                        // If PATCH doesn't work, try a different approach
-                                        // We'll manually update by calling the verify endpoint again
-                                        const verifyResponse = await apiPost('/api/payments/revenuecat/verify', {
-                                            purchaseResult: {
-                                                customerInfo: {
-                                                    originalAppUserId: session.user.id
-                                                },
-                                                transactionIdentifier: 'manual_fix_' + Date.now()
-                                            },
-                                            tier: 'platinum',
-                                            billingCycle: 'annual',
-                                            userId: session.user.id,
-                                            manualFix: true
-                                        });
-
-                                        if (verifyResponse.ok) {
-                                            setSuccess('✅ Subscription fixed via verify endpoint!');
-                                            setTimeout(() => window.location.reload(), 1000);
-                                        } else {
-                                            setError('Failed to fix platform field');
-                                        }
+                                        setError('Failed to check platform');
                                     }
                                 } catch (err) {
-                                    setError('Error fixing platform: ' + err.message);
+                                    setError('Error: ' + err.message);
                                 }
                             }}
                             className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold"
                         >
-                            🔧 Fix Missing Platform Field
+                            🔧 Trigger Platform Fix
                         </TouchEnhancedButton>
                     </div>
                 </div>
