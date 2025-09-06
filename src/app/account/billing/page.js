@@ -1142,6 +1142,51 @@ function BillingContent() {
                         >
                             🔧 Trigger Platform Fix
                         </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={async () => {
+                                try {
+                                    setSuccess('Performing nuclear refresh...');
+
+                                    // Step 1: Clear all caches
+                                    if (typeof window !== 'undefined') {
+                                        // Clear all storage
+                                        localStorage.clear();
+                                        sessionStorage.clear();
+
+                                        // Clear any React Query caches if you're using them
+                                        if (window.queryClient) {
+                                            window.queryClient.clear();
+                                        }
+                                    }
+
+                                    // Step 2: Force session refresh
+                                    await fetch('/api/auth/refresh-session', {
+                                        method: 'POST',
+                                        headers: { 'Cache-Control': 'no-cache' }
+                                    });
+
+                                    // Step 3: Force subscription refresh
+                                    await fetch('/api/subscription/status?' + Date.now(), {
+                                        method: 'GET',
+                                        headers: { 'Cache-Control': 'no-cache' }
+                                    });
+
+                                    // Step 4: Force page reload
+                                    setSuccess('✅ Nuclear refresh complete! Reloading...');
+                                    setTimeout(() => {
+                                        window.location.href = window.location.href + '?t=' + Date.now();
+                                    }, 1000);
+
+                                } catch (err) {
+                                    setError('Nuclear refresh failed: ' + err.message);
+                                }
+                            }}
+                            className="bg-purple-600 text-white px-3 py-1 rounded text-xs font-bold"
+                        >
+                            🔥 NUCLEAR REFRESH
+                        </TouchEnhancedButton>
+
                     </div>
                 </div>
 
