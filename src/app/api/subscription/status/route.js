@@ -220,16 +220,20 @@ export async function GET(request) {
         }
 
         // FIXED: Override subscription for admin users - set BOTH tier and isAdmin correctly
-        if (isUserAdmin) {
-            console.log('🔧 Overriding subscription for admin user');
+        if (isUserAdmin && !hasPaidSubscription) {
+            console.log('🔧 Overriding subscription for admin user (no paid subscription)');
             subscription = {
                 ...subscription,
                 tier: 'admin',
                 status: 'active',
                 startDate: subscription.startDate || user.createdAt,
                 endDate: null, // Never expires
-                billingCycle: null // No billing for admin
+                billingCycle: null, // No billing for admin
+                platform: 'admin' // Set admin platform
             };
+        } else if (hasPaidSubscription) {
+            console.log('💳 Preserving paid subscription data for user');
+            // Don't override anything - keep the paid subscription as-is
         }
 
         // ADDED: Handle RevenueCat subscriptions specifically
