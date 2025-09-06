@@ -232,7 +232,7 @@ export async function POST(request) {
         }
 
         // Check for duplicate purchases
-        const existingSubscription = user.subscription;
+        const existingSubscription = user.subscription || {};
         if (existingSubscription &&
             existingSubscription.tier === tier &&
             existingSubscription.billingCycle === billingCycle &&
@@ -250,6 +250,7 @@ export async function POST(request) {
 
         // Update user subscription
         user.subscription = {
+            ...existingSubscription, // Preserve existing data
             tier: tier,
             status: 'active',
             billingCycle: billingCycle,
@@ -261,8 +262,10 @@ export async function POST(request) {
             nextBillingDate: subscriptionEndDate,
             trialStartDate: null,
             trialEndDate: null,
+            // CRITICAL: Preserve or set hasUsedFreeTrial flag
+            hasUsedFreeTrial: existingSubscription.hasUsedFreeTrial || true,
             paymentHistory: [
-                ...(user.subscription?.paymentHistory || []),
+                ...(existingSubscription.paymentHistory || []),
                 {
                     date: now,
                     amount: getSubscriptionPrice(tier, billingCycle),
@@ -275,7 +278,7 @@ export async function POST(request) {
                         environment: appleValidation.environment || 'unknown',
                         validatedAt: now.toISOString()
                     } : null,
-                    originalTier: user.subscription?.tier || 'free',
+                    originalTier: existingSubscription.tier || 'free',
                     upgradeDate: now,
                     verificationTimestamp: now
                 }

@@ -29,6 +29,7 @@ function BillingContent() {
     const [success, setSuccess] = useState('');
     const [isRestoring, setIsRestoring] = useState(false);
     const [purchaseSteps, setPurchaseSteps] = useState([]);
+    const [purchaseCompleted, setPurchaseCompleted] = useState(false);
 
     // ENHANCED: Better debug tracking for iPad issues
     const addPurchaseStep = (step, data = {}) => {
@@ -122,6 +123,15 @@ function BillingContent() {
     // Handle subscription changes
     const handleSubscriptionChange = async (newTier, newBilling = 'annual') => {
         if (!newTier || newTier === subscription.tier) {
+            return;
+        }
+
+        if (purchaseCompleted) {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Purchase Already Completed',
+                message: 'You have already completed a purchase. Please refresh the page to see your subscription or contact support if needed.'
+            });
             return;
         }
 
@@ -564,6 +574,7 @@ function BillingContent() {
             // CRITICAL FIX: Always clear loading state regardless of success/failure
             setLoading(false);
         }
+        setPurchaseCompleted(true);
     };
 
     // ENHANCED: Purchase verification with better error handling
@@ -590,24 +601,54 @@ function BillingContent() {
                 if (response.ok) {
                     addPurchaseStep('VERIFICATION_SUCCESS');
                     setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
-                    // Refresh subscription data
+
+                    // CRITICAL: Multiple refresh strategies to ensure UI updates
+                    console.log('🔄 Refreshing subscription and session data...');
+
+                    // Strategy 1: Force refresh subscription hook
                     subscription.refetch();
+
+                    // Strategy 2: Use refreshFromDatabase if available
+                    if (subscription.refreshFromDatabase) {
+                        await subscription.refreshFromDatabase();
+                    }
+
+                    // Strategy 3: Force refresh session to get updated user data
+                    try {
+                        const sessionRefreshResponse = await apiPost('/api/auth/refresh-session');
+                        if (sessionRefreshResponse.ok) {
+                            console.log('✅ Session refresh successful');
+                            // Force a page reload to ensure all hooks pick up new data
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    } catch (sessionError) {
+                        console.warn('Session refresh failed, forcing page reload:', sessionError);
+                        // Fallback: just reload the page
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+
                 } else {
                     addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
                     console.error('Backend verification failed:', data);
 
                     // Show user that purchase was successful but verification had issues
-                    setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. If you don't see your features immediately, please refresh the page or contact support.`);
+                    setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
 
-                    // Still refresh subscription data - RevenueCat webhook might handle it
-                    subscription.refetch();
+                    // Force page refresh to pick up changes from RevenueCat webhook
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
 
                     // Show additional dialog for support if needed
                     const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                     setTimeout(async () => {
                         await NativeDialog.showAlert({
                             title: 'Purchase Successful',
-                            message: 'Your subscription is active! If you don\'t see all features immediately, please refresh the page. Contact support if issues persist.'
+                            message: 'Your subscription is active! The page will refresh to show your new features.'
                         });
                     }, 2000);
                 }
@@ -616,17 +657,19 @@ function BillingContent() {
                 console.error('Verification error:', verificationError);
 
                 // Still show success since App Store purchase completed
-                setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. If you don't see your features immediately, please refresh the page.`);
+                setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
 
-                // Force refresh subscription data
-                subscription.refetch();
+                // Force page refresh - RevenueCat webhook should have updated the database
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
 
                 // Show additional dialog
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 setTimeout(async () => {
                     await NativeDialog.showAlert({
                         title: 'Purchase Successful',
-                        message: 'Your App Store purchase completed successfully! Your subscription should be active. Please refresh the page to see your new features.'
+                        message: 'Your App Store purchase completed successfully! The page will refresh to show your subscription.'
                     });
                 }, 2000);
             }
@@ -637,12 +680,17 @@ function BillingContent() {
             console.error('Critical verification error:', error);
 
             // Even on critical error, assume purchase was successful since RevenueCat completed
-            setSuccess(`✅ Purchase completed! Please refresh the page to see your subscription. Contact support if you need assistance.`);
+            setSuccess(`✅ Purchase completed! Refreshing your account...`);
+
+            // Force page refresh
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
 
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showAlert({
                 title: 'Purchase Completed',
-                message: 'Your purchase went through successfully! Please refresh the page. If you don\'t see your subscription, contact support with your Apple receipt.'
+                message: 'Your purchase went through successfully! The page will refresh to show your subscription.'
             });
         }
     };
