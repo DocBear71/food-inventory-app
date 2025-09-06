@@ -345,9 +345,21 @@ export async function GET(request) {
             trialEndDate: subscription.trialEndDate || null,
 
             // CRITICAL: Add RevenueCat and platform info
-            platform: subscription.platform || null,
-            revenueCatCustomerId: subscription.revenueCatCustomerId || null,
-            stripeSubscriptionId: subscription.stripeSubscriptionId || null,
+            platform: user.subscription?.platform || subscription.platform ||
+                (user.subscription?.revenueCatCustomerId ? 'revenuecat' :
+                    user.subscription?.stripeSubscriptionId ? 'stripe' : null),
+            revenueCatCustomerId: user.subscription?.revenueCatCustomerId || subscription.revenueCatCustomerId || null,
+            stripeSubscriptionId: user.subscription?.stripeSubscriptionId || subscription.stripeSubscriptionId || null,
+
+            debugInfo: {
+                userSubscriptionPlatform: user.subscription?.platform || 'missing',
+                subscriptionPlatform: subscription.platform || 'missing',
+                revenueCatId: user.subscription?.revenueCatCustomerId || 'missing',
+                stripeId: user.subscription?.stripeSubscriptionId || 'missing',
+                finalPlatform: subscriptionData.platform || 'missing',
+                tier: subscriptionData.tier,
+                hasUsedFreeTrial: user.subscription?.hasUsedFreeTrial || false
+            },
 
             // FIXED: Admin status - make sure this is set correctly
             isAdmin: isUserAdmin,

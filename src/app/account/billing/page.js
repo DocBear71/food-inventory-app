@@ -1021,6 +1021,8 @@ function BillingContent() {
                                 <div><strong>Tier:</strong> {subscription.tier || 'undefined'}</div>
                                 <div><strong>Status:</strong> {subscription.status || 'undefined'}</div>
                                 <div><strong>Platform:</strong> {subscription.platform || 'undefined'}</div>
+                                <div><strong>RevenueCat ID:</strong> {subscription.usage?.revenueCatCustomerId || 'none'}</div>
+                                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>
                                 <div><strong>Is Admin:</strong> {subscription.isAdmin ? 'Yes' : 'No'}</div>
                                 <div><strong>Is Active:</strong> {subscription.isActive ? 'Yes' : 'No'}</div>
                                 <div><strong>Has Used Trial:</strong> {subscription.hasUsedFreeTrial ? 'Yes' : 'No'}</div>
@@ -1185,6 +1187,34 @@ function BillingContent() {
                             className="bg-purple-600 text-white px-3 py-1 rounded text-xs font-bold"
                         >
                             🔥 NUCLEAR REFRESH
+                        </TouchEnhancedButton>
+
+                        <TouchEnhancedButton
+                            onClick={async () => {
+                                try {
+                                    const response = await fetch('/api/subscription/status?' + Date.now(), {
+                                        method: 'GET',
+                                        headers: { 'Cache-Control': 'no-cache' }
+                                    });
+                                    if (response.ok) {
+                                        const data = await response.json();
+                                        setSuccess('🔍 PLATFORM DEBUG: ' + JSON.stringify({
+                                            finalPlatform: data.platform,
+                                            tier: data.tier,
+                                            debugInfo: data.debugInfo,
+                                            rawUserSub: data.debugInfo?.userSubscriptionPlatform,
+                                            hasRevenueCat: !!data.revenueCatCustomerId
+                                        }, null, 2));
+                                    } else {
+                                        setError('Failed to get debug data: ' + response.status);
+                                    }
+                                } catch (err) {
+                                    setError('Debug error: ' + err.message);
+                                }
+                            }}
+                            className="bg-orange-600 text-white px-3 py-1 rounded text-xs font-bold"
+                        >
+                            🔍 PLATFORM DEBUG
                         </TouchEnhancedButton>
 
                     </div>
