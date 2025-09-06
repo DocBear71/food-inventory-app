@@ -356,8 +356,6 @@ export async function GET(request) {
                 subscriptionPlatform: subscription.platform || 'missing',
                 revenueCatId: user.subscription?.revenueCatCustomerId || 'missing',
                 stripeId: user.subscription?.stripeSubscriptionId || 'missing',
-                finalPlatform: subscriptionData.platform || 'missing',
-                tier: subscriptionData.tier,
                 hasUsedFreeTrial: user.subscription?.hasUsedFreeTrial || false
             },
 
