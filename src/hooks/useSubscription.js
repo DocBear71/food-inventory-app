@@ -265,9 +265,17 @@ export function SubscriptionProvider({ children }) {
     // FIXED: Clear signout flags for admin user and prevent API calls
     // In the useSubscription hook, update this section:
     useEffect(() => {
-        if (session?.user?.email === 'e.g.mckeown@gmail.com' ||
-            (session?.user?.isAdmin === true && session?.user?.subscriptionStatus === 'active')) {
-            console.log('🧹 SubscriptionProvider: Admin user detected - clearing signout flags and preventing API calls');
+        // CRITICAL FIX: Only apply admin override if user has NO PAID SUBSCRIPTION
+        const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
+            session?.user?.subscription?.status === 'active' &&
+            (session?.user?.subscription?.platform === 'revenuecat' ||
+                session?.user?.subscription?.platform === 'stripe');
+
+        // Check for admin email but ONLY override if no paid subscription exists
+        if ((session?.user?.email === 'e.g.mckeown@gmail.com' || session?.user?.isAdmin === true) &&
+            !hasPaidSubscription) {
+
+            console.log('🧹 SubscriptionProvider: Admin user detected with NO paid subscription - applying admin override');
 
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('prevent-session-calls');
@@ -275,7 +283,7 @@ export function SubscriptionProvider({ children }) {
                 sessionStorage.removeItem('just-signed-out');
             }
 
-            // For admin users, set subscription data directly and don't fetch from API
+            // Only set admin data if no paid subscription exists
             if (session?.user) {
                 setSubscriptionData({
                     tier: 'admin',
@@ -290,8 +298,18 @@ export function SubscriptionProvider({ children }) {
                 setRetryCount(0);
                 setIsFetching(false);
             }
+        } else if (hasPaidSubscription) {
+            console.log('💳 SubscriptionProvider: User has paid subscription - NOT applying admin override');
+            // Clear any signout flags but let the subscription data flow through normally
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('prevent-session-calls');
+                sessionStorage.removeItem('signout-in-progress');
+                sessionStorage.removeItem('just-signed-out');
+            }
+            // Don't set subscription data here - let it flow through the normal priority system
         }
-    }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user]);
+    }, [session.user?.email, session.user?.isAdmin, session.user.subscriptionStatus, session.user?.subscription, session.user]);
+
 
     // FIXED: Main effect with better session handling
     useEffect(() => {
@@ -331,9 +349,38 @@ export function SubscriptionProvider({ children }) {
 
         // FIXED: Priority system for subscription data
 
-        // 1. Admin users - highest priority
-        if (session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') {
-            console.log('📋 Admin user - setting admin subscription');
+        // 1. Check for paid subscription FIRST - highest priority
+        const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
+            session?.user?.subscription?.status === 'active' &&
+            (session?.user?.subscription?.platform === 'revenuecat' ||
+                session?.user?.subscription?.platform === 'stripe');
+
+        if (hasPaidSubscription) {
+            console.log('💳 User has paid subscription - using paid subscription data');
+            const subscription = session.user.subscription;
+
+            setSubscriptionData({
+                tier: subscription.tier,
+                status: subscription.status,
+                isAdmin: session.user.isAdmin || false,
+                isActive: subscription.status === 'active',
+                isTrialActive: subscription.status === 'trial',
+                hasUsedFreeTrial: Boolean(subscription.hasUsedFreeTrial),
+                platform: subscription.platform,
+                billingCycle: subscription.billingCycle,
+                startDate: subscription.startDate,
+                endDate: subscription.endDate,
+                usage: session.user.usage || {},
+                subscription: subscription,
+                timestamp: new Date().toISOString()
+            });
+            setLoading(false);
+            return;
+        }
+
+        // 2. Admin users - but ONLY if no paid subscription exists
+        if ((session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') && !hasPaidSubscription) {
+            console.log('📋 Admin user with no paid subscription - setting admin subscription');
             setSubscriptionData({
                 tier: 'admin',
                 isAdmin: true,
