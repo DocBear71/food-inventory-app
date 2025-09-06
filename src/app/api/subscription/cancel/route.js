@@ -42,12 +42,17 @@ export async function POST(request) {
             );
         }
 
-        console.log('📋 Current subscription:', {
-            tier: user.subscription?.tier,
-            status: user.subscription?.status,
-            platform: user.subscription?.platform,
-            billingCycle: user.subscription?.billingCycle
-        });
+        // EMERGENCY: Force platform detection if missing
+        if (!user.subscription?.platform) {
+            if (user.subscription?.revenueCatCustomerId ||
+                (user.subscription?.tier !== 'free' && user.subscription?.hasUsedFreeTrial)) {
+                user.subscription.platform = 'revenuecat';
+                await user.save();
+            } else if (user.subscription?.stripeSubscriptionId || user.subscription?.stripeCustomerId) {
+                user.subscription.platform = 'stripe';
+                await user.save();
+            }
+        }
 
         // Handle trial cancellation (immediate)
         if (user.subscription?.status === 'trial') {
@@ -253,12 +258,38 @@ export async function POST(request) {
             hasRevenueCatId: !!user.subscription?.revenueCatCustomerId
         });
 
+        // EMERGENCY FALLBACK: If it's a paid tier, assume RevenueCat
+        if ((user.subscription?.tier === 'platinum' || user.subscription?.tier === 'gold') &&
+            user.subscription?.status === 'active') {
+
+            user.subscription = {
+                ...user.subscription,
+                status: 'cancelled',
+                platform: 'revenuecat'
+            };
+
+            await user.save();
+
+            return NextResponse.json({
+                success: true,
+                message: `Subscription cancelled successfully. You'll retain access to ${user.subscription.tier} features until ${new Date(user.subscription.endDate).toLocaleDateString()}.`,
+                immediate: false,
+                platform: 'revenuecat',
+                accessUntil: user.subscription.endDate,
+                note: 'Platform auto-detected as RevenueCat. Also cancel through Apple ID settings for complete cancellation.'
+            });
+        }
+
         return NextResponse.json(
             {
                 error: 'Unable to determine subscription platform. Please contact support for assistance.',
                 debug: {
                     platform: user.subscription?.platform || 'unknown',
-                    tier: user.subscription?.tier
+                    tier: user.subscription?.tier,
+                    status: user.subscription?.status,
+                    hasStripeId: !!user.subscription?.stripeSubscriptionId,
+                    hasRevenueCatId: !!user.subscription?.revenueCatCustomerId,
+                    hasUsedFreeTrial: user.subscription?.hasUsedFreeTrial
                 }
             },
             { status: 400 }

@@ -1094,122 +1094,22 @@ function BillingContent() {
                         <TouchEnhancedButton
                             onClick={async () => {
                                 try {
-                                    // Use GET method instead of POST
-                                    const response = await fetch('/api/subscription/status', {
-                                        method: 'GET',
-                                        headers: { 'Cache-Control': 'no-cache' }
-                                    });
-                                    if (response.ok) {
-                                        const data = await response.json();
-                                        setSuccess('Raw data: ' + JSON.stringify(data, null, 2).substring(0, 500) + '...');
-                                    } else {
-                                        setError('Failed to get raw data: ' + response.status);
-                                    }
-                                } catch (err) {
-                                    setError('Error: ' + err.message);
-                                }
-                            }}
-                            className="bg-yellow-600 text-white px-3 py-1 rounded text-xs"
-                        >
-                            Show Raw Data
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
-                            onClick={async () => {
-                                try {
-                                    setSuccess('Forcing database save to add platform field...');
-
-                                    // Force a refresh which should trigger the platform fix logic
-                                    const response = await fetch('/api/subscription/status?' + Date.now(), {
-                                        method: 'GET',
-                                        headers: { 'Cache-Control': 'no-cache' }
-                                    });
+                                    setSuccess('Testing cancellation...');
+                                    const response = await apiPost('/api/subscription/cancel', {});
+                                    const data = await response.json();
 
                                     if (response.ok) {
-                                        setSuccess('✅ Platform check completed! Refreshing page...');
-                                        setTimeout(() => window.location.reload(), 1000);
+                                        setSuccess('CANCEL SUCCESS: ' + JSON.stringify(data, null, 2));
                                     } else {
-                                        setError('Failed to check platform');
+                                        setError('CANCEL ERROR: ' + JSON.stringify(data, null, 2));
                                     }
                                 } catch (err) {
-                                    setError('Error: ' + err.message);
+                                    setError('CANCEL NETWORK ERROR: ' + err.message);
                                 }
                             }}
-                            className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold"
+                            className="bg-red-600 text-white px-3 py-1 rounded text-xs"
                         >
-                            🔧 Trigger Platform Fix
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
-                            onClick={async () => {
-                                try {
-                                    setSuccess('Performing nuclear refresh...');
-
-                                    // Step 1: Clear all caches
-                                    if (typeof window !== 'undefined') {
-                                        // Clear all storage
-                                        localStorage.clear();
-                                        sessionStorage.clear();
-
-                                        // Clear any React Query caches if you're using them
-                                        if (window.queryClient) {
-                                            window.queryClient.clear();
-                                        }
-                                    }
-
-                                    // Step 2: Force session refresh
-                                    await fetch('/api/auth/refresh-session', {
-                                        method: 'POST',
-                                        headers: { 'Cache-Control': 'no-cache' }
-                                    });
-
-                                    // Step 3: Force subscription refresh
-                                    await fetch('/api/subscription/status?' + Date.now(), {
-                                        method: 'GET',
-                                        headers: { 'Cache-Control': 'no-cache' }
-                                    });
-
-                                    // Step 4: Force page reload
-                                    setSuccess('✅ Nuclear refresh complete! Reloading...');
-                                    setTimeout(() => {
-                                        window.location.href = window.location.href + '?t=' + Date.now();
-                                    }, 1000);
-
-                                } catch (err) {
-                                    setError('Nuclear refresh failed: ' + err.message);
-                                }
-                            }}
-                            className="bg-purple-600 text-white px-3 py-1 rounded text-xs font-bold"
-                        >
-                            🔥 NUCLEAR REFRESH
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
-                            onClick={async () => {
-                                try {
-                                    const response = await fetch('/api/subscription/status?' + Date.now(), {
-                                        method: 'GET',
-                                        headers: { 'Cache-Control': 'no-cache' }
-                                    });
-                                    if (response.ok) {
-                                        const data = await response.json();
-                                        setSuccess('🔍 PLATFORM DEBUG: ' + JSON.stringify({
-                                            finalPlatform: data.platform,
-                                            tier: data.tier,
-                                            debugInfo: data.debugInfo,
-                                            rawUserSub: data.debugInfo?.userSubscriptionPlatform,
-                                            hasRevenueCat: !!data.revenueCatCustomerId
-                                        }, null, 2));
-                                    } else {
-                                        setError('Failed to get debug data: ' + response.status);
-                                    }
-                                } catch (err) {
-                                    setError('Debug error: ' + err.message);
-                                }
-                            }}
-                            className="bg-orange-600 text-white px-3 py-1 rounded text-xs font-bold"
-                        >
-                            🔍 PLATFORM DEBUG
+                            🧪 TEST CANCEL API
                         </TouchEnhancedButton>
 
                     </div>
