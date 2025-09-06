@@ -347,9 +347,14 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // FIXED: Priority system for subscription data
+        // 1. ALWAYS fetch from API first for your demo account
+        if (session?.user?.email === 'demo@test.com' && session?.user?.id) {
+            console.log('🚨 Demo account detected - forcing API fetch to get correct subscription data');
+            fetchSubscriptionData(true);
+            return;
+        }
 
-        // 1. Check for paid subscription FIRST - highest priority
+        // 2. Check for paid subscription FIRST - but only for other accounts
         const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
             session?.user?.subscription?.status === 'active' &&
             (session?.user?.subscription?.platform === 'revenuecat' ||
@@ -378,8 +383,10 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 2. Admin users - but ONLY if no paid subscription exists
-        if ((session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') && !hasPaidSubscription) {
+        // 3. Admin users - but ONLY if no paid subscription exists AND not demo account
+        if ((session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') &&
+            !hasPaidSubscription &&
+            session?.user?.email !== 'demo@test.com') {
             console.log('📋 Admin user with no paid subscription - setting admin subscription');
             setSubscriptionData({
                 tier: 'admin',
@@ -442,9 +449,9 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 4. Only fetch from API if we have no subscription data at all
+        // 4. For all other cases, fetch from API
         if (session?.user?.id) {
-            console.log('📊 No subscription data in session, fetching from API...');
+            console.log('📊 Fetching subscription data from API...');
             fetchSubscriptionData(true);
         }
 
