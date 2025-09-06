@@ -308,7 +308,7 @@ export function SubscriptionProvider({ children }) {
             }
             // Don't set subscription data here - let it flow through the normal priority system
         }
-    }, [session.user?.email, session.user?.isAdmin, session.user.subscriptionStatus, session.user?.subscription, session.user]);
+    }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user?.subscription]);
 
 
     // FIXED: Main effect with better session handling
