@@ -1,4 +1,4 @@
-// file: /src/app/api/payments/revenuecat/webhook/route.js - Enhanced with email notifications
+// file: /src/app/api/payments/revenuecat/webhook/route.js v2 - Enhanced with email notifications and GET support
 
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
@@ -10,6 +10,18 @@ import {
 } from '@/lib/email-todo-implementations';
 
 const REVENUECAT_WEBHOOK_SECRET = process.env.REVENUECAT_WEBHOOK_SECRET;
+
+// ADD: GET handler for webhook verification/testing
+export async function GET(request) {
+    console.log('🔍 GET request received on RevenueCat webhook endpoint');
+
+    // This allows RevenueCat or testing tools to verify the endpoint exists
+    return NextResponse.json({
+        status: 'active',
+        message: 'RevenueCat webhook endpoint is operational',
+        timestamp: new Date().toISOString()
+    });
+}
 
 export async function POST(request) {
     try {
