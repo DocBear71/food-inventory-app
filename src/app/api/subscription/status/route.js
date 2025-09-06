@@ -388,6 +388,38 @@ export async function GET(request) {
             lastUpdated: now.toISOString()
         };
 
+        // CRITICAL FIX: Ensure platform field is explicitly set
+        console.log('🔍 Pre-return subscription data check:', {
+            tier: subscriptionData.tier,
+            platform: subscriptionData.platform,
+            originalSubscriptionPlatform: subscription.platform,
+            userSubscriptionObject: user.subscription?.platform
+        });
+
+        // EMERGENCY: Force platform to be set if it's missing
+        if (!subscriptionData.platform && user.subscription?.platform) {
+            console.log('🚨 PLATFORM FIX: Setting missing platform field');
+            subscriptionData.platform = user.subscription.platform;
+        }
+
+        // DOUBLE CHECK: If still missing and we know it's a RevenueCat subscription
+        if (!subscriptionData.platform && user.subscription?.revenueCatCustomerId) {
+            console.log('🚨 PLATFORM FIX: RevenueCat customer ID found, setting platform to revenuecat');
+            subscriptionData.platform = 'revenuecat';
+        }
+
+        // TRIPLE CHECK: If still missing and subscription tier isn't free
+        if (!subscriptionData.platform && subscriptionData.tier !== 'free' && subscriptionData.tier !== 'admin') {
+            console.log('🚨 PLATFORM FIX: Paid subscription without platform, defaulting to revenuecat');
+            subscriptionData.platform = 'revenuecat';
+        }
+
+        console.log('✅ Final subscription data platform check:', {
+            platform: subscriptionData.platform,
+            tier: subscriptionData.tier,
+            isAdmin: subscriptionData.isAdmin
+        });
+
         console.log('✅ Subscription data prepared successfully:', {
             tier: subscriptionData.tier,
             status: subscriptionData.status,
