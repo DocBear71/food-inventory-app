@@ -1020,13 +1020,15 @@ function BillingContent() {
                             <div className="bg-white p-2 rounded border">
                                 <div><strong>Tier:</strong> {subscription.tier || 'undefined'}</div>
                                 <div><strong>Status:</strong> {subscription.status || 'undefined'}</div>
-                                <div><strong>Hook Platform:</strong> {subscription.platform || 'MISSING'}</div>
-                                <div><strong>Raw Subscription Data:</strong> {JSON.stringify(subscription.usage?.platform)}</div>
+                                <div><strong>Platform:</strong> {subscription.platform || 'undefined'}</div>
                                 <div><strong>RevenueCat ID:</strong> {subscription.usage?.revenueCatCustomerId || 'none'}</div>
                                 <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>
                                 <div><strong>Is Admin:</strong> {subscription.isAdmin ? 'Yes' : 'No'}</div>
                                 <div><strong>Is Active:</strong> {subscription.isActive ? 'Yes' : 'No'}</div>
                                 <div><strong>Has Used Trial:</strong> {subscription.hasUsedFreeTrial ? 'Yes' : 'No'}</div>
+                                <div><strong>Hook Platform:</strong> {subscription.platform || 'MISSING'}</div>
+                                <div><strong>Raw Subscription Data:</strong> {JSON.stringify(subscription.usage?.platform)}</div>
+
                             </div>
                         </div>
 
