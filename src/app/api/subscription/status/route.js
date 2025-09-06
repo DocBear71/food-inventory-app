@@ -1,7 +1,6 @@
-// file: /src/app/api/subscription/status/route.js v5 - FIXED admin detection
+// file: /src/app/api/subscription/status/route.js v6 - Added RevenueCat support
 
 import { auth } from '@/lib/auth';
-
 import connectDB from '@/lib/mongodb';
 import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
 
@@ -201,6 +200,20 @@ export async function GET(request) {
         // Initialize subscription data with safe defaults
         let subscription = user.subscription || {};
 
+        // CRITICAL: Check for subscription expiration
+        let isExpired = false;
+        if (subscription.endDate && subscription.status !== 'cancelled') {
+            const endDate = new Date(subscription.endDate);
+            const now = new Date();
+            isExpired = now > endDate;
+
+            if (isExpired && subscription.status === 'active') {
+                console.log('📅 Subscription has expired, updating status');
+                subscription.status = 'expired';
+                subscription.tier = 'free'; // Downgrade to free on expiration
+            }
+        }
+
         // FIXED: Override subscription for admin users - set BOTH tier and isAdmin correctly
         if (isUserAdmin) {
             console.log('🔧 Overriding subscription for admin user');
@@ -214,9 +227,38 @@ export async function GET(request) {
             };
         }
 
+        // ADDED: Handle RevenueCat subscriptions specifically
+        if (subscription.platform === 'revenuecat') {
+            console.log('📱 Processing RevenueCat subscription:', {
+                tier: subscription.tier,
+                status: subscription.status,
+                endDate: subscription.endDate,
+                revenueCatCustomerId: subscription.revenueCatCustomerId
+            });
+
+            // For RevenueCat, ensure subscription data is properly formatted
+            if (subscription.tier && subscription.tier !== 'free' && !isExpired) {
+                // RevenueCat subscription is active and valid
+                subscription.isActive = true;
+            } else if (isExpired) {
+                // Expired RevenueCat subscription
+                subscription.tier = 'free';
+                subscription.status = 'expired';
+                subscription.isActive = false;
+            }
+        }
+
+        // ADDED: Handle Stripe subscriptions specifically
+        if (subscription.platform === 'stripe' || subscription.stripeSubscriptionId) {
+            console.log('💳 Processing Stripe subscription');
+            // Keep existing Stripe logic
+            subscription.platform = subscription.platform || 'stripe';
+        }
+
         // Calculate trial status more safely
         let isTrialActive = false;
         let daysUntilTrialEnd = null;
+        let hasUsedFreeTrial = subscription.hasUsedFreeTrial || false;
 
         // FIXED: Admin users don't have trials
         if (!isUserAdmin && subscription.status === 'trial' && subscription.trialEndDate) {
@@ -227,6 +269,13 @@ export async function GET(request) {
                 daysUntilTrialEnd = isTrialActive
                     ? Math.max(0, Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24)))
                     : 0;
+
+                // If trial has ended, mark as expired
+                if (!isTrialActive && subscription.status === 'trial') {
+                    subscription.tier = 'free';
+                    subscription.status = 'expired';
+                    hasUsedFreeTrial = true;
+                }
             } catch (dateError) {
                 console.warn('Error calculating trial dates:', dateError);
                 isTrialActive = false;
@@ -275,8 +324,16 @@ export async function GET(request) {
             trialStartDate: subscription.trialStartDate || null,
             trialEndDate: subscription.trialEndDate || null,
 
+            // CRITICAL: Add RevenueCat and platform info
+            platform: subscription.platform || null,
+            revenueCatCustomerId: subscription.revenueCatCustomerId || null,
+            stripeSubscriptionId: subscription.stripeSubscriptionId || null,
+
             // FIXED: Admin status - make sure this is set correctly
             isAdmin: isUserAdmin,
+
+            // ADDED: Trial flag handling
+            hasUsedFreeTrial: hasUsedFreeTrial,
 
             // Usage counts (what useSubscription getCurrentUsageCount expects)
             usage: {
@@ -297,13 +354,15 @@ export async function GET(request) {
             },
 
             // Status flags
-            isActive: subscription.status === 'active' ||
+            isActive: (subscription.status === 'active' ||
                 subscription.status === 'trial' ||
                 subscription.tier === 'free' ||
-                subscription.tier === 'admin' || // Admin is always active
-                !subscription.status, // Default to active for users without subscription data
+                subscription.tier === 'admin') && !isExpired, // Admin is always active
             isTrialActive: isTrialActive && !isUserAdmin, // Admin users don't need trials
             daysUntilTrialEnd: isUserAdmin ? null : daysUntilTrialEnd, // Admin users don't have trial limits
+
+            // ADDED: Expiration status
+            isExpired: isExpired,
 
             // Additional metadata
             lastUpdated: now.toISOString()
@@ -312,8 +371,11 @@ export async function GET(request) {
         console.log('✅ Subscription data prepared successfully:', {
             tier: subscriptionData.tier,
             status: subscriptionData.status,
+            platform: subscriptionData.platform,
             isActive: subscriptionData.isActive,
             isAdmin: subscriptionData.isAdmin,
+            isExpired: subscriptionData.isExpired,
+            hasUsedFreeTrial: subscriptionData.hasUsedFreeTrial,
             inventoryItems: subscriptionData.usage.inventoryItems,
             savedRecipes: subscriptionData.usage.savedRecipes,
             collections: subscriptionData.usage.recipeCollections
@@ -324,6 +386,7 @@ export async function GET(request) {
             tier: subscriptionData.tier,
             isAdmin: subscriptionData.isAdmin,
             status: subscriptionData.status,
+            platform: subscriptionData.platform,
             usage: {
                 inventoryItems: subscriptionData.usage.inventoryItems
             }
