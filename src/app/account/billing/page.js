@@ -1020,7 +1020,8 @@ function BillingContent() {
                             <div className="bg-white p-2 rounded border">
                                 <div><strong>Tier:</strong> {subscription.tier || 'undefined'}</div>
                                 <div><strong>Status:</strong> {subscription.status || 'undefined'}</div>
-                                <div><strong>Platform:</strong> {subscription.platform || 'undefined'}</div>
+                                <div><strong>Hook Platform:</strong> {subscription.platform || 'MISSING'}</div>
+                                <div><strong>Raw Subscription Data:</strong> {JSON.stringify(subscription.usage?.platform)}</div>
                                 <div><strong>RevenueCat ID:</strong> {subscription.usage?.revenueCatCustomerId || 'none'}</div>
                                 <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>
                                 <div><strong>Is Admin:</strong> {subscription.isAdmin ? 'Yes' : 'No'}</div>
@@ -1078,22 +1079,14 @@ function BillingContent() {
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton
-                            onClick={async () => {
-                                try {
-                                    const response = await apiPost('/api/auth/refresh-session');
-                                    if (response.ok) {
-                                        setSuccess('Session refreshed successfully!');
-                                        setTimeout(() => window.location.reload(), 1000);
-                                    } else {
-                                        setError('Failed to refresh session');
-                                    }
-                                } catch (err) {
-                                    setError('Error refreshing session: ' + err.message);
-                                }
+                            onClick={() => {
+                                console.log('Full subscription object:', subscription);
+                                console.log('Platform specifically:', subscription.platform);
+                                setSuccess(`Platform: ${subscription.platform || 'UNDEFINED'}, Full keys: ${Object.keys(subscription).join(', ')}`);
                             }}
-                            className="bg-green-600 text-white px-3 py-1 rounded text-xs"
+                            className="bg-yellow-600 text-white px-3 py-1 rounded text-xs"
                         >
-                            Refresh Session
+                            🔍 CHECK HOOK PLATFORM
                         </TouchEnhancedButton>
 
                         <TouchEnhancedButton

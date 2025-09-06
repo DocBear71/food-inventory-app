@@ -629,6 +629,7 @@ export function useSubscription() {
         billingCycle: subscriptionData?.billingCycle,
         isActive: subscriptionData?.isActive !== false,
         isTrialActive: subscriptionData?.isTrialActive || false,
+        platform: subscriptionData?.platform || 'undefined',
         hasUsedFreeTrial: subscriptionData?.hasUsedFreeTrial ||
             context.session?.user?.subscription?.hasUsedFreeTrial ||
             false,
