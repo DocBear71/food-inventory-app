@@ -1110,6 +1110,62 @@ function BillingContent() {
                         >
                             Show Raw Data
                         </TouchEnhancedButton>
+
+                        // ADD this button to your debug panel in the billing page:
+
+                        <TouchEnhancedButton
+                            onClick={async () => {
+                                try {
+                                    setSuccess('Fixing platform field...');
+
+                                    // Make a direct API call to update the subscription
+                                    const response = await fetch('/api/subscription/status', {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                            action: 'fix_platform',
+                                            platform: 'revenuecat'
+                                        })
+                                    });
+
+                                    if (response.ok) {
+                                        setSuccess('✅ Platform field added! Refreshing...');
+                                        // Force refresh after 1 second
+                                        setTimeout(() => {
+                                            subscription.refetch();
+                                            window.location.reload();
+                                        }, 1000);
+                                    } else {
+                                        // If PATCH doesn't work, try a different approach
+                                        // We'll manually update by calling the verify endpoint again
+                                        const verifyResponse = await apiPost('/api/payments/revenuecat/verify', {
+                                            purchaseResult: {
+                                                customerInfo: {
+                                                    originalAppUserId: session.user.id
+                                                },
+                                                transactionIdentifier: 'manual_fix_' + Date.now()
+                                            },
+                                            tier: 'platinum',
+                                            billingCycle: 'annual',
+                                            userId: session.user.id,
+                                            manualFix: true
+                                        });
+
+                                        if (verifyResponse.ok) {
+                                            setSuccess('✅ Subscription fixed via verify endpoint!');
+                                            setTimeout(() => window.location.reload(), 1000);
+                                        } else {
+                                            setError('Failed to fix platform field');
+                                        }
+                                    }
+                                } catch (err) {
+                                    setError('Error fixing platform: ' + err.message);
+                                }
+                            }}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-xs font-bold"
+                        >
+                            🔧 Fix Missing Platform Field
+                        </TouchEnhancedButton>
                     </div>
                 </div>
 
