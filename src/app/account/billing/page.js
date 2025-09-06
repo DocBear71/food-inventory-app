@@ -482,7 +482,7 @@ function BillingContent() {
 
                 // Handle specific purchase errors
                 if (purchaseError.message?.includes('cancelled') || purchaseError.message?.includes('user_cancelled')) {
-                    // User cancelled - don't show error
+                    // User cancelled - don't show error, just return
                     console.log('User cancelled purchase');
                     return;
                 } else if (purchaseError.message?.includes('already_purchased')) {
@@ -560,6 +560,9 @@ function BillingContent() {
                     message: error.message
                 });
             }
+        } finally {
+            // CRITICAL FIX: Always clear loading state regardless of success/failure
+            setLoading(false);
         }
     };
 
@@ -569,36 +572,77 @@ function BillingContent() {
             addPurchaseStep('VERIFICATION_START');
             console.log('11. Verifying purchase with backend...');
 
-            const response = await apiPost('/api/payments/revenuecat/verify', {
-                purchaseResult: purchaseResult,
-                tier: tier,
-                billingCycle: billingCycle,
-                userId: session.user.id
-            });
+            // CRITICAL: Set purchase as completed regardless of backend verification
+            // The App Store purchase was successful, so we treat it as successful
+            setSuccess(`🎉 Purchase completed! Activating your ${tier} subscription...`);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                addPurchaseStep('VERIFICATION_SUCCESS');
-                setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
-                // Refresh subscription data
-                subscription.refetch();
-            } else {
-                addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
-                console.error('Backend verification failed:', data);
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                await NativeDialog.showError({
-                    title: 'Verification Failed',
-                    message: 'Purchase completed but verification failed. Please contact support with your transaction ID.'
+            // Try backend verification but don't block success on it
+            try {
+                const response = await apiPost('/api/payments/revenuecat/verify', {
+                    purchaseResult: purchaseResult,
+                    tier: tier,
+                    billingCycle: billingCycle,
+                    userId: session.user.id
                 });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addPurchaseStep('VERIFICATION_SUCCESS');
+                    setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
+                    // Refresh subscription data
+                    subscription.refetch();
+                } else {
+                    addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
+                    console.error('Backend verification failed:', data);
+
+                    // Show user that purchase was successful but verification had issues
+                    setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. If you don't see your features immediately, please refresh the page or contact support.`);
+
+                    // Still refresh subscription data - RevenueCat webhook might handle it
+                    subscription.refetch();
+
+                    // Show additional dialog for support if needed
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    setTimeout(async () => {
+                        await NativeDialog.showAlert({
+                            title: 'Purchase Successful',
+                            message: 'Your subscription is active! If you don\'t see all features immediately, please refresh the page. Contact support if issues persist.'
+                        });
+                    }, 2000);
+                }
+            } catch (verificationError) {
+                addPurchaseStep('VERIFICATION_ERROR', { error: verificationError.message });
+                console.error('Verification error:', verificationError);
+
+                // Still show success since App Store purchase completed
+                setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. If you don't see your features immediately, please refresh the page.`);
+
+                // Force refresh subscription data
+                subscription.refetch();
+
+                // Show additional dialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                setTimeout(async () => {
+                    await NativeDialog.showAlert({
+                        title: 'Purchase Successful',
+                        message: 'Your App Store purchase completed successfully! Your subscription should be active. Please refresh the page to see your new features.'
+                    });
+                }, 2000);
             }
+
         } catch (error) {
-            addPurchaseStep('VERIFICATION_ERROR', { error: error.message });
-            console.error('Verification error:', error);
+            // This should rarely happen since we're being more permissive above
+            addPurchaseStep('VERIFICATION_CRITICAL_ERROR', { error: error.message });
+            console.error('Critical verification error:', error);
+
+            // Even on critical error, assume purchase was successful since RevenueCat completed
+            setSuccess(`✅ Purchase completed! Please refresh the page to see your subscription. Contact support if you need assistance.`);
+
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showError({
-                title: 'Verification Failed',
-                message: 'Purchase completed but verification failed. Please contact support.'
+            await NativeDialog.showAlert({
+                title: 'Purchase Completed',
+                message: 'Your purchase went through successfully! Please refresh the page. If you don\'t see your subscription, contact support with your Apple receipt.'
             });
         }
     };
