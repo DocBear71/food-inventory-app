@@ -232,7 +232,7 @@ export async function POST(request) {
         }
 
         // Check for duplicate purchases
-        const existingSubscription = user.subscription;
+        const existingSubscription = user.subscription || {};
         if (existingSubscription &&
             existingSubscription.tier === tier &&
             existingSubscription.billingCycle === billingCycle &&
@@ -250,37 +250,50 @@ export async function POST(request) {
 
         // Update user subscription
         user.subscription = {
+            ...existingSubscription, // Preserve existing data
             tier: tier,
             status: 'active',
             billingCycle: billingCycle,
             startDate: now,
             endDate: subscriptionEndDate,
             revenueCatCustomerId: customerInfo.originalAppUserId,
-            platform: 'revenuecat',
+            platform: 'revenuecat', // CRITICAL: Always set platform for RevenueCat
             lastPaymentDate: now,
             nextBillingDate: subscriptionEndDate,
             trialStartDate: null,
             trialEndDate: null,
+            // CRITICAL: Preserve or set hasUsedFreeTrial flag
+            hasUsedFreeTrial: existingSubscription.hasUsedFreeTrial || true,
             paymentHistory: [
-                ...(user.subscription?.paymentHistory || []),
+                ...(existingSubscription.paymentHistory || []),
                 {
                     date: now,
                     amount: getSubscriptionPrice(tier, billingCycle),
                     tier: tier,
                     billingCycle: billingCycle,
-                    platform: 'revenuecat',
+                    platform: 'revenuecat', // CRITICAL: Set platform in payment history too
                     transactionId: purchaseResult.transactionIdentifier || 'unknown',
                     appleValidation: appleValidation ? {
                         status: appleValidation.status,
                         environment: appleValidation.environment || 'unknown',
                         validatedAt: now.toISOString()
                     } : null,
-                    originalTier: user.subscription?.tier || 'free',
+                    originalTier: existingSubscription.tier || 'free',
                     upgradeDate: now,
                     verificationTimestamp: now
                 }
             ]
         };
+
+        // CRITICAL: Verify the platform was saved correctly
+        console.log('✅ Subscription data being saved:', {
+            tier: user.subscription.tier,
+            status: user.subscription.status,
+            platform: user.subscription.platform, // Should be 'revenuecat'
+            revenueCatCustomerId: user.subscription.revenueCatCustomerId,
+            billingCycle: user.subscription.billingCycle,
+            hasUsedFreeTrial: user.subscription.hasUsedFreeTrial
+        });
 
         // Update usage tracking to reset monthly counters for new subscribers
         if (!user.usageTracking) {

@@ -211,7 +211,7 @@ export function SubscriptionProvider({ children }) {
             setIsFetching(false);
             setLoading(false);
         }
-    }, [session?.user?.id, retryCount, isFetching, clearSubscriptionCache]);
+    }, [isFetching, retryCount, clearSubscriptionCache, session?.user?.subscriptionTier, session?.user?.effectiveTier, session?.user?.isAdmin, session?.user?.id]);
 
     // Add this after the fetchSubscriptionData function
     const refreshFromDatabase = useCallback(async () => {
@@ -265,9 +265,17 @@ export function SubscriptionProvider({ children }) {
     // FIXED: Clear signout flags for admin user and prevent API calls
     // In the useSubscription hook, update this section:
     useEffect(() => {
-        if (session?.user?.email === 'e.g.mckeown@gmail.com' ||
-            (session?.user?.isAdmin === true && session?.user?.subscriptionStatus === 'active')) {
-            console.log('🧹 SubscriptionProvider: Admin user detected - clearing signout flags and preventing API calls');
+        // CRITICAL FIX: Only apply admin override if user has NO PAID SUBSCRIPTION
+        const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
+            session?.user?.subscription?.status === 'active' &&
+            (session?.user?.subscription?.platform === 'revenuecat' ||
+                session?.user?.subscription?.platform === 'stripe');
+
+        // Check for admin email but ONLY override if no paid subscription exists
+        if ((session?.user?.email === 'e.g.mckeown@gmail.com' || session?.user?.isAdmin === true) &&
+            !hasPaidSubscription) {
+
+            console.log('🧹 SubscriptionProvider: Admin user detected with NO paid subscription - applying admin override');
 
             if (typeof window !== 'undefined') {
                 localStorage.removeItem('prevent-session-calls');
@@ -275,7 +283,7 @@ export function SubscriptionProvider({ children }) {
                 sessionStorage.removeItem('just-signed-out');
             }
 
-            // For admin users, set subscription data directly and don't fetch from API
+            // Only set admin data if no paid subscription exists
             if (session?.user) {
                 setSubscriptionData({
                     tier: 'admin',
@@ -290,8 +298,18 @@ export function SubscriptionProvider({ children }) {
                 setRetryCount(0);
                 setIsFetching(false);
             }
+        } else if (hasPaidSubscription) {
+            console.log('💳 SubscriptionProvider: User has paid subscription - NOT applying admin override');
+            // Clear any signout flags but let the subscription data flow through normally
+            if (typeof window !== 'undefined') {
+                localStorage.removeItem('prevent-session-calls');
+                sessionStorage.removeItem('signout-in-progress');
+                sessionStorage.removeItem('just-signed-out');
+            }
+            // Don't set subscription data here - let it flow through the normal priority system
         }
-    }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user]);
+    }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user?.subscription]);
+
 
     // FIXED: Main effect with better session handling
     useEffect(() => {
@@ -329,11 +347,47 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // FIXED: Priority system for subscription data
+        // 1. ALWAYS fetch from API first for your demo account
+        if (session?.user?.email === 'demo@test.com' && session?.user?.id) {
+            console.log('🚨 Demo account detected - forcing API fetch to get correct subscription data');
+            fetchSubscriptionData(true);
+            return;
+        }
 
-        // 1. Admin users - highest priority
-        if (session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') {
-            console.log('📋 Admin user - setting admin subscription');
+        // 2. Check for paid subscription FIRST - but only for other accounts
+        const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
+            session?.user?.subscription?.status === 'active' &&
+            (session?.user?.subscription?.platform === 'revenuecat' ||
+                session?.user?.subscription?.platform === 'stripe');
+
+        if (hasPaidSubscription) {
+            console.log('💳 User has paid subscription - using paid subscription data');
+            const subscription = session.user.subscription;
+
+            setSubscriptionData({
+                tier: subscription.tier,
+                status: subscription.status,
+                isAdmin: session.user.isAdmin || false,
+                isActive: subscription.status === 'active',
+                isTrialActive: subscription.status === 'trial',
+                hasUsedFreeTrial: Boolean(subscription.hasUsedFreeTrial),
+                platform: subscription.platform,
+                billingCycle: subscription.billingCycle,
+                startDate: subscription.startDate,
+                endDate: subscription.endDate,
+                usage: session.user.usage || {},
+                subscription: subscription,
+                timestamp: new Date().toISOString()
+            });
+            setLoading(false);
+            return;
+        }
+
+        // 3. Admin users - but ONLY if no paid subscription exists AND not demo account
+        if ((session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') &&
+            !hasPaidSubscription &&
+            session?.user?.email !== 'demo@test.com') {
+            console.log('📋 Admin user with no paid subscription - setting admin subscription');
             setSubscriptionData({
                 tier: 'admin',
                 isAdmin: true,
@@ -350,13 +404,17 @@ export function SubscriptionProvider({ children }) {
         if (session?.user?.subscription?.tier && session?.user?.subscription?.status) {
             console.log('📋 Using session subscription object:', session.user.subscription);
             console.log('📋 Session subscription status:', session.user.subscription.status);
+
+            // FIXED: Ensure proper boolean conversion for hasUsedFreeTrial
+            const hasUsedFreeTrial = Boolean(session.user.subscription.hasUsedFreeTrial);
+
             setSubscriptionData({
                 tier: session.user.subscription.tier,
                 status: session.user.subscription.status,
                 isAdmin: session.user.isAdmin || false,
                 isActive: session.user.subscription.status === 'active',
                 isTrialActive: session.user.subscription.status === 'trial',
-                hasUsedFreeTrial: session.user.subscription.hasUsedFreeTrial || false,
+                hasUsedFreeTrial: hasUsedFreeTrial,
                 usage: session.user.usage || {},
                 subscription: session.user.subscription,
                 timestamp: new Date().toISOString()
@@ -371,12 +429,19 @@ export function SubscriptionProvider({ children }) {
                 subscriptionTier: session.user.subscriptionTier,
                 effectiveTier: session.user.effectiveTier
             });
+
+            // FIXED: Better extraction of hasUsedFreeTrial from multiple possible locations
+            const hasUsedFreeTrial = Boolean(
+                session.user.subscription?.hasUsedFreeTrial ||
+                session.user.hasUsedFreeTrial
+            );
+
             setSubscriptionData({
                 tier: session.user.effectiveTier || session.user.subscriptionTier,
                 isAdmin: session.user.isAdmin || false,
                 isActive: true,
                 isTrialActive: false,
-                hasUsedFreeTrial: session.user.subscription?.hasUsedFreeTrial || session.user.hasUsedFreeTrial || false,
+                hasUsedFreeTrial: hasUsedFreeTrial,
                 usage: session.user.usage || {},
                 timestamp: new Date().toISOString()
             });
@@ -384,9 +449,9 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 4. Only fetch from API if we have no subscription data at all
+        // 4. For all other cases, fetch from API
         if (session?.user?.id) {
-            console.log('📊 No subscription data in session, fetching from API...');
+            console.log('📊 Fetching subscription data from API...');
             fetchSubscriptionData(true);
         }
 
@@ -439,6 +504,7 @@ export function SubscriptionProvider({ children }) {
 
 export function useSubscription() {
     const context = useContext(SubscriptionContext);
+    const { data: session } = useSafeSession();
     if (!context) {
         throw new Error('useSubscription must be used within a SubscriptionProvider');
     }
@@ -563,7 +629,10 @@ export function useSubscription() {
         billingCycle: subscriptionData?.billingCycle,
         isActive: subscriptionData?.isActive !== false,
         isTrialActive: subscriptionData?.isTrialActive || false,
-        hasUsedFreeTrial: subscriptionData?.hasUsedFreeTrial || false,
+        platform: subscriptionData?.platform || 'undefined',
+        hasUsedFreeTrial: subscriptionData?.hasUsedFreeTrial ||
+            context.session?.user?.subscription?.hasUsedFreeTrial ||
+            false,
         daysUntilTrialEnd: subscriptionData?.daysUntilTrialEnd,
 
         // Date fields

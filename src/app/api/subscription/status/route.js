@@ -1,7 +1,6 @@
-// file: /src/app/api/subscription/status/route.js v5 - FIXED admin detection
+// file: /src/app/api/subscription/status/route.js v6 - Added RevenueCat support
 
 import { auth } from '@/lib/auth';
-
 import connectDB from '@/lib/mongodb';
 import { User, UserInventory, Recipe, RecipeCollection } from '@/lib/models';
 
@@ -54,49 +53,65 @@ export async function GET(request) {
         let isUserAdmin = user.isAdmin === true;
         console.log('🔍 Initial isUserAdmin from database:', isUserAdmin);
 
-        // Double-check with email if isAdmin field is not set correctly
-        if (!isUserAdmin) {
+// CRITICAL: Check if user has an active paid subscription FIRST
+        // CRITICAL: Check if user has an active paid subscription FIRST
+        const hasPaidSubscription = user.subscription &&
+            user.subscription.tier !== 'free' &&
+            user.subscription.status === 'active' &&
+            (user.subscription.platform === 'revenuecat' ||
+                user.subscription.platform === 'stripe' ||
+                // Handle subscriptions without platform field (legacy RevenueCat)
+                (!user.subscription.platform && user.subscription.hasUsedFreeTrial === true));
+
+// FIX: If we detect a paid subscription without platform, set it
+        if (hasPaidSubscription && !user.subscription.platform && user.subscription.hasUsedFreeTrial) {
+            console.log('🔧 Setting missing platform field for paid subscription');
+            user.subscription.platform = 'revenuecat';
+            await user.save();
+        }
+
+        console.log('💳 Paid subscription check:', {
+            hasPaidSubscription,
+            tier: user.subscription?.tier,
+            status: user.subscription?.status,
+            platform: user.subscription?.platform
+        });
+
+// Only override with admin if NO paid subscription exists
+        if (!isUserAdmin && !hasPaidSubscription) {
             const adminEmails = [
                 'e.g.mckeown@gmail.com',              // Your email
                 'admin@docbearscomfortkitchen.com',
-                // Add more admin emails as needed
             ];
 
-            console.log('🔍 Checking email against admin list...');
-            console.log('📧 User email (lowercase):', user.email.toLowerCase());
-            console.log('📋 Admin emails list:', adminEmails);
+            console.log('🔍 Checking email against admin list (no paid subscription found)...');
 
             if (adminEmails.includes(user.email.toLowerCase())) {
                 console.log('🔧 ✅ User email matches admin list, setting admin status');
                 isUserAdmin = true;
 
                 // Update the user record to have correct admin status
-                console.log('💾 Updating user admin status in database...');
                 user.isAdmin = true;
                 if (!user.subscription) {
                     user.subscription = {};
                 }
-                user.subscription.tier = 'admin';
-                user.subscription.status = 'active';
+                // Only set admin subscription if no paid subscription exists
+                if (!hasPaidSubscription) {
+                    user.subscription.tier = 'admin';
+                    user.subscription.status = 'active';
+                }
 
                 try {
                     await user.save();
-                    console.log('✅ User admin status updated and saved to database');
-
-                    // **VERIFY THE SAVE WORKED:**
-                    const verifyUser = await User.findById(session.user.id).select('+isAdmin');
-                    console.log('🔍 Verification after save:');
-                    console.log('   - isAdmin:', verifyUser.isAdmin);
-                    console.log('   - subscription.tier:', verifyUser.subscription?.tier);
-                    console.log('   - subscription.status:', verifyUser.subscription?.status);
+                    console.log('✅ User admin status updated (but paid subscription preserved)');
                 } catch (saveError) {
                     console.error('❌ Error saving admin status:', saveError);
                 }
-            } else {
-                console.log('❌ Email does not match admin list');
-                console.log('📧 Provided email:', user.email.toLowerCase());
-                console.log('📋 Expected admin emails:', adminEmails);
             }
+        } else if (hasPaidSubscription) {
+            console.log('💳 User has paid subscription - NOT overriding with admin status');
+            // Keep isUserAdmin as false to show their paid subscription tier
+            isUserAdmin = false;
         }
 
         console.log('🎯 Final isUserAdmin decision:', isUserAdmin);
@@ -201,22 +216,69 @@ export async function GET(request) {
         // Initialize subscription data with safe defaults
         let subscription = user.subscription || {};
 
+        // CRITICAL: Check for subscription expiration
+        let isExpired = false;
+        if (subscription.endDate && subscription.status !== 'cancelled') {
+            const endDate = new Date(subscription.endDate);
+            const now = new Date();
+            isExpired = now > endDate;
+
+            if (isExpired && subscription.status === 'active') {
+                console.log('📅 Subscription has expired, updating status');
+                subscription.status = 'expired';
+                subscription.tier = 'free'; // Downgrade to free on expiration
+            }
+        }
+
         // FIXED: Override subscription for admin users - set BOTH tier and isAdmin correctly
-        if (isUserAdmin) {
-            console.log('🔧 Overriding subscription for admin user');
+        if (isUserAdmin && !hasPaidSubscription) {
+            console.log('🔧 Overriding subscription for admin user (no paid subscription)');
             subscription = {
                 ...subscription,
                 tier: 'admin',
                 status: 'active',
                 startDate: subscription.startDate || user.createdAt,
                 endDate: null, // Never expires
-                billingCycle: null // No billing for admin
+                billingCycle: null, // No billing for admin
+                platform: 'admin' // Set admin platform
             };
+        } else if (hasPaidSubscription) {
+            console.log('💳 Preserving paid subscription data for user');
+            // Don't override anything - keep the paid subscription as-is
+        }
+
+        // ADDED: Handle RevenueCat subscriptions specifically
+        if (subscription.platform === 'revenuecat') {
+            console.log('📱 Processing RevenueCat subscription:', {
+                tier: subscription.tier,
+                status: subscription.status,
+                endDate: subscription.endDate,
+                revenueCatCustomerId: subscription.revenueCatCustomerId
+            });
+
+            // For RevenueCat, ensure subscription data is properly formatted
+            if (subscription.tier && subscription.tier !== 'free' && !isExpired) {
+                // RevenueCat subscription is active and valid
+                subscription.isActive = true;
+            } else if (isExpired) {
+                // Expired RevenueCat subscription
+                subscription.tier = 'free';
+                subscription.status = 'expired';
+                subscription.isActive = false;
+            }
+        }
+
+        // ADDED: Handle Stripe subscriptions specifically
+        if (subscription.platform === 'stripe' || subscription.stripeSubscriptionId) {
+            console.log('💳 Processing Stripe subscription');
+            // Keep existing Stripe logic
+            subscription.platform = subscription.platform || 'stripe';
         }
 
         // Calculate trial status more safely
         let isTrialActive = false;
         let daysUntilTrialEnd = null;
+        let hasUsedFreeTrial = subscription.hasUsedFreeTrial || false;
 
         // FIXED: Admin users don't have trials
         if (!isUserAdmin && subscription.status === 'trial' && subscription.trialEndDate) {
@@ -227,6 +289,13 @@ export async function GET(request) {
                 daysUntilTrialEnd = isTrialActive
                     ? Math.max(0, Math.ceil((trialEndDate - now) / (1000 * 60 * 60 * 24)))
                     : 0;
+
+                // If trial has ended, mark as expired
+                if (!isTrialActive && subscription.status === 'trial') {
+                    subscription.tier = 'free';
+                    subscription.status = 'expired';
+                    hasUsedFreeTrial = true;
+                }
             } catch (dateError) {
                 console.warn('Error calculating trial dates:', dateError);
                 isTrialActive = false;
@@ -275,8 +344,26 @@ export async function GET(request) {
             trialStartDate: subscription.trialStartDate || null,
             trialEndDate: subscription.trialEndDate || null,
 
+            // CRITICAL: Add RevenueCat and platform info
+            platform: user.subscription?.platform || subscription.platform ||
+                (user.subscription?.revenueCatCustomerId ? 'revenuecat' :
+                    user.subscription?.stripeSubscriptionId ? 'stripe' : null),
+            revenueCatCustomerId: user.subscription?.revenueCatCustomerId || subscription.revenueCatCustomerId || null,
+            stripeSubscriptionId: user.subscription?.stripeSubscriptionId || subscription.stripeSubscriptionId || null,
+
+            debugInfo: {
+                userSubscriptionPlatform: user.subscription?.platform || 'missing',
+                subscriptionPlatform: subscription.platform || 'missing',
+                revenueCatId: user.subscription?.revenueCatCustomerId || 'missing',
+                stripeId: user.subscription?.stripeSubscriptionId || 'missing',
+                hasUsedFreeTrial: user.subscription?.hasUsedFreeTrial || false
+            },
+
             // FIXED: Admin status - make sure this is set correctly
             isAdmin: isUserAdmin,
+
+            // ADDED: Trial flag handling
+            hasUsedFreeTrial: hasUsedFreeTrial,
 
             // Usage counts (what useSubscription getCurrentUsageCount expects)
             usage: {
@@ -297,23 +384,60 @@ export async function GET(request) {
             },
 
             // Status flags
-            isActive: subscription.status === 'active' ||
+            isActive: (subscription.status === 'active' ||
                 subscription.status === 'trial' ||
                 subscription.tier === 'free' ||
-                subscription.tier === 'admin' || // Admin is always active
-                !subscription.status, // Default to active for users without subscription data
+                subscription.tier === 'admin') && !isExpired, // Admin is always active
             isTrialActive: isTrialActive && !isUserAdmin, // Admin users don't need trials
             daysUntilTrialEnd: isUserAdmin ? null : daysUntilTrialEnd, // Admin users don't have trial limits
+
+            // ADDED: Expiration status
+            isExpired: isExpired,
 
             // Additional metadata
             lastUpdated: now.toISOString()
         };
 
+        // CRITICAL FIX: Ensure platform field is explicitly set
+        console.log('🔍 Pre-return subscription data check:', {
+            tier: subscriptionData.tier,
+            platform: subscriptionData.platform,
+            originalSubscriptionPlatform: subscription.platform,
+            userSubscriptionObject: user.subscription?.platform
+        });
+
+        // EMERGENCY: Force platform to be set if it's missing
+        if (!subscriptionData.platform && user.subscription?.platform) {
+            console.log('🚨 PLATFORM FIX: Setting missing platform field');
+            subscriptionData.platform = user.subscription.platform;
+        }
+
+        // DOUBLE CHECK: If still missing and we know it's a RevenueCat subscription
+        if (!subscriptionData.platform && user.subscription?.revenueCatCustomerId) {
+            console.log('🚨 PLATFORM FIX: RevenueCat customer ID found, setting platform to revenuecat');
+            subscriptionData.platform = 'revenuecat';
+        }
+
+        // TRIPLE CHECK: If still missing and subscription tier isn't free
+        if (!subscriptionData.platform && subscriptionData.tier !== 'free' && subscriptionData.tier !== 'admin') {
+            console.log('🚨 PLATFORM FIX: Paid subscription without platform, defaulting to revenuecat');
+            subscriptionData.platform = 'revenuecat';
+        }
+
+        console.log('✅ Final subscription data platform check:', {
+            platform: subscriptionData.platform,
+            tier: subscriptionData.tier,
+            isAdmin: subscriptionData.isAdmin
+        });
+
         console.log('✅ Subscription data prepared successfully:', {
             tier: subscriptionData.tier,
             status: subscriptionData.status,
+            platform: subscriptionData.platform,
             isActive: subscriptionData.isActive,
             isAdmin: subscriptionData.isAdmin,
+            isExpired: subscriptionData.isExpired,
+            hasUsedFreeTrial: subscriptionData.hasUsedFreeTrial,
             inventoryItems: subscriptionData.usage.inventoryItems,
             savedRecipes: subscriptionData.usage.savedRecipes,
             collections: subscriptionData.usage.recipeCollections
@@ -324,6 +448,7 @@ export async function GET(request) {
             tier: subscriptionData.tier,
             isAdmin: subscriptionData.isAdmin,
             status: subscriptionData.status,
+            platform: subscriptionData.platform,
             usage: {
                 inventoryItems: subscriptionData.usage.inventoryItems
             }

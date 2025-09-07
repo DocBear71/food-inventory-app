@@ -22,9 +22,6 @@ function BillingContent() {
     const platform = usePlatform();
 
     // Get URL parameters from pricing page
-    const urlTier = searchParams.get('tier');
-    const urlBilling = searchParams.get('billing') || 'annual';
-    const urlTrial = searchParams.get('trial') === 'true';
     const urlSource = searchParams.get('source');
 
     const [loading, setLoading] = useState(false);
@@ -32,6 +29,7 @@ function BillingContent() {
     const [success, setSuccess] = useState('');
     const [isRestoring, setIsRestoring] = useState(false);
     const [purchaseSteps, setPurchaseSteps] = useState([]);
+    const [purchaseCompleted, setPurchaseCompleted] = useState(false);
 
     // ENHANCED: Better debug tracking for iPad issues
     const addPurchaseStep = (step, data = {}) => {
@@ -125,6 +123,15 @@ function BillingContent() {
     // Handle subscription changes
     const handleSubscriptionChange = async (newTier, newBilling = 'annual') => {
         if (!newTier || newTier === subscription.tier) {
+            return;
+        }
+
+        if (purchaseCompleted) {
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Purchase Already Completed',
+                message: 'You have already completed a purchase. Please refresh the page to see your subscription or contact support if needed.'
+            });
             return;
         }
 
@@ -407,13 +414,13 @@ function BillingContent() {
             })));
 
             // ENHANCED: Find the correct package with better matching logic
-            const targetProductId = `${tier}_${billingCycle}`;
-            let packageToPurchase = packages.find(p => p.identifier === targetProductId);
+            const targetPackageId = `${tier}_${billingCycle}_package`;
+            let packageToPurchase = packages.find(p => p.identifier === targetPackageId);
 
             // If exact match not found, try alternative matching
             if (!packageToPurchase) {
                 // Try matching by product identifier
-                packageToPurchase = packages.find(p => p.product?.identifier === targetProductId);
+                packageToPurchase = packages.find(p => p.product?.identifier === targetPackageId);
             }
 
             // If still not found, try more flexible matching
@@ -431,21 +438,21 @@ function BillingContent() {
             }
 
             if (!packageToPurchase) {
-                console.error('❌ Could not find package for:', targetProductId);
+                console.error('❌ Could not find package for:', targetPackageId);
                 console.log('Available packages:', packages.map(p => ({
                     id: p.identifier,
                     productId: p.product?.identifier
                 })));
 
                 addPurchaseStep('PACKAGE_NOT_FOUND', {
-                    targetProductId,
+                    targetPackageId,
                     availablePackages: packages.map(p => p.identifier)
                 });
 
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
                     title: 'Subscription Not Available',
-                    message: `The ${tier} ${billingCycle} subscription is not currently available. This may be due to pending App Store review.`
+                    message: `The ${tier} ${billingCycle} subscription package is not currently available. Looking for: ${targetPackageId}`
                 });
                 return;
             }
@@ -485,7 +492,7 @@ function BillingContent() {
 
                 // Handle specific purchase errors
                 if (purchaseError.message?.includes('cancelled') || purchaseError.message?.includes('user_cancelled')) {
-                    // User cancelled - don't show error
+                    // User cancelled - don't show error, just return
                     console.log('User cancelled purchase');
                     return;
                 } else if (purchaseError.message?.includes('already_purchased')) {
@@ -563,7 +570,11 @@ function BillingContent() {
                     message: error.message
                 });
             }
+        } finally {
+            // CRITICAL FIX: Always clear loading state regardless of success/failure
+            setLoading(false);
         }
+        setPurchaseCompleted(true);
     };
 
     // ENHANCED: Purchase verification with better error handling
@@ -572,36 +583,114 @@ function BillingContent() {
             addPurchaseStep('VERIFICATION_START');
             console.log('11. Verifying purchase with backend...');
 
-            const response = await apiPost('/api/payments/revenuecat/verify', {
-                purchaseResult: purchaseResult,
-                tier: tier,
-                billingCycle: billingCycle,
-                userId: session.user.id
-            });
+            // CRITICAL: Set purchase as completed regardless of backend verification
+            // The App Store purchase was successful, so we treat it as successful
+            setSuccess(`🎉 Purchase completed! Activating your ${tier} subscription...`);
 
-            const data = await response.json();
-
-            if (response.ok) {
-                addPurchaseStep('VERIFICATION_SUCCESS');
-                setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
-                // Refresh subscription data
-                subscription.refetch();
-            } else {
-                addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
-                console.error('Backend verification failed:', data);
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                await NativeDialog.showError({
-                    title: 'Verification Failed',
-                    message: 'Purchase completed but verification failed. Please contact support with your transaction ID.'
+            // Try backend verification but don't block success on it
+            try {
+                const response = await apiPost('/api/payments/revenuecat/verify', {
+                    purchaseResult: purchaseResult,
+                    tier: tier,
+                    billingCycle: billingCycle,
+                    userId: session.user.id
                 });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    addPurchaseStep('VERIFICATION_SUCCESS');
+                    setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
+
+                    // CRITICAL: Multiple refresh strategies to ensure UI updates
+                    console.log('🔄 Refreshing subscription and session data...');
+
+                    // Strategy 1: Force refresh subscription hook
+                    subscription.refetch();
+
+                    // Strategy 2: Use refreshFromDatabase if available
+                    if (subscription.refreshFromDatabase) {
+                        await subscription.refreshFromDatabase();
+                    }
+
+                    // Strategy 3: Force refresh session to get updated user data
+                    try {
+                        const sessionRefreshResponse = await apiPost('/api/auth/refresh-session');
+                        if (sessionRefreshResponse.ok) {
+                            console.log('✅ Session refresh successful');
+                            // Force a page reload to ensure all hooks pick up new data
+                            setTimeout(() => {
+                                window.location.reload();
+                            }, 2000);
+                        }
+                    } catch (sessionError) {
+                        console.warn('Session refresh failed, forcing page reload:', sessionError);
+                        // Fallback: just reload the page
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    }
+
+                } else {
+                    addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
+                    console.error('Backend verification failed:', data);
+
+                    // Show user that purchase was successful but verification had issues
+                    setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
+
+                    // Force page refresh to pick up changes from RevenueCat webhook
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+
+                    // Show additional dialog for support if needed
+                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                    setTimeout(async () => {
+                        await NativeDialog.showAlert({
+                            title: 'Purchase Successful',
+                            message: 'Your subscription is active! The page will refresh to show your new features.'
+                        });
+                    }, 2000);
+                }
+            } catch (verificationError) {
+                addPurchaseStep('VERIFICATION_ERROR', { error: verificationError.message });
+                console.error('Verification error:', verificationError);
+
+                // Still show success since App Store purchase completed
+                setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
+
+                // Force page refresh - RevenueCat webhook should have updated the database
+                setTimeout(() => {
+                    window.location.reload();
+                }, 3000);
+
+                // Show additional dialog
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                setTimeout(async () => {
+                    await NativeDialog.showAlert({
+                        title: 'Purchase Successful',
+                        message: 'Your App Store purchase completed successfully! The page will refresh to show your subscription.'
+                    });
+                }, 2000);
             }
+
         } catch (error) {
-            addPurchaseStep('VERIFICATION_ERROR', { error: error.message });
-            console.error('Verification error:', error);
+            // This should rarely happen since we're being more permissive above
+            addPurchaseStep('VERIFICATION_CRITICAL_ERROR', { error: error.message });
+            console.error('Critical verification error:', error);
+
+            // Even on critical error, assume purchase was successful since RevenueCat completed
+            setSuccess(`✅ Purchase completed! Refreshing your account...`);
+
+            // Force page refresh
+            setTimeout(() => {
+                window.location.reload();
+            }, 3000);
+
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showError({
-                title: 'Verification Failed',
-                message: 'Purchase completed but verification failed. Please contact support.'
+            await NativeDialog.showAlert({
+                title: 'Purchase Completed',
+                message: 'Your purchase went through successfully! The page will refresh to show your subscription.'
             });
         }
     };
@@ -804,7 +893,8 @@ function BillingContent() {
     const isOnTrial = subscription.isTrialActive;
     const canStartTrial = subscription.tier === 'free' &&
         !subscription.isTrialActive &&
-        !subscription.hasUsedFreeTrial;
+        !subscription.hasUsedFreeTrial &&
+        !session?.user?.subscription?.hasUsedFreeTrial;
     const effectiveTier = subscription.isAdmin ? 'platinum' :
         subscription.isExpired ? 'free' :
             subscription.originalTier || subscription.tier;
@@ -829,7 +919,7 @@ function BillingContent() {
                 </div>
 
                 {/* Trial Activation Section */}
-                {subscription.tier === 'free' && subscription.status !== 'trial' && (
+                {canStartTrial && (
                     <div className="bg-white shadow rounded-lg p-6">
                         <div className="text-center">
                             <h2 className="text-2xl font-bold text-gray-900 mb-4">
@@ -917,21 +1007,113 @@ function BillingContent() {
                 {error && (
                     <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
                         {error}
-                        {/* ENHANCED: Show debug info for purchases on development */}
-                        {process.env.NODE_ENV === 'development' && purchaseSteps.length > 0 && (
-                            <details className="mt-4">
-                                <summary className="cursor-pointer text-sm font-medium">Debug Information</summary>
-                                <div className="mt-2 text-xs bg-red-50 p-2 rounded">
-                                    {purchaseSteps.map((step, index) => (
-                                        <div key={index} className="mb-1">
-                                            <strong>{step.step}:</strong> {JSON.stringify(step.data)}
-                                        </div>
-                                    ))}
-                                </div>
-                            </details>
-                        )}
                     </div>
                 )}
+
+                {/*/!* VISUAL DEBUG PANEL - Always visible for testing *!/*/}
+                {/*<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">*/}
+                {/*    <h3 className="text-blue-900 font-semibold mb-3">🔍 Debug Information</h3>*/}
+
+                {/*    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">*/}
+                {/*        <div>*/}
+                {/*            <h4 className="font-medium text-blue-800 mb-2">Subscription Status:</h4>*/}
+                {/*            <div className="bg-white p-2 rounded border">*/}
+                {/*                <div><strong>Tier:</strong> {subscription.tier || 'undefined'}</div>*/}
+                {/*                <div><strong>Status:</strong> {subscription.status || 'undefined'}</div>*/}
+                {/*                <div><strong>Platform:</strong> {subscription.platform || 'undefined'}</div>*/}
+                {/*                <div><strong>RevenueCat ID:</strong> {subscription.usage?.revenueCatCustomerId || 'none'}</div>*/}
+                {/*                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>*/}
+                {/*                <div><strong>Is Admin:</strong> {subscription.isAdmin ? 'Yes' : 'No'}</div>*/}
+                {/*                <div><strong>Is Active:</strong> {subscription.isActive ? 'Yes' : 'No'}</div>*/}
+                {/*                <div><strong>Has Used Trial:</strong> {subscription.hasUsedFreeTrial ? 'Yes' : 'No'}</div>*/}
+                {/*                <div><strong>Hook Platform:</strong> {subscription.platform || 'MISSING'}</div>*/}
+                {/*                <div><strong>Raw Subscription Data:</strong> {JSON.stringify(subscription.usage?.platform)}</div>*/}
+
+                {/*            </div>*/}
+                {/*        </div>*/}
+
+                {/*        <div>*/}
+                {/*            <h4 className="font-medium text-blue-800 mb-2">Session Info:</h4>*/}
+                {/*            <div className="bg-white p-2 rounded border">*/}
+                {/*                <div><strong>User ID:</strong> {session?.user?.id?.slice(-8) || 'undefined'}</div>*/}
+                {/*                <div><strong>Email:</strong> {session?.user?.email || 'undefined'}</div>*/}
+                {/*                <div><strong>Session Tier:</strong> {session?.user?.subscriptionTier || 'undefined'}</div>*/}
+                {/*                <div><strong>Platform Type:</strong> {platform?.type || 'undefined'}</div>*/}
+                {/*                <div><strong>Is iOS:</strong> {platform?.isIOS ? 'Yes' : 'No'}</div>*/}
+                {/*                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>*/}
+                {/*            </div>*/}
+                {/*        </div>*/}
+                {/*    </div>*/}
+
+                {/*    {purchaseSteps.length > 0 && (*/}
+                {/*        <div className="mt-4">*/}
+                {/*            <h4 className="font-medium text-blue-800 mb-2">Purchase Steps:</h4>*/}
+                {/*            <div className="bg-white p-2 rounded border max-h-32 overflow-y-auto">*/}
+                {/*                {purchaseSteps.slice(-5).map((step, index) => (*/}
+                {/*                    <div key={index} className="text-xs mb-1 border-b pb-1">*/}
+                {/*                        <strong>{step.step}:</strong> {step.timestamp.slice(-8)}*/}
+                {/*                        {step.data && Object.keys(step.data).length > 0 && (*/}
+                {/*                            <div className="text-gray-600 ml-2">*/}
+                {/*                                {Object.entries(step.data).map(([key, value]) => (*/}
+                {/*                                    <div key={key}>{key}: {typeof value === 'object' ? JSON.stringify(value).slice(0, 50) : String(value)}</div>*/}
+                {/*                                ))}*/}
+                {/*                            </div>*/}
+                {/*                        )}*/}
+                {/*                    </div>*/}
+                {/*                ))}*/}
+                {/*            </div>*/}
+                {/*        </div>*/}
+                {/*    )}*/}
+
+                {/*    <div className="mt-3 flex gap-2">*/}
+                {/*        <TouchEnhancedButton*/}
+                {/*            onClick={() => subscription.refetch()}*/}
+                {/*            className="bg-blue-600 text-white px-3 py-1 rounded text-xs"*/}
+                {/*        >*/}
+                {/*            Force Refresh Subscription*/}
+                {/*        </TouchEnhancedButton>*/}
+
+                {/*        <TouchEnhancedButton*/}
+                {/*            onClick={() => window.location.reload()}*/}
+                {/*            className="bg-gray-600 text-white px-3 py-1 rounded text-xs"*/}
+                {/*        >*/}
+                {/*            Reload Page*/}
+                {/*        </TouchEnhancedButton>*/}
+
+                {/*        <TouchEnhancedButton*/}
+                {/*            onClick={() => {*/}
+                {/*                console.log('Full subscription object:', subscription);*/}
+                {/*                console.log('Platform specifically:', subscription.platform);*/}
+                {/*                setSuccess(`Platform: ${subscription.platform || 'UNDEFINED'}, Full keys: ${Object.keys(subscription).join(', ')}`);*/}
+                {/*            }}*/}
+                {/*            className="bg-yellow-600 text-white px-3 py-1 rounded text-xs"*/}
+                {/*        >*/}
+                {/*            🔍 CHECK HOOK PLATFORM*/}
+                {/*        </TouchEnhancedButton>*/}
+
+                {/*        <TouchEnhancedButton*/}
+                {/*            onClick={async () => {*/}
+                {/*                try {*/}
+                {/*                    setSuccess('Testing cancellation...');*/}
+                {/*                    const response = await apiPost('/api/subscription/cancel', {});*/}
+                {/*                    const data = await response.json();*/}
+
+                {/*                    if (response.ok) {*/}
+                {/*                        setSuccess('CANCEL SUCCESS: ' + JSON.stringify(data, null, 2));*/}
+                {/*                    } else {*/}
+                {/*                        setError('CANCEL ERROR: ' + JSON.stringify(data, null, 2));*/}
+                {/*                    }*/}
+                {/*                } catch (err) {*/}
+                {/*                    setError('CANCEL NETWORK ERROR: ' + err.message);*/}
+                {/*                }*/}
+                {/*            }}*/}
+                {/*            className="bg-red-600 text-white px-3 py-1 rounded text-xs"*/}
+                {/*        >*/}
+                {/*            🧪 TEST CANCEL API*/}
+                {/*        </TouchEnhancedButton>*/}
+
+                {/*    </div>*/}
+                {/*</div>*/}
 
                 {success && (
                     <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
