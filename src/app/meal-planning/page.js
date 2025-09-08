@@ -3,14 +3,14 @@
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
-import {redirect, useRouter, userRouter} from 'next/navigation';
+import {redirect, useRouter} from 'next/navigation';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate, { SubscriptionIndicator } from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar'; // This will be the enhanced version
+import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar';
 import { apiGet, apiPost } from '@/lib/api-config';
 import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
@@ -29,8 +29,6 @@ export default function MealPlanningPage() {
         priceTracking: true
     });
     const [showWelcome, setShowWelcome] = useState(false);
-    const [showDebugInfo, setShowDebugInfo] = useState(true);
-
 
     useEffect(() => {
         if (status === 'unauthenticated') {
@@ -187,156 +185,102 @@ export default function MealPlanningPage() {
         );
     }
 
-    const debugInfo = {
-        subscription: {
-            tier: subscription.tier || 'undefined',
-            status: subscription.status || 'undefined',
-            isActive: subscription.isActive ? 'Yes' : 'No',
-            isAdmin: subscription.isAdmin ? 'Yes' : 'No',
-            isExpired: subscription.isExpired ? 'Yes' : 'No',
-            originalTier: subscription.originalTier || 'undefined',
-            effectiveTier: subscription.isExpired ? 'free' : (subscription.tier || 'free')
-        },
-        featureGate: {
-            CREATE_MEAL_PLAN: FEATURE_GATES.CREATE_MEAL_PLAN,
-            gateResult: mealPlanningGate ? 'PASS' : 'FAIL',
-            gateType: typeof mealPlanningGate
-        },
-        session: {
-            hasSession: session ? 'Yes' : 'No',
-            userId: session?.user?.id ? 'Present' : 'Missing'
-        }
-    };
-
 
     return (
         <MobileOptimizedLayout>
-            <div className="max-w-7xl mx-auto px-4 py-6">
-
-                {/* VISUAL DEBUG PANEL - Always visible */}
-                <div className="bg-yellow-50 border-2 border-yellow-400 rounded-lg p-4 mb-6">
-                    <div className="flex items-center justify-between mb-3">
-                        <h2 className="text-lg font-bold text-yellow-800">🔍 Debug Information</h2>
-                        <TouchEnhancedButton
-                            onClick={() => setShowDebugInfo(!showDebugInfo)}
-                            className="bg-yellow-200 text-yellow-800 px-3 py-1 rounded text-sm"
-                        >
-                            {showDebugInfo ? 'Hide' : 'Show'}
-                        </TouchEnhancedButton>
-                    </div>
-
-                    {showDebugInfo && (
-                        <div className="space-y-3 text-sm">
-                            <div className="bg-white p-3 rounded border">
-                                <h3 className="font-semibold text-gray-800 mb-2">Subscription Status:</h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div><strong>Tier:</strong> {debugInfo.subscription.tier}</div>
-                                    <div><strong>Status:</strong> {debugInfo.subscription.status}</div>
-                                    <div><strong>Active:</strong> {debugInfo.subscription.isActive}</div>
-                                    <div><strong>Admin:</strong> {debugInfo.subscription.isAdmin}</div>
-                                    <div><strong>Expired:</strong> {debugInfo.subscription.isExpired}</div>
-                                    <div><strong>Effective:</strong> {debugInfo.subscription.effectiveTier}</div>
+            <div className="max-w-7xl mx-auto">
+                <FeatureGate
+                    feature={FEATURE_GATES.CREATE_MEAL_PLAN}
+                    fallback={
+                        <div className="px-4 py-8">
+                            {/* Free user experience remains the same */}
+                            <div className="text-center mb-8">
+                                <div className="flex items-center justify-center space-x-3 mb-4">
+                                    <h1 className="text-3xl font-bold text-gray-900">Meal Planning</h1>
+                                    <SubscriptionIndicator />
                                 </div>
+                                <p className="text-gray-600">Plan your meals in advance with our powerful meal planning tools</p>
                             </div>
 
-                            <div className="bg-white p-3 rounded border">
-                                <h3 className="font-semibold text-gray-800 mb-2">Feature Gate:</h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div><strong>Feature:</strong> {debugInfo.featureGate.CREATE_MEAL_PLAN}</div>
-                                    <div><strong>Result:</strong>
-                                        <span className={`ml-1 px-2 py-1 rounded text-xs ${
-                                            debugInfo.featureGate.gateResult === 'PASS'
-                                                ? 'bg-green-100 text-green-800'
-                                                : 'bg-red-100 text-red-800'
-                                        }`}>
-                                            {debugInfo.featureGate.gateResult}
-                                        </span>
+                            {/* Premium Feature Showcase */}
+                            <div className="bg-gradient-to-br from-blue-50 to-indigo-100 rounded-xl p-8 mb-8 border border-blue-200">
+                                <div className="text-center mb-6">
+                                    <div className="text-6xl mb-4">📅✨</div>
+                                    <h2 className="text-2xl font-bold text-gray-900 mb-3">
+                                        Smart Meal Planning is a Gold Feature
+                                    </h2>
+                                    <p className="text-gray-700 max-w-2xl mx-auto">
+                                        Take control of your kitchen with advanced meal planning tools, budget tracking,
+                                        deal detection, and smart shopping lists.
+                                    </p>
+                                </div>
+
+                                {/* Enhanced Features Grid */}
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                    <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                                        <div className="text-2xl mb-2">💰</div>
+                                        <h3 className="font-semibold text-gray-900 mb-1">Budget Tracking</h3>
+                                        <p className="text-sm text-gray-600">Track weekly spending and get cost estimates</p>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                                        <div className="text-2xl mb-2">🎯</div>
+                                        <h3 className="font-semibold text-gray-900 mb-1">Deal Detection</h3>
+                                        <p className="text-sm text-gray-600">Get alerts when ingredients go on sale</p>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                                        <div className="text-2xl mb-2">🛒</div>
+                                        <h3 className="font-semibold text-gray-900 mb-1">Smart Shopping</h3>
+                                        <p className="text-sm text-gray-600">Price-optimized lists with store recommendations</p>
+                                    </div>
+                                    <div className="bg-white rounded-lg p-4 text-center shadow-sm">
+                                        <div className="text-2xl mb-2">📦</div>
+                                        <h3 className="font-semibold text-gray-900 mb-1">Inventory Integration</h3>
+                                        <p className="text-sm text-gray-600">Use what you have, reduce waste</p>
                                     </div>
                                 </div>
-                            </div>
 
-                            <div className="bg-white p-3 rounded border">
-                                <h3 className="font-semibold text-gray-800 mb-2">Session:</h3>
-                                <div className="grid grid-cols-2 gap-2">
-                                    <div><strong>Has Session:</strong> {debugInfo.session.hasSession}</div>
-                                    <div><strong>User ID:</strong> {debugInfo.session.userId}</div>
+                                {/* Upgrade CTA */}
+                                <div className="text-center">
+                                    <TouchEnhancedButton
+                                        onClick={() => router.push('/pricing?source=meal-planning')}
+                                        className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
+                                    >
+                                        Upgrade to Gold - Start Smart Planning!
+                                    </TouchEnhancedButton>
+                                    <p className="text-sm text-gray-600 mt-3">
+                                        7-day free trial • $4.99/month Gold, $9.99/month Platinum • Cancel anytime
+                                    </p>
                                 </div>
                             </div>
+
+                            <Footer />
                         </div>
-                    )}
-                </div>
-
-                {/* TEST BUTTONS */}
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                    <h2 className="text-lg font-bold text-blue-800 mb-3">🧪 Test Actions</h2>
-                    <div className="space-y-2">
-                        <TouchEnhancedButton
-                            onClick={() => router.push('/pricing?source=meal-planning-test')}
-                            className="w-full bg-blue-600 text-white px-4 py-2 rounded"
-                        >
-                            Test Navigation to Pricing Page
-                        </TouchEnhancedButton>
-
-                        <TouchEnhancedButton
-                            onClick={() => subscription.refetch()}
-                            className="w-full bg-green-600 text-white px-4 py-2 rounded"
-                        >
-                            Refresh Subscription Data
-                        </TouchEnhancedButton>
-                    </div>
-                </div>
-
-                {/* CONDITIONAL CONTENT BASED ON TIER */}
-                {debugInfo.subscription.effectiveTier === 'platinum' || debugInfo.subscription.isAdmin === 'Yes' ? (
-                    <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                        <div className="text-center">
-                            <h1 className="text-2xl font-bold text-green-900 mb-2">✅ PLATINUM ACCESS DETECTED</h1>
-                            <p className="text-green-700 mb-4">You should see the meal planning interface below:</p>
-
-                            {/* Placeholder for actual meal planning */}
-                            <div className="bg-white rounded-lg p-8 border-2 border-green-300">
-                                <h2 className="text-xl font-semibold mb-4">🧠 Smart Meal Planning</h2>
-                                <p className="text-gray-600">
-                                    This is where MealPlanningCalendar component would render.
-                                    If you see this, the access control is working correctly.
-                                </p>
+                    }
+                >
+                    {/* Enhanced Meal Planning for Subscribers */}
+                    <div className="px-4">
+                        {/* Enhanced Header */}
+                        <div className="py-6 bg-gradient-to-r from-blue-50 to-green-50 border-b border-gray-200 -mx-4 px-4 mb-6">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center space-x-3">
+                                    <h1 className="text-2xl font-bold text-gray-900">🧠 Smart Meal Planning</h1>
+                                    <SubscriptionIndicator />
+                                    {priceIntelligenceEnabled && (
+                                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">
+                                            💡 Price Intelligence Active
+                                        </span>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-red-50 border border-red-200 rounded-lg p-6">
-                        <div className="text-center">
-                            <h1 className="text-2xl font-bold text-red-900 mb-2">❌ NO PLATINUM ACCESS</h1>
-                            <p className="text-red-700 mb-4">
-                                Current tier: {debugInfo.subscription.effectiveTier} |
-                                Admin: {debugInfo.subscription.isAdmin}
+                            <p className="text-gray-600 mt-2">
+                                Plan your meals with intelligent budget tracking, deal detection, and cost optimization
                             </p>
-
-                            <div className="bg-white rounded-lg p-6 border-2 border-red-300">
-                                <h2 className="text-xl font-bold text-gray-900 mb-3">
-                                    Smart Meal Planning is a Gold Feature
-                                </h2>
-
-                                <TouchEnhancedButton
-                                    onClick={() => {
-                                        // Add visual feedback when button is clicked
-                                        const button = event.target;
-                                        button.style.background = 'green';
-                                        button.textContent = 'Navigating...';
-
-                                        setTimeout(() => {
-                                            router.push('/pricing?source=meal-planning');
-                                        }, 500);
-                                    }}
-                                    className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-indigo-700"
-                                >
-                                    Upgrade to Gold - Start Smart Planning!
-                                </TouchEnhancedButton>
-                            </div>
                         </div>
-                    </div>
-                )}
 
+                        {/* Main Enhanced Meal Planning Calendar */}
+                        <MealPlanningCalendar />
+                    </div>
+                </FeatureGate>
                 <Footer />
             </div>
         </MobileOptimizedLayout>
