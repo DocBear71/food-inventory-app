@@ -439,10 +439,23 @@ function SignUpContent() {
     };
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
-        });
+        const { name, value } = e.target;
+
+        // Enhanced handling for iOS form inputs
+        setFormData(prev => ({
+            ...prev,
+            [name]: value,
+        }));
+
+        // iOS-specific: Force update for selects to prevent double-tap issue
+        if (PlatformDetection.isIOS() && e.target.tagName === 'SELECT') {
+            setTimeout(() => {
+                setFormData(prev => ({
+                    ...prev,
+                    [name]: value,
+                }));
+            }, 50);
+        }
     };
 
     const openPrivacyModal = (e) => {
@@ -713,7 +726,10 @@ function SignUpContent() {
                                         id="country"
                                         name="country"
                                         value={formData.country}
-                                        onChange={handleChange}
+                                        onChange={(e) => {
+                                            console.log('Country selection event:', e.target.value); // Debug log
+                                            handleChange(e);
+                                        }}
                                         placeholder="Select your country"
                                         required
                                         validation={ValidationPatterns.required}

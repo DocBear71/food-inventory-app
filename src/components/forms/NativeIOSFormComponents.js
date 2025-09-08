@@ -501,8 +501,29 @@ export const NativeSelect = forwardRef(({
 
         if (isIOS) {
             await MobileHaptics.selection();
+
+            // iPad-specific fix: Force immediate state update
+            if (onChange) {
+                onChange(e);
+            }
+
+            // Second update with delay to ensure persistence on iPad
+            setTimeout(() => {
+                if (onChange) {
+                    const delayedEvent = {
+                        ...e,
+                        target: { ...e.target, value: newValue },
+                        currentTarget: { ...e.currentTarget, value: newValue }
+                    };
+                    onChange(delayedEvent);
+                }
+            }, 100);
+        } else {
+            // Non-iOS devices use standard handling
+            if (onChange) onChange(e);
         }
 
+        // Validation handling
         if (validation && newValue) {
             const result = validateSelect(newValue);
             setIsValid(result.isValid);
@@ -511,8 +532,6 @@ export const NativeSelect = forwardRef(({
             setIsValid(null);
             setValidationMessage('');
         }
-
-        if (onChange) onChange(e);
     };
 
     // Dynamic classes
