@@ -964,7 +964,7 @@ function BillingContent() {
                                 onClick={async () => {
                                     try {
                                         setLoading(true);
-                                        const response = await apiPost('/api/subscription/activate-trial', {
+                                        const response = await apiPost('/api/subscription/start-trial', {
                                             tier: 'platinum'
                                         });
 
