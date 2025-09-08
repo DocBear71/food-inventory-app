@@ -446,6 +446,7 @@ export const NativeSelect = forwardRef(({
                                             errorMessage,
                                             successMessage,
                                             style = {},
+                                            disableInternalValidation = false,
                                             ...props
                                         }, ref) => {
     const [isFocused, setIsFocused] = useState(false);
@@ -484,10 +485,14 @@ export const NativeSelect = forwardRef(({
             setValidationMessage(result.message);
 
             if (isIOS) {
-                if (result.isValid) {
-                    await MobileHaptics.notificationSuccess();
-                } else {
-                    await MobileHaptics.notificationError();
+                try {
+                    if (result.isValid) {
+                        await MobileHaptics.notificationSuccess();
+                    } else {
+                        await MobileHaptics.notificationError();
+                    }
+                } catch (error) {
+                    console.log('Haptic feedback failed:', error);
                 }
             }
         }
@@ -501,30 +506,10 @@ export const NativeSelect = forwardRef(({
 
         if (isIOS) {
             await MobileHaptics.selection();
-
-            // iPad-specific fix: Force immediate state update
-            if (onChange) {
-                onChange(e);
-            }
-
-            // Second update with delay to ensure persistence on iPad
-            setTimeout(() => {
-                if (onChange) {
-                    const delayedEvent = {
-                        ...e,
-                        target: { ...e.target, value: newValue },
-                        currentTarget: { ...e.currentTarget, value: newValue }
-                    };
-                    onChange(delayedEvent);
-                }
-            }, 100);
-        } else {
-            // Non-iOS devices use standard handling
-            if (onChange) onChange(e);
         }
 
-        // Validation handling
-        if (validation && newValue) {
+        // Skip internal validation if disabled
+        if (!disableInternalValidation && validation && newValue) {
             const result = validateSelect(newValue);
             setIsValid(result.isValid);
             setValidationMessage(result.message);
@@ -532,6 +517,8 @@ export const NativeSelect = forwardRef(({
             setIsValid(null);
             setValidationMessage('');
         }
+
+        if (onChange) onChange(e);
     };
 
     // Dynamic classes

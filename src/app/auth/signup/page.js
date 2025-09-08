@@ -726,15 +726,10 @@ function SignUpContent() {
                                         id="country"
                                         name="country"
                                         value={formData.country}
-                                        onChange={(e) => {
-                                            console.log('Country selection event:', e.target.value); // Debug log
-                                            handleChange(e);
-                                        }}
+                                        onChange={handleChange}
+                                        disableInternalValidation={true}  // NEW PROP
                                         placeholder="Select your country"
                                         required
-                                        validation={ValidationPatterns.required}
-                                        errorMessage="Please select your country"
-                                        successMessage="Country selected"
                                         options={countries.map(country => ({
                                             value: country,
                                             label: `${country}${euCountries.includes(country) ? ' 🇪🇺' : ''}`

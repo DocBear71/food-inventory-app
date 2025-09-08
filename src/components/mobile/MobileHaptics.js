@@ -143,7 +143,12 @@ export const MobileHaptics = {
     // Success notification haptic
     success: async () => {
         if (shouldUseNativeHaptics()) {
-            await hapticActionSuccess();
+            try {
+                await hapticActionSuccess();
+            } catch (error) {
+                console.log('Native success haptic failed:', error);
+                legacyHaptics.success();
+            }
         } else {
             legacyHaptics.success();
         }
@@ -152,7 +157,12 @@ export const MobileHaptics = {
     // Error notification haptic
     error: async () => {
         if (shouldUseNativeHaptics()) {
-            await hapticActionError();
+            try {
+                await hapticActionError();
+            } catch (error) {
+                console.log('Native error haptic failed:', error);
+                legacyHaptics.error();
+            }
         } else {
             legacyHaptics.error();
         }
@@ -288,7 +298,34 @@ export const MobileHaptics = {
             initialized: hapticsInitialized,
             webVibration: 'vibrate' in navigator
         };
-    }
+    },
+
+    notificationSuccess: async () => {
+        if (shouldUseNativeHaptics()) {
+            try {
+                await hapticNotification(NotificationTypes.SUCCESS);
+            } catch (error) {
+                console.log('Native success notification haptic failed:', error);
+                legacyHaptics.success();
+            }
+        } else {
+            legacyHaptics.success();
+        }
+    },
+
+    // Notification-specific error haptic (missing method)
+    notificationError: async () => {
+        if (shouldUseNativeHaptics()) {
+            try {
+                await hapticNotification(NotificationTypes.ERROR);
+            } catch (error) {
+                console.log('Native error notification haptic failed:', error);
+                legacyHaptics.error();
+            }
+        } else {
+            legacyHaptics.error();
+        }
+    },
 };
 
 // Backward compatibility aliases
