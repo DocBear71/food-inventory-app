@@ -274,22 +274,34 @@ export function SubscriptionProvider({ children }) {
             // Step 1: Clear all caches
             clearSubscriptionCache();
 
-            // Step 2: Force session refresh from database
-            console.log('💳 Step 1: Refreshing session...');
+            // Step 2: Force session refresh from database multiple times
+            console.log('💳 Step 1: Multiple session refreshes...');
+            await updateSession();
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await updateSession();
+            await new Promise(resolve => setTimeout(resolve, 500));
             await updateSession();
 
-            // Step 3: Wait a moment for session to update
+            // Step 3: Force multiple subscription data fetches
+            console.log('💳 Step 2: Multiple subscription data fetches...');
+            await fetchSubscriptionData(true);
             await new Promise(resolve => setTimeout(resolve, 1000));
-
-            // Step 4: Force fetch fresh subscription data
-            console.log('💳 Step 2: Fetching fresh subscription data...');
+            await fetchSubscriptionData(true);
+            await new Promise(resolve => setTimeout(resolve, 1000));
             await fetchSubscriptionData(true);
 
-            // Step 5: Refresh again after 2 seconds if needed
+            // Step 4: Continue background refreshes
             setTimeout(async () => {
-                console.log('💳 Step 3: Secondary refresh check...');
+                console.log('💳 Step 3: Background refresh 1...');
+                await updateSession();
                 await fetchSubscriptionData(true);
-            }, 2000);
+            }, 3000);
+
+            setTimeout(async () => {
+                console.log('💳 Step 4: Background refresh 2...');
+                await updateSession();
+                await fetchSubscriptionData(true);
+            }, 5000);
 
             console.log('✅ Post-purchase refresh completed');
             return true;

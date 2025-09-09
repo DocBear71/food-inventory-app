@@ -606,23 +606,11 @@ function BillingContent() {
                     console.log('🔄 Refreshing subscription data after purchase...');
                     await subscription.refreshAfterPurchase();
 
-                    // Strategy 3: Force refresh session to get updated user data
-                    try {
-                        const sessionRefreshResponse = await apiPost('/api/auth/refresh-session');
-                        if (sessionRefreshResponse.ok) {
-                            console.log('✅ Session refresh successful');
-                            // Force a page reload to ensure all hooks pick up new data
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 2000);
-                        }
-                    } catch (sessionError) {
-                        console.warn('Session refresh failed, forcing page reload:', sessionError);
-                        // Fallback: just reload the page
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 2000);
-                    }
+                    // CRITICAL: Always force page reload after purchase to ensure fresh data
+                    console.log('✅ Purchase verification complete - forcing page reload...');
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
 
                 } else {
                     addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
