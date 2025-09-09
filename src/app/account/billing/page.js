@@ -583,98 +583,150 @@ function BillingContent() {
             addPurchaseStep('VERIFICATION_START');
             console.log('11. Verifying purchase with backend...');
 
-            // CRITICAL: Set purchase as completed regardless of backend verification
-            // The App Store purchase was successful, so we treat it as successful
+            // CRITICAL: Set purchase as completed immediately
             setSuccess(`🎉 Purchase completed! Activating your ${tier} subscription...`);
 
-            // Try backend verification but don't block success on it
-            try {
-                const response = await apiPost('/api/payments/revenuecat/verify', {
-                    purchaseResult: purchaseResult,
-                    tier: tier,
-                    billingCycle: billingCycle,
-                    userId: session.user.id
-                });
+            const response = await apiPost('/api/payments/revenuecat/verify', {
+                purchaseResult: purchaseResult,
+                tier: tier,
+                billingCycle: billingCycle,
+                userId: session.user.id
+            });
 
-                const data = await response.json();
+            const data = await response.json();
 
-                if (response.ok) {
-                    addPurchaseStep('VERIFICATION_SUCCESS');
-                    setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
+            if (response.ok) {
+                addPurchaseStep('VERIFICATION_SUCCESS');
+                setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
 
-                    // CRITICAL FIX: Use dedicated post-purchase refresh
-                    console.log('🔄 Refreshing subscription data after purchase...');
-                    await subscription.refreshAfterPurchase();
+                // SIMPLE SOLUTION: Direct database refresh and immediate UI update
+                console.log('🔄 Step 1: Forcing immediate subscription data refresh...');
 
-                    // CRITICAL: Always force page reload after purchase to ensure fresh data
-                    console.log('✅ Purchase verification complete - forcing page reload...');
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 1500);
+                // Force clear all subscription caches
+                subscription.clearCache();
 
-                } else {
-                    addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
-                    console.error('Backend verification failed:', data);
+                // Step 2: Force fetch fresh data directly from database
+                console.log('🔄 Step 2: Fetching fresh subscription data...');
 
-                    // Show user that purchase was successful but verification had issues
-                    setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
+                // Use a direct API call to force fresh database fetch
+                try {
+                    const freshDataResponse = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
+                        method: 'GET',
+                        headers: {
+                            'Cache-Control': 'no-cache',
+                            'Pragma': 'no-cache'
+                        },
+                        cache: 'no-store'
+                    });
 
-                    // Force page refresh to pick up changes from RevenueCat webhook
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 3000);
+                    if (freshDataResponse.ok) {
+                        const freshData = await freshDataResponse.json();
+                        console.log('✅ Got fresh subscription data:', freshData);
 
-                    // Show additional dialog for support if needed
-                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                    setTimeout(async () => {
-                        await NativeDialog.showAlert({
-                            title: 'Purchase Successful',
-                            message: 'Your subscription is active! The page will refresh to show your new features.'
-                        });
-                    }, 2000);
+                        // If the fresh data shows the correct tier, update immediately
+                        if (freshData.tier === tier) {
+                            console.log('✅ Subscription updated successfully!');
+
+                            // Force subscription hook to use this new data
+                            subscription.forceRefresh();
+
+                            // Show success and reload page to ensure everything updates
+                            setTimeout(() => {
+                                console.log('✅ Reloading page to show new subscription...');
+                                window.location.reload();
+                            }, 1000);
+                        } else {
+                            console.log('⚠️ Subscription not yet updated in database, will retry...');
+                            // Retry mechanism
+                            await retryRefreshSubscription(tier, 0);
+                        }
+                    } else {
+                        console.log('⚠️ Fresh data fetch failed, using retry mechanism...');
+                        await retryRefreshSubscription(tier, 0);
+                    }
+                } catch (fetchError) {
+                    console.error('❌ Error fetching fresh data:', fetchError);
+                    await retryRefreshSubscription(tier, 0);
                 }
-            } catch (verificationError) {
-                addPurchaseStep('VERIFICATION_ERROR', { error: verificationError.message });
-                console.error('Verification error:', verificationError);
 
-                // Still show success since App Store purchase completed
+            } else {
+                addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
+                console.error('Backend verification failed:', data);
+
+                // Even if verification fails, the App Store purchase was successful
                 setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
 
-                // Force page refresh - RevenueCat webhook should have updated the database
-                setTimeout(() => {
-                    window.location.reload();
-                }, 3000);
-
-                // Show additional dialog
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                setTimeout(async () => {
-                    await NativeDialog.showAlert({
-                        title: 'Purchase Successful',
-                        message: 'Your App Store purchase completed successfully! The page will refresh to show your subscription.'
-                    });
-                }, 2000);
+                // Force refresh and reload
+                await retryRefreshSubscription(tier, 0);
             }
-
         } catch (error) {
-            // This should rarely happen since we're being more permissive above
-            addPurchaseStep('VERIFICATION_CRITICAL_ERROR', { error: error.message });
-            console.error('Critical verification error:', error);
+            addPurchaseStep('VERIFICATION_ERROR', { error: error.message });
+            console.error('Verification error:', error);
 
-            // Even on critical error, assume purchase was successful since RevenueCat completed
-            setSuccess(`✅ Purchase completed! Refreshing your account...`);
+            // Still show success since App Store purchase completed
+            setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
 
-            // Force page refresh
-            setTimeout(() => {
-                window.location.reload();
-            }, 3000);
-
-            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showAlert({
-                title: 'Purchase Completed',
-                message: 'Your purchase went through successfully! The page will refresh to show your subscription.'
-            });
+            // Force refresh and reload
+            await retryRefreshSubscription(tier, 0);
         }
     };
+
+
+    const retryRefreshSubscription = async (expectedTier, attempt) => {
+        const maxAttempts = 10; // Try for 20 seconds
+
+        if (attempt >= maxAttempts) {
+            console.log('❌ Max refresh attempts reached, forcing page reload...');
+            window.location.reload();
+            return;
+        }
+
+        console.log(`🔄 Retry attempt ${attempt + 1}/${maxAttempts} for subscription refresh...`);
+
+        try {
+            // Force clear caches
+            subscription.clearCache();
+
+            // Try to get fresh data again
+            const freshDataResponse = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                cache: 'no-store'
+            });
+
+            if (freshDataResponse.ok) {
+                const freshData = await freshDataResponse.json();
+                console.log(`🔄 Attempt ${attempt + 1} - Fresh data:`, freshData);
+
+                if (freshData.tier === expectedTier) {
+                    console.log('✅ Subscription successfully updated!');
+                    subscription.forceRefresh();
+
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 500);
+                    return;
+                }
+            }
+
+            // If not successful, try again in 2 seconds
+            setTimeout(() => {
+                retryRefreshSubscription(expectedTier, attempt + 1);
+            }, 2000);
+
+        } catch (error) {
+            console.error(`❌ Retry attempt ${attempt + 1} failed:`, error);
+
+            // Try again in 2 seconds
+            setTimeout(() => {
+                retryRefreshSubscription(expectedTier, attempt + 1);
+            }, 2000);
+        }
+    };
+
 
     // ENHANCED: iOS Restore Purchases functionality with better error handling
     const handleRestorePurchases = async () => {
@@ -730,7 +782,11 @@ function BillingContent() {
 
             if (activeEntitlements.length > 0) {
                 setSuccess('Successfully restored your purchases! Your subscription is now active.');
-                await subscription.refreshAfterPurchase();
+
+                // Simple reload after restore
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showAlert({
@@ -769,8 +825,11 @@ function BillingContent() {
 
             if (response.ok) {
                 setSuccess('7-day Platinum trial started! Enjoy full access to all features.');
-                // CRITICAL FIX: Use post-purchase refresh
-                await subscription.refreshAfterPurchase();
+
+                // Reload to show trial status
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -823,7 +882,11 @@ function BillingContent() {
                 }
 
                 setSuccess(successMessage);
-                await subscription.refreshAfterPurchase();
+
+                // Reload to show cancellation status
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -953,7 +1016,11 @@ function BillingContent() {
 
                                         if (response.ok) {
                                             setSuccess('Free trial activated! You now have 7 days of full Platinum access.');
-                                            await subscription.refreshAfterPurchase();
+
+                                            // Reload to show trial status
+                                            setTimeout(() => {
+                                                window.location.reload();
+                                            }, 2000);
                                         } else {
                                             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                                             await NativeDialog.showError({
