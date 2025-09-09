@@ -1,6 +1,6 @@
 'use client';
 
-// file: /src/hooks/useSubscription.js v6 - Merged version with infinite loop fixes
+// file: /src/hooks/useSubscription.js v7 - Fixed immediate subscription updates after iOS purchase
 
 import { useState, useEffect, useContext, createContext, useCallback, useRef } from 'react';
 import { useSafeSession } from '@/hooks/useSafeSession';
@@ -18,7 +18,7 @@ import { apiPost } from '@/lib/api-config'
 const SubscriptionContext = createContext();
 
 export function SubscriptionProvider({ children }) {
-    const { data: session, status } = useSafeSession();
+    const { data: session, status, update: updateSession } = useSafeSession();
     const [subscriptionData, setSubscriptionData] = useState(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
@@ -213,12 +213,16 @@ export function SubscriptionProvider({ children }) {
         }
     }, [isFetching, retryCount, clearSubscriptionCache, session?.user?.subscriptionTier, session?.user?.effectiveTier, session?.user?.isAdmin, session?.user?.id]);
 
-    // Add this after the fetchSubscriptionData function
+    // CRITICAL FIX: Force refresh from database and update session
     const refreshFromDatabase = useCallback(async () => {
         try {
             console.log('🔄 Refreshing subscription data from database...');
 
-            // First check for monthly reset
+            // Step 1: Force refresh session first to get latest data
+            console.log('🔄 Step 1: Refreshing session from database...');
+            await updateSession();
+
+            // Step 2: Check for monthly reset
             const resetResponse = await apiPost('/api/auth/check-monthly-reset');
 
             if (resetResponse.ok) {
@@ -228,39 +232,72 @@ export function SubscriptionProvider({ children }) {
                     console.log('📅 Monthly usage was reset!');
                 }
 
-                // If you also want to refresh other session data, call the refresh endpoint
+                // Step 3: Refresh subscription data from database
                 const refreshResponse = await apiPost('/api/auth/refresh-session');
 
                 if (refreshResponse.ok) {
                     const refreshData = await refreshResponse.json();
 
-                    // Combine both sets of data
-                    setSubscriptionData(prev => ({
-                        ...prev,
-                        usage: resetData.usage || refreshData.usage,
-                        subscription: refreshData.subscription,
-                        timestamp: new Date().toISOString()
-                    }));
-                } else {
-                    // Just use the reset data if refresh fails
-                    setSubscriptionData(prev => ({
-                        ...prev,
-                        usage: resetData.usage,
-                        timestamp: new Date().toISOString()
-                    }));
-                }
+                    // Step 4: Update session again with fresh data
+                    await updateSession();
 
-                console.log('✅ Refreshed subscription data from database:', resetData.usage);
-                return true;
+                    // Step 5: Force fetch subscription data from API
+                    await fetchSubscriptionData(true);
+
+                    console.log('✅ Refreshed subscription data from database');
+                    return true;
+                } else {
+                    console.error('❌ Failed to refresh session data:', refreshResponse.status);
+                    // Still try to fetch fresh data
+                    await fetchSubscriptionData(true);
+                    return false;
+                }
             } else {
-                console.error('❌ Failed to refresh session data:', resetResponse.status);
+                console.error('❌ Failed to check monthly reset:', resetResponse.status);
+                // Still try to fetch fresh data
+                await fetchSubscriptionData(true);
                 return false;
             }
         } catch (error) {
             console.error('❌ Error refreshing from database:', error);
+            // Fallback to just fetching subscription data
+            await fetchSubscriptionData(true);
             return false;
         }
-    }, []);
+    }, [updateSession, fetchSubscriptionData]);
+
+    // CRITICAL FIX: Post-purchase refresh function
+    const refreshAfterPurchase = useCallback(async () => {
+        try {
+            console.log('💳 Post-purchase refresh: Starting complete refresh cycle...');
+
+            // Step 1: Clear all caches
+            clearSubscriptionCache();
+
+            // Step 2: Force session refresh from database
+            console.log('💳 Step 1: Refreshing session...');
+            await updateSession();
+
+            // Step 3: Wait a moment for session to update
+            await new Promise(resolve => setTimeout(resolve, 1000));
+
+            // Step 4: Force fetch fresh subscription data
+            console.log('💳 Step 2: Fetching fresh subscription data...');
+            await fetchSubscriptionData(true);
+
+            // Step 5: Refresh again after 2 seconds if needed
+            setTimeout(async () => {
+                console.log('💳 Step 3: Secondary refresh check...');
+                await fetchSubscriptionData(true);
+            }, 2000);
+
+            console.log('✅ Post-purchase refresh completed');
+            return true;
+        } catch (error) {
+            console.error('❌ Error in post-purchase refresh:', error);
+            return false;
+        }
+    }, [clearSubscriptionCache, updateSession, fetchSubscriptionData]);
 
     // FIXED: Clear signout flags for admin user and prevent API calls
     // In the useSubscription hook, update this section:
@@ -483,16 +520,11 @@ export function SubscriptionProvider({ children }) {
         subscriptionData,
         loading,
         error,
-        refetch: () => {
-            if (retryCount < MAX_RETRIES) {
-                setRetryCount(0);
-                setIsFetching(false);
-                fetchSubscriptionData(true);
-            }
-        },
+        refetch: refreshAfterPurchase, // CRITICAL FIX: Use proper refresh function
         forceRefresh,
         clearCache: clearSubscriptionCache,
-        refreshFromDatabase  // **ADD THIS LINE**
+        refreshFromDatabase,
+        refreshAfterPurchase // CRITICAL FIX: Expose dedicated post-purchase refresh
     };
 
     return (
@@ -509,7 +541,7 @@ export function useSubscription() {
         throw new Error('useSubscription must be used within a SubscriptionProvider');
     }
 
-    const {subscriptionData, loading, error, refetch, forceRefresh, clearCache, refreshFromDatabase} = context;
+    const {subscriptionData, loading, error, refetch, forceRefresh, clearCache, refreshFromDatabase, refreshAfterPurchase} = context;
 
     const isExpired = () => {
         return subscriptionData?.status === 'expired';
@@ -694,10 +726,11 @@ export function useSubscription() {
         remainingRecipeCollections: getRemainingCount(FEATURE_GATES.RECIPE_COLLECTIONS),
 
         // Actions
-        refetch,
+        refetch: refreshAfterPurchase, // CRITICAL FIX: Use dedicated post-purchase refresh
         forceRefresh,
         clearCache,
-        refreshFromDatabase
+        refreshFromDatabase,
+        refreshAfterPurchase // CRITICAL FIX: Expose dedicated post-purchase refresh
     };
 }
 
@@ -818,6 +851,7 @@ export function useUpgradePrompt() {
         isTrialActive: subscription.isTrialActive,
         daysUntilTrialEnd: subscription.daysUntilTrialEnd,
         forceRefresh: subscription.forceRefresh,
-        clearCache: subscription.clearCache
+        clearCache: subscription.clearCache,
+        refreshAfterPurchase: subscription.refreshAfterPurchase // CRITICAL FIX: Expose post-purchase refresh
     };
 }

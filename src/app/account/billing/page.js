@@ -602,16 +602,9 @@ function BillingContent() {
                     addPurchaseStep('VERIFICATION_SUCCESS');
                     setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
 
-                    // CRITICAL: Multiple refresh strategies to ensure UI updates
-                    console.log('🔄 Refreshing subscription and session data...');
-
-                    // Strategy 1: Force refresh subscription hook
-                    subscription.refetch();
-
-                    // Strategy 2: Use refreshFromDatabase if available
-                    if (subscription.refreshFromDatabase) {
-                        await subscription.refreshFromDatabase();
-                    }
+                    // CRITICAL FIX: Use dedicated post-purchase refresh
+                    console.log('🔄 Refreshing subscription data after purchase...');
+                    await subscription.refreshAfterPurchase();
 
                     // Strategy 3: Force refresh session to get updated user data
                     try {
@@ -749,7 +742,7 @@ function BillingContent() {
 
             if (activeEntitlements.length > 0) {
                 setSuccess('Successfully restored your purchases! Your subscription is now active.');
-                subscription.refetch();
+                await subscription.refreshAfterPurchase();
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showAlert({
@@ -788,8 +781,8 @@ function BillingContent() {
 
             if (response.ok) {
                 setSuccess('7-day Platinum trial started! Enjoy full access to all features.');
-                // Refresh subscription data
-                subscription.refetch();
+                // CRITICAL FIX: Use post-purchase refresh
+                await subscription.refreshAfterPurchase();
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -842,7 +835,7 @@ function BillingContent() {
                 }
 
                 setSuccess(successMessage);
-                subscription.refetch();
+                await subscription.refreshAfterPurchase();
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -972,7 +965,7 @@ function BillingContent() {
 
                                         if (response.ok) {
                                             setSuccess('Free trial activated! You now have 7 days of full Platinum access.');
-                                            subscription.refetch();
+                                            await subscription.refreshAfterPurchase();
                                         } else {
                                             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                                             await NativeDialog.showError({
