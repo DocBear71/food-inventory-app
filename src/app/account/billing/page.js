@@ -34,6 +34,8 @@ function BillingContent() {
 
     const [debugInfo, setDebugInfo] = useState(null);
     const [showDebugModal, setShowDebugModal] = useState(false);
+    const [debugLog, setDebugLog] = useState([]);
+    const [showDebugLog, setShowDebugLog] = useState(false);
 
     // ENHANCED: Better debug tracking for iPad issues
     const addPurchaseStep = (step, data = {}) => {
@@ -41,6 +43,34 @@ function BillingContent() {
         const newStep = { step, timestamp, data };
         setPurchaseSteps(prev => [...prev, newStep]);
         console.log(`📱 Purchase Step ${purchaseSteps.length + 1}:`, step, data);
+    };
+
+    // VISUAL DEBUG: Add debug message that shows on screen
+    const addDebugMessage = (message, data = {}, type = 'info') => {
+        const timestamp = new Date().toLocaleTimeString();
+        const newMessage = {
+            id: Date.now(),
+            timestamp,
+            message,
+            data,
+            type, // 'info', 'success', 'warning', 'error'
+            step: debugLog.length + 1
+        };
+
+        setDebugLog(prev => [...prev.slice(-20), newMessage]); // Keep last 20 messages
+
+        // Auto-show debug log for important messages
+        if (type === 'error' || type === 'success') {
+            setShowDebugLog(true);
+        }
+
+        console.log(`VISUAL DEBUG ${newMessage.step}: ${message}`, data);
+    };
+
+// VISUAL DEBUG: Clear debug log
+    const clearDebugLog = () => {
+        setDebugLog([]);
+        setShowDebugLog(false);
     };
 
     // Error boundary for debugging
@@ -404,30 +434,16 @@ function BillingContent() {
     };
 
 
-    // ENHANCED: Purchase verification with better error handling
+    // CRITICAL FIX: Enhanced purchase verification with visual debugging
     const handlePurchaseVerification = async (purchaseResult, tier, billingCycle) => {
-        // CRITICAL: Show what triggered this function
-        setDebugInfo({
-            step: 'VERIFICATION CALLED',
-            warning: 'This function should ONLY be called after successful App Store purchase',
-            purchaseResult: purchaseResult ? 'Present' : 'MISSING',
-            tier: tier,
-            billingCycle: billingCycle
-        });
-        setShowDebugModal(true);
-
-        // Wait for user acknowledgment
-        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-        await NativeDialog.showAlert({
-            title: 'DEBUG: Verification Called',
-            message: 'The verification function was called. This should ONLY happen after a successful App Store purchase. Check debug modal for details.'
-        });
         try {
             addPurchaseStep('VERIFICATION_START');
-            console.log('11. Verifying purchase with backend...');
+            addDebugMessage('Starting purchase verification', { tier, billingCycle }, 'info');
 
-            // CRITICAL: Set purchase as completed immediately
-            setSuccess(`🎉 Purchase completed! Activating your ${tier} subscription...`);
+            // CRITICAL: Set purchase as completed immediately for UI feedback
+            setSuccess(`Purchase completed! Activating your ${tier} subscription...`);
+            setPurchaseCompleted(true);
+            addDebugMessage('Purchase marked as completed', { tier }, 'success');
 
             const response = await apiPost('/api/payments/revenuecat/verify', {
                 purchaseResult: purchaseResult,
@@ -436,81 +452,84 @@ function BillingContent() {
                 userId: session.user.id
             });
 
+            addDebugMessage('Verification API called', { status: response.status }, 'info');
+
             const data = await response.json();
+            addDebugMessage('Verification response received', { success: response.ok }, response.ok ? 'success' : 'error');
 
             if (response.ok) {
                 addPurchaseStep('VERIFICATION_SUCCESS');
-                setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
+                setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
+                addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
 
-                // SIMPLE SOLUTION: Direct database refresh and immediate UI update
-                console.log('🔄 Step 1: Forcing immediate subscription data refresh...');
+                // CRITICAL FIX: Visual subscription refresh cycle
+                addDebugMessage('Starting subscription refresh cycle', {}, 'info');
 
-                // Force clear all subscription caches
+                // Step 1: Clear all subscription caches
                 subscription.clearCache();
+                addDebugMessage('Step 1: Cleared subscription cache', {}, 'info');
 
-                // Step 2: Force fetch fresh data directly from database
-                console.log('🔄 Step 2: Fetching fresh subscription data...');
+                // Step 2: Force session update from database
+                await updateSession();
+                addDebugMessage('Step 2: Updated session from database', {}, 'info');
 
-                // Use a direct API call to force fresh database fetch
-                try {
-                    const freshDataResponse = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
-                        method: 'GET',
-                        headers: {
-                            'Cache-Control': 'no-cache',
-                            'Pragma': 'no-cache'
-                        },
-                        cache: 'no-store'
-                    });
+                // Step 3: Use the dedicated post-purchase refresh function
+                await subscription.refreshAfterPurchase();
+                addDebugMessage('Step 3: Called refreshAfterPurchase', {}, 'info');
 
-                    if (freshDataResponse.ok) {
-                        const freshData = await freshDataResponse.json();
-                        console.log('✅ Got fresh subscription data:', freshData);
+                // Step 4: Check current subscription status
+                setTimeout(async () => {
+                    addDebugMessage('Step 4: Secondary refresh check', { currentTier: subscription.tier }, 'info');
+                    await subscription.refreshAfterPurchase();
 
-                        // If the fresh data shows the correct tier, update immediately
-                        if (freshData.tier === tier) {
-                            console.log('✅ Subscription updated successfully!');
+                    // Step 5: Final verification
+                    setTimeout(() => {
+                        const finalTier = subscription.tier;
+                        addDebugMessage('Step 5: Final verification', {
+                            expectedTier: tier,
+                            currentTier: finalTier,
+                            match: finalTier === tier
+                        }, finalTier === tier ? 'success' : 'warning');
 
-                            // Force subscription hook to use this new data
-                            subscription.forceRefresh();
-
-                            // Show success and reload page to ensure everything updates
+                        if (finalTier !== tier) {
+                            addDebugMessage('Tier mismatch detected - forcing page reload', {}, 'warning');
                             setTimeout(() => {
-                                console.log('✅ Reloading page to show new subscription...');
                                 window.location.reload();
-                            }, 1000);
+                            }, 2000);
                         } else {
-                            console.log('⚠️ Subscription not yet updated in database, will retry...');
-                            // Retry mechanism
-                            await retryRefreshSubscription(tier, 0);
+                            addDebugMessage('Subscription verification complete!', { tier: finalTier }, 'success');
                         }
-                    } else {
-                        console.log('⚠️ Fresh data fetch failed, using retry mechanism...');
-                        await retryRefreshSubscription(tier, 0);
-                    }
-                } catch (fetchError) {
-                    console.error('❌ Error fetching fresh data:', fetchError);
-                    await retryRefreshSubscription(tier, 0);
-                }
+                    }, 3000);
+                }, 2000);
 
             } else {
                 addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
-                console.error('Backend verification failed:', data);
+                addDebugMessage('Backend verification failed', { error: data.error }, 'error');
 
                 // Even if verification fails, the App Store purchase was successful
-                setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
+                setSuccess(`Purchase successful! Your ${tier} subscription is active. Refreshing account...`);
+                addDebugMessage('App Store purchase successful, forcing refresh', {}, 'warning');
 
-                // Force refresh and reload
-                await retryRefreshSubscription(tier, 0);
+                // Force refresh and reload since payment went through
+                await subscription.refreshAfterPurchase();
+                setTimeout(() => {
+                    addDebugMessage('Forcing page reload due to verification failure', {}, 'warning');
+                    window.location.reload();
+                }, 3000);
             }
         } catch (error) {
             addPurchaseStep('VERIFICATION_ERROR', { error: error.message });
-            console.error('Verification error:', error);
+            addDebugMessage('Verification error caught', { error: error.message }, 'error');
 
             // Still show success since App Store purchase completed
-            setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
+            setSuccess(`Purchase successful! Your ${tier} subscription is active. Refreshing account...`);
 
             // Force refresh and reload
-            await retryRefreshSubscription(tier, 0);
+            await subscription.refreshAfterPurchase();
+            setTimeout(() => {
+                addDebugMessage('Forcing page reload due to error', {}, 'warning');
+                window.location.reload();
+            }, 3000);
         }
     };
 
@@ -571,7 +590,7 @@ function BillingContent() {
     };
 
 
-    // ENHANCED: iOS Restore Purchases functionality with better error handling
+    // CRITICAL FIX: iOS Restore Purchases with visual debugging
     const handleRestorePurchases = async () => {
         if (!platform.isIOS) {
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
@@ -585,12 +604,15 @@ function BillingContent() {
         setIsRestoring(true);
         setSuccess('');
         setPurchaseSteps([]);
+        clearDebugLog();
+        addDebugMessage('Starting restore purchases process', {}, 'info');
 
         try {
             const { Purchases } = await import('@revenuecat/purchases-capacitor');
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
 
             if (!apiKey) {
+                addDebugMessage('Missing RevenueCat API key', {}, 'error');
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
                     title: 'Configuration Error',
@@ -599,77 +621,138 @@ function BillingContent() {
                 return;
             }
 
-            // CRITICAL DEBUG: Try both configurations
+            addDebugMessage('RevenueCat API key found, starting dual configuration test', {}, 'info');
 
-            // First, try with your app user ID
+            // CRITICAL FIX: Test both configurations to find subscriptions
+
+            // Configuration 1: With app user ID (your current approach)
+            addDebugMessage('Testing Configuration 1: With app user ID', { userId: session.user.id }, 'info');
             await Purchases.configure({
                 apiKey: apiKey,
                 appUserID: session.user.id
             });
 
-            const customerInfo1 = await Purchases.getCustomerInfo();
+            let customerInfo1 = await Purchases.getCustomerInfo();
+            const config1Subs = Object.keys(customerInfo1.activeSubscriptions || {});
+            const config1Ents = Object.keys(customerInfo1.entitlements?.active || {});
 
-            // Second, try with null (Apple ID)
+            addDebugMessage('Config 1 Results', {
+                subscriptions: config1Subs,
+                entitlements: config1Ents,
+                count: config1Subs.length + config1Ents.length
+            }, config1Subs.length > 0 ? 'success' : 'info');
+
+            // Configuration 2: With null (Apple ID only)
+            addDebugMessage('Testing Configuration 2: Apple ID only', {}, 'info');
             await Purchases.configure({
                 apiKey: apiKey,
                 appUserID: null
             });
 
-            const customerInfo2 = await Purchases.getCustomerInfo();
+            let customerInfo2 = await Purchases.getCustomerInfo();
+            const config2Subs = Object.keys(customerInfo2.activeSubscriptions || {});
+            const config2Ents = Object.keys(customerInfo2.entitlements?.active || {});
 
-            // Show comparison
-            const debugInfo = {
-                step: 'CONFIGURATION_COMPARISON',
-                withAppUserId: {
-                    configuredWith: session.user.id,
-                    revenueCatUserId: customerInfo1.originalAppUserId,
-                    activeSubscriptions: Object.keys(customerInfo1.activeSubscriptions || {}),
-                    activeEntitlements: Object.keys(customerInfo1.entitlements?.active || {})
-                },
-                withAppleId: {
-                    configuredWith: 'null (Apple ID)',
-                    revenueCatUserId: customerInfo2.originalAppUserId,
-                    activeSubscriptions: Object.keys(customerInfo2.activeSubscriptions || {}),
-                    activeEntitlements: Object.keys(customerInfo2.entitlements?.active || {})
-                }
-            };
+            addDebugMessage('Config 2 Results', {
+                subscriptions: config2Subs,
+                entitlements: config2Ents,
+                count: config2Subs.length + config2Ents.length
+            }, config2Subs.length > 0 ? 'success' : 'info');
 
-            setDebugInfo(debugInfo);
-            setShowDebugModal(true);
+            // CRITICAL: Try to restore purchases
+            addDebugMessage('Calling restorePurchases()', {}, 'info');
+            const restoreResult = await Purchases.restorePurchases();
 
-            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showAlert({
-                title: 'Configuration Test',
-                message: `App User ID config: ${Object.keys(customerInfo1.activeSubscriptions || {}).length} subs\nApple ID config: ${Object.keys(customerInfo2.activeSubscriptions || {}).length} subs\n\nCheck debug modal for details.`
-            });
+            const restoreSubs = Object.keys(restoreResult.activeSubscriptions || {});
+            const restoreEnts = Object.keys(restoreResult.entitlements?.active || {});
+
+            addDebugMessage('Restore Results', {
+                subscriptions: restoreSubs,
+                entitlements: restoreEnts,
+                count: restoreSubs.length + restoreEnts.length
+            }, restoreSubs.length > 0 ? 'success' : 'warning');
 
             // Use whichever configuration found subscriptions
-            const workingCustomerInfo = Object.keys(customerInfo2.activeSubscriptions || {}).length > 0
-                ? customerInfo2
-                : customerInfo1;
+            const workingCustomerInfo = restoreSubs.length > 0
+                ? restoreResult
+                : config2Subs.length > 0
+                    ? customerInfo2
+                    : customerInfo1;
 
-            // Check if any active subscriptions were found
-            const activeEntitlements = Object.values(workingCustomerInfo.entitlements?.active || {});
+            const finalSubs = Object.keys(workingCustomerInfo.activeSubscriptions || {});
+            const finalEnts = Object.values(workingCustomerInfo.entitlements?.active || {});
 
-            if (activeEntitlements.length > 0) {
-                setSuccess('Successfully restored your purchases! Your subscription is now active.');
-                setTimeout(() => {
-                    window.location.reload();
-                }, 2000);
+            addDebugMessage('Final Selection', {
+                usingConfig: restoreSubs.length > 0 ? 'restore' : config2Subs.length > 0 ? 'config2' : 'config1',
+                subscriptions: finalSubs,
+                entitlementCount: finalEnts.length
+            }, finalSubs.length > 0 || finalEnts.length > 0 ? 'success' : 'warning');
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+
+            if (finalEnts.length > 0 || finalSubs.length > 0) {
+                addDebugMessage('Found active subscriptions, updating database', {}, 'success');
+
+                // CRITICAL: Update database with found subscription
+                try {
+                    const response = await apiPost('/api/payments/revenuecat/restore', {
+                        customerInfo: workingCustomerInfo,
+                        userId: session.user.id
+                    });
+
+                    addDebugMessage('Database update response', { status: response.status }, response.ok ? 'success' : 'error');
+
+                    if (response.ok) {
+                        const dbData = await response.json();
+                        addDebugMessage('Database updated successfully', { tier: dbData.subscription?.tier }, 'success');
+
+                        setSuccess('Successfully restored your purchases! Your subscription is now active.');
+
+                        // Force subscription refresh
+                        addDebugMessage('Starting post-restore refresh', {}, 'info');
+                        await subscription.refreshAfterPurchase();
+
+                        setTimeout(() => {
+                            addDebugMessage('Reloading page to show restored subscription', {}, 'info');
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        const errorData = await response.json();
+                        addDebugMessage('Database update failed', { error: errorData.error }, 'error');
+                        await NativeDialog.showError({
+                            title: 'Restore Partial Success',
+                            message: 'Found subscription but failed to update account. Please contact support.'
+                        });
+                    }
+                } catch (dbError) {
+                    addDebugMessage('Database error during restore', { error: dbError.message }, 'error');
+                    await NativeDialog.showError({
+                        title: 'Database Error',
+                        message: 'Found subscription but failed to update account. Please contact support.'
+                    });
+                }
             } else {
+                addDebugMessage('No subscriptions found in any configuration', {
+                    config1Count: config1Subs.length,
+                    config2Count: config2Subs.length,
+                    restoreCount: restoreSubs.length
+                }, 'warning');
+
                 await NativeDialog.showAlert({
                     title: 'No Subscriptions Found',
-                    message: 'No active subscriptions found with either configuration.'
+                    message: `No active subscriptions found.\n\nConfig 1: ${config1Subs.length} subscriptions\nConfig 2: ${config2Subs.length} subscriptions\nRestore: ${restoreSubs.length} subscriptions\n\nCheck the debug log for details.`
                 });
+                setShowDebugLog(true);
             }
 
         } catch (error) {
-            console.error('Restore purchases error:', error);
+            addDebugMessage('Restore error caught', { error: error.message }, 'error');
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showError({
                 title: 'Restore Failed',
                 message: `Failed to restore purchases: ${error.message}`
             });
+            setShowDebugLog(true);
         } finally {
             setIsRestoring(false);
         }
@@ -830,11 +913,11 @@ function BillingContent() {
                 </div>
 
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                    <h3 className="text-yellow-900 font-semibold mb-2">Debug Mode Active</h3>
+                    <h3 className="text-yellow-900 font-semibold mb-2">Visual Debug Mode Active</h3>
                     <p className="text-yellow-700 text-sm mb-3">
-                        Visual debugging is enabled for purchase testing.
+                        All debugging information will be displayed visually on screen.
                     </p>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                         <TouchEnhancedButton
                             onClick={() => setShowDebugModal(true)}
                             className="bg-yellow-600 text-white px-3 py-1 rounded text-sm"
@@ -842,15 +925,27 @@ function BillingContent() {
                             Show Last Debug Info
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
-                            onClick={() => setDebugInfo(null)}
+                            onClick={() => setShowDebugLog(true)}
+                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Show Debug Log ({debugLog.length})
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={clearDebugLog}
                             className="bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Clear Debug Log
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => setDebugInfo(null)}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm"
                         >
                             Clear Debug Info
                         </TouchEnhancedButton>
                     </div>
-                    {debugInfo && (
+                    {debugLog.length > 0 && (
                         <div className="mt-2 text-xs text-yellow-800">
-                            Last step: {debugInfo.step}
+                            Last message: {debugLog[debugLog.length - 1]?.message} ({debugLog[debugLog.length - 1]?.type})
                         </div>
                     )}
                 </div>
@@ -1410,31 +1505,62 @@ function BillingContent() {
 
                 <Footer />
             </div>
-            {/* DEBUG MODAL */}
-            {showDebugModal && debugInfo && (
+            {/* VISUAL DEBUG LOG MODAL */}
+            {showDebugLog && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-2xl w-full max-h-96 overflow-y-auto">
-                        <div className="p-4 border-b">
-                            <h3 className="text-lg font-semibold">Debug Information</h3>
-                            <TouchEnhancedButton
-                                onClick={() => setShowDebugModal(false)}
-                                className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
-                            >
-                                ✕
-                            </TouchEnhancedButton>
-                        </div>
-                        <div className="p-4">
-                            <div className="bg-gray-50 rounded p-3 text-xs font-mono whitespace-pre-wrap">
-                                {JSON.stringify(debugInfo, null, 2)}
+                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-96 overflow-hidden flex flex-col">
+                        <div className="p-4 border-b flex justify-between items-center">
+                            <h3 className="text-lg font-semibold">Visual Debug Log</h3>
+                            <div className="flex gap-2">
+                                <TouchEnhancedButton
+                                    onClick={clearDebugLog}
+                                    className="bg-gray-600 text-white px-3 py-1 rounded text-sm"
+                                >
+                                    Clear Log
+                                </TouchEnhancedButton>
+                                <TouchEnhancedButton
+                                    onClick={() => setShowDebugLog(false)}
+                                    className="text-gray-500 hover:text-gray-700 text-xl"
+                                >
+                                    ×
+                                </TouchEnhancedButton>
                             </div>
                         </div>
-                        <div className="p-4 border-t">
-                            <TouchEnhancedButton
-                                onClick={() => setShowDebugModal(false)}
-                                className="bg-blue-600 text-white px-4 py-2 rounded"
-                            >
-                                Close Debug Info
-                            </TouchEnhancedButton>
+                        <div className="flex-1 overflow-y-auto p-4">
+                            {debugLog.length === 0 ? (
+                                <div className="text-gray-500 text-center py-8">No debug messages yet</div>
+                            ) : (
+                                <div className="space-y-2">
+                                    {debugLog.map((log) => (
+                                        <div
+                                            key={log.id}
+                                            className={`p-3 rounded border-l-4 ${
+                                                log.type === 'success' ? 'bg-green-50 border-green-500' :
+                                                    log.type === 'error' ? 'bg-red-50 border-red-500' :
+                                                        log.type === 'warning' ? 'bg-yellow-50 border-yellow-500' :
+                                                            'bg-blue-50 border-blue-500'
+                                            }`}
+                                        >
+                                            <div className="flex justify-between items-start mb-1">
+                                    <span className={`text-sm font-medium ${
+                                        log.type === 'success' ? 'text-green-800' :
+                                            log.type === 'error' ? 'text-red-800' :
+                                                log.type === 'warning' ? 'text-yellow-800' :
+                                                    'text-blue-800'
+                                    }`}>
+                                        Step {log.step}: {log.message}
+                                    </span>
+                                                <span className="text-xs text-gray-500">{log.timestamp}</span>
+                                            </div>
+                                            {Object.keys(log.data).length > 0 && (
+                                                <div className="text-xs font-mono bg-white p-2 rounded mt-2 border">
+                                                    {JSON.stringify(log.data, null, 2)}
+                                                </div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

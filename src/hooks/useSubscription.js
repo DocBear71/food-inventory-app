@@ -396,18 +396,18 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 1. ALWAYS fetch from API first for your demo account
-        if (session?.user?.email === 'demo@test.com' && session?.user?.id) {
-            console.log('🚨 Demo account detected - forcing API fetch to get correct subscription data');
-            fetchSubscriptionData(true);
-            return;
-        }
-
-        // 2. Check for paid subscription FIRST - but only for other accounts
+        // 1. Check for paid subscription FIRST for ALL accounts
         const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
             session?.user?.subscription?.status === 'active' &&
             (session?.user?.subscription?.platform === 'revenuecat' ||
                 session?.user?.subscription?.platform === 'stripe');
+
+        console.log('💳 Paid subscription check:', {
+            hasPaidSubscription,
+            tier: session?.user?.subscription?.tier,
+            status: session?.user?.subscription?.status,
+            platform: session?.user?.subscription?.platform
+        });
 
         if (hasPaidSubscription) {
             console.log('💳 User has paid subscription - using paid subscription data');
