@@ -67,6 +67,41 @@ function BillingContent() {
         console.log(`VISUAL DEBUG ${newMessage.step}: ${message}`, data);
     };
 
+    // DIAGNOSTIC: Direct database check
+    const checkDatabaseDirectly = async () => {
+        try {
+            addDebugMessage('Direct database check started', {}, 'info');
+
+            const response = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
+                method: 'GET',
+                headers: {
+                    'Cache-Control': 'no-cache',
+                    'Pragma': 'no-cache'
+                },
+                cache: 'no-store'
+            });
+
+            if (response.ok) {
+                const dbData = await response.json();
+                addDebugMessage('Database check results', {
+                    dbTier: dbData.tier,
+                    dbStatus: dbData.status,
+                    dbPlatform: dbData.platform,
+                    dbIsAdmin: dbData.isAdmin,
+                    dbUsage: dbData.usage ? Object.keys(dbData.usage) : 'none'
+                }, 'info');
+
+                return dbData;
+            } else {
+                addDebugMessage('Database check failed', { status: response.status }, 'error');
+                return null;
+            }
+        } catch (error) {
+            addDebugMessage('Database check error', { error: error.message }, 'error');
+            return null;
+        }
+    };
+
 // VISUAL DEBUG: Clear debug log
     const clearDebugLog = () => {
         setDebugLog([]);
@@ -462,8 +497,16 @@ function BillingContent() {
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
                 addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
 
-                // CRITICAL FIX: Visual subscription refresh cycle
-                addDebugMessage('Starting subscription refresh cycle', {}, 'info');
+                // AGGRESSIVE FIX: Since database is updated, force immediate reload
+                addDebugMessage('Database updated successfully - forcing immediate page reload', {}, 'success');
+
+                setTimeout(() => {
+                    addDebugMessage('Reloading page now...', {}, 'info');
+                    window.location.reload();
+                }, 2000);
+
+                // Continue with the refresh cycle as backup (but page will reload before this completes)
+                addDebugMessage('Starting subscription refresh cycle as backup', {}, 'info');
 
                 // Step 1: Clear all subscription caches
                 subscription.clearCache();
@@ -473,14 +516,39 @@ function BillingContent() {
                 await updateSession();
                 addDebugMessage('Step 2: Updated session from database', {}, 'info');
 
-                // Step 3: Use the dedicated post-purchase refresh function
-                await subscription.refreshAfterPurchase();
-                addDebugMessage('Step 3: Called refreshAfterPurchase', {}, 'info');
+                // Step 3: Use the dedicated post-purchase refresh function with detailed debugging
+                addDebugMessage('Step 3A: Before refreshAfterPurchase', {
+                    currentTier: subscription.tier,
+                    currentStatus: subscription.status,
+                    currentPlatform: subscription.platform,
+                    isAdmin: subscription.isAdmin
+                }, 'info');
 
-                // Step 4: Check current subscription status
+                await subscription.refreshAfterPurchase();
+
+                addDebugMessage('Step 3B: After refreshAfterPurchase', {
+                    currentTier: subscription.tier,
+                    currentStatus: subscription.status,
+                    currentPlatform: subscription.platform,
+                    isAdmin: subscription.isAdmin,
+                    loading: subscription.loading
+                }, 'info');
+
+                // Step 4: Enhanced secondary refresh with database check
                 setTimeout(async () => {
-                    addDebugMessage('Step 4: Secondary refresh check', { currentTier: subscription.tier }, 'info');
+                    addDebugMessage('Step 4A: Secondary refresh check', { currentTier: subscription.tier }, 'info');
+
+                    // First, check what's actually in the database
+                    const dbData = await checkDatabaseDirectly();
+
+                    // Then try the refresh again
                     await subscription.refreshAfterPurchase();
+
+                    addDebugMessage('Step 4B: After secondary refresh', {
+                        hookTier: subscription.tier,
+                        dbTier: dbData?.tier,
+                        match: subscription.tier === dbData?.tier
+                    }, 'info');
 
                     // Step 5: Final verification
                     setTimeout(() => {
