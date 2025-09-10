@@ -260,7 +260,7 @@ function BillingContent() {
 
             await Purchases.configure({
                 apiKey: apiKey,
-                appUserID: session.user.id
+                appUserID: null
             });
 
             setDebugInfo({ step: 'RevenueCat configured successfully' });
