@@ -15,7 +15,7 @@ import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Separate component for search params to wrap in Suspense
 function BillingContent() {
-    const { data: session, status } = useSafeSession();
+    const { data: session, status, update: updateSession } = useSafeSession();
     const router = useRouter();
     const searchParams = useSearchParams();
     const subscription = useSubscription();
