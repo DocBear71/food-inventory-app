@@ -406,6 +406,22 @@ function BillingContent() {
 
     // ENHANCED: Purchase verification with better error handling
     const handlePurchaseVerification = async (purchaseResult, tier, billingCycle) => {
+        // CRITICAL: Show what triggered this function
+        setDebugInfo({
+            step: 'VERIFICATION CALLED',
+            warning: 'This function should ONLY be called after successful App Store purchase',
+            purchaseResult: purchaseResult ? 'Present' : 'MISSING',
+            tier: tier,
+            billingCycle: billingCycle
+        });
+        setShowDebugModal(true);
+
+        // Wait for user acknowledgment
+        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+        await NativeDialog.showAlert({
+            title: 'DEBUG: Verification Called',
+            message: 'The verification function was called. This should ONLY happen after a successful App Store purchase. Check debug modal for details.'
+        });
         try {
             addPurchaseStep('VERIFICATION_START');
             console.log('11. Verifying purchase with backend...');
@@ -570,15 +586,10 @@ function BillingContent() {
         setSuccess('');
         setPurchaseSteps([]);
 
-        addPurchaseStep('RESTORE_START');
-
         try {
-            console.log('Starting restore purchases...');
-
             const { Purchases } = await import('@revenuecat/purchases-capacitor');
-
-            // Configure RevenueCat if not already configured
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
+
             if (!apiKey) {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -588,43 +599,72 @@ function BillingContent() {
                 return;
             }
 
+            // CRITICAL DEBUG: Try both configurations
+
+            // First, try with your app user ID
             await Purchases.configure({
                 apiKey: apiKey,
                 appUserID: session.user.id
             });
 
-            addPurchaseStep('RESTORE_CONFIGURED');
+            const customerInfo1 = await Purchases.getCustomerInfo();
 
-            // Restore purchases
-            const customerInfo = await Purchases.restorePurchases();
-            addPurchaseStep('RESTORE_COMPLETED', {
-                activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
-                entitlements: Object.keys(customerInfo.entitlements?.all || {})
+            // Second, try with null (Apple ID)
+            await Purchases.configure({
+                apiKey: apiKey,
+                appUserID: null
             });
 
-            console.log('Restore completed:', customerInfo);
+            const customerInfo2 = await Purchases.getCustomerInfo();
 
-            // Check if any active subscriptions were restored
-            const activeEntitlements = Object.values(customerInfo.entitlements?.active || {});
+            // Show comparison
+            const debugInfo = {
+                step: 'CONFIGURATION_COMPARISON',
+                withAppUserId: {
+                    configuredWith: session.user.id,
+                    revenueCatUserId: customerInfo1.originalAppUserId,
+                    activeSubscriptions: Object.keys(customerInfo1.activeSubscriptions || {}),
+                    activeEntitlements: Object.keys(customerInfo1.entitlements?.active || {})
+                },
+                withAppleId: {
+                    configuredWith: 'null (Apple ID)',
+                    revenueCatUserId: customerInfo2.originalAppUserId,
+                    activeSubscriptions: Object.keys(customerInfo2.activeSubscriptions || {}),
+                    activeEntitlements: Object.keys(customerInfo2.entitlements?.active || {})
+                }
+            };
+
+            setDebugInfo(debugInfo);
+            setShowDebugModal(true);
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            await NativeDialog.showAlert({
+                title: 'Configuration Test',
+                message: `App User ID config: ${Object.keys(customerInfo1.activeSubscriptions || {}).length} subs\nApple ID config: ${Object.keys(customerInfo2.activeSubscriptions || {}).length} subs\n\nCheck debug modal for details.`
+            });
+
+            // Use whichever configuration found subscriptions
+            const workingCustomerInfo = Object.keys(customerInfo2.activeSubscriptions || {}).length > 0
+                ? customerInfo2
+                : customerInfo1;
+
+            // Check if any active subscriptions were found
+            const activeEntitlements = Object.values(workingCustomerInfo.entitlements?.active || {});
 
             if (activeEntitlements.length > 0) {
                 setSuccess('Successfully restored your purchases! Your subscription is now active.');
-
-                // Simple reload after restore
                 setTimeout(() => {
                     window.location.reload();
                 }, 2000);
             } else {
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showAlert({
                     title: 'No Subscriptions Found',
-                    message: 'No active subscriptions found to restore.'
+                    message: 'No active subscriptions found with either configuration.'
                 });
             }
 
         } catch (error) {
             console.error('Restore purchases error:', error);
-            addPurchaseStep('RESTORE_ERROR', { error: error.message });
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showError({
                 title: 'Restore Failed',
