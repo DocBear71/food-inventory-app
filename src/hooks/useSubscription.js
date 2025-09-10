@@ -528,6 +528,47 @@ export function SubscriptionProvider({ children }) {
         };
     }, []);
 
+    // Add this useEffect to your SubscriptionProvider, after your existing useEffects
+    useEffect(() => {
+        const initializeRevenueCat = async () => {
+            if (status === 'authenticated' && session?.user?.id && typeof window !== 'undefined') {
+                try {
+                    // Only initialize on iOS
+                    const userAgent = navigator.userAgent;
+                    const isIOS = /iPhone|iPad|iPod/i.test(userAgent);
+
+                    if (isIOS) {
+                        const { Purchases } = await import('@revenuecat/purchases-capacitor');
+                        const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
+
+                        if (apiKey) {
+                            console.log('🍎 Initializing RevenueCat on app start with user:', session.user.id);
+
+                            await Purchases.configure({
+                                apiKey: apiKey,
+                                appUserID: session.user.id
+                            });
+
+                            console.log('✅ RevenueCat initialized successfully');
+
+                            // Optionally check for existing purchases
+                            const customerInfo = await Purchases.getCustomerInfo();
+                            console.log('RevenueCat customer info:', {
+                                userId: customerInfo.originalAppUserId,
+                                activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
+                                activeEntitlements: Object.keys(customerInfo.entitlements?.active || {})
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ RevenueCat initialization error:', error);
+                }
+            }
+        };
+
+        initializeRevenueCat();
+    }, [session?.user?.id, status]);
+
     const value = {
         subscriptionData,
         loading,
