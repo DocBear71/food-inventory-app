@@ -1051,6 +1051,28 @@ function BillingContent() {
                     </p>
                     <div className="flex gap-2 flex-wrap">
                         <TouchEnhancedButton
+                            onClick={() => {
+                                addDebugMessage('Current useSubscription hook state', {
+                                    tier: subscription.tier,
+                                    status: subscription.status,
+                                    platform: subscription.platform,
+                                    isAdmin: subscription.isAdmin,
+                                    isActive: subscription.isActive,
+                                    loading: subscription.loading,
+                                    error: subscription.error,
+                                    sessionUserSubscription: session?.user?.subscription ? {
+                                        tier: session.user.subscription.tier,
+                                        status: session.user.subscription.status,
+                                        platform: session.user.subscription.platform
+                                    } : 'missing'
+                                }, 'info');
+                                setShowDebugLog(true);
+                            }}
+                            className="bg-purple-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Check Hook State
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={async () => {
                                 try {
                                     addDebugMessage('Manual database check started', {}, 'info');
