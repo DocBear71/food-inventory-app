@@ -530,7 +530,10 @@ function BillingContent() {
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
                 addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
 
-                // IMMEDIATE FIX: Force complete subscription update in session
+                // IMMEDIATE SESSION UPDATE - Force the session to be updated
+                addDebugMessage('Force-updating session subscription data', { tier, billingCycle }, 'info');
+
+                // CRITICAL FIX: Update session AND trigger session refresh
                 if (session?.user) {
                     if (!session.user.subscription) {
                         session.user.subscription = {};
@@ -539,100 +542,61 @@ function BillingContent() {
                     session.user.subscription.status = 'active';
                     session.user.subscription.platform = 'revenuecat';
                     session.user.subscription.billingCycle = billingCycle;
+                    session.user.subscription.hasUsedFreeTrial = true;
+                    session.user.subscription.startDate = new Date().toISOString();
 
-                    addDebugMessage('Force-updated entire subscription in session', {
+                    addDebugMessage('Force-updated session subscription object', {
                         tier: session.user.subscription.tier,
                         status: session.user.subscription.status,
                         platform: session.user.subscription.platform
-                    }, 'info');
+                    }, 'success');
+
+                    // CRITICAL: Force NextAuth session update to trigger provider re-render
+                    try {
+                        addDebugMessage('Calling updateSession to trigger provider refresh', {}, 'info');
+                        await updateSession();
+                        addDebugMessage('updateSession completed', {}, 'success');
+                    } catch (updateError) {
+                        addDebugMessage('updateSession failed', { error: updateError.message }, 'error');
+                    }
                 }
 
-                // SIMPLE SOLUTION: Database is updated, reload immediately
-                addDebugMessage('Database updated successfully - reloading immediately', {}, 'success');
+                // FORCE PROVIDER UPDATE: Direct manipulation of subscription state
+                addDebugMessage('Attempting direct provider state update', {}, 'info');
 
-                setTimeout(() => {
-                    addDebugMessage('Reloading page now...', {}, 'info');
-                    window.location.reload();
-                }, 1500); // Reduced to 1.5 seconds
+                // Get the subscription provider and force update its state
+                if (typeof window !== 'undefined' && window.forceSubscriptionUpdate) {
+                    try {
+                        window.forceSubscriptionUpdate({
+                            tier: tier,
+                            status: 'active',
+                            platform: 'revenuecat',
+                            billingCycle: billingCycle,
+                            isActive: true,
+                            isTrialActive: false,
+                            hasUsedFreeTrial: true,
+                            usage: session?.user?.usage || {},
+                            timestamp: new Date().toISOString()
+                        });
+                        addDebugMessage('Direct provider update successful', { tier }, 'success');
+                    } catch (directError) {
+                        addDebugMessage('Direct provider update failed', { error: directError.message }, 'error');
+                    }
+                }
 
-                // Continue with the refresh cycle as backup (but page will reload before this completes)
+                // Continue with existing refresh logic as backup
                 addDebugMessage('Starting subscription refresh cycle as backup', {}, 'info');
 
-                // Step 1: Clear all subscription caches
+                // Rest of your existing refresh logic...
                 subscription.clearCache();
-                addDebugMessage('Step 1: Cleared subscription cache', {}, 'info');
-
-                // Step 2: Force session update from database
                 await updateSession();
-                addDebugMessage('Step 2: Updated session from database', {}, 'info');
-
-                // FORCE TRIGGER: Try to force subscription hook refresh
-                setTimeout(() => {
-                    addDebugMessage('Attempting forced subscription hook refresh', {}, 'info');
-                    subscription.forceRefresh();
-
-                    setTimeout(() => {
-                        addDebugMessage('Post-force-refresh check', {
-                            currentTier: subscription.tier,
-                            currentStatus: subscription.status,
-                            currentPlatform: subscription.platform
-                        }, subscription.tier === tier ? 'success' : 'warning');
-                    }, 500);
-                }, 100);
-
-                // Step 3: Use the dedicated post-purchase refresh function with detailed debugging
-                addDebugMessage('Step 3A: Before refreshAfterPurchase', {
-                    currentTier: subscription.tier,
-                    currentStatus: subscription.status,
-                    currentPlatform: subscription.platform,
-                    isAdmin: subscription.isAdmin
-                }, 'info');
-
                 await subscription.refreshAfterPurchase();
 
-                addDebugMessage('Step 3B: After refreshAfterPurchase', {
-                    currentTier: subscription.tier,
-                    currentStatus: subscription.status,
-                    currentPlatform: subscription.platform,
-                    isAdmin: subscription.isAdmin,
-                    loading: subscription.loading
-                }, 'info');
-
-                // Step 4: Enhanced secondary refresh with database check
-                setTimeout(async () => {
-                    addDebugMessage('Step 4A: Secondary refresh check', { currentTier: subscription.tier }, 'info');
-
-                    // First, check what's actually in the database
-                    const dbData = await checkDatabaseDirectly();
-
-                    // Then try the refresh again
-                    await subscription.refreshAfterPurchase();
-
-                    addDebugMessage('Step 4B: After secondary refresh', {
-                        hookTier: subscription.tier,
-                        dbTier: dbData?.tier,
-                        match: subscription.tier === dbData?.tier
-                    }, 'info');
-
-                    // Step 5: Final verification
-                    setTimeout(() => {
-                        const finalTier = subscription.tier;
-                        addDebugMessage('Step 5: Final verification', {
-                            expectedTier: tier,
-                            currentTier: finalTier,
-                            match: finalTier === tier
-                        }, finalTier === tier ? 'success' : 'warning');
-
-                        if (finalTier !== tier) {
-                            addDebugMessage('Tier mismatch detected - forcing page reload', {}, 'warning');
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 2000);
-                        } else {
-                            addDebugMessage('Subscription verification complete!', { tier: finalTier }, 'success');
-                        }
-                    }, 3000);
-                }, 2000);
+                // Force page reload as final fallback
+                setTimeout(() => {
+                    addDebugMessage('Forcing page reload - final fallback', {}, 'warning');
+                    window.location.reload();
+                }, 3000);
 
             } else {
                 addPurchaseStep('VERIFICATION_FAILED', { error: data.error });

@@ -592,6 +592,25 @@ export function SubscriptionProvider({ children }) {
         initializeRevenueCat();
     }, [session?.user?.id, status]);
 
+    // FORCE UPDATE FUNCTION: Allow external components to directly update subscription state
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            window.forceSubscriptionUpdate = (newSubscriptionData) => {
+                console.log('🚀 Force updating subscription state:', newSubscriptionData);
+                setSubscriptionData(newSubscriptionData);
+                setLoading(false);
+                setError(null);
+            };
+
+            // Cleanup function
+            return () => {
+                if (window.forceSubscriptionUpdate) {
+                    delete window.forceSubscriptionUpdate;
+                }
+            };
+        }
+    }, []);
+
     const value = {
         subscriptionData,
         loading,
