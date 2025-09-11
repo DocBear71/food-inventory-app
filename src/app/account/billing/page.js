@@ -497,6 +497,12 @@ function BillingContent() {
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
                 addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
 
+                // IMMEDIATE FIX: Force platform update in session if missing
+                if (session?.user?.subscription) {
+                    session.user.subscription.platform = 'revenuecat';
+                    addDebugMessage('Force-set platform in session', { platform: 'revenuecat' }, 'info');
+                }
+
                 // AGGRESSIVE FIX: Since database is updated, force immediate reload
                 addDebugMessage('Database updated successfully - forcing immediate page reload', {}, 'success');
 

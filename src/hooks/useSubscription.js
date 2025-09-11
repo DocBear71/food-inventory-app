@@ -398,9 +398,15 @@ export function SubscriptionProvider({ children }) {
 
         // 1. Check for paid subscription FIRST for ALL accounts
         const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
+            session?.user?.subscription?.tier !== 'admin' &&
             session?.user?.subscription?.status === 'active' &&
             (session?.user?.subscription?.platform === 'revenuecat' ||
-                session?.user?.subscription?.platform === 'stripe');
+                session?.user?.subscription?.platform === 'stripe' ||
+                // FALLBACK: If platform is missing but we have RevenueCat customer ID
+                (session?.user?.subscription?.revenueCatCustomerId &&
+                    (session?.user?.subscription?.tier === 'gold' ||
+                        session?.user?.subscription?.tier === 'platinum' ||
+                        session?.user?.subscription?.tier === 'basic')));
 
         console.log('💳 Paid subscription check:', {
             hasPaidSubscription,

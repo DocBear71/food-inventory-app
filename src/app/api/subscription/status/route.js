@@ -344,10 +344,11 @@ export async function GET(request) {
             trialStartDate: subscription.trialStartDate || null,
             trialEndDate: subscription.trialEndDate || null,
 
-            // CRITICAL: Add RevenueCat and platform info
+            // CRITICAL FIX: Ensure platform is always set for paid subscriptions
             platform: user.subscription?.platform || subscription.platform ||
                 (user.subscription?.revenueCatCustomerId ? 'revenuecat' :
-                    user.subscription?.stripeSubscriptionId ? 'stripe' : null),
+                    user.subscription?.stripeSubscriptionId ? 'stripe' :
+                        (subscription.tier !== 'free' && subscription.tier !== 'admin') ? 'revenuecat' : null),
             revenueCatCustomerId: user.subscription?.revenueCatCustomerId || subscription.revenueCatCustomerId || null,
             stripeSubscriptionId: user.subscription?.stripeSubscriptionId || subscription.stripeSubscriptionId || null,
 
