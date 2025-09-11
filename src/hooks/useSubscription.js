@@ -396,42 +396,27 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 1. Check for paid subscription FIRST for ALL accounts
-        const hasPaidSubscription = session?.user?.subscription?.tier !== 'free' &&
-            session?.user?.subscription?.tier !== 'admin' &&
-            session?.user?.subscription?.status === 'active' &&
-            (session?.user?.subscription?.platform === 'revenuecat' ||
-                session?.user?.subscription?.platform === 'stripe' ||
-                // FALLBACK: If platform is missing but we have RevenueCat customer ID
-                (session?.user?.subscription?.revenueCatCustomerId &&
-                    (session?.user?.subscription?.tier === 'gold' ||
-                        session?.user?.subscription?.tier === 'platinum' ||
-                        session?.user?.subscription?.tier === 'basic')));
-
-        console.log('💳 Paid subscription check:', {
-            hasPaidSubscription,
-            tier: session?.user?.subscription?.tier,
-            status: session?.user?.subscription?.status,
-            platform: session?.user?.subscription?.platform
-        });
+        // 1. Check for paid subscription FIRST - FIXED to handle your case
+        const sessionSub = session?.user?.subscription;
+        const hasPaidSubscription = sessionSub?.tier !== 'free' &&
+            sessionSub?.tier !== 'admin' &&
+            sessionSub?.status === 'active' &&
+            (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic');
 
         if (hasPaidSubscription) {
-            console.log('💳 User has paid subscription - using paid subscription data');
-            const subscription = session.user.subscription;
-
             setSubscriptionData({
-                tier: subscription.tier,
-                status: subscription.status,
+                tier: sessionSub.tier,
+                status: sessionSub.status,
                 isAdmin: session.user.isAdmin || false,
-                isActive: subscription.status === 'active',
-                isTrialActive: subscription.status === 'trial',
-                hasUsedFreeTrial: Boolean(subscription.hasUsedFreeTrial),
-                platform: subscription.platform,
-                billingCycle: subscription.billingCycle,
-                startDate: subscription.startDate,
-                endDate: subscription.endDate,
+                isActive: sessionSub.status === 'active',
+                isTrialActive: sessionSub.status === 'trial',
+                hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
+                platform: sessionSub.platform || 'revenuecat', // FALLBACK: Default to revenuecat
+                billingCycle: sessionSub.billingCycle,
+                startDate: sessionSub.startDate,
+                endDate: sessionSub.endDate,
                 usage: session.user.usage || {},
-                subscription: subscription,
+                subscription: sessionSub,
                 timestamp: new Date().toISOString()
             });
             setLoading(false);
