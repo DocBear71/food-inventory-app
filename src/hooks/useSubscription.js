@@ -365,7 +365,8 @@ export function SubscriptionProvider({ children }) {
     }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user?.subscription]);
 
 
-    // REVERT TO WORKING VERSION: Main effect with better session handling
+    // REPLACE the main useEffect in SubscriptionProvider (around line 180) with this:
+
     useEffect(() => {
         console.log('📊 SubscriptionProvider: Session status:', status);
 
@@ -401,11 +402,61 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // REVERT TO WORKING PRIORITY SYSTEM:
+        // ENHANCED SESSION DETECTION - Check multiple paths for subscription data
+        const sessionSub = session?.user?.subscription;
+        const hasPaidSubscription = sessionSub &&
+            sessionSub.tier !== 'free' &&
+            sessionSub.tier !== 'admin' &&
+            sessionSub.status === 'active' &&
+            (sessionSub.tier === 'gold' || sessionSub.tier === 'platinum' || sessionSub.tier === 'basic');
 
-        // 1. Admin users - highest priority (KEEP THIS SIMPLE)
-        if (session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') {
-            console.log('📋 Admin user - setting admin subscription');
+        // DEBUG: Log session detection
+        console.log('🔍 Session subscription detection:', {
+            sessionExists: !!session,
+            sessionSubExists: !!sessionSub,
+            sessionSubTier: sessionSub?.tier,
+            sessionSubStatus: sessionSub?.status,
+            sessionSubPlatform: sessionSub?.platform,
+            hasPaidSubscription,
+            userIsAdmin: session?.user?.isAdmin,
+            userEmail: session?.user?.email
+        });
+
+        // 1. PAID SUBSCRIPTION - Highest priority (must come before admin check)
+        if (hasPaidSubscription) {
+            console.log('💳 Using paid subscription from session:', sessionSub);
+
+            const subscriptionDataToSet = {
+                tier: sessionSub.tier,
+                status: sessionSub.status,
+                isAdmin: session.user.isAdmin || false,
+                isActive: sessionSub.status === 'active',
+                isTrialActive: sessionSub.status === 'trial',
+                hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
+                platform: sessionSub.platform || 'revenuecat',
+                billingCycle: sessionSub.billingCycle,
+                startDate: sessionSub.startDate,
+                endDate: sessionSub.endDate,
+                usage: session.user.usage || {},
+                subscription: sessionSub,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('✅ Setting paid subscription data:', {
+                tier: subscriptionDataToSet.tier,
+                status: subscriptionDataToSet.status,
+                platform: subscriptionDataToSet.platform
+            });
+
+            setSubscriptionData(subscriptionDataToSet);
+            setLoading(false);
+            return;
+        }
+
+        // 2. Admin users - but ONLY if no paid subscription exists
+        if ((session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') &&
+            !hasPaidSubscription) {
+            console.log('📋 Admin user with no paid subscription - setting admin subscription');
             setSubscriptionData({
                 tier: 'admin',
                 isAdmin: true,
@@ -418,35 +469,33 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 2. Session has subscription object - use it directly (REVERT TO SIMPLE VERSION)
-        if (session?.user?.subscription?.tier && session?.user?.subscription?.status) {
-            console.log('📋 Using session subscription object:', session.user.subscription);
-            console.log('📋 Session subscription status:', session.user.subscription.status);
+        // 3. Session has any subscription object - use it directly
+        if (sessionSub?.tier && sessionSub?.status) {
+            console.log('📋 Using any session subscription object:', sessionSub);
 
-            // CRITICAL FIX: Add the missing platform field that RevenueCat needs
             const subscriptionDataToSet = {
-                tier: session.user.subscription.tier,
-                status: session.user.subscription.status,
+                tier: sessionSub.tier,
+                status: sessionSub.status,
                 isAdmin: session.user.isAdmin || false,
-                isActive: session.user.subscription.status === 'active',
-                isTrialActive: session.user.subscription.status === 'trial',
-                hasUsedFreeTrial: Boolean(session.user.subscription.hasUsedFreeTrial),
-                platform: session.user.subscription.platform || 'revenuecat', // ADD THIS LINE
-                billingCycle: session.user.subscription.billingCycle, // ADD THIS LINE
-                startDate: session.user.subscription.startDate, // ADD THIS LINE
-                endDate: session.user.subscription.endDate, // ADD THIS LINE
+                isActive: sessionSub.status === 'active',
+                isTrialActive: sessionSub.status === 'trial',
+                hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
+                platform: sessionSub.platform || 'revenuecat',
+                billingCycle: sessionSub.billingCycle,
+                startDate: sessionSub.startDate,
+                endDate: sessionSub.endDate,
                 usage: session.user.usage || {},
-                subscription: session.user.subscription,
+                subscription: sessionSub,
                 timestamp: new Date().toISOString()
             };
 
-            console.log('✅ Setting subscription data with platform:', subscriptionDataToSet.platform);
+            console.log('✅ Setting session subscription data:', subscriptionDataToSet.platform);
             setSubscriptionData(subscriptionDataToSet);
             setLoading(false);
             return;
         }
 
-        // 3. Session has individual subscription fields (KEEP SIMPLE)
+        // 4. Session has individual subscription fields
         if (session?.user?.subscriptionTier || session?.user?.effectiveTier) {
             console.log('📋 Using session tier fields:', {
                 subscriptionTier: session.user.subscriptionTier,
@@ -464,7 +513,7 @@ export function SubscriptionProvider({ children }) {
                 isActive: true,
                 isTrialActive: false,
                 hasUsedFreeTrial: hasUsedFreeTrial,
-                platform: 'revenuecat', // DEFAULT PLATFORM FOR LEGACY DATA
+                platform: 'revenuecat',
                 usage: session.user.usage || {},
                 timestamp: new Date().toISOString()
             });
@@ -472,7 +521,7 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 4. Only fetch from API if we have no subscription data at all
+        // 5. Only fetch from API if we have no subscription data at all
         if (session?.user?.id) {
             console.log('📊 No subscription data in session, fetching from API...');
             fetchSubscriptionData(true);
@@ -561,6 +610,8 @@ export function SubscriptionProvider({ children }) {
     );
 }
 
+// REPLACE the entire useSubscription function (around line 400) with this:
+
 export function useSubscription() {
     const context = useContext(SubscriptionContext);
     const { data: session } = useSafeSession();
@@ -571,45 +622,19 @@ export function useSubscription() {
 
     const { subscriptionData, loading, error, refetch, forceRefresh, clearCache, refreshFromDatabase, refreshAfterPurchase } = context;
 
-    // EMERGENCY OVERRIDE: Force subscription data from session if it exists
-    const sessionSub = session?.user?.subscription;
-    const hasValidSessionSub = sessionSub &&
-        sessionSub.tier === 'gold' &&
-        sessionSub.status === 'active';
-
-    // If we have valid session subscription data, override the hook's internal state
-    const effectiveSubscriptionData = hasValidSessionSub ? {
-        tier: sessionSub.tier,
-        status: sessionSub.status,
-        isAdmin: session.user.isAdmin || false,
-        isActive: true,
-        isTrialActive: false,
-        hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
-        platform: sessionSub.platform || 'revenuecat',
-        billingCycle: sessionSub.billingCycle || 'annual',
-        startDate: sessionSub.startDate,
-        endDate: sessionSub.endDate,
-        usage: session.user.usage || {},
-        subscription: sessionSub,
-        timestamp: new Date().toISOString()
-    } : subscriptionData;
-
-    // Force loading to false if we have session data
-    const effectiveLoading = hasValidSessionSub ? false : loading;
-
     const isExpired = () => {
-        return effectiveSubscriptionData?.status === 'expired';
+        return subscriptionData?.status === 'expired';
     };
 
     // Helper functions with better error handling
     const checkFeature = (feature) => {
-        if (!effectiveSubscriptionData) return false;
+        if (!subscriptionData) return false;
 
         // Admin always has access to all features
-        if (effectiveSubscriptionData.isAdmin) return true;
+        if (subscriptionData.isAdmin) return true;
 
         try {
-            return checkFeatureAccess(effectiveSubscriptionData, feature);
+            return checkFeatureAccess(subscriptionData, feature);
         } catch (err) {
             console.warn('Error checking feature access:', err);
             return false;
@@ -617,13 +642,13 @@ export function useSubscription() {
     };
 
     const checkLimit = (feature, currentCount) => {
-        if (!effectiveSubscriptionData) return false;
+        if (!subscriptionData) return false;
 
         // Admin always passes limit checks
-        if (effectiveSubscriptionData.isAdmin) return true;
+        if (subscriptionData.isAdmin) return true;
 
         try {
-            return checkUsageLimit(effectiveSubscriptionData, feature, currentCount);
+            return checkUsageLimit(subscriptionData, feature, currentCount);
         } catch (err) {
             console.warn('Error checking usage limit:', err);
             return false;
@@ -641,14 +666,14 @@ export function useSubscription() {
     };
 
     const getRemainingCount = (feature) => {
-        if (!effectiveSubscriptionData) return 0;
+        if (!subscriptionData) return 0;
 
         // Admin always has unlimited
-        if (effectiveSubscriptionData.isAdmin) return 'Unlimited';
+        if (subscriptionData.isAdmin) return 'Unlimited';
 
         try {
             const currentCount = getCurrentUsageCount(feature);
-            return getRemainingUsage(effectiveSubscriptionData, feature, currentCount);
+            return getRemainingUsage(subscriptionData, feature, currentCount);
         } catch (err) {
             console.warn('Error getting remaining count:', err);
             return 0;
@@ -657,102 +682,100 @@ export function useSubscription() {
 
     // Admin status checks
     const isAdmin = () => {
-        return effectiveSubscriptionData?.isAdmin === true;
+        return subscriptionData?.isAdmin === true;
     };
 
     const getEffectiveTier = () => {
-        if (effectiveSubscriptionData?.isAdmin) {
+        if (subscriptionData?.isAdmin) {
             return 'admin';
         }
         // Force expired users to free tier for feature purposes
         if (isExpired()) {
             return 'free';
         }
-        return effectiveSubscriptionData?.tier || 'free';
+        return subscriptionData?.tier || 'free';
     };
 
     const isGoldOrHigher = () => {
-        if (effectiveSubscriptionData?.isAdmin) return true;
-        const tier = effectiveSubscriptionData?.tier || 'free';
+        if (subscriptionData?.isAdmin) return true;
+        const tier = subscriptionData?.tier || 'free';
         return tier === 'gold' || tier === 'platinum';
     };
 
     const isPlatinum = () => {
-        if (effectiveSubscriptionData?.isAdmin) return true;
-        return effectiveSubscriptionData?.tier === 'platinum';
+        if (subscriptionData?.isAdmin) return true;
+        return subscriptionData?.tier === 'platinum';
     };
 
     // Map feature gates to correct usage tracking fields
     const getCurrentUsageCount = (feature) => {
-        if (!effectiveSubscriptionData?.usage) return 0;
+        if (!subscriptionData?.usage) return 0;
 
         switch (feature) {
             case FEATURE_GATES.INVENTORY_LIMIT:
-                return effectiveSubscriptionData.usage.totalInventoryItems || effectiveSubscriptionData.usage.inventoryItems || 0;
+                return subscriptionData.usage.totalInventoryItems || subscriptionData.usage.inventoryItems || 0;
             case FEATURE_GATES.PERSONAL_RECIPES:
-                return effectiveSubscriptionData.usage.totalPersonalRecipes || effectiveSubscriptionData.usage.personalRecipes || 0;
+                return subscriptionData.usage.totalPersonalRecipes || subscriptionData.usage.personalRecipes || 0;
             case FEATURE_GATES.UPC_SCANNING:
-                return effectiveSubscriptionData.usage.monthlyUPCScans || 0;  // Monthly
+                return subscriptionData.usage.monthlyUPCScans || 0;  // Monthly
             case FEATURE_GATES.RECEIPT_SCAN:
-                return effectiveSubscriptionData.usage.monthlyReceiptScans || 0;  // Monthly
+                return subscriptionData.usage.monthlyReceiptScans || 0;  // Monthly
             case FEATURE_GATES.MAKE_RECIPE_PUBLIC:
-                return effectiveSubscriptionData.usage.totalPublicRecipes || effectiveSubscriptionData.usage.publicRecipes || 0;
+                return subscriptionData.usage.totalPublicRecipes || subscriptionData.usage.publicRecipes || 0;
             case FEATURE_GATES.RECIPE_COLLECTIONS:
-                return effectiveSubscriptionData.usage.totalRecipeCollections || effectiveSubscriptionData.usage.recipeCollections || 0;
+                return subscriptionData.usage.totalRecipeCollections || subscriptionData.usage.recipeCollections || 0;
             case FEATURE_GATES.SAVE_RECIPE:
-                return effectiveSubscriptionData.usage.totalSavedRecipes || effectiveSubscriptionData.usage.savedRecipes || 0;
+                return subscriptionData.usage.totalSavedRecipes || subscriptionData.usage.savedRecipes || 0;
             default:
                 return 0;
         }
     };
 
     return {
-        // Data - using effective subscription data (session override if available)
+        // Data - directly from Provider
         tier: getEffectiveTier(),
-        originalTier: effectiveSubscriptionData?.tier || 'free', // Keep track of original tier
-        status: effectiveSubscriptionData?.status || (effectiveSubscriptionData?.isAdmin ? 'active' : 'free'),
+        originalTier: subscriptionData?.tier || 'free',
+        status: subscriptionData?.status || (subscriptionData?.isAdmin ? 'active' : 'free'),
         isExpired: isExpired(),
-        billingCycle: effectiveSubscriptionData?.billingCycle,
-        isActive: effectiveSubscriptionData?.isActive !== false,
-        isTrialActive: effectiveSubscriptionData?.isTrialActive || false,
-        platform: effectiveSubscriptionData?.platform || 'undefined',
-        hasUsedFreeTrial: effectiveSubscriptionData?.hasUsedFreeTrial ||
-            context.session?.user?.subscription?.hasUsedFreeTrial ||
-            false,
-        daysUntilTrialEnd: effectiveSubscriptionData?.daysUntilTrialEnd,
+        billingCycle: subscriptionData?.billingCycle,
+        isActive: subscriptionData?.isActive !== false,
+        isTrialActive: subscriptionData?.isTrialActive || false,
+        platform: subscriptionData?.platform || 'undefined',
+        hasUsedFreeTrial: subscriptionData?.hasUsedFreeTrial || false,
+        daysUntilTrialEnd: subscriptionData?.daysUntilTrialEnd,
 
         // Date fields
-        startDate: effectiveSubscriptionData?.startDate,
-        endDate: effectiveSubscriptionData?.endDate,
-        trialStartDate: effectiveSubscriptionData?.trialStartDate,
-        trialEndDate: effectiveSubscriptionData?.trialEndDate,
-        lastPaymentDate: effectiveSubscriptionData?.lastPaymentDate,
-        nextBillingDate: effectiveSubscriptionData?.nextBillingDate,
+        startDate: subscriptionData?.startDate,
+        endDate: subscriptionData?.endDate,
+        trialStartDate: subscriptionData?.trialStartDate,
+        trialEndDate: subscriptionData?.trialEndDate,
+        lastPaymentDate: subscriptionData?.lastPaymentDate,
+        nextBillingDate: subscriptionData?.nextBillingDate,
 
         // Admin status
         isAdmin: isAdmin(),
 
         // Usage counts
-        usage: effectiveSubscriptionData?.usage || {},
+        usage: subscriptionData?.usage || {},
 
-        // State - use effective loading
-        loading: effectiveLoading,
+        // State - directly from Provider
+        loading,
         error,
 
-        // Tier checks (updated with admin support)
+        // Tier checks
         isFree: getEffectiveTier() === 'free',
         isGold: getEffectiveTier() === 'gold',
         isPlatinum: isPlatinum(),
         isGoldOrHigher: isGoldOrHigher(),
 
-        // Feature checks (all now admin-aware)
+        // Feature checks
         checkFeature,
         checkLimit,
         getFeatureMessage,
         getRemainingCount,
         getCurrentUsageCount,
 
-        // Feature helpers - expired users get free tier access only
+        // Feature helpers
         canAddInventoryItem: !isExpired() && checkLimit(FEATURE_GATES.INVENTORY_LIMIT, getCurrentUsageCount(FEATURE_GATES.INVENTORY_LIMIT)),
         canScanUPC: !isExpired() && checkLimit(FEATURE_GATES.UPC_SCANNING, getCurrentUsageCount(FEATURE_GATES.UPC_SCANNING)),
         canScanReceipt: !isExpired() && checkLimit(FEATURE_GATES.RECEIPT_SCAN, getCurrentUsageCount(FEATURE_GATES.RECEIPT_SCAN)),
