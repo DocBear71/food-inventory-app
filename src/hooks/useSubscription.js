@@ -360,10 +360,8 @@ export function SubscriptionProvider({ children }) {
     }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user?.subscription]);
 
 
-    // FIXED: Main effect with better session handling
+    // CRITICAL FIX: Force use session data when it shows paid subscription
     useEffect(() => {
-        console.log('📊 SubscriptionProvider: Session status:', status);
-
         if (status === 'loading') {
             return; // Wait for session to load
         }
@@ -374,13 +372,11 @@ export function SubscriptionProvider({ children }) {
         const justSignedOut = typeof window !== 'undefined' && sessionStorage.getItem('just-signed-out') === 'true';
 
         if (preventCalls || signingOut || justSignedOut) {
-            console.log('Subscription: Skipping data fetch - signout flags active');
             clearSubscriptionCache();
             return;
         }
 
         if (status === 'unauthenticated' || !session) {
-            console.log('No session, clearing subscription data');
             setSubscriptionData({
                 tier: 'free',
                 isAdmin: false,
@@ -396,8 +392,30 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 1. Check for paid subscription FIRST - FIXED to handle your case
+        // CRITICAL FIX: Force check session subscription first
         const sessionSub = session?.user?.subscription;
+        if (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic') {
+            if (sessionSub?.status === 'active') {
+                setSubscriptionData({
+                    tier: sessionSub.tier,
+                    status: sessionSub.status,
+                    isAdmin: session.user.isAdmin || false,
+                    isActive: true,
+                    isTrialActive: false,
+                    hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
+                    platform: sessionSub.platform || 'revenuecat',
+                    billingCycle: sessionSub.billingCycle,
+                    startDate: sessionSub.startDate,
+                    endDate: sessionSub.endDate,
+                    usage: session.user.usage || {},
+                    subscription: sessionSub,
+                    timestamp: new Date().toISOString()
+                });
+                setLoading(false);
+                return;
+            }
+        }
+
         const hasPaidSubscription = sessionSub?.tier !== 'free' &&
             sessionSub?.tier !== 'admin' &&
             sessionSub?.status === 'active' &&
