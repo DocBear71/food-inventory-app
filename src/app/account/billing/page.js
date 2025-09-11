@@ -497,19 +497,30 @@ function BillingContent() {
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
                 addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
 
-                // IMMEDIATE FIX: Force platform update in session if missing
-                if (session?.user?.subscription) {
+                // IMMEDIATE FIX: Force complete subscription update in session
+                if (session?.user) {
+                    if (!session.user.subscription) {
+                        session.user.subscription = {};
+                    }
+                    session.user.subscription.tier = tier;
+                    session.user.subscription.status = 'active';
                     session.user.subscription.platform = 'revenuecat';
-                    addDebugMessage('Force-set platform in session', { platform: 'revenuecat' }, 'info');
+                    session.user.subscription.billingCycle = billingCycle;
+
+                    addDebugMessage('Force-updated entire subscription in session', {
+                        tier: session.user.subscription.tier,
+                        status: session.user.subscription.status,
+                        platform: session.user.subscription.platform
+                    }, 'info');
                 }
 
-                // AGGRESSIVE FIX: Since database is updated, force immediate reload
-                addDebugMessage('Database updated successfully - forcing immediate page reload', {}, 'success');
+                // SIMPLE SOLUTION: Database is updated, reload immediately
+                addDebugMessage('Database updated successfully - reloading immediately', {}, 'success');
 
                 setTimeout(() => {
                     addDebugMessage('Reloading page now...', {}, 'info');
                     window.location.reload();
-                }, 2000);
+                }, 1500); // Reduced to 1.5 seconds
 
                 // Continue with the refresh cycle as backup (but page will reload before this completes)
                 addDebugMessage('Starting subscription refresh cycle as backup', {}, 'info');
@@ -521,6 +532,20 @@ function BillingContent() {
                 // Step 2: Force session update from database
                 await updateSession();
                 addDebugMessage('Step 2: Updated session from database', {}, 'info');
+
+                // FORCE TRIGGER: Try to force subscription hook refresh
+                setTimeout(() => {
+                    addDebugMessage('Attempting forced subscription hook refresh', {}, 'info');
+                    subscription.forceRefresh();
+
+                    setTimeout(() => {
+                        addDebugMessage('Post-force-refresh check', {
+                            currentTier: subscription.tier,
+                            currentStatus: subscription.status,
+                            currentPlatform: subscription.platform
+                        }, subscription.tier === tier ? 'success' : 'warning');
+                    }, 500);
+                }, 100);
 
                 // Step 3: Use the dedicated post-purchase refresh function with detailed debugging
                 addDebugMessage('Step 3A: Before refreshAfterPurchase', {
