@@ -533,7 +533,7 @@ function BillingContent() {
                 // IMMEDIATE SESSION UPDATE - Force the session to be updated
                 addDebugMessage('Force-updating session subscription data', { tier, billingCycle }, 'info');
 
-                // CRITICAL FIX: Update session AND trigger session refresh
+                // After your existing session update code:
                 if (session?.user) {
                     if (!session.user.subscription) {
                         session.user.subscription = {};
@@ -542,8 +542,10 @@ function BillingContent() {
                     session.user.subscription.status = 'active';
                     session.user.subscription.platform = 'revenuecat';
                     session.user.subscription.billingCycle = billingCycle;
-                    session.user.subscription.hasUsedFreeTrial = true;
-                    session.user.subscription.startDate = new Date().toISOString();
+
+                    // ADD THIS LINE to force the SubscriptionProvider to re-evaluate:
+                    window.dispatchEvent(new CustomEvent('subscriptionUpdated', { detail: { tier, status: 'active' } }));
+
 
                     addDebugMessage('Force-updated session subscription object', {
                         tier: session.user.subscription.tier,

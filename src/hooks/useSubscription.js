@@ -611,6 +611,21 @@ export function SubscriptionProvider({ children }) {
         }
     }, []);
 
+    // Add this useEffect in your SubscriptionProvider (after your existing useEffects):
+    useEffect(() => {
+        const handleSubscriptionUpdate = () => {
+            console.log('Subscription update event received, re-evaluating session...');
+            // Force re-evaluation by clearing and re-setting loading state
+            setLoading(true);
+            setTimeout(() => {
+                setLoading(false);
+            }, 100);
+        };
+
+        window.addEventListener('subscriptionUpdated', handleSubscriptionUpdate);
+        return () => window.removeEventListener('subscriptionUpdated', handleSubscriptionUpdate);
+    }, []);
+
     const value = {
         subscriptionData,
         loading,
