@@ -365,10 +365,12 @@ export function SubscriptionProvider({ children }) {
     }, [session?.user?.email, session?.user?.isAdmin, session?.user?.subscriptionStatus, session?.user?.subscription]);
 
 
-    // SIMPLIFIED FIX: Directly use session data without complex conditions
+    // REVERT TO WORKING VERSION: Main effect with better session handling
     useEffect(() => {
+        console.log('📊 SubscriptionProvider: Session status:', status);
+
         if (status === 'loading') {
-            return;
+            return; // Wait for session to load
         }
 
         // Check for signout flags
@@ -377,11 +379,13 @@ export function SubscriptionProvider({ children }) {
         const justSignedOut = typeof window !== 'undefined' && sessionStorage.getItem('just-signed-out') === 'true';
 
         if (preventCalls || signingOut || justSignedOut) {
+            console.log('Subscription: Skipping data fetch - signout flags active');
             clearSubscriptionCache();
             return;
         }
 
         if (status === 'unauthenticated' || !session) {
+            console.log('No session, clearing subscription data');
             setSubscriptionData({
                 tier: 'free',
                 isAdmin: false,
@@ -391,60 +395,17 @@ export function SubscriptionProvider({ children }) {
                 timestamp: new Date().toISOString()
             });
             setLoading(false);
-            return;
-        }
-
-        // DIRECT APPROACH: Since we know from debug that session.user.subscription exists with correct data
-        const userSub = session?.user?.subscription;
-
-        // Force immediate subscription data setting based on what we see in debug
-        if (userSub && userSub.tier === 'gold' && userSub.status === 'active') {
-            // Debug shows this exact data exists - use it directly
-            setSubscriptionData({
-                tier: 'gold',
-                status: 'active',
-                isAdmin: session.user.isAdmin || false,
-                isActive: true,
-                isTrialActive: false,
-                hasUsedFreeTrial: Boolean(userSub.hasUsedFreeTrial),
-                platform: userSub.platform || 'revenuecat',
-                billingCycle: userSub.billingCycle || 'annual',
-                startDate: userSub.startDate,
-                endDate: userSub.endDate,
-                usage: session.user.usage || {},
-                subscription: userSub,
-                timestamp: new Date().toISOString()
-            });
-            setLoading(false);
             setError(null);
+            setRetryCount(0);
+            setIsFetching(false);
             return;
         }
 
-        // Fallback for other subscription scenarios
-        if (userSub && userSub.tier && userSub.status) {
-            setSubscriptionData({
-                tier: userSub.tier,
-                status: userSub.status,
-                isAdmin: session.user.isAdmin || false,
-                isActive: userSub.status === 'active',
-                isTrialActive: userSub.status === 'trial',
-                hasUsedFreeTrial: Boolean(userSub.hasUsedFreeTrial),
-                platform: userSub.platform || 'revenuecat',
-                billingCycle: userSub.billingCycle,
-                startDate: userSub.startDate,
-                endDate: userSub.endDate,
-                usage: session.user.usage || {},
-                subscription: userSub,
-                timestamp: new Date().toISOString()
-            });
-            setLoading(false);
-            setError(null);
-            return;
-        }
+        // REVERT TO WORKING PRIORITY SYSTEM:
 
-        // Admin check
-        if ((session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') &&
-            session?.user?.email !== 'demo@test.com') {
+        // 1. Admin users - highest priority (KEEP THIS SIMPLE)
+        if (session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') {
+            console.log('📋 Admin user - setting admin subscription');
             setSubscriptionData({
                 tier: 'admin',
                 isAdmin: true,
@@ -454,23 +415,76 @@ export function SubscriptionProvider({ children }) {
                 timestamp: new Date().toISOString()
             });
             setLoading(false);
-            setError(null);
             return;
         }
 
-        // Free tier fallback
-        setSubscriptionData({
-            tier: 'free',
-            isAdmin: false,
-            isActive: true,
-            isTrialActive: false,
-            usage: session.user.usage || {},
-            timestamp: new Date().toISOString()
-        });
-        setLoading(false);
-        setError(null);
+        // 2. Session has subscription object - use it directly (REVERT TO SIMPLE VERSION)
+        if (session?.user?.subscription?.tier && session?.user?.subscription?.status) {
+            console.log('📋 Using session subscription object:', session.user.subscription);
+            console.log('📋 Session subscription status:', session.user.subscription.status);
 
-    }, [session, status, clearSubscriptionCache]); // Removed fetchSubscriptionData dependency
+            // CRITICAL FIX: Add the missing platform field that RevenueCat needs
+            const subscriptionDataToSet = {
+                tier: session.user.subscription.tier,
+                status: session.user.subscription.status,
+                isAdmin: session.user.isAdmin || false,
+                isActive: session.user.subscription.status === 'active',
+                isTrialActive: session.user.subscription.status === 'trial',
+                hasUsedFreeTrial: Boolean(session.user.subscription.hasUsedFreeTrial),
+                platform: session.user.subscription.platform || 'revenuecat', // ADD THIS LINE
+                billingCycle: session.user.subscription.billingCycle, // ADD THIS LINE
+                startDate: session.user.subscription.startDate, // ADD THIS LINE
+                endDate: session.user.subscription.endDate, // ADD THIS LINE
+                usage: session.user.usage || {},
+                subscription: session.user.subscription,
+                timestamp: new Date().toISOString()
+            };
+
+            console.log('✅ Setting subscription data with platform:', subscriptionDataToSet.platform);
+            setSubscriptionData(subscriptionDataToSet);
+            setLoading(false);
+            return;
+        }
+
+        // 3. Session has individual subscription fields (KEEP SIMPLE)
+        if (session?.user?.subscriptionTier || session?.user?.effectiveTier) {
+            console.log('📋 Using session tier fields:', {
+                subscriptionTier: session.user.subscriptionTier,
+                effectiveTier: session.user.effectiveTier
+            });
+
+            const hasUsedFreeTrial = Boolean(
+                session.user.subscription?.hasUsedFreeTrial ||
+                session.user.hasUsedFreeTrial
+            );
+
+            setSubscriptionData({
+                tier: session.user.effectiveTier || session.user.subscriptionTier,
+                isAdmin: session.user.isAdmin || false,
+                isActive: true,
+                isTrialActive: false,
+                hasUsedFreeTrial: hasUsedFreeTrial,
+                platform: 'revenuecat', // DEFAULT PLATFORM FOR LEGACY DATA
+                usage: session.user.usage || {},
+                timestamp: new Date().toISOString()
+            });
+            setLoading(false);
+            return;
+        }
+
+        // 4. Only fetch from API if we have no subscription data at all
+        if (session?.user?.id) {
+            console.log('📊 No subscription data in session, fetching from API...');
+            fetchSubscriptionData(true);
+        }
+
+        // Cleanup timeout on unmount or session change
+        return () => {
+            if (fetchTimeoutRef.current) {
+                clearTimeout(fetchTimeoutRef.current);
+            }
+        };
+    }, [session, status, clearSubscriptionCache, fetchSubscriptionData]);
 
     // FIXED: Force refresh function for mobile cache issues
     const forceRefresh = useCallback(async () => {
