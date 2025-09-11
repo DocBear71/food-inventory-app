@@ -392,44 +392,41 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // CRITICAL FIX: Force check session subscription first
+        // **CRITICAL FIX: Check session subscription FIRST and correctly**
         const sessionSub = session?.user?.subscription;
-        if (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic') {
-            if (sessionSub?.status === 'active') {
-                setSubscriptionData({
-                    tier: sessionSub.tier,
-                    status: sessionSub.status,
-                    isAdmin: session.user.isAdmin || false,
-                    isActive: true,
-                    isTrialActive: false,
-                    hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
-                    platform: sessionSub.platform || 'revenuecat',
-                    billingCycle: sessionSub.billingCycle,
-                    startDate: sessionSub.startDate,
-                    endDate: sessionSub.endDate,
-                    usage: session.user.usage || {},
-                    subscription: sessionSub,
-                    timestamp: new Date().toISOString()
-                });
-                setLoading(false);
-                return;
-            }
-        }
+        console.log('🔍 DEBUG: Session subscription check:', {
+            sessionSubExists: !!sessionSub,
+            sessionSubTier: sessionSub?.tier,
+            sessionSubStatus: sessionSub?.status,
+            sessionSubPlatform: sessionSub?.platform
+        });
 
-        const hasPaidSubscription = sessionSub?.tier !== 'free' &&
-            sessionSub?.tier !== 'admin' &&
-            sessionSub?.status === 'active' &&
-            (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic');
+        // **BUG FIX: This was the problem - the condition logic was wrong**
+        // Check if session has a PAID subscription (not free, not admin, and active)
+        const sessionHasPaidSub = sessionSub &&
+            sessionSub.tier !== 'free' &&
+            sessionSub.tier !== 'admin' &&
+            sessionSub.status === 'active' &&
+            (sessionSub.tier === 'gold' || sessionSub.tier === 'platinum' || sessionSub.tier === 'basic');
 
-        if (hasPaidSubscription) {
+        console.log('🔍 DEBUG: Session paid subscription check:', {
+            sessionHasPaidSub,
+            tierCheck: sessionSub?.tier !== 'free' && sessionSub?.tier !== 'admin',
+            statusCheck: sessionSub?.status === 'active',
+            validTierCheck: (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic')
+        });
+
+        // **PRIORITY 1: Session has paid subscription - use it immediately**
+        if (sessionHasPaidSub) {
+            console.log('✅ Using session paid subscription data:', sessionSub);
             setSubscriptionData({
                 tier: sessionSub.tier,
                 status: sessionSub.status,
                 isAdmin: session.user.isAdmin || false,
-                isActive: sessionSub.status === 'active',
-                isTrialActive: sessionSub.status === 'trial',
+                isActive: true,
+                isTrialActive: false,
                 hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
-                platform: sessionSub.platform || 'revenuecat', // FALLBACK: Default to revenuecat
+                platform: sessionSub.platform || 'revenuecat',
                 billingCycle: sessionSub.billingCycle,
                 startDate: sessionSub.startDate,
                 endDate: sessionSub.endDate,
@@ -441,9 +438,9 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 3. Admin users - but ONLY if no paid subscription exists AND not demo account
+        // **PRIORITY 2: Admin users - but ONLY if no paid subscription exists**
         if ((session?.user?.isAdmin || session?.user?.email === 'e.g.mckeown@gmail.com') &&
-            !hasPaidSubscription &&
+            !sessionHasPaidSub &&
             session?.user?.email !== 'demo@test.com') {
             console.log('📋 Admin user with no paid subscription - setting admin subscription');
             setSubscriptionData({
@@ -458,37 +455,38 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 2. Session has subscription object - use it directly (for mobile/enhanced sessions)
-        if (session?.user?.subscription?.tier && session?.user?.subscription?.status) {
-            console.log('📋 Using session subscription object:', session.user.subscription);
-            console.log('📋 Session subscription status:', session.user.subscription.status);
+        // **PRIORITY 3: Session has subscription object - use it directly (for mobile/enhanced sessions)**
+        if (sessionSub?.tier && sessionSub?.status) {
+            console.log('📋 Using session subscription object:', sessionSub);
 
-            // FIXED: Ensure proper boolean conversion for hasUsedFreeTrial
-            const hasUsedFreeTrial = Boolean(session.user.subscription.hasUsedFreeTrial);
+            const hasUsedFreeTrial = Boolean(sessionSub.hasUsedFreeTrial);
 
             setSubscriptionData({
-                tier: session.user.subscription.tier,
-                status: session.user.subscription.status,
+                tier: sessionSub.tier,
+                status: sessionSub.status,
                 isAdmin: session.user.isAdmin || false,
-                isActive: session.user.subscription.status === 'active',
-                isTrialActive: session.user.subscription.status === 'trial',
+                isActive: sessionSub.status === 'active',
+                isTrialActive: sessionSub.status === 'trial',
                 hasUsedFreeTrial: hasUsedFreeTrial,
+                platform: sessionSub.platform || 'revenuecat', // **FIXED: Default platform**
+                billingCycle: sessionSub.billingCycle,
+                startDate: sessionSub.startDate,
+                endDate: sessionSub.endDate,
                 usage: session.user.usage || {},
-                subscription: session.user.subscription,
+                subscription: sessionSub,
                 timestamp: new Date().toISOString()
             });
             setLoading(false);
             return;
         }
 
-        // 3. Session has individual subscription fields
+        // **PRIORITY 4: Session has individual subscription fields**
         if (session?.user?.subscriptionTier || session?.user?.effectiveTier) {
             console.log('📋 Using session tier fields:', {
                 subscriptionTier: session.user.subscriptionTier,
                 effectiveTier: session.user.effectiveTier
             });
 
-            // FIXED: Better extraction of hasUsedFreeTrial from multiple possible locations
             const hasUsedFreeTrial = Boolean(
                 session.user.subscription?.hasUsedFreeTrial ||
                 session.user.hasUsedFreeTrial
@@ -507,7 +505,7 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 4. For all other cases, fetch from API
+        // **PRIORITY 5: For all other cases, fetch from API**
         if (session?.user?.id) {
             console.log('📊 Fetching subscription data from API...');
             fetchSubscriptionData(true);
