@@ -57,7 +57,18 @@ function BillingContent() {
             step: debugLog.length + 1
         };
 
-        setDebugLog(prev => [...prev.slice(-20), newMessage]); // Keep last 20 messages
+        setDebugLog(prev => {
+            const updated = [...prev.slice(-50), newMessage]; // Keep last 50 messages instead of 20
+
+            // Store in localStorage for persistence
+            try {
+                localStorage.setItem('debug-log-backup', JSON.stringify(updated));
+            } catch (e) {
+                console.warn('Could not save debug log to localStorage');
+            }
+
+            return updated;
+        });
 
         // Auto-show debug log for important messages
         if (type === 'error' || type === 'success') {
@@ -102,11 +113,33 @@ function BillingContent() {
         }
     };
 
-// VISUAL DEBUG: Clear debug log
+    // VISUAL DEBUG: Clear debug log with confirmation
     const clearDebugLog = () => {
         setDebugLog([]);
         setShowDebugLog(false);
+        try {
+            localStorage.removeItem('debug-log-backup');
+        } catch (e) {
+            console.warn('Could not clear debug log from localStorage');
+        }
     };
+
+
+    // Load debug log from localStorage on component mount
+    useEffect(() => {
+        try {
+            const savedLog = localStorage.getItem('debug-log-backup');
+            if (savedLog) {
+                const parsed = JSON.parse(savedLog);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    setDebugLog(parsed);
+                    addDebugMessage('Recovered debug log from previous session', { count: parsed.length }, 'info');
+                }
+            }
+        } catch (e) {
+            console.warn('Could not recover debug log from localStorage');
+        }
+    }, []);
 
     // Error boundary for debugging
     useEffect(() => {
@@ -1014,7 +1047,7 @@ function BillingContent() {
                 <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
                     <h3 className="text-yellow-900 font-semibold mb-2">Visual Debug Mode Active</h3>
                     <p className="text-yellow-700 text-sm mb-3">
-                        All debugging information will be displayed visually on screen.
+                        Debug log stays open longer and persists between sessions. Page reloads in 7 seconds after purchase.
                     </p>
                     <div className="flex gap-2 flex-wrap">
                         <TouchEnhancedButton
@@ -1030,21 +1063,30 @@ function BillingContent() {
                             Show Debug Log ({debugLog.length})
                         </TouchEnhancedButton>
                         <TouchEnhancedButton
+                            onClick={() => {
+                                setShowDebugLog(true);
+                                // Force scroll to bottom of debug log
+                                setTimeout(() => {
+                                    const debugModal = document.querySelector('.debug-log-container');
+                                    if (debugModal) {
+                                        debugModal.scrollTop = debugModal.scrollHeight;
+                                    }
+                                }, 100);
+                            }}
+                            className="bg-green-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Show Latest Debug
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={clearDebugLog}
                             className="bg-gray-600 text-white px-3 py-1 rounded text-sm"
                         >
                             Clear Debug Log
                         </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={() => setDebugInfo(null)}
-                            className="bg-red-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Clear Debug Info
-                        </TouchEnhancedButton>
                     </div>
                     {debugLog.length > 0 && (
                         <div className="mt-2 text-xs text-yellow-800">
-                            Last message: {debugLog[debugLog.length - 1]?.message} ({debugLog[debugLog.length - 1]?.type})
+                            Last: {debugLog[debugLog.length - 1]?.message} ({debugLog[debugLog.length - 1]?.type})
                         </div>
                     )}
                 </div>
@@ -1625,7 +1667,7 @@ function BillingContent() {
                                 </TouchEnhancedButton>
                             </div>
                         </div>
-                        <div className="flex-1 overflow-y-auto p-4">
+                        <div className="flex-1 overflow-y-auto p-4 debug-log-container">
                             {debugLog.length === 0 ? (
                                 <div className="text-gray-500 text-center py-8">No debug messages yet</div>
                             ) : (
