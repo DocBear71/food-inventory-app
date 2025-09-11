@@ -1052,6 +1052,21 @@ function BillingContent() {
                     <div className="flex gap-2 flex-wrap">
                         <TouchEnhancedButton
                             onClick={() => {
+                                // Force override the subscription state for testing
+                                subscription.forceRefresh();
+
+                                // Also try direct state manipulation
+                                if (window.location.reload) {
+                                    addDebugMessage('Force reloading page to clear hook state', {}, 'warning');
+                                    setTimeout(() => window.location.reload(), 1000);
+                                }
+                            }}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Force Override Test
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => {
                                 const sessionSub = session?.user?.subscription;
                                 addDebugMessage('Hook Decision Flow Debug', {
                                     sessionExists: !!session,
