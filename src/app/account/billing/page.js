@@ -1051,6 +1051,44 @@ function BillingContent() {
                     </p>
                     <div className="flex gap-2 flex-wrap">
                         <TouchEnhancedButton
+                            onClick={async () => {
+                                try {
+                                    addDebugMessage('Manual database check started', {}, 'info');
+
+                                    const response = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
+                                        method: 'GET',
+                                        headers: {
+                                            'Cache-Control': 'no-cache',
+                                            'Pragma': 'no-cache'
+                                        },
+                                        cache: 'no-store'
+                                    });
+
+                                    if (response.ok) {
+                                        const dbData = await response.json();
+                                        addDebugMessage('Database API Response', {
+                                            tier: dbData.tier,
+                                            status: dbData.status,
+                                            platform: dbData.platform,
+                                            isAdmin: dbData.isAdmin,
+                                            isActive: dbData.isActive,
+                                            revenueCatId: dbData.debugInfo?.revenueCatId || 'missing',
+                                            userSubscriptionPlatform: dbData.debugInfo?.userSubscriptionPlatform || 'missing'
+                                        }, dbData.tier === 'gold' ? 'success' : 'error');
+
+                                        setShowDebugLog(true);
+                                    } else {
+                                        addDebugMessage('Database check failed', { status: response.status }, 'error');
+                                    }
+                                } catch (error) {
+                                    addDebugMessage('Database check error', { error: error.message }, 'error');
+                                }
+                            }}
+                            className="bg-red-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Check Database Now
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
                             onClick={() => setShowDebugModal(true)}
                             className="bg-yellow-600 text-white px-3 py-1 rounded text-sm"
                         >
