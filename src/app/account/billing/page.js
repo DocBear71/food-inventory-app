@@ -1052,6 +1052,35 @@ function BillingContent() {
                     <div className="flex gap-2 flex-wrap">
                         <TouchEnhancedButton
                             onClick={() => {
+                                const sessionSub = session?.user?.subscription;
+                                addDebugMessage('Hook Decision Flow Debug', {
+                                    sessionExists: !!session,
+                                    sessionStatus: session ? 'authenticated' : 'missing',
+                                    userSubscriptionExists: !!sessionSub,
+                                    sessionSubTier: sessionSub?.tier,
+                                    sessionSubStatus: sessionSub?.status,
+                                    sessionSubPlatform: sessionSub?.platform,
+
+                                    // Test the condition logic
+                                    tierNotFree: sessionSub?.tier !== 'free',
+                                    tierNotAdmin: sessionSub?.tier !== 'admin',
+                                    statusActive: sessionSub?.status === 'active',
+                                    isGoldPlatinumBasic: (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic'),
+
+                                    // Overall condition result
+                                    wouldPassPaidCheck: sessionSub?.tier !== 'free' &&
+                                        sessionSub?.tier !== 'admin' &&
+                                        sessionSub?.status === 'active' &&
+                                        (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic')
+                                }, 'info');
+                                setShowDebugLog(true);
+                            }}
+                            className="bg-orange-600 text-white px-3 py-1 rounded text-sm"
+                        >
+                            Debug Hook Logic
+                        </TouchEnhancedButton>
+                        <TouchEnhancedButton
+                            onClick={() => {
                                 addDebugMessage('Current useSubscription hook state', {
                                     tier: subscription.tier,
                                     status: subscription.status,
