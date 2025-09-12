@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/account/billing/page.js v4 - Added basic weekly test subscription
+// file: /src/app/account/billing/page.js v5 - Ready for submission
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -15,7 +15,7 @@ import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
 // Separate component for search params to wrap in Suspense
 function BillingContent() {
-    const { data: session, status } = useSafeSession();
+    const { data: session, status, update: updateSession } = useSafeSession();
     const router = useRouter();
     const searchParams = useSearchParams();
     const subscription = useSubscription();
@@ -30,43 +30,6 @@ function BillingContent() {
     const [isRestoring, setIsRestoring] = useState(false);
     const [purchaseSteps, setPurchaseSteps] = useState([]);
     const [purchaseCompleted, setPurchaseCompleted] = useState(false);
-
-    // ENHANCED: Better debug tracking for iPad issues
-    const addPurchaseStep = (step, data = {}) => {
-        const timestamp = new Date().toISOString();
-        const newStep = { step, timestamp, data };
-        setPurchaseSteps(prev => [...prev, newStep]);
-        console.log(`📱 Purchase Step ${purchaseSteps.length + 1}:`, step, data);
-    };
-
-    // Error boundary for debugging
-    useEffect(() => {
-        const handleError = async (error) => {
-            console.error('🚨 Global error caught:', error);
-            addPurchaseStep('GLOBAL_ERROR', {message: error.message, stack: error.stack});
-            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showError({
-                title: 'App Error',
-                message: error.message
-            });
-        };
-
-        window.addEventListener('error', handleError);
-        window.addEventListener('unhandledrejection', async (event) => {
-            console.error('🚨 Unhandled promise rejection:', event.reason);
-            addPurchaseStep('PROMISE_REJECTION', {reason: event.reason?.message || 'Unknown error'});
-            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showError({
-                title: 'Promise Error',
-                message: event.reason?.message || 'Unknown error'
-            });
-        });
-
-        return () => {
-            window.removeEventListener('error', handleError);
-            window.removeEventListener('unhandledrejection', handleError);
-        };
-    }, [purchaseSteps.length]);
 
     // Early returns for auth
     useEffect(() => {
@@ -137,15 +100,6 @@ function BillingContent() {
 
         setLoading(true);
         setSuccess('');
-        setPurchaseSteps([]);
-
-        addPurchaseStep('PURCHASE_INITIATED', {
-            tier: newTier,
-            billing: newBilling,
-            platform: platform.type,
-            isIOS: platform.isIOS,
-            isNative: platform.isNative
-        });
 
         try {
             // Route to appropriate payment system based on platform
@@ -163,7 +117,6 @@ function BillingContent() {
             }
         } catch (error) {
             console.error('Error in subscription change:', error);
-            addPurchaseStep('SUBSCRIPTION_CHANGE_ERROR', { message: error.message });
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showError({
                 title: 'Subscription Error',
@@ -176,7 +129,6 @@ function BillingContent() {
 
     // Handle Stripe purchases (web)
     const handleStripePurchase = async (newTier, newBilling) => {
-        addPurchaseStep('STRIPE_FLOW_START');
 
         const response = await apiPost('/api/payments/create-checkout', {
             tier: newTier,
@@ -188,8 +140,6 @@ function BillingContent() {
         const data = await response.json();
 
         if (response.ok && data.url) {
-            addPurchaseStep('STRIPE_CHECKOUT_CREATED', { url: data.url });
-
             // Track Stripe checkout initiation
             try {
                 await trackEmailEvent({
@@ -219,12 +169,9 @@ function BillingContent() {
         }
     };
 
-    // ENHANCED: RevenueCat purchase flow with better offerings error handling
+    // Clean RevenueCat purchase flow
     const handleRevenueCatPurchase = async (tier, billingCycle) => {
         try {
-            addPurchaseStep('REVENUECAT_FLOW_START');
-
-            // Better iPad/iOS detection and error handling
             if (!platform.isIOS && !platform.isAndroid) {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -234,197 +181,60 @@ function BillingContent() {
                 return;
             }
 
-            console.log('1. Starting RevenueCat purchase for iOS/iPad...');
-            addPurchaseStep('REVENUECAT_IMPORT_START');
-
-            // Dynamic import with better error handling
+            // Import RevenueCat
             let Purchases;
             try {
                 const purchasesModule = await import('@revenuecat/purchases-capacitor');
                 Purchases = purchasesModule.Purchases;
-                addPurchaseStep('REVENUECAT_IMPORT_SUCCESS');
-                console.log('2. RevenueCat SDK imported successfully');
             } catch (importError) {
-                addPurchaseStep('REVENUECAT_IMPORT_FAILED', { error: importError.message });
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
-                    title: 'SDK Not Available',
-                    message: `RevenueCat SDK not available: ${importError.message}`
+                    title: 'SDK Error',
+                    message: 'Failed to load payment system. Please try again.'
                 });
                 return;
             }
 
-            // Get API key for iOS
+            // Configure RevenueCat
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
-            console.log('3. API key check:', !!apiKey);
-            addPurchaseStep('API_KEY_CHECK', { hasKey: !!apiKey });
-
             if (!apiKey) {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
                     title: 'Configuration Error',
-                    message: 'RevenueCat iOS API key not configured'
+                    message: 'Payment system not properly configured'
                 });
                 return;
             }
 
-            // ENHANCED: Configure RevenueCat with better error handling
-            addPurchaseStep('REVENUECAT_CONFIGURE_START');
-            try {
-                await Purchases.configure({
-                    apiKey: apiKey,
-                    appUserID: session.user.id
-                });
-                addPurchaseStep('REVENUECAT_CONFIGURE_SUCCESS');
-                console.log('4. RevenueCat configured successfully!');
-            } catch (configError) {
-                addPurchaseStep('REVENUECAT_CONFIGURE_FAILED', { error: configError.message });
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                await NativeDialog.showError({
-                    title: 'Configuration Failed',
-                    message: `RevenueCat configuration failed: ${configError.message}`
-                });
-                return;
-            }
+            await Purchases.configure({
+                apiKey: apiKey,
+                appUserID: null
+            });
 
-            // ENHANCED: Get customer info with detailed logging
-            addPurchaseStep('CUSTOMER_INFO_START');
-            let customerInfo;
-            try {
-                customerInfo = await Purchases.getCustomerInfo();
-                addPurchaseStep('CUSTOMER_INFO_SUCCESS', {
-                    userId: customerInfo.originalAppUserId,
-                    activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
-                    entitlements: Object.keys(customerInfo.entitlements?.all || {})
-                });
-                console.log('5. Customer info retrieved successfully');
-            } catch (customerError) {
-                addPurchaseStep('CUSTOMER_INFO_FAILED', { error: customerError.message });
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                await NativeDialog.showError({
-                    title: 'Customer Info Error',
-                    message: `Failed to get customer info: ${customerError.message}`
-                });
-                return;
-            }
-
-            // ENHANCED: Get offerings with comprehensive error handling and retry logic
-            addPurchaseStep('OFFERINGS_START');
-            let offerings;
-            let retryCount = 0;
-            const maxRetries = 3;
-
-            while (retryCount < maxRetries) {
-                try {
-                    console.log(`6. Attempting to get offerings (attempt ${retryCount + 1}/${maxRetries})...`);
-                    offerings = await Purchases.getOfferings();
-
-                    addPurchaseStep('OFFERINGS_SUCCESS', {
-                        hasOfferings: !!offerings,
-                        hasCurrent: !!offerings?.current,
-                        packageCount: offerings?.current?.availablePackages?.length || 0,
-                        attempt: retryCount + 1
-                    });
-
-                    console.log('6. Offerings retrieved:', {
-                        hasOfferings: !!offerings,
-                        hasCurrent: !!offerings?.current,
-                        packageCount: offerings?.current?.availablePackages?.length || 0
-                    });
-
-                    break; // Success, exit retry loop
-
-                } catch (offeringsError) {
-                    retryCount++;
-                    console.error(`Offerings attempt ${retryCount} failed:`, offeringsError.message);
-
-                    addPurchaseStep('OFFERINGS_RETRY', {
-                        attempt: retryCount,
-                        error: offeringsError.message,
-                        willRetry: retryCount < maxRetries
-                    });
-
-                    if (retryCount >= maxRetries) {
-                        // Final attempt failed
-                        addPurchaseStep('OFFERINGS_FAILED', { error: offeringsError.message });
-
-                        const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-
-                        // Provide specific error messages based on error type
-                        if (offeringsError.message?.includes('no products registered')) {
-                            await NativeDialog.showError({
-                                title: 'Store Configuration Issue',
-                                message: 'The App Store subscriptions are being set up. This usually resolves within 24-48 hours after App Store review approval. Please try again later.'
-                            });
-                        } else if (offeringsError.message?.includes('network') || offeringsError.message?.includes('Network')) {
-                            await NativeDialog.showError({
-                                title: 'Network Error',
-                                message: 'Unable to connect to the App Store. Please check your internet connection and try again.'
-                            });
-                        } else if (offeringsError.message?.includes('configuration')) {
-                            await NativeDialog.showError({
-                                title: 'Configuration Error',
-                                message: 'App Store configuration is being updated. Please try again in a few minutes.'
-                            });
-                        } else {
-                            await NativeDialog.showError({
-                                title: 'Store Temporarily Unavailable',
-                                message: `Unable to load subscription options: ${offeringsError.message}. Please try again later.`
-                            });
-                        }
-                        return;
-                    } else {
-                        // Wait before retry (exponential backoff)
-                        await new Promise(resolve => setTimeout(resolve, 1000 * Math.pow(2, retryCount - 1)));
-                    }
-                }
-            }
-
-            // Validate offerings
-            if (!offerings || !offerings.current) {
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                await NativeDialog.showError({
-                    title: 'Store Unavailable',
-                    message: 'No subscription offerings available. This may be due to pending App Store review. Please try again later.'
-                });
-                return;
-            }
-
+            // Get offerings
+            const offerings = await Purchases.getOfferings();
             const packages = offerings.current.availablePackages || [];
+
             if (packages.length === 0) {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
-                    title: 'Subscriptions Unavailable',
-                    message: 'No subscription packages found. The subscriptions may still be under review by Apple. Please try again later.'
+                    title: 'No Products Available',
+                    message: 'No subscription packages are currently available. Please try again later.'
                 });
                 return;
             }
 
-            // Log all available packages for debugging
-            addPurchaseStep('PACKAGES_ANALYSIS', {
-                totalPackages: packages.length,
-                packageIdentifiers: packages.map(p => p.identifier),
-                productIdentifiers: packages.map(p => p.product?.identifier)
-            });
-
-            console.log('7. Available packages:', packages.map(p => ({
-                identifier: p.identifier,
-                productId: p.product?.identifier,
-                price: p.product?.priceString
-            })));
-
-            // ENHANCED: Find the correct package with better matching logic
+            // Find package
             const targetPackageId = `${tier}_${billingCycle}_package`;
             let packageToPurchase = packages.find(p => p.identifier === targetPackageId);
 
-            // If exact match not found, try alternative matching
             if (!packageToPurchase) {
-                // Try matching by product identifier
+                // Try alternative matching
                 packageToPurchase = packages.find(p => p.product?.identifier === targetPackageId);
             }
 
-            // If still not found, try more flexible matching
             if (!packageToPurchase) {
+                // Try flexible matching
                 const tierKeywords = tier.toLowerCase();
                 const cycleKeywords = billingCycle.toLowerCase();
 
@@ -438,264 +248,107 @@ function BillingContent() {
             }
 
             if (!packageToPurchase) {
-                console.error('❌ Could not find package for:', targetPackageId);
-                console.log('Available packages:', packages.map(p => ({
-                    id: p.identifier,
-                    productId: p.product?.identifier
-                })));
-
-                addPurchaseStep('PACKAGE_NOT_FOUND', {
-                    targetPackageId,
-                    availablePackages: packages.map(p => p.identifier)
-                });
-
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
-                    title: 'Subscription Not Available',
-                    message: `The ${tier} ${billingCycle} subscription package is not currently available. Looking for: ${targetPackageId}`
+                    title: 'Package Not Found',
+                    message: `Could not find the ${tier} ${billingCycle} subscription package.`
                 });
                 return;
             }
 
-            addPurchaseStep('PACKAGE_FOUND', {
-                packageId: packageToPurchase.identifier,
-                productId: packageToPurchase.product?.identifier,
-                price: packageToPurchase.product?.priceString
+            // Confirm with user
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            const confirmed = await NativeDialog.showConfirm({
+                title: 'Confirm Purchase',
+                message: `About to purchase:\n\nProduct: ${packageToPurchase.product?.title}\nPrice: ${packageToPurchase.product?.priceString}\n\nProceed with purchase?`,
+                confirmText: 'Yes, Purchase',
+                cancelText: 'Cancel'
             });
 
-            console.log('8. Found package to purchase:', {
-                identifier: packageToPurchase.identifier,
-                productId: packageToPurchase.product?.identifier,
-                price: packageToPurchase.product?.priceString
-            });
-
-            // ENHANCED: Make the purchase with better error handling
-            addPurchaseStep('PURCHASE_START');
-            let purchaseResult;
-            try {
-                console.log('9. Starting purchase...');
-                purchaseResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
-                addPurchaseStep('PURCHASE_SUCCESS', {
-                    transactionId: purchaseResult.transactionIdentifier,
-                    customerInfo: {
-                        userId: purchaseResult.customerInfo?.originalAppUserId,
-                        activeSubscriptions: Object.keys(purchaseResult.customerInfo?.activeSubscriptions || {}),
-                        entitlements: Object.keys(purchaseResult.customerInfo?.entitlements?.all || {})
-                    }
-                });
-                console.log('10. Purchase completed successfully!');
-            } catch (purchaseError) {
-                addPurchaseStep('PURCHASE_FAILED', { error: purchaseError.message });
-                console.error('Purchase failed:', purchaseError);
-
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-
-                // Handle specific purchase errors
-                if (purchaseError.message?.includes('cancelled') || purchaseError.message?.includes('user_cancelled')) {
-                    // User cancelled - don't show error, just return
-                    console.log('User cancelled purchase');
-                    return;
-                } else if (purchaseError.message?.includes('already_purchased')) {
-                    await NativeDialog.showAlert({
-                        title: 'Already Subscribed',
-                        message: 'You already have this subscription. Please use "Restore Purchases" if needed.'
-                    });
-                    return;
-                } else if (purchaseError.message?.includes('billing_unavailable')) {
-                    await NativeDialog.showAlert({
-                        title: 'Billing Unavailable',
-                        message: 'In-app purchases are not available on this device. Please try again later.'
-                    });
-                    return;
-                } else if (purchaseError.message?.includes('NETWORK_ERROR')) {
-                    await NativeDialog.showAlert({
-                        title: 'Network Error',
-                        message: 'Network error. Please check your connection and try again.'
-                    });
-                    return;
-                }
-
-                throw purchaseError;
+            if (!confirmed) {
+                return;
             }
 
-            // Track successful purchase
-            try {
-                await trackEmailEvent({
-                    eventType: 'purchase_completed',
-                    userEmail: session.user.email,
-                    userId: session.user.id,
-                    emailType: 'revenuecat_purchase',
-                    metadata: {
-                        tier,
-                        billingCycle,
-                        platform: platform.type,
-                        packageId: packageToPurchase.identifier,
-                        transactionId: purchaseResult.transactionIdentifier
-                    }
-                });
-            } catch (trackingError) {
-                console.error('Failed to track purchase event:', trackingError);
-            }
+            // Make the purchase
+            const purchaseResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
 
-            // ENHANCED: Verify purchase with backend
+            // Verify the purchase
             await handlePurchaseVerification(purchaseResult, tier, billingCycle);
 
         } catch (error) {
-            console.error('RevenueCat purchase error:', error);
-            addPurchaseStep('REVENUECAT_ERROR', {
-                message: error.message,
-                stack: error.stack
-            });
-
-            // Enhanced error messages for iPad users
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-            if (error.message?.includes('configuration')) {
-                await NativeDialog.showError({
-                    title: 'Configuration Issue',
-                    message: 'App Store configuration issue. The subscriptions may still be under Apple review. Please try again later.'
-                });
-            } else if (error.message?.includes('network') || error.message?.includes('Network')) {
-                await NativeDialog.showError({
-                    title: 'Network Error',
-                    message: 'Network connection issue. Please check your internet connection and try again.'
-                });
-            } else if (error.message?.includes('offerings') || error.message?.includes('packages')) {
-                await NativeDialog.showError({
-                    title: 'Store Temporarily Unavailable',
-                    message: 'Subscription store is temporarily unavailable. This often happens when subscriptions are under App Store review. Please try again later.'
-                });
-            } else {
-                await NativeDialog.showError({
-                    title: 'Purchase Error',
-                    message: error.message
-                });
-            }
+            await NativeDialog.showError({
+                title: 'Purchase Error',
+                message: error.message
+            });
         } finally {
-            // CRITICAL FIX: Always clear loading state regardless of success/failure
             setLoading(false);
         }
         setPurchaseCompleted(true);
     };
 
-    // ENHANCED: Purchase verification with better error handling
+
+    // Clean purchase verification without debug messages
     const handlePurchaseVerification = async (purchaseResult, tier, billingCycle) => {
         try {
-            addPurchaseStep('VERIFICATION_START');
-            console.log('11. Verifying purchase with backend...');
+            // Set purchase as completed immediately for UI feedback
+            setSuccess(`Purchase completed! Activating your ${tier} subscription...`);
+            setPurchaseCompleted(true);
 
-            // CRITICAL: Set purchase as completed regardless of backend verification
-            // The App Store purchase was successful, so we treat it as successful
-            setSuccess(`🎉 Purchase completed! Activating your ${tier} subscription...`);
+            const response = await apiPost('/api/payments/revenuecat/verify', {
+                purchaseResult: purchaseResult,
+                tier: tier,
+                billingCycle: billingCycle,
+                userId: session.user.id
+            });
 
-            // Try backend verification but don't block success on it
-            try {
-                const response = await apiPost('/api/payments/revenuecat/verify', {
-                    purchaseResult: purchaseResult,
-                    tier: tier,
-                    billingCycle: billingCycle,
-                    userId: session.user.id
-                });
+            const data = await response.json();
 
-                const data = await response.json();
+            if (response.ok) {
+                setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
 
-                if (response.ok) {
-                    addPurchaseStep('VERIFICATION_SUCCESS');
-                    setSuccess(`✅ Successfully activated ${tier} ${billingCycle} subscription!`);
+                try {
+                    // Update session from database
+                    await updateSession();
 
-                    // CRITICAL: Multiple refresh strategies to ensure UI updates
-                    console.log('🔄 Refreshing subscription and session data...');
+                    // Give session time to propagate
+                    setTimeout(() => {
+                        // Force subscription refresh
+                        subscription.refreshAfterPurchase();
+                    }, 1000);
 
-                    // Strategy 1: Force refresh subscription hook
-                    subscription.refetch();
-
-                    // Strategy 2: Use refreshFromDatabase if available
-                    if (subscription.refreshFromDatabase) {
-                        await subscription.refreshFromDatabase();
-                    }
-
-                    // Strategy 3: Force refresh session to get updated user data
-                    try {
-                        const sessionRefreshResponse = await apiPost('/api/auth/refresh-session');
-                        if (sessionRefreshResponse.ok) {
-                            console.log('✅ Session refresh successful');
-                            // Force a page reload to ensure all hooks pick up new data
-                            setTimeout(() => {
-                                window.location.reload();
-                            }, 2000);
-                        }
-                    } catch (sessionError) {
-                        console.warn('Session refresh failed, forcing page reload:', sessionError);
-                        // Fallback: just reload the page
-                        setTimeout(() => {
-                            window.location.reload();
-                        }, 2000);
-                    }
-
-                } else {
-                    addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
-                    console.error('Backend verification failed:', data);
-
-                    // Show user that purchase was successful but verification had issues
-                    setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
-
-                    // Force page refresh to pick up changes from RevenueCat webhook
+                } catch (updateError) {
+                    console.warn('Session update failed:', updateError);
+                    // Fallback: reload page if session doesn't update
                     setTimeout(() => {
                         window.location.reload();
-                    }, 3000);
-
-                    // Show additional dialog for support if needed
-                    const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                    setTimeout(async () => {
-                        await NativeDialog.showAlert({
-                            title: 'Purchase Successful',
-                            message: 'Your subscription is active! The page will refresh to show your new features.'
-                        });
                     }, 2000);
                 }
-            } catch (verificationError) {
-                addPurchaseStep('VERIFICATION_ERROR', { error: verificationError.message });
-                console.error('Verification error:', verificationError);
 
-                // Still show success since App Store purchase completed
-                setSuccess(`✅ Purchase successful! Your ${tier} subscription is active. Refreshing your account...`);
+            } else {
+                // Even if verification fails, the App Store purchase was successful
+                setSuccess(`Purchase successful! Your ${tier} subscription is active. Refreshing account...`);
 
-                // Force page refresh - RevenueCat webhook should have updated the database
+                // Force refresh since payment went through
+                await subscription.refreshAfterPurchase();
                 setTimeout(() => {
                     window.location.reload();
-                }, 3000);
-
-                // Show additional dialog
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-                setTimeout(async () => {
-                    await NativeDialog.showAlert({
-                        title: 'Purchase Successful',
-                        message: 'Your App Store purchase completed successfully! The page will refresh to show your subscription.'
-                    });
                 }, 2000);
             }
-
         } catch (error) {
-            // This should rarely happen since we're being more permissive above
-            addPurchaseStep('VERIFICATION_CRITICAL_ERROR', { error: error.message });
-            console.error('Critical verification error:', error);
 
-            // Even on critical error, assume purchase was successful since RevenueCat completed
-            setSuccess(`✅ Purchase completed! Refreshing your account...`);
+            // Still show success since App Store purchase completed
+            setSuccess(`Purchase successful! Your ${tier} subscription is active. Refreshing account...`);
 
-            // Force page refresh
+            // Force refresh and reload
+            await subscription.refreshAfterPurchase();
             setTimeout(() => {
                 window.location.reload();
-            }, 3000);
-
-            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showAlert({
-                title: 'Purchase Completed',
-                message: 'Your purchase went through successfully! The page will refresh to show your subscription.'
-            });
+            }, 2000);
         }
     };
 
-    // ENHANCED: iOS Restore Purchases functionality with better error handling
+    // Clean restore purchases without unused variables
     const handleRestorePurchases = async () => {
         if (!platform.isIOS) {
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
@@ -708,17 +361,11 @@ function BillingContent() {
 
         setIsRestoring(true);
         setSuccess('');
-        setPurchaseSteps([]);
-
-        addPurchaseStep('RESTORE_START');
 
         try {
-            console.log('Starting restore purchases...');
-
             const { Purchases } = await import('@revenuecat/purchases-capacitor');
-
-            // Configure RevenueCat if not already configured
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
+
             if (!apiKey) {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -728,39 +375,76 @@ function BillingContent() {
                 return;
             }
 
+            // Configuration 1: With app user ID
             await Purchases.configure({
                 apiKey: apiKey,
                 appUserID: session.user.id
             });
 
-            addPurchaseStep('RESTORE_CONFIGURED');
+            let customerInfo1 = await Purchases.getCustomerInfo();
 
-            // Restore purchases
-            const customerInfo = await Purchases.restorePurchases();
-            addPurchaseStep('RESTORE_COMPLETED', {
-                activeSubscriptions: Object.keys(customerInfo.activeSubscriptions || {}),
-                entitlements: Object.keys(customerInfo.entitlements?.all || {})
+            // Configuration 2: With Apple ID only
+            await Purchases.configure({
+                apiKey: apiKey,
+                appUserID: null
             });
 
-            console.log('Restore completed:', customerInfo);
+            let customerInfo2 = await Purchases.getCustomerInfo();
+            const config2Subs = Object.keys(customerInfo2.activeSubscriptions || {});
 
-            // Check if any active subscriptions were restored
-            const activeEntitlements = Object.values(customerInfo.entitlements?.active || {});
+            // Try to restore purchases
+            const restoreResult = await Purchases.restorePurchases();
+            const restoreSubs = Object.keys(restoreResult.activeSubscriptions || {});
 
-            if (activeEntitlements.length > 0) {
-                setSuccess('Successfully restored your purchases! Your subscription is now active.');
-                subscription.refetch();
+            // Use whichever configuration found subscriptions
+            const workingCustomerInfo = restoreSubs.length > 0
+                ? restoreResult
+                : config2Subs.length > 0
+                    ? customerInfo2
+                    : customerInfo1;
+
+            const finalSubs = Object.keys(workingCustomerInfo.activeSubscriptions || {});
+            const finalEnts = Object.values(workingCustomerInfo.entitlements?.active || {});
+
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+
+            if (finalEnts.length > 0 || finalSubs.length > 0) {
+                // Update database with found subscription
+                try {
+                    const response = await apiPost('/api/payments/revenuecat/restore', {
+                        customerInfo: workingCustomerInfo,
+                        userId: session.user.id
+                    });
+
+                    if (response.ok) {
+                        setSuccess('Successfully restored your purchases! Your subscription is now active.');
+
+                        // Force subscription refresh
+                        await subscription.refreshAfterPurchase();
+
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 2000);
+                    } else {
+                        await NativeDialog.showError({
+                            title: 'Restore Partial Success',
+                            message: 'Found subscription but failed to update account. Please contact support.'
+                        });
+                    }
+                } catch (dbError) {
+                    await NativeDialog.showError({
+                        title: 'Database Error',
+                        message: 'Found subscription but failed to update account. Please contact support.'
+                    });
+                }
             } else {
-                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showAlert({
                     title: 'No Subscriptions Found',
-                    message: 'No active subscriptions found to restore.'
+                    message: 'No active subscriptions found with your Apple ID or account. If you believe this is an error, please contact support.'
                 });
             }
 
         } catch (error) {
-            console.error('Restore purchases error:', error);
-            addPurchaseStep('RESTORE_ERROR', { error: error.message });
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showError({
                 title: 'Restore Failed',
@@ -788,8 +472,11 @@ function BillingContent() {
 
             if (response.ok) {
                 setSuccess('7-day Platinum trial started! Enjoy full access to all features.');
-                // Refresh subscription data
-                subscription.refetch();
+
+                // Reload to show trial status
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -842,7 +529,11 @@ function BillingContent() {
                 }
 
                 setSuccess(successMessage);
-                subscription.refetch();
+
+                // Reload to show cancellation status
+                setTimeout(() => {
+                    window.location.reload();
+                }, 2000);
             } else {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -964,7 +655,7 @@ function BillingContent() {
                                 onClick={async () => {
                                     try {
                                         setLoading(true);
-                                        const response = await apiPost('/api/subscription/activate-trial', {
+                                        const response = await apiPost('/api/subscription/start-trial', {
                                             tier: 'platinum'
                                         });
 
@@ -972,7 +663,11 @@ function BillingContent() {
 
                                         if (response.ok) {
                                             setSuccess('Free trial activated! You now have 7 days of full Platinum access.');
-                                            subscription.refetch();
+
+                                            // Reload to show trial status
+                                            setTimeout(() => {
+                                                window.location.reload();
+                                            }, 2000);
                                         } else {
                                             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                                             await NativeDialog.showError({
@@ -1009,111 +704,6 @@ function BillingContent() {
                         {error}
                     </div>
                 )}
-
-                {/*/!* VISUAL DEBUG PANEL - Always visible for testing *!/*/}
-                {/*<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">*/}
-                {/*    <h3 className="text-blue-900 font-semibold mb-3">🔍 Debug Information</h3>*/}
-
-                {/*    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">*/}
-                {/*        <div>*/}
-                {/*            <h4 className="font-medium text-blue-800 mb-2">Subscription Status:</h4>*/}
-                {/*            <div className="bg-white p-2 rounded border">*/}
-                {/*                <div><strong>Tier:</strong> {subscription.tier || 'undefined'}</div>*/}
-                {/*                <div><strong>Status:</strong> {subscription.status || 'undefined'}</div>*/}
-                {/*                <div><strong>Platform:</strong> {subscription.platform || 'undefined'}</div>*/}
-                {/*                <div><strong>RevenueCat ID:</strong> {subscription.usage?.revenueCatCustomerId || 'none'}</div>*/}
-                {/*                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>*/}
-                {/*                <div><strong>Is Admin:</strong> {subscription.isAdmin ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Is Active:</strong> {subscription.isActive ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Has Used Trial:</strong> {subscription.hasUsedFreeTrial ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Hook Platform:</strong> {subscription.platform || 'MISSING'}</div>*/}
-                {/*                <div><strong>Raw Subscription Data:</strong> {JSON.stringify(subscription.usage?.platform)}</div>*/}
-
-                {/*            </div>*/}
-                {/*        </div>*/}
-
-                {/*        <div>*/}
-                {/*            <h4 className="font-medium text-blue-800 mb-2">Session Info:</h4>*/}
-                {/*            <div className="bg-white p-2 rounded border">*/}
-                {/*                <div><strong>User ID:</strong> {session?.user?.id?.slice(-8) || 'undefined'}</div>*/}
-                {/*                <div><strong>Email:</strong> {session?.user?.email || 'undefined'}</div>*/}
-                {/*                <div><strong>Session Tier:</strong> {session?.user?.subscriptionTier || 'undefined'}</div>*/}
-                {/*                <div><strong>Platform Type:</strong> {platform?.type || 'undefined'}</div>*/}
-                {/*                <div><strong>Is iOS:</strong> {platform?.isIOS ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>*/}
-                {/*            </div>*/}
-                {/*        </div>*/}
-                {/*    </div>*/}
-
-                {/*    {purchaseSteps.length > 0 && (*/}
-                {/*        <div className="mt-4">*/}
-                {/*            <h4 className="font-medium text-blue-800 mb-2">Purchase Steps:</h4>*/}
-                {/*            <div className="bg-white p-2 rounded border max-h-32 overflow-y-auto">*/}
-                {/*                {purchaseSteps.slice(-5).map((step, index) => (*/}
-                {/*                    <div key={index} className="text-xs mb-1 border-b pb-1">*/}
-                {/*                        <strong>{step.step}:</strong> {step.timestamp.slice(-8)}*/}
-                {/*                        {step.data && Object.keys(step.data).length > 0 && (*/}
-                {/*                            <div className="text-gray-600 ml-2">*/}
-                {/*                                {Object.entries(step.data).map(([key, value]) => (*/}
-                {/*                                    <div key={key}>{key}: {typeof value === 'object' ? JSON.stringify(value).slice(0, 50) : String(value)}</div>*/}
-                {/*                                ))}*/}
-                {/*                            </div>*/}
-                {/*                        )}*/}
-                {/*                    </div>*/}
-                {/*                ))}*/}
-                {/*            </div>*/}
-                {/*        </div>*/}
-                {/*    )}*/}
-
-                {/*    <div className="mt-3 flex gap-2">*/}
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={() => subscription.refetch()}*/}
-                {/*            className="bg-blue-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            Force Refresh Subscription*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={() => window.location.reload()}*/}
-                {/*            className="bg-gray-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            Reload Page*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={() => {*/}
-                {/*                console.log('Full subscription object:', subscription);*/}
-                {/*                console.log('Platform specifically:', subscription.platform);*/}
-                {/*                setSuccess(`Platform: ${subscription.platform || 'UNDEFINED'}, Full keys: ${Object.keys(subscription).join(', ')}`);*/}
-                {/*            }}*/}
-                {/*            className="bg-yellow-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            🔍 CHECK HOOK PLATFORM*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={async () => {*/}
-                {/*                try {*/}
-                {/*                    setSuccess('Testing cancellation...');*/}
-                {/*                    const response = await apiPost('/api/subscription/cancel', {});*/}
-                {/*                    const data = await response.json();*/}
-
-                {/*                    if (response.ok) {*/}
-                {/*                        setSuccess('CANCEL SUCCESS: ' + JSON.stringify(data, null, 2));*/}
-                {/*                    } else {*/}
-                {/*                        setError('CANCEL ERROR: ' + JSON.stringify(data, null, 2));*/}
-                {/*                    }*/}
-                {/*                } catch (err) {*/}
-                {/*                    setError('CANCEL NETWORK ERROR: ' + err.message);*/}
-                {/*                }*/}
-                {/*            }}*/}
-                {/*            className="bg-red-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            🧪 TEST CANCEL API*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*    </div>*/}
-                {/*</div>*/}
 
                 {success && (
                     <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
