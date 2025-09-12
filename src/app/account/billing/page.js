@@ -533,7 +533,7 @@ function BillingContent() {
                 // IMMEDIATE SESSION UPDATE - Force the session to be updated
                 addDebugMessage('Force-updating session subscription data', { tier, billingCycle }, 'info');
 
-                // After your existing session update code:
+                // IMMEDIATE SESSION UPDATE
                 if (session?.user) {
                     if (!session.user.subscription) {
                         session.user.subscription = {};
@@ -543,9 +543,8 @@ function BillingContent() {
                     session.user.subscription.platform = 'revenuecat';
                     session.user.subscription.billingCycle = billingCycle;
 
-                    // ADD THIS LINE to force the SubscriptionProvider to re-evaluate:
-                    window.dispatchEvent(new CustomEvent('subscriptionUpdated', { detail: { tier, status: 'active' } }));
-
+                    // Force NextAuth to recognize the session change
+                    await updateSession();
 
                     addDebugMessage('Force-updated session subscription object', {
                         tier: session.user.subscription.tier,
