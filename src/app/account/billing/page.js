@@ -530,75 +530,35 @@ function BillingContent() {
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
                 addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
 
-                // IMMEDIATE SESSION UPDATE - Force the session to be updated
-                addDebugMessage('Force-updating session subscription data', { tier, billingCycle }, 'info');
+                // CORRECT WAY: Force NextAuth to reload session from database
+                addDebugMessage('Forcing NextAuth session reload from database', {}, 'info');
 
-                // IMMEDIATE SESSION UPDATE
-                if (session?.user) {
-                    if (!session.user.subscription) {
-                        session.user.subscription = {};
-                    }
-                    session.user.subscription.tier = tier;
-                    session.user.subscription.status = 'active';
-                    session.user.subscription.platform = 'revenuecat';
-                    session.user.subscription.billingCycle = billingCycle;
-
-                    // Force NextAuth to recognize the session change
+                try {
+                    // The database was already updated by the verification API
+                    // Just tell NextAuth to reload the session from your auth source
                     await updateSession();
+                    addDebugMessage('NextAuth session reload completed', {}, 'success');
 
-                    addDebugMessage('Force-updated session subscription object', {
-                        tier: session.user.subscription.tier,
-                        status: session.user.subscription.status,
-                        platform: session.user.subscription.platform
-                    }, 'success');
+                    // Give NextAuth a moment to propagate the session change
+                    setTimeout(() => {
+                        addDebugMessage('Session should now be updated', {
+                            sessionTier: session?.user?.subscription?.tier
+                        }, 'info');
+                    }, 500);
 
-                    // CRITICAL: Force NextAuth session update to trigger provider re-render
-                    try {
-                        addDebugMessage('Calling updateSession to trigger provider refresh', {}, 'info');
-                        await updateSession();
-                        addDebugMessage('updateSession completed', {}, 'success');
-                    } catch (updateError) {
-                        addDebugMessage('updateSession failed', { error: updateError.message }, 'error');
-                    }
+                } catch (updateError) {
+                    addDebugMessage('Session reload failed', { error: updateError.message }, 'error');
                 }
 
-                // FORCE PROVIDER UPDATE: Direct manipulation of subscription state
-                addDebugMessage('Attempting direct provider state update', {}, 'info');
-
-                // Get the subscription provider and force update its state
-                if (typeof window !== 'undefined' && window.forceSubscriptionUpdate) {
-                    try {
-                        window.forceSubscriptionUpdate({
-                            tier: tier,
-                            status: 'active',
-                            platform: 'revenuecat',
-                            billingCycle: billingCycle,
-                            isActive: true,
-                            isTrialActive: false,
-                            hasUsedFreeTrial: true,
-                            usage: session?.user?.usage || {},
-                            timestamp: new Date().toISOString()
-                        });
-                        addDebugMessage('Direct provider update successful', { tier }, 'success');
-                    } catch (directError) {
-                        addDebugMessage('Direct provider update failed', { error: directError.message }, 'error');
-                    }
-                }
-
-                // Continue with existing refresh logic as backup
-                addDebugMessage('Starting subscription refresh cycle as backup', {}, 'info');
-
-                // Rest of your existing refresh logic...
-                subscription.clearCache();
-                await updateSession();
-                await subscription.refreshAfterPurchase();
-
-                // Force page reload as final fallback
+                // Simple fallback: reload page if session doesn't update in 3 seconds
                 setTimeout(() => {
-                    addDebugMessage('Forcing page reload - final fallback', {}, 'warning');
-                    window.location.reload();
+                    if (session?.user?.subscription?.tier !== tier) {
+                        addDebugMessage('Session not updated, reloading page', {}, 'warning');
+                        window.location.reload();
+                    } else {
+                        addDebugMessage('Session successfully updated!', { tier }, 'success');
+                    }
                 }, 3000);
-
             } else {
                 addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
                 addDebugMessage('Backend verification failed', { error: data.error }, 'error');
