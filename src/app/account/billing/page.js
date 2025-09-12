@@ -525,38 +525,49 @@ function BillingContent() {
             const data = await response.json();
             addDebugMessage('Verification response received', { success: response.ok }, response.ok ? 'success' : 'error');
 
+            // In your handlePurchaseVerification function, replace the session update section with:
+
             if (response.ok) {
                 addPurchaseStep('VERIFICATION_SUCCESS');
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
                 addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
 
-                // CORRECT WAY: Force NextAuth to reload session from database
-                addDebugMessage('Forcing NextAuth session reload from database', {}, 'info');
+                // DEBUG: Check session before update
+                addDebugMessage('Session BEFORE updateSession call', {
+                    sessionTier: session?.user?.subscription?.tier,
+                    sessionStatus: session?.user?.subscription?.status,
+                    sessionPlatform: session?.user?.subscription?.platform
+                }, 'info');
 
                 try {
-                    // The database was already updated by the verification API
-                    // Just tell NextAuth to reload the session from your auth source
-                    await updateSession();
-                    addDebugMessage('NextAuth session reload completed', {}, 'success');
+                    addDebugMessage('Calling updateSession...', {}, 'info');
+                    const updatedSession = await updateSession();
 
-                    // Give NextAuth a moment to propagate the session change
+                    addDebugMessage('UpdateSession returned', {
+                        hasUpdatedSession: !!updatedSession,
+                        updatedTier: updatedSession?.user?.subscription?.tier,
+                        updatedStatus: updatedSession?.user?.subscription?.status
+                    }, updatedSession ? 'success' : 'error');
+
+                    // Check if session actually changed
                     setTimeout(() => {
-                        addDebugMessage('Session should now be updated', {
-                            sessionTier: session?.user?.subscription?.tier
-                        }, 'info');
-                    }, 500);
+                        addDebugMessage('Session AFTER updateSession call', {
+                            sessionTier: session?.user?.subscription?.tier,
+                            sessionStatus: session?.user?.subscription?.status,
+                            sessionPlatform: session?.user?.subscription?.platform,
+                            changed: session?.user?.subscription?.tier === tier
+                        }, session?.user?.subscription?.tier === tier ? 'success' : 'warning');
+                    }, 1000);
 
                 } catch (updateError) {
-                    addDebugMessage('Session reload failed', { error: updateError.message }, 'error');
+                    addDebugMessage('UpdateSession failed', { error: updateError.message }, 'error');
                 }
 
-                // Simple fallback: reload page if session doesn't update in 3 seconds
+                // Fallback: reload page if session doesn't update
                 setTimeout(() => {
                     if (session?.user?.subscription?.tier !== tier) {
-                        addDebugMessage('Session not updated, reloading page', {}, 'warning');
+                        addDebugMessage('Session not updated after 3 seconds - reloading page', {}, 'warning');
                         window.location.reload();
-                    } else {
-                        addDebugMessage('Session successfully updated!', { tier }, 'success');
                     }
                 }, 3000);
             } else {
