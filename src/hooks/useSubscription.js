@@ -87,17 +87,23 @@ export function SubscriptionProvider({ children }) {
             return;
         }
 
-        // 2. Use session subscription if it exists
-        if (sessionSub?.tier && sessionSub?.status) {
+        // 2. Use session subscription if it exists - FIXED condition logic
+        if (sessionSub && (sessionSub.tier || sessionSub.status)) {
             console.log('Using session subscription:', sessionSub.tier);
+
+            // CRITICAL: Ensure we recognize paid subscriptions
+            const isPaidSubscription = sessionSub.tier &&
+                sessionSub.tier !== 'free' &&
+                sessionSub.status === 'active';
+
             setSubscriptionData({
-                tier: sessionSub.tier,
-                status: sessionSub.status,
+                tier: sessionSub.tier || 'free',
+                status: sessionSub.status || 'free',
                 isAdmin: userIsAdmin || false,
-                isActive: sessionSub.status === 'active',
+                isActive: sessionSub.status === 'active' || sessionSub.tier === 'admin',
                 isTrialActive: sessionSub.status === 'trial',
                 hasUsedFreeTrial: Boolean(sessionSub.hasUsedFreeTrial),
-                platform: sessionSub.platform || 'revenuecat',
+                platform: sessionSub.platform || (isPaidSubscription ? 'revenuecat' : null),
                 billingCycle: sessionSub.billingCycle,
                 startDate: sessionSub.startDate,
                 endDate: sessionSub.endDate,
