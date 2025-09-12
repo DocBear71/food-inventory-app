@@ -446,6 +446,7 @@ export const NativeSelect = forwardRef(({
                                             errorMessage,
                                             successMessage,
                                             style = {},
+                                            disableInternalValidation = false,
                                             ...props
                                         }, ref) => {
     const [isFocused, setIsFocused] = useState(false);
@@ -484,10 +485,14 @@ export const NativeSelect = forwardRef(({
             setValidationMessage(result.message);
 
             if (isIOS) {
-                if (result.isValid) {
-                    await MobileHaptics.notificationSuccess();
-                } else {
-                    await MobileHaptics.notificationError();
+                try {
+                    if (result.isValid) {
+                        await MobileHaptics.notificationSuccess();
+                    } else {
+                        await MobileHaptics.notificationError();
+                    }
+                } catch (error) {
+                    console.log('Haptic feedback failed:', error);
                 }
             }
         }
@@ -503,7 +508,8 @@ export const NativeSelect = forwardRef(({
             await MobileHaptics.selection();
         }
 
-        if (validation && newValue) {
+        // Skip internal validation if disabled
+        if (!disableInternalValidation && validation && newValue) {
             const result = validateSelect(newValue);
             setIsValid(result.isValid);
             setValidationMessage(result.message);

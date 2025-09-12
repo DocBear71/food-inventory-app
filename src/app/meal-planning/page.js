@@ -3,14 +3,14 @@
 
 import { useSafeSession } from '@/hooks/useSafeSession';
 import { useEffect, useState } from 'react';
-import { redirect } from 'next/navigation';
+import {redirect, useRouter} from 'next/navigation';
 import { useSubscription, useFeatureGate } from '@/hooks/useSubscription';
 import FeatureGate, { SubscriptionIndicator } from '@/components/subscription/FeatureGate';
 import { FEATURE_GATES } from '@/lib/subscription-config';
 import { TouchEnhancedButton } from '@/components/mobile/TouchEnhancedButton';
 import MobileOptimizedLayout from '@/components/layout/MobileOptimizedLayout';
 import Footer from '@/components/legal/Footer';
-import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar'; // This will be the enhanced version
+import MealPlanningCalendar from '@/components/meal-planning/MealPlanningCalendar';
 import { apiGet, apiPost } from '@/lib/api-config';
 import NativeNavigation from "@/components/mobile/NativeNavigation.js";
 
@@ -18,6 +18,7 @@ export default function MealPlanningPage() {
     const { data: session, status } = useSafeSession();
     const subscription = useSubscription();
     const mealPlanningGate = useFeatureGate(FEATURE_GATES.CREATE_MEAL_PLAN);
+    const router = useRouter();
 
     // Price intelligence state
     const [priceIntelligenceEnabled, setPriceIntelligenceEnabled] = useState(true); // Default enabled for beta
@@ -184,6 +185,7 @@ export default function MealPlanningPage() {
         );
     }
 
+
     return (
         <MobileOptimizedLayout>
             <div className="max-w-7xl mx-auto">
@@ -240,7 +242,7 @@ export default function MealPlanningPage() {
                                 {/* Upgrade CTA */}
                                 <div className="text-center">
                                     <TouchEnhancedButton
-                                        onClick={() => NativeNavigation.navigateTo({ path: '/pricing?source=meal-planning', router })}
+                                        onClick={() => router.push('/pricing?source=meal-planning')}
                                         className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition-all transform hover:scale-105 shadow-lg"
                                     >
                                         Upgrade to Gold - Start Smart Planning!

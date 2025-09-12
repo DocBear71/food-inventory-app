@@ -121,7 +121,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         signOut: '/auth/signout',
     },
     callbacks: {
-        async jwt({ token, user }) {
+        async jwt({ token, user, trigger }) {
+            // Initial sign in - store user data in token
             if (user) {
                 token.id = user.id;
                 token.emailVerified = user.emailVerified;
@@ -134,17 +135,74 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.roles = user.roles;
                 token.createdAt = user.createdAt;
                 token.usage = user.usage;
-
-                console.log('🎫 JWT token created (v5):', {
-                    id: token.id,
-                    email: token.email,
-                    effectiveTier: token.effectiveTier,
-                    subscriptionTier: token.subscriptionTier,
-                    isAdmin: token.isAdmin,
-                    createdAt: token.createdAt,
-                    hasUsage: !!token.usage
-                });
             }
+            // CRITICAL FIX: Always refresh from database on update trigger
+            else if (trigger === 'update' && token.id) {
+                console.log('🔄 JWT UPDATE - Forcing fresh database lookup...');
+
+                try {
+                    await connectDB();
+                    const freshUser = await User.findById(token.id).select('+isAdmin');
+
+                    if (freshUser) {
+                        console.log('📊 Fresh user data from DB:', {
+                            tier: freshUser.subscription?.tier,
+                            status: freshUser.subscription?.status,
+                            platform: freshUser.subscription?.platform
+                        });
+
+                        // Check and expire trial FIRST
+                        const trialExpired = freshUser.checkAndExpireTrial();
+                        const usageReset = freshUser.checkAndResetMonthlyUsage();
+
+                        if (trialExpired || usageReset) {
+                            await freshUser.save();
+                        }
+
+                        // Get fresh subscription data - CRITICAL: Use actual database values
+                        const subscriptionTier = freshUser.subscription?.tier || 'free';
+                        const subscriptionStatus = freshUser.subscription?.status || 'free';
+                        const effectiveTier = freshUser.getEffectiveTier?.() || subscriptionTier || 'free';
+                        const isAdmin = freshUser.isAdmin === true ||
+                            effectiveTier === 'admin' ||
+                            (effectiveTier === 'platinum' && freshUser.subscription?.status === 'active');
+
+                        // CRITICAL: Force update token with fresh database data
+                        token.subscriptionTier = subscriptionTier;
+                        token.subscriptionStatus = subscriptionStatus;
+                        token.effectiveTier = effectiveTier;
+                        token.subscription = freshUser.subscription || null;
+                        token.isAdmin = isAdmin;
+
+                        // Update usage data
+                        const usageTracking = freshUser.usageTracking || {};
+                        token.usage = {
+                            monthlyReceiptScans: usageTracking.monthlyReceiptScans || 0,
+                            monthlyUPCScans: usageTracking.monthlyUPCScans || 0,
+                            totalInventoryItems: usageTracking.totalInventoryItems || 0,
+                            totalPersonalRecipes: usageTracking.totalPersonalRecipes || 0,
+                            totalRecipeCollections: usageTracking.totalRecipeCollections || 0,
+                            totalSavedRecipes: usageTracking.totalSavedRecipes || freshUser.savedRecipes?.length || 0,
+                            inventoryItems: usageTracking.totalInventoryItems || 0,
+                            recipeCollections: usageTracking.totalRecipeCollections || 0,
+                            savedRecipes: usageTracking.totalSavedRecipes || freshUser.savedRecipes?.length || 0
+                        };
+
+                        console.log('✅ JWT token updated with fresh DB data:', {
+                            subscriptionTier: token.subscriptionTier,
+                            subscriptionStatus: token.subscriptionStatus,
+                            effectiveTier: token.effectiveTier,
+                            hasSubscription: !!token.subscription
+                        });
+
+                    } else {
+                        console.error('❌ User not found during JWT refresh:', token.id);
+                    }
+                } catch (error) {
+                    console.error('❌ Error refreshing JWT token from database:', error);
+                }
+            }
+
             return token;
         },
         async session({ session, token }) {

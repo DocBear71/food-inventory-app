@@ -439,9 +439,16 @@ function SignUpContent() {
     };
 
     const handleChange = (e) => {
-        setFormData({
-            ...formData,
-            [e.target.name]: e.target.value,
+        const { name, value } = e.target;
+        console.log(`Form field changed: ${name} = ${value}`);
+
+        setFormData(prev => {
+            const newData = {
+                ...prev,
+                [name]: value,
+            };
+            console.log('Updated form data:', newData);
+            return newData;
         });
     };
 
@@ -709,21 +716,53 @@ function SignUpContent() {
                                         Country/Region
                                         {isEUUser && <span className="text-blue-600 ml-1">(GDPR Protected)</span>}
                                     </label>
-                                    <NativeSelect
+
+                                    <select
                                         id="country"
                                         name="country"
                                         value={formData.country}
-                                        onChange={handleChange}
-                                        placeholder="Select your country"
+                                        onChange={(e) => {
+                                            const selectedValue = e.target.value;
+                                            console.log('Country selected directly:', selectedValue);
+
+                                            // Direct form data update - bypass any component state conflicts
+                                            setFormData(prev => {
+                                                const newData = {
+                                                    ...prev,
+                                                    country: selectedValue
+                                                };
+                                                console.log('Updated form data:', newData);
+                                                return newData;
+                                            });
+                                        }}
                                         required
-                                        validation={ValidationPatterns.required}
-                                        errorMessage="Please select your country"
-                                        successMessage="Country selected"
-                                        options={countries.map(country => ({
-                                            value: country,
-                                            label: `${country}${euCountries.includes(country) ? ' 🇪🇺' : ''}`
-                                        }))}
-                                    />
+                                        className="w-full px-4 py-3 text-gray-900 bg-white border-2 border-gray-300 rounded-lg transition-all duration-200 focus:border-blue-500 focus:ring-blue-500 cursor-pointer"
+                                        style={{
+                                            fontSize: '16px', // Prevent iOS zoom
+                                            WebkitAppearance: 'none',
+                                            backgroundImage: `url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e")`,
+                                            backgroundPosition: 'right 12px center',
+                                            backgroundRepeat: 'no-repeat',
+                                            backgroundSize: '16px',
+                                            paddingRight: '40px'
+                                        }}
+                                    >
+                                        <option value="" disabled>Select your country</option>
+                                        {countries.map(country => (
+                                            <option key={country} value={country}>
+                                                {country}{euCountries.includes(country) ? ' 🇪🇺' : ''}
+                                            </option>
+                                        ))}
+                                    </select>
+
+                                    {/* Show validation feedback */}
+                                    {formData.country && (
+                                        <div className="text-sm flex items-center gap-2 text-green-600 mt-1">
+                                            <span className="text-xs">✓</span>
+                                            <span>Country selected: {formData.country}</span>
+                                        </div>
+                                    )}
+
                                     {isEUUser && (
                                         <p className="mt-1 text-xs text-blue-600">
                                             EU/EEA residents have additional data protection rights under GDPR
