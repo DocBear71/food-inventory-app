@@ -154,38 +154,71 @@ export function useSafeSession() {
                 console.log('🔄 Updating session on native platform...');
 
                 try {
-                    // CRITICAL: Force NextAuth session refresh FIRST
+                    // STEP 1: Always force NextAuth session refresh FIRST
                     if (nextAuthResult?.update) {
-                        console.log('🔄 Calling NextAuth update to refresh from database...');
-                        const updatedNextAuth = await nextAuthResult.update();
-                        console.log('✅ NextAuth session updated:', updatedNextAuth?.user?.subscription?.tier);
+                        console.log('🔄 Forcing NextAuth database refresh...');
 
-                        if (updatedNextAuth) {
-                            // Sync the fresh NextAuth session to mobile storage
-                            await MobileSession.setSession(updatedNextAuth);
-                            setMobileSession(updatedNextAuth);
-                            setMobileSessionStatus('authenticated');
-                            return updatedNextAuth;
+                        // CRITICAL: Force the JWT callback to run with update trigger
+                        const refreshedSession = await nextAuthResult.update({
+                            forceRefresh: true,
+                            trigger: 'update'
+                        });
+
+                        console.log('📊 NextAuth refresh result:', {
+                            hasSession: !!refreshedSession,
+                            tier: refreshedSession?.user?.subscription?.tier,
+                            status: refreshedSession?.user?.subscription?.status
+                        });
+
+                        if (refreshedSession?.user?.subscription) {
+                            // STEP 2: Sync fresh data to mobile storage
+                            console.log('💾 Syncing fresh session to mobile storage...');
+                            const syncSuccess = await MobileSession.setSession(refreshedSession);
+
+                            if (syncSuccess) {
+                                console.log('✅ Fresh session synced to mobile storage');
+                                setMobileSession(refreshedSession);
+                                setMobileSessionStatus('authenticated');
+                                return refreshedSession;
+                            } else {
+                                console.error('❌ Failed to sync fresh session to mobile storage');
+                            }
                         }
                     }
 
-                    // Fallback: check mobile storage if NextAuth update failed
+                    // STEP 3: Fallback - check mobile storage
                     console.log('🔄 Checking mobile session storage as fallback...');
-                    const fresh = await MobileSession.getSession();
-                    if (fresh) {
-                        setMobileSession(fresh);
+                    const storedSession = await MobileSession.getSession();
+
+                    if (storedSession) {
+                        console.log('📱 Found session in mobile storage');
+                        setMobileSession(storedSession);
                         setMobileSessionStatus('authenticated');
-                        return fresh;
+                        return storedSession;
                     }
 
-                    // No valid session found
+                    // STEP 4: No valid session found
                     console.log('❌ No valid session found after update');
                     setMobileSession(null);
                     setMobileSessionStatus('unauthenticated');
                     return null;
 
                 } catch (error) {
-                    console.error('❌ Error updating session:', error);
+                    console.error('❌ Critical error updating session:', error);
+
+                    // Emergency fallback - try mobile storage one more time
+                    try {
+                        const emergencySession = await MobileSession.getSession();
+                        if (emergencySession) {
+                            console.log('🚨 Emergency fallback session found');
+                            setMobileSession(emergencySession);
+                            setMobileSessionStatus('authenticated');
+                            return emergencySession;
+                        }
+                    } catch (emergencyError) {
+                        console.error('💥 Emergency fallback failed:', emergencyError);
+                    }
+
                     return null;
                 }
             },

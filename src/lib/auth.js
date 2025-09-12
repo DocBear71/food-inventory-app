@@ -135,24 +135,22 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 token.roles = user.roles;
                 token.createdAt = user.createdAt;
                 token.usage = user.usage;
-
-                console.log('🎫 JWT token created (initial):', {
-                    id: token.id,
-                    email: token.email,
-                    effectiveTier: token.effectiveTier,
-                    subscriptionTier: token.subscriptionTier,
-                    isAdmin: token.isAdmin
-                });
             }
-            // Session update - refresh data from database
+            // CRITICAL FIX: Always refresh from database on update trigger
             else if (trigger === 'update' && token.id) {
-                console.log('🔄 JWT callback triggered by update - refreshing from database...');
+                console.log('🔄 JWT UPDATE - Forcing fresh database lookup...');
 
                 try {
                     await connectDB();
-                    const freshUser = await User.findById(token.id);
+                    const freshUser = await User.findById(token.id).select('+isAdmin');
 
                     if (freshUser) {
+                        console.log('📊 Fresh user data from DB:', {
+                            tier: freshUser.subscription?.tier,
+                            status: freshUser.subscription?.status,
+                            platform: freshUser.subscription?.platform
+                        });
+
                         // Check and expire trial FIRST
                         const trialExpired = freshUser.checkAndExpireTrial();
                         const usageReset = freshUser.checkAndResetMonthlyUsage();
@@ -161,16 +159,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                             await freshUser.save();
                         }
 
-                        // Get fresh subscription data
-                        const effectiveTier = freshUser.getEffectiveTier?.() || 'free';
+                        // Get fresh subscription data - CRITICAL: Use actual database values
                         const subscriptionTier = freshUser.subscription?.tier || 'free';
+                        const subscriptionStatus = freshUser.subscription?.status || 'free';
+                        const effectiveTier = freshUser.getEffectiveTier?.() || subscriptionTier || 'free';
                         const isAdmin = freshUser.isAdmin === true ||
                             effectiveTier === 'admin' ||
                             (effectiveTier === 'platinum' && freshUser.subscription?.status === 'active');
 
-                        // Update token with fresh data
+                        // CRITICAL: Force update token with fresh database data
                         token.subscriptionTier = subscriptionTier;
-                        token.subscriptionStatus = freshUser.subscription?.status || 'free';
+                        token.subscriptionStatus = subscriptionStatus;
                         token.effectiveTier = effectiveTier;
                         token.subscription = freshUser.subscription || null;
                         token.isAdmin = isAdmin;
@@ -189,15 +188,13 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                             savedRecipes: usageTracking.totalSavedRecipes || freshUser.savedRecipes?.length || 0
                         };
 
-                        console.log('✅ JWT token updated with fresh database data:', {
-                            id: token.id,
-                            email: token.email,
-                            effectiveTier: token.effectiveTier,
+                        console.log('✅ JWT token updated with fresh DB data:', {
                             subscriptionTier: token.subscriptionTier,
                             subscriptionStatus: token.subscriptionStatus,
-                            isAdmin: token.isAdmin,
+                            effectiveTier: token.effectiveTier,
                             hasSubscription: !!token.subscription
                         });
+
                     } else {
                         console.error('❌ User not found during JWT refresh:', token.id);
                     }
