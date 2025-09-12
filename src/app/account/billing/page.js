@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/account/billing/page.js v4 - Added basic weekly test subscription
+// file: /src/app/account/billing/page.js v5 - Ready for submission
 
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -30,145 +30,6 @@ function BillingContent() {
     const [isRestoring, setIsRestoring] = useState(false);
     const [purchaseSteps, setPurchaseSteps] = useState([]);
     const [purchaseCompleted, setPurchaseCompleted] = useState(false);
-
-
-    const [debugInfo, setDebugInfo] = useState(null);
-    const [showDebugModal, setShowDebugModal] = useState(false);
-    const [debugLog, setDebugLog] = useState([]);
-    const [showDebugLog, setShowDebugLog] = useState(false);
-
-    // ENHANCED: Better debug tracking for iPad issues
-    const addPurchaseStep = (step, data = {}) => {
-        const timestamp = new Date().toISOString();
-        const newStep = { step, timestamp, data };
-        setPurchaseSteps(prev => [...prev, newStep]);
-        console.log(`📱 Purchase Step ${purchaseSteps.length + 1}:`, step, data);
-    };
-
-    // VISUAL DEBUG: Add debug message that shows on screen
-    const addDebugMessage = (message, data = {}, type = 'info') => {
-        const timestamp = new Date().toLocaleTimeString();
-        const newMessage = {
-            id: Date.now(),
-            timestamp,
-            message,
-            data,
-            type, // 'info', 'success', 'warning', 'error'
-            step: debugLog.length + 1
-        };
-
-        setDebugLog(prev => {
-            const updated = [...prev.slice(-50), newMessage]; // Keep last 50 messages instead of 20
-
-            // Store in localStorage for persistence
-            try {
-                localStorage.setItem('debug-log-backup', JSON.stringify(updated));
-            } catch (e) {
-                console.warn('Could not save debug log to localStorage');
-            }
-
-            return updated;
-        });
-
-        // Auto-show debug log for important messages
-        if (type === 'error' || type === 'success') {
-            setShowDebugLog(true);
-        }
-
-        console.log(`VISUAL DEBUG ${newMessage.step}: ${message}`, data);
-    };
-
-    // DIAGNOSTIC: Direct database check
-    const checkDatabaseDirectly = async () => {
-        try {
-            addDebugMessage('Direct database check started', {}, 'info');
-
-            const response = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
-                method: 'GET',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                },
-                cache: 'no-store'
-            });
-
-            if (response.ok) {
-                const dbData = await response.json();
-                addDebugMessage('Database check results', {
-                    dbTier: dbData.tier,
-                    dbStatus: dbData.status,
-                    dbPlatform: dbData.platform,
-                    dbIsAdmin: dbData.isAdmin,
-                    dbUsage: dbData.usage ? Object.keys(dbData.usage) : 'none'
-                }, 'info');
-
-                return dbData;
-            } else {
-                addDebugMessage('Database check failed', { status: response.status }, 'error');
-                return null;
-            }
-        } catch (error) {
-            addDebugMessage('Database check error', { error: error.message }, 'error');
-            return null;
-        }
-    };
-
-    // VISUAL DEBUG: Clear debug log with confirmation
-    const clearDebugLog = () => {
-        setDebugLog([]);
-        setShowDebugLog(false);
-        try {
-            localStorage.removeItem('debug-log-backup');
-        } catch (e) {
-            console.warn('Could not clear debug log from localStorage');
-        }
-    };
-
-
-    // Load debug log from localStorage on component mount
-    useEffect(() => {
-        try {
-            const savedLog = localStorage.getItem('debug-log-backup');
-            if (savedLog) {
-                const parsed = JSON.parse(savedLog);
-                if (Array.isArray(parsed) && parsed.length > 0) {
-                    setDebugLog(parsed);
-                    addDebugMessage('Recovered debug log from previous session', { count: parsed.length }, 'info');
-                }
-            }
-        } catch (e) {
-            console.warn('Could not recover debug log from localStorage');
-        }
-    }, []);
-
-    // Error boundary for debugging
-    useEffect(() => {
-        const handleError = async (error) => {
-            console.error('🚨 Global error caught:', error);
-            addPurchaseStep('GLOBAL_ERROR', {message: error.message, stack: error.stack});
-            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showError({
-                title: 'App Error',
-                message: error.message
-            });
-        };
-
-        window.addEventListener('error', handleError);
-        window.addEventListener('unhandledrejection', async (event) => {
-            console.error('🚨 Unhandled promise rejection:', event.reason);
-            addPurchaseStep('PROMISE_REJECTION', {reason: event.reason?.message || 'Unknown error'});
-            const {NativeDialog} = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showError({
-                title: 'Promise Error',
-                message: event.reason?.message || 'Unknown error'
-            });
-        });
-
-        return () => {
-            window.removeEventListener('error', handleError);
-            window.removeEventListener('unhandledrejection', handleError);
-        };
-    }, [purchaseSteps.length]);
 
     // Early returns for auth
     useEffect(() => {
@@ -239,15 +100,6 @@ function BillingContent() {
 
         setLoading(true);
         setSuccess('');
-        setPurchaseSteps([]);
-
-        addPurchaseStep('PURCHASE_INITIATED', {
-            tier: newTier,
-            billing: newBilling,
-            platform: platform.type,
-            isIOS: platform.isIOS,
-            isNative: platform.isNative
-        });
 
         try {
             // Route to appropriate payment system based on platform
@@ -265,7 +117,6 @@ function BillingContent() {
             }
         } catch (error) {
             console.error('Error in subscription change:', error);
-            addPurchaseStep('SUBSCRIPTION_CHANGE_ERROR', { message: error.message });
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showError({
                 title: 'Subscription Error',
@@ -278,7 +129,6 @@ function BillingContent() {
 
     // Handle Stripe purchases (web)
     const handleStripePurchase = async (newTier, newBilling) => {
-        addPurchaseStep('STRIPE_FLOW_START');
 
         const response = await apiPost('/api/payments/create-checkout', {
             tier: newTier,
@@ -290,8 +140,6 @@ function BillingContent() {
         const data = await response.json();
 
         if (response.ok && data.url) {
-            addPurchaseStep('STRIPE_CHECKOUT_CREATED', { url: data.url });
-
             // Track Stripe checkout initiation
             try {
                 await trackEmailEvent({
@@ -321,12 +169,9 @@ function BillingContent() {
         }
     };
 
-    // ENHANCED: RevenueCat purchase flow with better offerings error handling
+    // Clean RevenueCat purchase flow
     const handleRevenueCatPurchase = async (tier, billingCycle) => {
         try {
-            addPurchaseStep('REVENUECAT_FLOW_START');
-            setDebugInfo({ step: 'Starting RevenueCat purchase', tier, billingCycle });
-
             if (!platform.isIOS && !platform.isAndroid) {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
@@ -341,18 +186,23 @@ function BillingContent() {
             try {
                 const purchasesModule = await import('@revenuecat/purchases-capacitor');
                 Purchases = purchasesModule.Purchases;
-                setDebugInfo({ step: 'RevenueCat SDK imported successfully' });
             } catch (importError) {
-                setDebugInfo({ step: 'RevenueCat import failed', error: importError.message });
-                setShowDebugModal(true);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'SDK Error',
+                    message: 'Failed to load payment system. Please try again.'
+                });
                 return;
             }
 
             // Configure RevenueCat
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
             if (!apiKey) {
-                setDebugInfo({ step: 'Missing API key' });
-                setShowDebugModal(true);
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Configuration Error',
+                    message: 'Payment system not properly configured'
+                });
                 return;
             }
 
@@ -361,34 +211,18 @@ function BillingContent() {
                 appUserID: null
             });
 
-            setDebugInfo({ step: 'RevenueCat configured successfully' });
-
             // Get offerings
             const offerings = await Purchases.getOfferings();
             const packages = offerings.current.availablePackages || [];
 
-            // CRITICAL: Visual debug of available packages
-            const packageDebugInfo = {
-                step: 'Available packages loaded',
-                requestedTier: tier,
-                requestedBilling: billingCycle,
-                availablePackages: packages.map(p => ({
-                    identifier: p.identifier,
-                    productId: p.product?.identifier,
-                    title: p.product?.title,
-                    price: p.product?.priceString
-                }))
-            };
-
-            setDebugInfo(packageDebugInfo);
-            setShowDebugModal(true);
-
-            // Wait for user to acknowledge the debug info
-            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
-            await NativeDialog.showAlert({
-                title: 'Debug: Available Packages',
-                message: `Found ${packages.length} packages. Check the debug modal for details. Tap OK to continue.`
-            });
+            if (packages.length === 0) {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'No Products Available',
+                    message: 'No subscription packages are currently available. Please try again later.'
+                });
+                return;
+            }
 
             // Find package
             const targetPackageId = `${tier}_${billingCycle}_package`;
@@ -413,83 +247,35 @@ function BillingContent() {
                 });
             }
 
-            // Show what package will be purchased
-            if (packageToPurchase) {
-                const purchaseDebugInfo = {
-                    step: 'Package found for purchase',
-                    targetPackageId,
-                    foundPackage: {
-                        identifier: packageToPurchase.identifier,
-                        productId: packageToPurchase.product?.identifier,
-                        title: packageToPurchase.product?.title,
-                        price: packageToPurchase.product?.priceString
-                    }
-                };
-
-                setDebugInfo(purchaseDebugInfo);
-                setShowDebugModal(true);
-
-                // Confirm with user
-                const confirmed = await NativeDialog.showConfirm({
-                    title: 'Confirm Purchase',
-                    message: `About to purchase:\n\nProduct: ${packageToPurchase.product?.title}\nPrice: ${packageToPurchase.product?.priceString}\nID: ${packageToPurchase.product?.identifier}\n\nIs this correct?`,
-                    confirmText: 'Yes, Purchase This',
-                    cancelText: 'Cancel'
-                });
-
-                if (!confirmed) {
-                    setDebugInfo({ step: 'User cancelled purchase confirmation' });
-                    return;
-                }
-
-                // Make the purchase
-                setDebugInfo({ step: 'Starting App Store purchase...' });
-                const purchaseResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
-
-                // Show purchase result
-                const resultDebugInfo = {
-                    step: 'Purchase completed',
-                    transactionId: purchaseResult.transactionIdentifier,
-                    productId: purchaseResult.productIdentifier,
-                    customerInfo: {
-                        userId: purchaseResult.customerInfo?.originalAppUserId,
-                        activeSubscriptions: Object.keys(purchaseResult.customerInfo?.activeSubscriptions || {}),
-                        entitlements: Object.keys(purchaseResult.customerInfo?.entitlements?.all || {})
-                    }
-                };
-
-                setDebugInfo(resultDebugInfo);
-                setShowDebugModal(true);
-
-                // Verify the purchase
-                await handlePurchaseVerification(purchaseResult, tier, billingCycle);
-
-            } else {
-                const errorDebugInfo = {
-                    step: 'NO PACKAGE FOUND!',
-                    targetPackageId,
-                    availablePackages: packages.map(p => p.identifier),
-                    error: 'Could not find matching package'
-                };
-
-                setDebugInfo(errorDebugInfo);
-                setShowDebugModal(true);
-
+            if (!packageToPurchase) {
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
                     title: 'Package Not Found',
-                    message: `Could not find package for ${tier} ${billingCycle}. Looking for: ${targetPackageId}`
+                    message: `Could not find the ${tier} ${billingCycle} subscription package.`
                 });
                 return;
             }
 
-        } catch (error) {
-            setDebugInfo({
-                step: 'PURCHASE ERROR',
-                error: error.message,
-                errorType: error.constructor.name
+            // Confirm with user
+            const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+            const confirmed = await NativeDialog.showConfirm({
+                title: 'Confirm Purchase',
+                message: `About to purchase:\n\nProduct: ${packageToPurchase.product?.title}\nPrice: ${packageToPurchase.product?.priceString}\n\nProceed with purchase?`,
+                confirmText: 'Yes, Purchase',
+                cancelText: 'Cancel'
             });
-            setShowDebugModal(true);
 
+            if (!confirmed) {
+                return;
+            }
+
+            // Make the purchase
+            const purchaseResult = await Purchases.purchasePackage({ aPackage: packageToPurchase });
+
+            // Verify the purchase
+            await handlePurchaseVerification(purchaseResult, tier, billingCycle);
+
+        } catch (error) {
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showError({
                 title: 'Purchase Error',
@@ -502,16 +288,12 @@ function BillingContent() {
     };
 
 
-    // CRITICAL FIX: Enhanced purchase verification with visual debugging
+    // Clean purchase verification without debug messages
     const handlePurchaseVerification = async (purchaseResult, tier, billingCycle) => {
         try {
-            addPurchaseStep('VERIFICATION_START');
-            addDebugMessage('Starting purchase verification', { tier, billingCycle }, 'info');
-
-            // CRITICAL: Set purchase as completed immediately for UI feedback
+            // Set purchase as completed immediately for UI feedback
             setSuccess(`Purchase completed! Activating your ${tier} subscription...`);
             setPurchaseCompleted(true);
-            addDebugMessage('Purchase marked as completed', { tier }, 'success');
 
             const response = await apiPost('/api/payments/revenuecat/verify', {
                 purchaseResult: purchaseResult,
@@ -520,74 +302,40 @@ function BillingContent() {
                 userId: session.user.id
             });
 
-            addDebugMessage('Verification API called', { status: response.status }, 'info');
-
             const data = await response.json();
-            addDebugMessage('Verification response received', { success: response.ok }, response.ok ? 'success' : 'error');
-
-            // In your handlePurchaseVerification function, replace the session update section with:
 
             if (response.ok) {
-                addPurchaseStep('VERIFICATION_SUCCESS');
                 setSuccess(`Successfully activated ${tier} ${billingCycle} subscription!`);
-                addDebugMessage('Backend verification successful', { tier, billingCycle }, 'success');
-
-                // DEBUG: Check session before update
-                addDebugMessage('Session BEFORE updateSession call', {
-                    sessionTier: session?.user?.subscription?.tier,
-                    sessionStatus: session?.user?.subscription?.status,
-                    sessionPlatform: session?.user?.subscription?.platform
-                }, 'info');
 
                 try {
-                    addDebugMessage('Calling updateSession...', {}, 'info');
-                    const updatedSession = await updateSession();
+                    // Update session from database
+                    await updateSession();
 
-                    addDebugMessage('UpdateSession returned', {
-                        hasUpdatedSession: !!updatedSession,
-                        updatedTier: updatedSession?.user?.subscription?.tier,
-                        updatedStatus: updatedSession?.user?.subscription?.status
-                    }, updatedSession ? 'success' : 'error');
-
-                    // Check if session actually changed
+                    // Give session time to propagate
                     setTimeout(() => {
-                        addDebugMessage('Session AFTER updateSession call', {
-                            sessionTier: session?.user?.subscription?.tier,
-                            sessionStatus: session?.user?.subscription?.status,
-                            sessionPlatform: session?.user?.subscription?.platform,
-                            changed: session?.user?.subscription?.tier === tier
-                        }, session?.user?.subscription?.tier === tier ? 'success' : 'warning');
+                        // Force subscription refresh
+                        subscription.refreshAfterPurchase();
                     }, 1000);
 
                 } catch (updateError) {
-                    addDebugMessage('UpdateSession failed', { error: updateError.message }, 'error');
+                    console.warn('Session update failed:', updateError);
+                    // Fallback: reload page if session doesn't update
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
                 }
 
-                // Fallback: reload page if session doesn't update
-                setTimeout(() => {
-                    if (session?.user?.subscription?.tier !== tier) {
-                        addDebugMessage('Session not updated after 3 seconds - reloading page', {}, 'warning');
-                        window.location.reload();
-                    }
-                }, 3000);
             } else {
-                addPurchaseStep('VERIFICATION_FAILED', { error: data.error });
-                addDebugMessage('Backend verification failed', { error: data.error }, 'error');
-
                 // Even if verification fails, the App Store purchase was successful
                 setSuccess(`Purchase successful! Your ${tier} subscription is active. Refreshing account...`);
-                addDebugMessage('App Store purchase successful, forcing refresh', {}, 'warning');
 
-                // Force refresh and reload since payment went through
+                // Force refresh since payment went through
                 await subscription.refreshAfterPurchase();
                 setTimeout(() => {
-                    addDebugMessage('Forcing page reload due to verification failure', {}, 'warning');
                     window.location.reload();
-                }, 3000);
+                }, 2000);
             }
         } catch (error) {
-            addPurchaseStep('VERIFICATION_ERROR', { error: error.message });
-            addDebugMessage('Verification error caught', { error: error.message }, 'error');
 
             // Still show success since App Store purchase completed
             setSuccess(`Purchase successful! Your ${tier} subscription is active. Refreshing account...`);
@@ -595,70 +343,12 @@ function BillingContent() {
             // Force refresh and reload
             await subscription.refreshAfterPurchase();
             setTimeout(() => {
-                addDebugMessage('Forcing page reload due to error', {}, 'warning');
                 window.location.reload();
-            }, 3000);
-        }
-    };
-
-
-    const retryRefreshSubscription = async (expectedTier, attempt) => {
-        const maxAttempts = 10; // Try for 20 seconds
-
-        if (attempt >= maxAttempts) {
-            console.log('❌ Max refresh attempts reached, forcing page reload...');
-            window.location.reload();
-            return;
-        }
-
-        console.log(`🔄 Retry attempt ${attempt + 1}/${maxAttempts} for subscription refresh...`);
-
-        try {
-            // Force clear caches
-            subscription.clearCache();
-
-            // Try to get fresh data again
-            const freshDataResponse = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
-                method: 'GET',
-                headers: {
-                    'Cache-Control': 'no-cache',
-                    'Pragma': 'no-cache'
-                },
-                cache: 'no-store'
-            });
-
-            if (freshDataResponse.ok) {
-                const freshData = await freshDataResponse.json();
-                console.log(`🔄 Attempt ${attempt + 1} - Fresh data:`, freshData);
-
-                if (freshData.tier === expectedTier) {
-                    console.log('✅ Subscription successfully updated!');
-                    subscription.forceRefresh();
-
-                    setTimeout(() => {
-                        window.location.reload();
-                    }, 500);
-                    return;
-                }
-            }
-
-            // If not successful, try again in 2 seconds
-            setTimeout(() => {
-                retryRefreshSubscription(expectedTier, attempt + 1);
-            }, 2000);
-
-        } catch (error) {
-            console.error(`❌ Retry attempt ${attempt + 1} failed:`, error);
-
-            // Try again in 2 seconds
-            setTimeout(() => {
-                retryRefreshSubscription(expectedTier, attempt + 1);
             }, 2000);
         }
     };
 
-
-    // CRITICAL FIX: iOS Restore Purchases with visual debugging
+    // Clean restore purchases without unused variables
     const handleRestorePurchases = async () => {
         if (!platform.isIOS) {
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
@@ -671,16 +361,12 @@ function BillingContent() {
 
         setIsRestoring(true);
         setSuccess('');
-        setPurchaseSteps([]);
-        clearDebugLog();
-        addDebugMessage('Starting restore purchases process', {}, 'info');
 
         try {
             const { Purchases } = await import('@revenuecat/purchases-capacitor');
             const apiKey = process.env.NEXT_PUBLIC_REVENUECAT_IOS_API_KEY;
 
             if (!apiKey) {
-                addDebugMessage('Missing RevenueCat API key', {}, 'error');
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
                     title: 'Configuration Error',
@@ -689,29 +375,15 @@ function BillingContent() {
                 return;
             }
 
-            addDebugMessage('RevenueCat API key found, starting dual configuration test', {}, 'info');
-
-            // CRITICAL FIX: Test both configurations to find subscriptions
-
-            // Configuration 1: With app user ID (your current approach)
-            addDebugMessage('Testing Configuration 1: With app user ID', { userId: session.user.id }, 'info');
+            // Configuration 1: With app user ID
             await Purchases.configure({
                 apiKey: apiKey,
                 appUserID: session.user.id
             });
 
             let customerInfo1 = await Purchases.getCustomerInfo();
-            const config1Subs = Object.keys(customerInfo1.activeSubscriptions || {});
-            const config1Ents = Object.keys(customerInfo1.entitlements?.active || {});
 
-            addDebugMessage('Config 1 Results', {
-                subscriptions: config1Subs,
-                entitlements: config1Ents,
-                count: config1Subs.length + config1Ents.length
-            }, config1Subs.length > 0 ? 'success' : 'info');
-
-            // Configuration 2: With null (Apple ID only)
-            addDebugMessage('Testing Configuration 2: Apple ID only', {}, 'info');
+            // Configuration 2: With Apple ID only
             await Purchases.configure({
                 apiKey: apiKey,
                 appUserID: null
@@ -719,26 +391,10 @@ function BillingContent() {
 
             let customerInfo2 = await Purchases.getCustomerInfo();
             const config2Subs = Object.keys(customerInfo2.activeSubscriptions || {});
-            const config2Ents = Object.keys(customerInfo2.entitlements?.active || {});
 
-            addDebugMessage('Config 2 Results', {
-                subscriptions: config2Subs,
-                entitlements: config2Ents,
-                count: config2Subs.length + config2Ents.length
-            }, config2Subs.length > 0 ? 'success' : 'info');
-
-            // CRITICAL: Try to restore purchases
-            addDebugMessage('Calling restorePurchases()', {}, 'info');
+            // Try to restore purchases
             const restoreResult = await Purchases.restorePurchases();
-
             const restoreSubs = Object.keys(restoreResult.activeSubscriptions || {});
-            const restoreEnts = Object.keys(restoreResult.entitlements?.active || {});
-
-            addDebugMessage('Restore Results', {
-                subscriptions: restoreSubs,
-                entitlements: restoreEnts,
-                count: restoreSubs.length + restoreEnts.length
-            }, restoreSubs.length > 0 ? 'success' : 'warning');
 
             // Use whichever configuration found subscriptions
             const workingCustomerInfo = restoreSubs.length > 0
@@ -750,77 +406,50 @@ function BillingContent() {
             const finalSubs = Object.keys(workingCustomerInfo.activeSubscriptions || {});
             const finalEnts = Object.values(workingCustomerInfo.entitlements?.active || {});
 
-            addDebugMessage('Final Selection', {
-                usingConfig: restoreSubs.length > 0 ? 'restore' : config2Subs.length > 0 ? 'config2' : 'config1',
-                subscriptions: finalSubs,
-                entitlementCount: finalEnts.length
-            }, finalSubs.length > 0 || finalEnts.length > 0 ? 'success' : 'warning');
-
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
 
             if (finalEnts.length > 0 || finalSubs.length > 0) {
-                addDebugMessage('Found active subscriptions, updating database', {}, 'success');
-
-                // CRITICAL: Update database with found subscription
+                // Update database with found subscription
                 try {
                     const response = await apiPost('/api/payments/revenuecat/restore', {
                         customerInfo: workingCustomerInfo,
                         userId: session.user.id
                     });
 
-                    addDebugMessage('Database update response', { status: response.status }, response.ok ? 'success' : 'error');
-
                     if (response.ok) {
-                        const dbData = await response.json();
-                        addDebugMessage('Database updated successfully', { tier: dbData.subscription?.tier }, 'success');
-
                         setSuccess('Successfully restored your purchases! Your subscription is now active.');
 
                         // Force subscription refresh
-                        addDebugMessage('Starting post-restore refresh', {}, 'info');
                         await subscription.refreshAfterPurchase();
 
                         setTimeout(() => {
-                            addDebugMessage('Reloading page to show restored subscription', {}, 'info');
                             window.location.reload();
                         }, 2000);
                     } else {
-                        const errorData = await response.json();
-                        addDebugMessage('Database update failed', { error: errorData.error }, 'error');
                         await NativeDialog.showError({
                             title: 'Restore Partial Success',
                             message: 'Found subscription but failed to update account. Please contact support.'
                         });
                     }
                 } catch (dbError) {
-                    addDebugMessage('Database error during restore', { error: dbError.message }, 'error');
                     await NativeDialog.showError({
                         title: 'Database Error',
                         message: 'Found subscription but failed to update account. Please contact support.'
                     });
                 }
             } else {
-                addDebugMessage('No subscriptions found in any configuration', {
-                    config1Count: config1Subs.length,
-                    config2Count: config2Subs.length,
-                    restoreCount: restoreSubs.length
-                }, 'warning');
-
                 await NativeDialog.showAlert({
                     title: 'No Subscriptions Found',
-                    message: `No active subscriptions found.\n\nConfig 1: ${config1Subs.length} subscriptions\nConfig 2: ${config2Subs.length} subscriptions\nRestore: ${restoreSubs.length} subscriptions\n\nCheck the debug log for details.`
+                    message: 'No active subscriptions found with your Apple ID or account. If you believe this is an error, please contact support.'
                 });
-                setShowDebugLog(true);
             }
 
         } catch (error) {
-            addDebugMessage('Restore error caught', { error: error.message }, 'error');
             const { NativeDialog } = await import('@/components/mobile/NativeDialog');
             await NativeDialog.showError({
                 title: 'Restore Failed',
                 message: `Failed to restore purchases: ${error.message}`
             });
-            setShowDebugLog(true);
         } finally {
             setIsRestoring(false);
         }
@@ -980,157 +609,6 @@ function BillingContent() {
                     </div>
                 </div>
 
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                    <h3 className="text-yellow-900 font-semibold mb-2">Visual Debug Mode Active</h3>
-                    <p className="text-yellow-700 text-sm mb-3">
-                        Debug log stays open longer and persists between sessions. Page reloads in 7 seconds after purchase.
-                    </p>
-                    <div className="flex gap-2 flex-wrap">
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                // Force override the subscription state for testing
-                                subscription.forceRefresh();
-
-                                // Also try direct state manipulation
-                                if (window.location.reload) {
-                                    addDebugMessage('Force reloading page to clear hook state', {}, 'warning');
-                                    setTimeout(() => window.location.reload(), 1000);
-                                }
-                            }}
-                            className="bg-red-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Force Override Test
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                const sessionSub = session?.user?.subscription;
-                                addDebugMessage('Hook Decision Flow Debug', {
-                                    sessionExists: !!session,
-                                    sessionStatus: session ? 'authenticated' : 'missing',
-                                    userSubscriptionExists: !!sessionSub,
-                                    sessionSubTier: sessionSub?.tier,
-                                    sessionSubStatus: sessionSub?.status,
-                                    sessionSubPlatform: sessionSub?.platform,
-
-                                    // Test the condition logic
-                                    tierNotFree: sessionSub?.tier !== 'free',
-                                    tierNotAdmin: sessionSub?.tier !== 'admin',
-                                    statusActive: sessionSub?.status === 'active',
-                                    isGoldPlatinumBasic: (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic'),
-
-                                    // Overall condition result
-                                    wouldPassPaidCheck: sessionSub?.tier !== 'free' &&
-                                        sessionSub?.tier !== 'admin' &&
-                                        sessionSub?.status === 'active' &&
-                                        (sessionSub?.tier === 'gold' || sessionSub?.tier === 'platinum' || sessionSub?.tier === 'basic')
-                                }, 'info');
-                                setShowDebugLog(true);
-                            }}
-                            className="bg-orange-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Debug Hook Logic
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                addDebugMessage('Current useSubscription hook state', {
-                                    tier: subscription.tier,
-                                    status: subscription.status,
-                                    platform: subscription.platform,
-                                    isAdmin: subscription.isAdmin,
-                                    isActive: subscription.isActive,
-                                    loading: subscription.loading,
-                                    error: subscription.error,
-                                    sessionUserSubscription: session?.user?.subscription ? {
-                                        tier: session.user.subscription.tier,
-                                        status: session.user.subscription.status,
-                                        platform: session.user.subscription.platform
-                                    } : 'missing'
-                                }, 'info');
-                                setShowDebugLog(true);
-                            }}
-                            className="bg-purple-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Check Hook State
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={async () => {
-                                try {
-                                    addDebugMessage('Manual database check started', {}, 'info');
-
-                                    const response = await fetch('/api/subscription/status?force=true&t=' + Date.now(), {
-                                        method: 'GET',
-                                        headers: {
-                                            'Cache-Control': 'no-cache',
-                                            'Pragma': 'no-cache'
-                                        },
-                                        cache: 'no-store'
-                                    });
-
-                                    if (response.ok) {
-                                        const dbData = await response.json();
-                                        addDebugMessage('Database API Response', {
-                                            tier: dbData.tier,
-                                            status: dbData.status,
-                                            platform: dbData.platform,
-                                            isAdmin: dbData.isAdmin,
-                                            isActive: dbData.isActive,
-                                            revenueCatId: dbData.debugInfo?.revenueCatId || 'missing',
-                                            userSubscriptionPlatform: dbData.debugInfo?.userSubscriptionPlatform || 'missing'
-                                        }, dbData.tier === 'gold' ? 'success' : 'error');
-
-                                        setShowDebugLog(true);
-                                    } else {
-                                        addDebugMessage('Database check failed', { status: response.status }, 'error');
-                                    }
-                                } catch (error) {
-                                    addDebugMessage('Database check error', { error: error.message }, 'error');
-                                }
-                            }}
-                            className="bg-red-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Check Database Now
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={() => setShowDebugModal(true)}
-                            className="bg-yellow-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Show Last Debug Info
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={() => setShowDebugLog(true)}
-                            className="bg-blue-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Show Debug Log ({debugLog.length})
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={() => {
-                                setShowDebugLog(true);
-                                // Force scroll to bottom of debug log
-                                setTimeout(() => {
-                                    const debugModal = document.querySelector('.debug-log-container');
-                                    if (debugModal) {
-                                        debugModal.scrollTop = debugModal.scrollHeight;
-                                    }
-                                }, 100);
-                            }}
-                            className="bg-green-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Show Latest Debug
-                        </TouchEnhancedButton>
-                        <TouchEnhancedButton
-                            onClick={clearDebugLog}
-                            className="bg-gray-600 text-white px-3 py-1 rounded text-sm"
-                        >
-                            Clear Debug Log
-                        </TouchEnhancedButton>
-                    </div>
-                    {debugLog.length > 0 && (
-                        <div className="mt-2 text-xs text-yellow-800">
-                            Last: {debugLog[debugLog.length - 1]?.message} ({debugLog[debugLog.length - 1]?.type})
-                        </div>
-                    )}
-                </div>
-
                 {/* Trial Activation Section */}
                 {canStartTrial && (
                     <div className="bg-white shadow rounded-lg p-6">
@@ -1226,111 +704,6 @@ function BillingContent() {
                         {error}
                     </div>
                 )}
-
-                {/*/!* VISUAL DEBUG PANEL - Always visible for testing *!/*/}
-                {/*<div className="bg-blue-50 border border-blue-200 rounded-lg p-4">*/}
-                {/*    <h3 className="text-blue-900 font-semibold mb-3">🔍 Debug Information</h3>*/}
-
-                {/*    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-xs">*/}
-                {/*        <div>*/}
-                {/*            <h4 className="font-medium text-blue-800 mb-2">Subscription Status:</h4>*/}
-                {/*            <div className="bg-white p-2 rounded border">*/}
-                {/*                <div><strong>Tier:</strong> {subscription.tier || 'undefined'}</div>*/}
-                {/*                <div><strong>Status:</strong> {subscription.status || 'undefined'}</div>*/}
-                {/*                <div><strong>Platform:</strong> {subscription.platform || 'undefined'}</div>*/}
-                {/*                <div><strong>RevenueCat ID:</strong> {subscription.usage?.revenueCatCustomerId || 'none'}</div>*/}
-                {/*                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>*/}
-                {/*                <div><strong>Is Admin:</strong> {subscription.isAdmin ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Is Active:</strong> {subscription.isActive ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Has Used Trial:</strong> {subscription.hasUsedFreeTrial ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Hook Platform:</strong> {subscription.platform || 'MISSING'}</div>*/}
-                {/*                <div><strong>Raw Subscription Data:</strong> {JSON.stringify(subscription.usage?.platform)}</div>*/}
-
-                {/*            </div>*/}
-                {/*        </div>*/}
-
-                {/*        <div>*/}
-                {/*            <h4 className="font-medium text-blue-800 mb-2">Session Info:</h4>*/}
-                {/*            <div className="bg-white p-2 rounded border">*/}
-                {/*                <div><strong>User ID:</strong> {session?.user?.id?.slice(-8) || 'undefined'}</div>*/}
-                {/*                <div><strong>Email:</strong> {session?.user?.email || 'undefined'}</div>*/}
-                {/*                <div><strong>Session Tier:</strong> {session?.user?.subscriptionTier || 'undefined'}</div>*/}
-                {/*                <div><strong>Platform Type:</strong> {platform?.type || 'undefined'}</div>*/}
-                {/*                <div><strong>Is iOS:</strong> {platform?.isIOS ? 'Yes' : 'No'}</div>*/}
-                {/*                <div><strong>Billing Provider:</strong> {platform?.billingProvider || 'undefined'}</div>*/}
-                {/*            </div>*/}
-                {/*        </div>*/}
-                {/*    </div>*/}
-
-                {/*    {purchaseSteps.length > 0 && (*/}
-                {/*        <div className="mt-4">*/}
-                {/*            <h4 className="font-medium text-blue-800 mb-2">Purchase Steps:</h4>*/}
-                {/*            <div className="bg-white p-2 rounded border max-h-32 overflow-y-auto">*/}
-                {/*                {purchaseSteps.slice(-5).map((step, index) => (*/}
-                {/*                    <div key={index} className="text-xs mb-1 border-b pb-1">*/}
-                {/*                        <strong>{step.step}:</strong> {step.timestamp.slice(-8)}*/}
-                {/*                        {step.data && Object.keys(step.data).length > 0 && (*/}
-                {/*                            <div className="text-gray-600 ml-2">*/}
-                {/*                                {Object.entries(step.data).map(([key, value]) => (*/}
-                {/*                                    <div key={key}>{key}: {typeof value === 'object' ? JSON.stringify(value).slice(0, 50) : String(value)}</div>*/}
-                {/*                                ))}*/}
-                {/*                            </div>*/}
-                {/*                        )}*/}
-                {/*                    </div>*/}
-                {/*                ))}*/}
-                {/*            </div>*/}
-                {/*        </div>*/}
-                {/*    )}*/}
-
-                {/*    <div className="mt-3 flex gap-2">*/}
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={() => subscription.refetch()}*/}
-                {/*            className="bg-blue-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            Force Refresh Subscription*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={() => window.location.reload()}*/}
-                {/*            className="bg-gray-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            Reload Page*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={() => {*/}
-                {/*                console.log('Full subscription object:', subscription);*/}
-                {/*                console.log('Platform specifically:', subscription.platform);*/}
-                {/*                setSuccess(`Platform: ${subscription.platform || 'UNDEFINED'}, Full keys: ${Object.keys(subscription).join(', ')}`);*/}
-                {/*            }}*/}
-                {/*            className="bg-yellow-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            🔍 CHECK HOOK PLATFORM*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*        <TouchEnhancedButton*/}
-                {/*            onClick={async () => {*/}
-                {/*                try {*/}
-                {/*                    setSuccess('Testing cancellation...');*/}
-                {/*                    const response = await apiPost('/api/subscription/cancel', {});*/}
-                {/*                    const data = await response.json();*/}
-
-                {/*                    if (response.ok) {*/}
-                {/*                        setSuccess('CANCEL SUCCESS: ' + JSON.stringify(data, null, 2));*/}
-                {/*                    } else {*/}
-                {/*                        setError('CANCEL ERROR: ' + JSON.stringify(data, null, 2));*/}
-                {/*                    }*/}
-                {/*                } catch (err) {*/}
-                {/*                    setError('CANCEL NETWORK ERROR: ' + err.message);*/}
-                {/*                }*/}
-                {/*            }}*/}
-                {/*            className="bg-red-600 text-white px-3 py-1 rounded text-xs"*/}
-                {/*        >*/}
-                {/*            🧪 TEST CANCEL API*/}
-                {/*        </TouchEnhancedButton>*/}
-
-                {/*    </div>*/}
-                {/*</div>*/}
 
                 {success && (
                     <div className="bg-green-100 border border-green-400 text-green-700 px-4 py-3 rounded">
@@ -1686,66 +1059,6 @@ function BillingContent() {
 
                 <Footer />
             </div>
-            {/* VISUAL DEBUG LOG MODAL */}
-            {showDebugLog && (
-                <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-                    <div className="bg-white rounded-lg max-w-4xl w-full max-h-96 overflow-hidden flex flex-col">
-                        <div className="p-4 border-b flex justify-between items-center">
-                            <h3 className="text-lg font-semibold">Visual Debug Log</h3>
-                            <div className="flex gap-2">
-                                <TouchEnhancedButton
-                                    onClick={clearDebugLog}
-                                    className="bg-gray-600 text-white px-3 py-1 rounded text-sm"
-                                >
-                                    Clear Log
-                                </TouchEnhancedButton>
-                                <TouchEnhancedButton
-                                    onClick={() => setShowDebugLog(false)}
-                                    className="text-gray-500 hover:text-gray-700 text-xl"
-                                >
-                                    ×
-                                </TouchEnhancedButton>
-                            </div>
-                        </div>
-                        <div className="flex-1 overflow-y-auto p-4 debug-log-container">
-                            {debugLog.length === 0 ? (
-                                <div className="text-gray-500 text-center py-8">No debug messages yet</div>
-                            ) : (
-                                <div className="space-y-2">
-                                    {debugLog.map((log) => (
-                                        <div
-                                            key={log.id}
-                                            className={`p-3 rounded border-l-4 ${
-                                                log.type === 'success' ? 'bg-green-50 border-green-500' :
-                                                    log.type === 'error' ? 'bg-red-50 border-red-500' :
-                                                        log.type === 'warning' ? 'bg-yellow-50 border-yellow-500' :
-                                                            'bg-blue-50 border-blue-500'
-                                            }`}
-                                        >
-                                            <div className="flex justify-between items-start mb-1">
-                                    <span className={`text-sm font-medium ${
-                                        log.type === 'success' ? 'text-green-800' :
-                                            log.type === 'error' ? 'text-red-800' :
-                                                log.type === 'warning' ? 'text-yellow-800' :
-                                                    'text-blue-800'
-                                    }`}>
-                                        Step {log.step}: {log.message}
-                                    </span>
-                                                <span className="text-xs text-gray-500">{log.timestamp}</span>
-                                            </div>
-                                            {Object.keys(log.data).length > 0 && (
-                                                <div className="text-xs font-mono bg-white p-2 rounded mt-2 border">
-                                                    {JSON.stringify(log.data, null, 2)}
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-                        </div>
-                    </div>
-                </div>
-            )}
         </MobileOptimizedLayout>
     );
 }
