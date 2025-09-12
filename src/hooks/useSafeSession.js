@@ -151,35 +151,43 @@ export function useSafeSession() {
             data: sessionData,
             status: sessionStatus,
             update: async () => {
-                console.log('🔄 Updating session...');
+                console.log('🔄 Updating session on native platform...');
 
-                // For native, always check mobile storage first
-                const fresh = await MobileSession.getSession();
-                if (fresh) {
-                    setMobileSession(fresh);
-                    setMobileSessionStatus('authenticated');
-                    return fresh;
-                }
+                try {
+                    // CRITICAL: Force NextAuth session refresh FIRST
+                    if (nextAuthResult?.update) {
+                        console.log('🔄 Calling NextAuth update to refresh from database...');
+                        const updatedNextAuth = await nextAuthResult.update();
+                        console.log('✅ NextAuth session updated:', updatedNextAuth?.user?.subscription?.tier);
 
-                // Then try to get fresh session from NextAuth
-                if (nextAuthResult?.update) {
-                    try {
-                        const updated = await nextAuthResult.update();
-                        if (updated) {
-                            await MobileSession.setSession(updated);
-                            setMobileSession(updated);
+                        if (updatedNextAuth) {
+                            // Sync the fresh NextAuth session to mobile storage
+                            await MobileSession.setSession(updatedNextAuth);
+                            setMobileSession(updatedNextAuth);
                             setMobileSessionStatus('authenticated');
-                            return updated;
+                            return updatedNextAuth;
                         }
-                    } catch (error) {
-                        console.error('Error updating NextAuth session:', error);
                     }
-                }
 
-                // No valid session found
-                setMobileSession(null);
-                setMobileSessionStatus('unauthenticated');
-                return null;
+                    // Fallback: check mobile storage if NextAuth update failed
+                    console.log('🔄 Checking mobile session storage as fallback...');
+                    const fresh = await MobileSession.getSession();
+                    if (fresh) {
+                        setMobileSession(fresh);
+                        setMobileSessionStatus('authenticated');
+                        return fresh;
+                    }
+
+                    // No valid session found
+                    console.log('❌ No valid session found after update');
+                    setMobileSession(null);
+                    setMobileSessionStatus('unauthenticated');
+                    return null;
+
+                } catch (error) {
+                    console.error('❌ Error updating session:', error);
+                    return null;
+                }
             },
         };
     }
