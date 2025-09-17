@@ -106,6 +106,11 @@ export async function POST(request) {
         }
 
         const extractionResult = await modalResponse.json();
+        console.log('🔍 Full Modal response:', JSON.stringify(extractionResult, null, 2));
+        console.log('🔍 Modal response keys:', Object.keys(extractionResult));
+        console.log('🔍 Recipe keys:', extractionResult.recipe ? Object.keys(extractionResult.recipe) : 'No recipe');
+        console.log('🔍 Has extracted_image:', !!extractionResult.extracted_image);
+        console.log('🔍 Has recipe.extractedImage:', !!extractionResult.recipe?.extractedImage);
         console.log('✅ Modal.com response received:', {
             success: extractionResult.success,
             hasRecipe: !!extractionResult.recipe,
@@ -130,19 +135,49 @@ export async function POST(request) {
             hasImage: !!extractionResult.recipe?.extractedImage
         });
 
+        // Extract image data from Modal response
+        const extractedImage = extractionResult.extracted_image || extractionResult.extractedImage || extractionResult.recipe?.extractedImage;
+        console.log('📸 Processing extracted image:', !!extractedImage);
+        if (extractedImage) {
+            console.log('📸 Image data keys:', Object.keys(extractedImage));
+            console.log('📸 Image data length:', extractedImage.data?.length);
+        }
+
+// Process tags properly
+        const tags = extractionResult.recipe?.tags || [];
+        console.log('🏷️ Processing tags:', tags);
+
+// Process nutrition data
+        const nutrition = extractionResult.recipe?.nutrition || {};
+        console.log('🍎 Processing nutrition:', nutrition);
+
         return NextResponse.json({
             success: true,
             recipe: {
                 ...extractionResult.recipe,
+                // Ensure tags are included
+                tags: tags,
+                // Ensure nutrition is included
+                nutrition: nutrition,
+                // Include extracted image in recipe object
+                ...(extractedImage && { extractedImage: extractedImage }),
                 extractionMetadata: {
                     extractedAt: new Date().toISOString(),
                     platform: extractionResult.recipe?.method || platform || 'universal',
-                    imageExtracted: !!extractionResult.recipe?.extractedImage,
+                    imageExtracted: !!extractedImage,
                     apiVersion: 'universal-v1'
                 }
             },
-            extractedImage: extractionResult.extractedImage || extractionResult.recipe?.extractedImage,
-            metadata: extractionResult.metadata
+            // Also include at root level for backward compatibility
+            extractedImage: extractedImage,
+            metadata: extractionResult.metadata,
+            // Include extraction info for debugging
+            extractionInfo: {
+                hasImage: !!extractedImage,
+                tagCount: tags.length,
+                hasNutrition: Object.keys(nutrition).length > 0,
+                originalKeys: Object.keys(extractionResult)
+            }
         });
 
     } catch (error) {
