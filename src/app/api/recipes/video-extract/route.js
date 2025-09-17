@@ -3,6 +3,27 @@
 import { NextResponse } from 'next/server';
 import { getEnhancedSession } from '@/lib/api-auth';
 
+
+function getExtractedImageData(recipe, modalData) {
+    // Try multiple possible locations for extracted image
+    const imageData = recipe?.extractedImage ||
+        modalData?.extractedImage ||
+        modalData?.extracted_image ||
+        recipe?.extracted_image;
+
+    if (!imageData || !imageData.data) {
+        return null;
+    }
+
+    return {
+        data: imageData.data,
+        extractionMethod: imageData.extractionMethod || 'video_frame',
+        frameCount: imageData.frameCount || 1,
+        source: imageData.source || 'modal_extraction',
+        extractedAt: new Date()
+    };
+}
+
 // ENHANCED: Universal platform detection
 const UNIVERSAL_PLATFORMS = {
     // Social media with video content
@@ -306,15 +327,9 @@ function transformUniversalDataToSchema(modalData, contentInfo) {
             fiber: null
         },
 
-        // ENHANCED: Extracted image data (if present)
-        ...(recipe.extractedImage || modalData.extractedImage ? {
-            extractedImage: {
-                data: (recipe.extractedImage || modalData.extractedImage).data,
-                extractionMethod: (recipe.extractedImage || modalData.extractedImage).extractionMethod || 'video_frame',
-                frameCount: (recipe.extractedImage || modalData.extractedImage).frameCount || 1,
-                source: (recipe.extractedImage || modalData.extractedImage).source || contentInfo.platform,
-                extractedAt: new Date()
-            }
+        // ENHANCED: Extracted image data with safe access
+        ...(getExtractedImageData(recipe, modalData) ? {
+            extractedImage: getExtractedImageData(recipe, modalData)
         } : {}),
 
         // ENHANCED: Universal content metadata
@@ -396,6 +411,20 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
 
         console.log('📸 MODAL DEBUG: result.extracted_image exists:', !!result.extracted_image);
         console.log('📸 MODAL DEBUG: result.recipe.extractedImage exists:', !!result.recipe.extractedImage);
+
+        // CRITICAL: Ensure extractedImage is properly handled
+        const extractedImage = result.extractedImage || result.extracted_image || result.recipe?.extractedImage;
+        if (extractedImage) {
+            console.log('📸 MODAL DEBUG: Found extracted image, data length:', extractedImage.data?.length);
+            // Attach to both locations for compatibility
+            result.extractedImage = extractedImage;
+            if (result.recipe) {
+                result.recipe.extractedImage = extractedImage;
+            }
+        } else {
+            console.log('⚠️ MODAL DEBUG: No extracted image found in any location');
+        }
+
         if (result.extracted_image) {
             console.log('📸 MODAL DEBUG: Image data keys:', Object.keys(result.extracted_image));
             console.log('📸 MODAL DEBUG: Image data length:', result.extracted_image.data?.length);
@@ -518,8 +547,13 @@ export async function POST(request) {
         // ENHANCED: Return comprehensive extraction info
         return NextResponse.json({
             success: true,
-            recipe: result.recipe,
-            extractedImage: result.extracted_image || result.recipe.extractedImage,
+            recipe: {
+                ...result.recipe,
+                // Ensure extractedImage is attached to recipe if it exists
+                ...(result.extractedImage && { extractedImage: result.extractedImage })
+            },
+            // CRITICAL: Also include at root level for backward compatibility
+            extractedImage: result.extractedImage || result.extracted_image || result.recipe?.extractedImage,
             contentInfo: {
                 platform: contentInfo.platform,
                 contentId: contentInfo.contentId,
@@ -533,7 +567,7 @@ export async function POST(request) {
                 metadata: result.metadata || null,
                 hasTimestamps: result.recipe.instructions.some(i => i.videoTimestamp) ||
                     result.recipe.ingredients.some(i => i.videoTimestamp),
-                hasExtractedImage: !!(result.recipe.extractedImage || result.extracted_image),
+                hasExtractedImage: !!(result.extractedImage || result.extracted_image || result.recipe?.extractedImage),
                 instructionCount: result.recipe.instructions.length,
                 ingredientCount: result.recipe.ingredients.length,
                 primaryExtractionMethod: result.metadata?.extraction_method || 'unknown',
@@ -541,7 +575,7 @@ export async function POST(request) {
                 contentAnalyzed: result.metadata?.content_analyzed || false,
                 processingTimeMs: result.metadata?.processing_time_ms || null
             },
-            message: `Recipe extracted from ${contentInfo.platform} using Universal AI processing${result.extracted_image ? ' with image' : ''}${result.metadata?.extraction_method ? ` via ${result.metadata.extraction_method}` : ''}`
+            message: `Recipe extracted from ${contentInfo.platform} using Universal AI processing${result.extractedImage || result.extracted_image ? ' with image' : ''}${result.metadata?.extraction_method ? ` via ${result.metadata.extraction_method}` : ''}`
         });
 
     } catch (error) {

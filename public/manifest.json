@@ -2,7 +2,7 @@
   "name": "Doc Bear's Comfort Kitchen",
   "short_name": "Comfort Kitchen",
   "description": "AI-powered food inventory & recipe management with international barcode scanning, voice nutrition analysis, and intelligent recipe scaling for 80+ countries.",
-  "version": "1.8.0",
+  "version": "1.8.1",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
