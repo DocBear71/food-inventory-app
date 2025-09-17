@@ -1,7 +1,7 @@
 
 // file: /src/pages/api/recipes/universal-video-extract.js v1 - Universal video recipe extraction endpoint (simplified)
 
-const MODAL_ENDPOINT = process.env.MODAL_VIDEO_EXTRACT_ENDPOINT || 'https://docbear--social-video-recipe-extractor-extract-recipe-from-social-video.modal.run';
+const MODAL_ENDPOINT = process.env.MODAL_ENDPOINT_URL || 'https://doc-bears-comfort-kitchen--social-video-recipe-extractor-703821.modal.run';
 
 export default async function handler(req, res) {
     if (req.method !== 'POST') {
