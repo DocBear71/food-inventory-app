@@ -505,7 +505,7 @@ export async function POST(request) {
             );
         }
 
-        const { video_url, analysisType, analysis_type, platform, extractImage } = await request.json();
+        const { video_url, analysisType, analysis_type, platform, extractImage } = requestBody;
         const finalAnalysisType = analysisType || analysis_type; // Accept both formats
         console.log('🌟 [VERCEL] Analysis type requested:', analysisType);
         console.log('🌟 [VERCEL] Platform hint provided:', platform);
