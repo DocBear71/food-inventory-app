@@ -229,7 +229,7 @@ export default function ImportRecipePage() {
             });
 
             // ENHANCED: Use universal endpoint for ALL platforms
-            const response = await apiPost('/api/recipes/video-extract', {
+            const response = await apiPost('/api/recipes/universal-video-extract', {
                 video_url: url,
                 platform: platform,
                 analysisType: processingMethod,  // FIXED: Use camelCase to match API
