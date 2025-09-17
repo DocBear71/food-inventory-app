@@ -235,35 +235,44 @@ function transformSnakeCaseToCamelCase(obj) {
     return transformed;
 }
 
-// ENHANCED: Universal platform detection
 async function detectUniversalPlatform(url) {
     console.log('🌟 [VERCEL] Detecting universal platform for URL:', url);
 
-    // Check each platform
-    for (const [platform, config] of Object.entries(UNIVERSAL_PLATFORMS)) {
-        const contentId = config.extractId(url);
-        if (contentId) {
-            console.log(`✅ [VERCEL] Detected ${platform} content: ${contentId}`);
-            return {platform, contentId, originalUrl: url};
+    if (!url || typeof url !== 'string') {
+        throw new Error('Invalid URL provided');
+    }
+
+    try {
+        // Check each platform
+        for (const [platform, config] of Object.entries(UNIVERSAL_PLATFORMS)) {
+            try {
+                const contentId = config.extractId(url);
+                if (contentId) {
+                    console.log(`✅ [VERCEL] Detected ${platform} content: ${contentId}`);
+                    return {platform, contentId, originalUrl: url};
+                }
+            } catch (platformError) {
+                console.warn(`Platform detection error for ${platform}:`, platformError);
+                continue;
+            }
         }
-    }
 
-    // Check for direct video files
-    if (url.match(/\.(mp4|mov|avi|mkv|webm)(\?|$)/i)) {
-        return {platform: 'direct_video', contentId: url.split('/').pop(), originalUrl: url};
-    }
+        // Check for direct video files
+        if (url.match(/\.(mp4|mov|avi|mkv|webm)(\?|$)/i)) {
+            return {platform: 'direct_video', contentId: url.split('/').pop(), originalUrl: url};
+        }
 
-    // Generic video/content detection
-    if (url.match(/\/video|\/watch|\/play|\/post|\/status/)) {
-        return {platform: 'generic_content', contentId: 'unknown', originalUrl: url};
-    }
+        // Generic video/content detection
+        if (url.match(/\/video|\/watch|\/play|\/post|\/status/)) {
+            return {platform: 'generic_content', contentId: 'unknown', originalUrl: url};
+        }
 
-    const {NativeDialog} = await import('@/components/mobile/NativeDialog');
-    await NativeDialog.showError({
-        title: 'Platform Failed',
-        message: 'Platform not supported yet. Currently supports TikTok, Instagram, Facebook, Twitter/X, YouTube, Reddit, Pinterest, Bluesky, LinkedIn, Threads, Snapchat, and direct video files.'
-    });
-    return;
+        throw new Error('No supported platform detected in URL');
+
+    } catch (error) {
+        console.error('🔍 Platform detection failed:', error);
+        throw error;
+    }
 }
 
 // ENHANCED: Transform Modal response for universal platforms
@@ -471,12 +480,28 @@ export async function POST(request) {
     try {
         console.log('=== 🌟 [VERCEL] UNIVERSAL CONTENT RECIPE EXTRACTION START ===');
 
+        // Log the raw request details
+        console.log('Request method:', request.method);
+        console.log('Request URL:', request.url);
+
         const session = await getEnhancedSession(request);
 
         if (!session?.user?.id) {
             return NextResponse.json(
                 { error: 'Unauthorized. Please log in to extract recipes from content.' },
                 { status: 401 }
+            );
+        }
+
+        let requestBody;
+        try {
+            requestBody = await request.json();
+            console.log('📦 [VERCEL] Request body:', JSON.stringify(requestBody, null, 2));
+        } catch (parseError) {
+            console.error('❌ [VERCEL] Failed to parse request body:', parseError);
+            return NextResponse.json(
+                { error: 'Invalid JSON in request body' },
+                { status: 400 }
             );
         }
 
@@ -495,17 +520,23 @@ export async function POST(request) {
 
         console.log('🌟 [VERCEL] Processing content URL:', video_url);
 
-        // ENHANCED: Universal platform detection
+        // ENHANCED: Universal platform detection with better error handling
         let contentInfo;
         try {
-            contentInfo = detectUniversalPlatform(video_url);
+            contentInfo = await detectUniversalPlatform(video_url);
+            if (!contentInfo) {
+                throw new Error('Platform detection returned null');
+            }
         } catch (error) {
+            console.error('Platform detection error:', error);
+
             // If detection fails but platform hint provided, use hint
             const supportedPlatforms = [
                 'tiktok', 'instagram', 'facebook', 'twitter', 'youtube',
                 'reddit', 'pinterest', 'bluesky', 'linkedin', 'threads',
                 'snapchat', 'direct_video', 'generic_content'
             ];
+
             if (platform && supportedPlatforms.includes(platform)) {
                 console.log(`🎯 [VERCEL] Using platform hint: ${platform}`);
                 contentInfo = {
@@ -514,7 +545,12 @@ export async function POST(request) {
                     originalUrl: video_url
                 };
             } else {
-                throw error;
+                // Return more specific error instead of throwing
+                return NextResponse.json({
+                    error: `Platform detection failed: ${error.message || 'Unsupported URL format'}`,
+                    supportedPlatforms: supportedPlatforms,
+                    receivedUrl: video_url
+                }, { status: 400 });
             }
         }
 

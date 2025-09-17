@@ -232,7 +232,7 @@ export default function ImportRecipePage() {
             const response = await apiPost('/api/recipes/video-extract', {
                 video_url: url,
                 platform: platform,
-                analysis_type: processingMethod,
+                analysisType: processingMethod,  // FIXED: Use camelCase to match API
                 extractImage: extractImages
             });
 
@@ -241,6 +241,13 @@ export default function ImportRecipePage() {
                 platform: platform,
                 message: `🤖 AI processing ${getPlatformName(platform)} content${extractImages ? ' and extracting images' : ''}...`
             });
+
+            if (!response.ok) {
+                // CRITICAL: Get the detailed error message
+                const errorData = await response.json();
+                console.error('API Error Details:', errorData);
+                throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+            }
 
             const data = await response.json();
 
