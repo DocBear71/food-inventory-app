@@ -6,6 +6,12 @@ const MODAL_ENDPOINT = process.env.MODAL_VIDEO_EXTRACT_ENDPOINT || 'https://docb
 
 export async function POST(request) {
     try {
+        console.log('🚀 Modal endpoint:', MODAL_ENDPOINT);
+        console.log('🔧 Environment check:', {
+            hasModalEndpoint: !!process.env.MODAL_VIDEO_EXTRACT_ENDPOINT,
+            nodeEnv: process.env.NODE_ENV
+        });
+
         const { video_url, platform, analysisType = 'ai_vision_enhanced', extractImage = true } = await request.json();
 
         // Basic validation
@@ -98,11 +104,17 @@ export async function POST(request) {
 
     } catch (error) {
         console.error('❌ Universal video extraction API error:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error details:', {
+            name: error.name,
+            message: error.message,
+            cause: error.cause
+        });
 
         return NextResponse.json({
             success: false,
             error: 'Internal server error during video extraction',
-            details: process.env.NODE_ENV === 'development' ? error.message : 'Please try again later'
+            details: error.message // Always show the actual error message for debugging
         }, { status: 500 });
     }
 }
