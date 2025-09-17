@@ -372,9 +372,9 @@ async function callModalForUniversalExtraction(contentInfo, analysisType = 'page
         const payload = {
             video_url: contentInfo.originalUrl,
             platform: contentInfo.platform,
-            analysis_type: analysisType,
-            extract_image: extractImage,
-            user_context: userContext || {
+            analysisType: analysisType,  // or analysis_type depending on what Modal expects
+            extractImage: extractImage,  // or extract_image depending on what Modal expects
+            userContext: userContext || {
                 location: 'US',
                 measurementSystem: 'imperial',
                 currency: 'USD'
@@ -480,7 +480,8 @@ export async function POST(request) {
             );
         }
 
-        const { video_url, analysisType, platform, extractImage } = await request.json();
+        const { video_url, analysisType, analysis_type, platform, extractImage } = await request.json();
+        const finalAnalysisType = analysisType || analysis_type; // Accept both formats
         console.log('🌟 [VERCEL] Analysis type requested:', analysisType);
         console.log('🌟 [VERCEL] Platform hint provided:', platform);
         console.log('📸 [VERCEL] Image extraction requested:', extractImage);
@@ -529,7 +530,7 @@ export async function POST(request) {
 
         const result = await callModalForUniversalExtraction(
             contentInfo,
-            analysisType || 'page_scraping_first',
+            finalAnalysisType || 'page_scraping_first',
             extractImage || false,
             userContext
         );
