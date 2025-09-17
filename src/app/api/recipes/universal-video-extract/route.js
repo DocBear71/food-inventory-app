@@ -62,8 +62,9 @@ export async function POST(request) {
 
             return NextResponse.json({
                 success: false,
-                error: 'Video extraction service temporarily unavailable',
-                details: modalResponse.status === 504 ? 'Request timeout - video may be too long or platform may be slow' : 'Service error'
+                error: 'Internal server error during video extraction',
+                details: error.message,
+                stack: error.stack // REMOVE THIS AFTER DEBUGGING
             }, { status: 500 });
         }
 
