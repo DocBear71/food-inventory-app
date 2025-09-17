@@ -1588,18 +1588,104 @@ export default function EnhancedRecipeForm({
         setIsSubmitting(true);
 
         try {
-            // ... rest of your existing submission logic
+            const finalTags = tagsString
+                .split(',')
+                .map(tag => tag.trim())
+                .filter(tag => tag.length > 0);
 
-            // On success, add success haptic:
-            try {
-                const { MobileHaptics } = await import('@/components/mobile/MobileHaptics');
-                await MobileHaptics.success();
-            } catch (error) {
-                console.log('Success haptic failed:', error);
+            // FIXED: Properly define finalRecipe variable
+            const finalRecipe = {
+                title: recipe.title,
+                description: recipe.description,
+                isMultiPart: recipe.isMultiPart,
+                parts: recipe.parts || [],
+                // For backward compatibility and search, populate flat arrays
+                ingredients: recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts) && recipe.parts.length > 0 ?
+                    // Flatten ingredients from all parts
+                    recipe.parts.reduce((allIngredients, part) => {
+                        return [...allIngredients, ...(part.ingredients || [])];
+                    }, [])
+                    : recipe.ingredients || [],
+                instructions: recipe.isMultiPart && recipe.parts && Array.isArray(recipe.parts) && recipe.parts.length > 0 ?
+                    // Flatten instructions from all parts with part labels
+                    recipe.parts.reduce((allInstructions, part, partIndex) => {
+                        const partInstructions = (part.instructions || []).map(instruction => {
+                            const instructionText = typeof instruction === 'string' ?
+                                instruction : instruction.instruction || instruction.text || '';
+                            return {
+                                step: instruction.step || 1,
+                                instruction: recipe.parts.length > 1 ?
+                                    `${part.name || `Part ${partIndex + 1}`}: ${instructionText}` :
+                                    instructionText
+                            };
+                        });
+                        return [...allInstructions, ...partInstructions];
+                    }, [])
+                    : recipe.instructions || [],
+                prepTime: extractNumber(recipe.prepTime),
+                cookTime: extractNumber(recipe.cookTime),
+                servings: extractNumber(recipe.servings),
+                difficulty: recipe.difficulty || 'medium',
+                tags: finalTags,
+                source: recipe.source || '',
+                isPublic: recipe.isPublic || false,
+                category: recipe.category || 'entrees',
+                nutrition: recipe.nutrition || {},
+                // Include extracted image if present
+                ...(recipe.extractedImage && { extractedImage: recipe.extractedImage })
+            };
+
+            console.log('📤 Submitting recipe:', {
+                title: finalRecipe.title,
+                ingredientCount: finalRecipe.ingredients?.length || 0,
+                instructionCount: finalRecipe.instructions?.length || 0,
+                isMultiPart: finalRecipe.isMultiPart,
+                hasImage: !recipeImage,
+                hasExtractedImage: !!finalRecipe.extractedImage,
+                submissionId: Date.now()
+            });
+
+            // Use FormData for consistency
+            console.log('📸 Submitting with FormData (unified photo system)');
+            const formData = new FormData();
+            formData.append('recipeData', JSON.stringify(finalRecipe));
+
+            // Add image if present
+            if (recipeImage) {
+                formData.append('recipeImage', recipeImage);
+                console.log('📸 Added image to FormData:', recipeImage.name, recipeImage.size);
             }
 
-            // Call the onSubmit callback with the result
+            const response = await fetch('/api/recipes', {
+                method: 'POST',
+                body: formData,
+                credentials: 'include',
+                headers: {
+                    'X-Submission-ID': Date.now().toString()
+                }
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                const { NativeDialog } = await import('@/components/mobile/NativeDialog');
+                await NativeDialog.showError({
+                    title: 'Save Failed',
+                    message: `Failed to save recipe: ${errorData.message}`
+                });
+            }
+
+            const result = await response.json(); // FIXED: Now result is properly declared before use
+
+            // Check for duplicate response
+            if (result.isDuplicate) {
+                console.log('✅ Duplicate prevented, using existing recipe:', result.recipe._id);
+            } else {
+                console.log('✅ Recipe submission successful:', result.message);
+            }
+
+            // FIXED: Now we can safely call onSubmit with result.recipe
             await onSubmit(result.recipe);
+
 
         } catch (error) {
             console.error('Error submitting recipe:', error);
