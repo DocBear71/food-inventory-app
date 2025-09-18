@@ -143,11 +143,11 @@ export async function POST(request) {
             console.log('📸 Image data length:', extractedImage.data?.length);
         }
 
-// Process tags properly
+        // Process tags properly
         const tags = extractionResult.recipe?.tags || [];
         console.log('🏷️ Processing tags:', tags);
 
-// Process nutrition data
+        // Process nutrition data
         const nutrition = extractionResult.recipe?.nutrition || {};
         console.log('🍎 Processing nutrition:', nutrition);
 
@@ -155,11 +155,9 @@ export async function POST(request) {
             success: true,
             recipe: {
                 ...extractionResult.recipe,
-                // Ensure tags are included
+                source: extractionResult.recipe.source || video_url,
                 tags: tags,
-                // Ensure nutrition is included
                 nutrition: nutrition,
-                // Include extracted image in recipe object
                 ...(extractedImage && { extractedImage: extractedImage }),
                 extractionMetadata: {
                     extractedAt: new Date().toISOString(),
@@ -168,10 +166,8 @@ export async function POST(request) {
                     apiVersion: 'universal-v1'
                 }
             },
-            // Also include at root level for backward compatibility
             extractedImage: extractedImage,
             metadata: extractionResult.metadata,
-            // Include extraction info for debugging
             extractionInfo: {
                 hasImage: !!extractedImage,
                 tagCount: tags.length,
