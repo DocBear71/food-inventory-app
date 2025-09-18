@@ -1,5 +1,5 @@
 'use client';
-// file: /src/app/recipes/add/page.js v8 - Enhanced with import data handling
+// file: /src/app/recipes/add/page.js v9 - STANDARDIZED import success screen for ALL imports
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -16,11 +16,87 @@ export default function AddRecipePage() {
     const [importedRecipeData, setImportedRecipeData] = useState(null);
     const [importSource, setImportSource] = useState(null);
 
-    // Check for imported recipe data
+    // ENHANCED: Detect import source from multiple indicators
+    const detectImportSource = (recipeData, urlSource) => {
+        // Priority 1: URL parameter
+        if (urlSource) {
+            return urlSource;
+        }
+
+        // Priority 2: Recipe metadata
+        if (recipeData) {
+            // Check for platform in various places
+            if (recipeData.platform) {
+                return recipeData.platform;
+            }
+
+            if (recipeData.videoMetadata?.platform) {
+                return recipeData.videoMetadata.platform;
+            }
+
+            if (recipeData.extractionInfo?.platform) {
+                return recipeData.extractionInfo.platform;
+            }
+
+            // Check source URL for platform indicators
+            if (recipeData.source) {
+                const sourceUrl = recipeData.source.toLowerCase();
+                if (sourceUrl.includes('tiktok.com') || sourceUrl.includes('vm.tiktok.com')) return 'tiktok';
+                if (sourceUrl.includes('instagram.com')) return 'instagram';
+                if (sourceUrl.includes('facebook.com') || sourceUrl.includes('fb.watch')) return 'facebook';
+                if (sourceUrl.includes('twitter.com') || sourceUrl.includes('x.com')) return 'twitter';
+                if (sourceUrl.includes('youtube.com') || sourceUrl.includes('youtu.be')) return 'youtube';
+                if (sourceUrl.includes('reddit.com')) return 'reddit';
+                if (sourceUrl.includes('pinterest.com')) return 'pinterest';
+                if (sourceUrl.includes('bsky.app') || sourceUrl.includes('bluesky.app')) return 'bluesky';
+                if (sourceUrl.includes('linkedin.com')) return 'linkedin';
+                if (sourceUrl.includes('threads.net')) return 'threads';
+                if (sourceUrl.includes('snapchat.com')) return 'snapchat';
+
+                // Check for website imports
+                if (sourceUrl.startsWith('http') && !sourceUrl.includes('tiktok') && !sourceUrl.includes('instagram')) {
+                    return 'website';
+                }
+            }
+
+            // Check extraction method for clues
+            if (recipeData.extractionMethod || recipeData.extraction_method) {
+                const method = (recipeData.extractionMethod || recipeData.extraction_method).toLowerCase();
+                if (method.includes('tiktok')) return 'tiktok';
+                if (method.includes('instagram')) return 'instagram';
+                if (method.includes('facebook')) return 'facebook';
+                if (method.includes('twitter')) return 'twitter';
+                if (method.includes('youtube')) return 'youtube';
+                if (method.includes('reddit')) return 'reddit';
+                if (method.includes('website') || method.includes('url')) return 'website';
+                if (method.includes('text') || method.includes('paste')) return 'text';
+            }
+
+            // Check for video-specific indicators
+            if (recipeData.videoMetadata || recipeData.extractedImage || recipeData.videoInfo) {
+                return 'video'; // Generic video import
+            }
+
+            // Check importedFrom field
+            if (recipeData.importedFrom) {
+                const importedFrom = recipeData.importedFrom.toLowerCase();
+                if (importedFrom.includes('tiktok')) return 'tiktok';
+                if (importedFrom.includes('instagram')) return 'instagram';
+                if (importedFrom.includes('facebook')) return 'facebook';
+                if (importedFrom.includes('website')) return 'website';
+                if (importedFrom.includes('url')) return 'website';
+                if (importedFrom.includes('text')) return 'text';
+            }
+        }
+
+        // Default fallback
+        return 'import';
+    };
+
     // Check for imported recipe data
     useEffect(() => {
         const imported = searchParams.get('imported');
-        const source = searchParams.get('source');
+        const urlSource = searchParams.get('source');
 
         if (imported === 'true') {
             // Try sessionStorage first (for new method)
@@ -29,8 +105,13 @@ export default function AddRecipePage() {
                 try {
                     const decodedData = JSON.parse(storedRecipe);
                     console.log('📥 Imported recipe data from sessionStorage:', decodedData);
+
+                    // Detect import source from multiple indicators
+                    const detectedSource = detectImportSource(decodedData, urlSource);
+                    console.log('🔍 Detected import source:', detectedSource);
+
                     setImportedRecipeData(decodedData);
-                    setImportSource(source || 'unknown');
+                    setImportSource(detectedSource);
 
                     // Clean up sessionStorage
                     sessionStorage.removeItem('importedRecipe');
@@ -44,8 +125,13 @@ export default function AddRecipePage() {
                     try {
                         const decodedData = JSON.parse(decodeURIComponent(dataParam));
                         console.log('📥 Imported recipe data from URL:', decodedData);
+
+                        // Detect import source from multiple indicators
+                        const detectedSource = detectImportSource(decodedData, urlSource);
+                        console.log('🔍 Detected import source:', detectedSource);
+
                         setImportedRecipeData(decodedData);
-                        setImportSource(source || 'unknown');
+                        setImportSource(detectedSource);
                     } catch (error) {
                         console.error('Error parsing imported recipe data:', error);
                     }
@@ -148,9 +234,9 @@ export default function AddRecipePage() {
                     videoMetadata: recipeData.videoMetadata
                 }),
 
-                // Add importedFrom for video imports
-                ...(recipeData.importedFrom && {
-                    importedFrom: recipeData.importedFrom
+                // Add importedFrom for all imports
+                ...(importSource && {
+                    importedFrom: `${importSource} import`
                 })
             };
 
@@ -170,9 +256,9 @@ export default function AddRecipePage() {
             const data = await response.json();
 
             if (data.success) {
-                // Show success message for video imports
-                if (recipeData.videoMetadata) {
-                    console.log(`✅ ${importSource || 'Video'} recipe imported successfully!`);
+                // Show success message for imports
+                if (importSource) {
+                    console.log(`✅ ${importSource} recipe imported successfully!`);
                 }
 
                 router.push(`/recipes/${data.recipe._id}`);
@@ -189,11 +275,11 @@ export default function AddRecipePage() {
         } catch (error) {
             console.error('Error creating recipe:', error);
 
-            // Enhanced error handling for video imports
-            if (recipeData.videoMetadata || importSource) {
+            // Enhanced error handling for imports
+            if (importSource) {
                 const { NativeDialog } = await import('@/components/mobile/NativeDialog');
                 await NativeDialog.showError({
-                    title: `${importSource || 'Imported'} Recipe Save Failed`,
+                    title: `${getImportSourceInfo().name} Recipe Save Failed`,
                     message: `The recipe was extracted successfully but couldn't be saved: ${error.message}\n\nPlease try again.`
                 });
             } else {
@@ -213,6 +299,7 @@ export default function AddRecipePage() {
         await NativeNavigation.routerBack(router);
     };
 
+    // ENHANCED: More comprehensive import source info
     const getImportSourceInfo = () => {
         switch (importSource) {
             case 'tiktok':
@@ -221,11 +308,69 @@ export default function AddRecipePage() {
                 return { icon: '📸', name: 'Instagram', color: 'purple' };
             case 'facebook':
                 return { icon: '👥', name: 'Facebook', color: 'blue' };
+            case 'twitter':
+                return { icon: '🐦', name: 'Twitter/X', color: 'sky' };
+            case 'youtube':
+                return { icon: '📺', name: 'YouTube', color: 'red' };
+            case 'reddit':
+                return { icon: '🔴', name: 'Reddit', color: 'orange' };
+            case 'pinterest':
+                return { icon: '📌', name: 'Pinterest', color: 'red' };
+            case 'bluesky':
+                return { icon: '🦋', name: 'Bluesky', color: 'blue' };
+            case 'linkedin':
+                return { icon: '💼', name: 'LinkedIn', color: 'blue' };
+            case 'threads':
+                return { icon: '🧵', name: 'Threads', color: 'gray' };
+            case 'snapchat':
+                return { icon: '👻', name: 'Snapchat', color: 'yellow' };
             case 'website':
                 return { icon: '🌐', name: 'Website', color: 'green' };
+            case 'text':
+                return { icon: '📝', name: 'Text Parser', color: 'indigo' };
+            case 'video':
+                return { icon: '🎥', name: 'Video', color: 'purple' };
+            case 'import':
             default:
                 return { icon: '🎯', name: 'Import', color: 'indigo' };
         }
+    };
+
+    // ENHANCED: Get appropriate features list for each import type
+    const getImportFeatures = () => {
+        if (!importedRecipeData) return [];
+
+        const features = [];
+
+        // Standard features
+        if (importedRecipeData.title) {
+            features.push({ icon: '✅', label: 'Title', value: importedRecipeData.title });
+        }
+
+        if (importedRecipeData.ingredients?.length > 0) {
+            features.push({ icon: '🥕', label: 'Ingredients', value: `${importedRecipeData.ingredients.length} items` });
+        }
+
+        if (importedRecipeData.instructions?.length > 0) {
+            features.push({ icon: '📋', label: 'Instructions', value: `${importedRecipeData.instructions.length} steps` });
+        }
+
+        // Video-specific features
+        if (importedRecipeData.videoMetadata || importedRecipeData.videoInfo) {
+            features.push({ icon: '🎥', label: 'Video Features', value: 'Timestamps and links included' });
+        }
+
+        // Image features
+        if (importedRecipeData.extractedImage) {
+            features.push({ icon: '🖼️', label: 'Recipe Image', value: 'AI-extracted from video' });
+        }
+
+        // Nutrition features
+        if (importedRecipeData.nutrition && Object.keys(importedRecipeData.nutrition).length > 0) {
+            features.push({ icon: '🤖', label: 'Nutrition', value: 'AI-calculated nutrition facts included' });
+        }
+
+        return features;
     };
 
     return (
@@ -247,18 +392,17 @@ export default function AddRecipePage() {
                         {importedRecipeData ? (
                             <div className="text-gray-600 space-y-1">
                                 <p>Review and edit the imported recipe details below, then save.</p>
-                                {importSource === 'tiktok' && (
-                                    <p className="text-sm">🎵 <strong>TikTok Recipe:</strong> Extracted using AI video analysis with timestamps</p>
-                                )}
-                                {importSource === 'instagram' && (
-                                    <p className="text-sm">📸 <strong>Instagram Recipe:</strong> Extracted using AI content analysis</p>
-                                )}
-                                {importSource === 'facebook' && (
-                                    <p className="text-sm">👥 <strong>Facebook Recipe:</strong> Extracted using AI video analysis</p>
-                                )}
-                                {importSource === 'website' && (
-                                    <p className="text-sm">🌐 <strong>Website Recipe:</strong> Imported and enhanced with AI nutrition</p>
-                                )}
+                                <p className="text-sm">
+                                    {getImportSourceInfo().icon} <strong>{getImportSourceInfo().name} Recipe:</strong>
+                                    {importSource === 'tiktok' && ' Extracted using AI video analysis with timestamps'}
+                                    {importSource === 'instagram' && ' Extracted using AI content analysis'}
+                                    {importSource === 'facebook' && ' Extracted using AI video analysis'}
+                                    {importSource === 'twitter' && ' Extracted using AI content analysis'}
+                                    {importSource === 'youtube' && ' Extracted using AI video analysis'}
+                                    {importSource === 'website' && ' Imported and enhanced with AI nutrition'}
+                                    {importSource === 'text' && ' Processed with AI text parser'}
+                                    {!['tiktok', 'instagram', 'facebook', 'twitter', 'youtube', 'website', 'text'].includes(importSource) && ' Enhanced with AI processing'}
+                                </p>
                             </div>
                         ) : (
                             <div className="text-gray-600 mt-2 space-y-1">
@@ -280,7 +424,7 @@ export default function AddRecipePage() {
                     </TouchEnhancedButton>
                 </div>
 
-                {/* Import Success Message */}
+                {/* STANDARDIZED Import Success Message - Shows for ALL imports */}
                 {importedRecipeData && (
                     <div className={`bg-${getImportSourceInfo().color}-50 border border-${getImportSourceInfo().color}-200 rounded-lg p-6 mb-6`}>
                         <div className="flex items-start">
@@ -294,15 +438,11 @@ export default function AddRecipePage() {
                                     {getImportSourceInfo().icon} {getImportSourceInfo().name} Recipe Successfully Imported!
                                 </h3>
                                 <div className={`text-sm text-${getImportSourceInfo().color}-700 space-y-1`}>
-                                    <p>✅ <strong>Title:</strong> {importedRecipeData.title || 'Untitled Recipe'}</p>
-                                    <p>🥕 <strong>Ingredients:</strong> {importedRecipeData.ingredients?.length || 0} items</p>
-                                    <p>📋 <strong>Instructions:</strong> {importedRecipeData.instructions?.length || 0} steps</p>
-                                    {importedRecipeData.videoMetadata && (
-                                        <p>🎥 <strong>Video Features:</strong> Timestamps and links included</p>
-                                    )}
-                                    {importedRecipeData.nutrition && Object.keys(importedRecipeData.nutrition).length > 0 && (
-                                        <p>🤖 <strong>Nutrition:</strong> AI-calculated nutrition facts included</p>
-                                    )}
+                                    {getImportFeatures().map((feature, index) => (
+                                        <p key={index}>
+                                            {feature.icon} <strong>{feature.label}:</strong> {feature.value}
+                                        </p>
+                                    ))}
                                 </div>
                                 <div className={`mt-3 text-xs text-${getImportSourceInfo().color}-600`}>
                                     Review the details below and make any necessary edits before saving your recipe.
