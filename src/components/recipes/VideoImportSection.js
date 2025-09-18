@@ -117,7 +117,7 @@ export default function VideoImportSection({ onRecipeExtracted, disabled = false
         setExtractionInfo(null);
 
         try {
-            const response = await apiPost('/api/recipes/video-extract', {
+            const response = await apiPost('/api/recipes/universal-video-extract', {
                 video_url: videoUrl.trim(),  // ✅ FIXED: Changed from 'url' to 'video_url'
                 analysisType: 'ai_vision_enhanced',
                 extractImage: true,

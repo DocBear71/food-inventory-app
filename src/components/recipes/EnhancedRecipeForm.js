@@ -803,7 +803,7 @@ export default function EnhancedRecipeForm({
                 message: `📥 Downloading ${detectedPlatform} video content...`
             });
 
-            const response = await apiPost('/api/recipes/video-extract', {
+            const response = await apiPost('/api/recipes/universal-video-extract', {
                 video_url: url.trim(),  // ✅ FIXED: Changed from 'url' to 'video_url'
                 analysisType: 'ai_vision_enhanced',
                 extractImage: true,
