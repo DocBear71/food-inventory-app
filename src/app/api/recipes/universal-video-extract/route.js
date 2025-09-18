@@ -151,21 +151,25 @@ export async function POST(request) {
         const nutrition = extractionResult.recipe?.nutrition || {};
         console.log('🍎 Processing nutrition:', nutrition);
 
-        return NextResponse.json({
+        // Optimize response size by ensuring all data is properly structured
+        const optimizedRecipe = {
+            ...extractionResult.recipe,
+            source: extractionResult.recipe.source || video_url,
+            tags: tags,
+            nutrition: nutrition,
+            ...(extractedImage && { extractedImage: extractedImage }),
+            extractionMetadata: {
+                extractedAt: new Date().toISOString(),
+                platform: extractionResult.recipe?.method || platform || 'universal',
+                imageExtracted: !!extractedImage,
+                apiVersion: 'universal-v1'
+            }
+        };
+
+// Check response size and log warning if too large
+        const responseObj = {
             success: true,
-            recipe: {
-                ...extractionResult.recipe,
-                source: extractionResult.recipe.source || video_url,
-                tags: tags,
-                nutrition: nutrition,
-                ...(extractedImage && { extractedImage: extractedImage }),
-                extractionMetadata: {
-                    extractedAt: new Date().toISOString(),
-                    platform: extractionResult.recipe?.method || platform || 'universal',
-                    imageExtracted: !!extractedImage,
-                    apiVersion: 'universal-v1'
-                }
-            },
+            recipe: optimizedRecipe,
             extractedImage: extractedImage,
             metadata: extractionResult.metadata,
             extractionInfo: {
@@ -174,7 +178,16 @@ export async function POST(request) {
                 hasNutrition: Object.keys(nutrition).length > 0,
                 originalKeys: Object.keys(extractionResult)
             }
-        });
+        };
+
+        const responseString = JSON.stringify(responseObj);
+        console.log('📦 Response size:', (responseString.length / 1024).toFixed(1), 'KB');
+
+        if (responseString.length > 1048576) { // 1MB
+            console.warn('⚠️ Large response detected, may cause mobile issues');
+        }
+
+        return NextResponse.json(responseObj);
 
     } catch (error) {
         console.error('❌ Universal video extraction API error:', error);
