@@ -31,50 +31,28 @@ export default function ImportRecipePage() {
         message: ''
     });
 
+    // Auto-import useEffect - ENHANCED for all platforms
     useEffect(() => {
         const urlParams = new URLSearchParams(window.location.search);
-
-        // Handle different parameter names from different platforms
-        const videoUrl = urlParams.get('videoUrl') ||
-            urlParams.get('url') ||
-            urlParams.get('link') ||
-            urlParams.get('text'); // iOS sometimes uses 'text' parameter
-
-        const source = urlParams.get('source') || 'share';
+        const videoUrl = urlParams.get('videoUrl');
+        const source = urlParams.get('source');
         const platform = urlParams.get('platform');
-        const title = urlParams.get('title');
 
-        // Enhanced auto-import detection for universal sharing
-        if (videoUrl && (source === 'share' || title || urlParams.has('url'))) {
-            console.log(`📱 Auto-importing content from share:`, {
-                url: videoUrl,
-                platform: platform || 'auto-detect',
-                source,
-                title
-            });
+        if (videoUrl && source === 'share') {
+            console.log(`📱 Auto-importing ${platform || 'unknown'} video:`, videoUrl);
 
-            // Decode the URL if it's encoded
+            // Decode the URL
             const decodedVideoUrl = decodeURIComponent(videoUrl);
 
-            // Only proceed if it looks like a valid URL
-            if (decodedVideoUrl.startsWith('http')) {
-                setImportMethod('url');
-                setUrlInput(decodedVideoUrl);
+            // Auto-start universal import
+            handleUniversalContentImport(decodedVideoUrl, true, 'page_scraping_first');
 
-                // Clean up URL parameters
-                const cleanUrl = new URL(window.location);
-                ['videoUrl', 'url', 'link', 'text', 'source', 'platform', 'title'].forEach(param => {
-                    cleanUrl.searchParams.delete(param);
-                });
-                window.history.replaceState({}, '', cleanUrl);
-
-                // Start the import
-                const timer = setTimeout(() => {
-                    handleUrlImport();
-                }, 1000);
-
-                return () => clearTimeout(timer);
-            }
+            // Clean up URL parameters after triggering import
+            const cleanUrl = new URL(window.location);
+            cleanUrl.searchParams.delete('videoUrl');
+            cleanUrl.searchParams.delete('source');
+            cleanUrl.searchParams.delete('platform');
+            window.history.replaceState({}, '', cleanUrl);
         }
     }, []);
 

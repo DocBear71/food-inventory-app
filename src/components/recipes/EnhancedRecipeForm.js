@@ -259,9 +259,31 @@ export default function EnhancedRecipeForm({
         setSharedContent(shareData);
 
         console.log('📱 Share data received:', shareData);
+        console.log('📱 Share data keys:', Object.keys(shareData));
 
-        // ENHANCED: Handle ALL social media platforms, not just video types
-        const url = shareData.url || shareData.text || shareData.link;
+        // ENHANCED: Better URL extraction for all platforms including Facebook
+        let url = null;
+
+        // Try multiple properties where URL might be stored
+        if (shareData.url) {
+            url = shareData.url;
+        } else if (shareData.text && shareData.text.includes('http')) {
+            // Extract URL from text (Facebook often puts URL in text)
+            const urlMatch = shareData.text.match(/(https?:\/\/[^\s]+)/);
+            if (urlMatch) {
+                url = urlMatch[1];
+            }
+        } else if (shareData.link) {
+            url = shareData.link;
+        } else if (shareData.href) {
+            url = shareData.href;
+        } else if (shareData.files && shareData.files.length > 0) {
+            // Handle file sharing if applicable
+            console.log('📱 Files shared:', shareData.files);
+        }
+
+        console.log('📱 Extracted URL:', url);
+
         if (url) {
             const platform = shareData.platform || detectPlatformFromUrl(url);
             setVideoImportPlatform(platform);
@@ -272,12 +294,20 @@ export default function EnhancedRecipeForm({
             if (isImportMode) {
                 setVideoUrl(url);
                 setShowVideoImport(true);
+                // Auto-start the import process
+                setTimeout(() => {
+                    handleVideoImport(url);
+                }, 500);
             } else {
                 // For regular add page, redirect to import page with platform info
                 setTimeout(() => {
                     router.push(`/recipes/import?videoUrl=${encodeURIComponent(url)}&source=share&platform=${platform}`);
                 }, 0);
             }
+        } else {
+            console.warn('📱 No URL found in share data:', shareData);
+            // Show a message to user that they can paste the URL manually
+            setVideoImportError('Please paste the video URL manually');
         }
     });
 
