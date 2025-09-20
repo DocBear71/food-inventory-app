@@ -191,6 +191,29 @@ export default function EnhancedRecipeForm({
         }
     }, [initialData]);
 
+    const debugFacebookShare = (shareData) => {
+        console.log('🔍 Facebook share debug:', {
+            originalShareData: shareData,
+            hasUrl: !!shareData.url,
+            hasText: !!shareData.text,
+            hasTitle: !!shareData.title,
+            platform: shareData.platform
+        });
+
+        // Check if Facebook content is properly detected
+        if (shareData.url && shareData.url.includes('facebook.com')) {
+            console.log('✅ Facebook URL detected in share data');
+            return true;
+        } else if (shareData.text && shareData.text.includes('facebook.com')) {
+            console.log('✅ Facebook URL found in text field');
+            return true;
+        }
+
+        console.log('❌ No Facebook URL found in share data');
+        return false;
+    };
+
+
     const scrollToBasicInfo = () => {
         if (basicInfoRef.current) {
             const element = basicInfoRef.current;
@@ -261,6 +284,8 @@ export default function EnhancedRecipeForm({
         console.log('📱 Share data received:', shareData);
         console.log('📱 Share data keys:', Object.keys(shareData));
 
+        debugFacebookShare(shareData);
+
         // ENHANCED: Better URL extraction for all platforms including Facebook
         let url = null;
 
@@ -295,9 +320,14 @@ export default function EnhancedRecipeForm({
                 setVideoUrl(url);
                 setShowVideoImport(true);
                 // Auto-start the import process
+                const importDelay = platform === 'facebook' ? 1000 : 500; // Facebook needs slightly more time
+                console.log(`⏰ Starting ${platform} import in ${importDelay}ms`);
+
                 setTimeout(() => {
+                    console.log(`🚀 Triggering ${platform} import for URL:`, url);
                     handleVideoImport(url);
-                }, 500);
+                }, importDelay);
+
             } else {
                 // For regular add page, redirect to import page with platform info
                 setTimeout(() => {

@@ -44,17 +44,59 @@ export default function ImportRecipePage() {
             // Decode the URL
             const decodedVideoUrl = decodeURIComponent(videoUrl);
 
-            // Auto-start universal import
-            handleUniversalContentImport(decodedVideoUrl, true, 'page_scraping_first');
+            if (platform === 'facebook' || decodedVideoUrl.includes('facebook.com')) {
+                const isValidFacebookUrl = validateFacebookUrl(decodedVideoUrl);
+                console.log(`🔍 Facebook URL validation:`, {
+                    url: decodedVideoUrl,
+                    isValid: isValidFacebookUrl,
+                    platform: platform
+                });
+            }
 
-            // Clean up URL parameters after triggering import
-            const cleanUrl = new URL(window.location);
-            cleanUrl.searchParams.delete('videoUrl');
-            cleanUrl.searchParams.delete('source');
-            cleanUrl.searchParams.delete('platform');
-            window.history.replaceState({}, '', cleanUrl);
+            // Enhanced platform detection for debugging
+            const detectedPlatform = detectPlatformFromUrl(decodedVideoUrl);
+            console.log(`🔍 Platform detection result:`, {
+                providedPlatform: platform,
+                detectedPlatform: detectedPlatform,
+                videoUrl: decodedVideoUrl
+            });
+
+            // Special handling for Facebook URLs
+            if (platform === 'facebook' || detectedPlatform === 'facebook') {
+                console.log(`🚀 Facebook auto-import triggered for:`, decodedVideoUrl);
+                setVideoImportProgress({
+                    stage: 'detecting',
+                    platform: 'facebook',
+                    message: 'Detected Facebook content...'
+                });
+            }
+
+            // Auto-start universal import with enhanced error handling
+            try {
+                handleUniversalContentImport(decodedVideoUrl, true, 'page_scraping_first');
+            } catch (error) {
+                console.error(`❌ Auto-import failed for ${platform}:`, error);
+                setImportError(`Failed to auto-import ${platform} content: ${error.message}`);
+            }
         }
     }, []);
+
+
+    const validateFacebookUrl = (url) => {
+        const facebookPatterns = [
+            /facebook\.com\/watch\/?\?v=\d+/,
+            /facebook\.com\/[^\/]+\/videos\/\d+/,
+            /fb\.watch\/[a-zA-Z0-9_-]+/,
+            /facebook\.com\/share\/r\/[a-zA-Z0-9_-]+/,
+            /facebook\.com\/share\/v\/[a-zA-Z0-9_-]+/,
+            /facebook\.com\/reel\/\d+/,
+            /facebook\.com\/.*\/posts\/[a-zA-Z0-9_-]+/,
+            /facebook\.com\/story\.php\?story_fbid=\d+/,
+            /facebook\.com\/.*\/photos\/.*\/\d+/
+        ];
+
+        return facebookPatterns.some(pattern => pattern.test(url));
+    };
 
     // ENHANCED: Universal platform detection
     const detectPlatformFromUrl = (url) => {

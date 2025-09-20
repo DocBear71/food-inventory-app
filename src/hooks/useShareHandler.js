@@ -59,8 +59,12 @@ export const useShareHandler = (onRecipeShare) => {
                         /facebook\.com\/reel\/\d+/,
                         /facebook\.com\/watch\?v=\d+/,
                         /facebook\.com\/share\/r\/[^\/\s]+/,
+                        /facebook\.com\/share\/v\/[^\/\s]+/,  // 🚀 MISSING: /share/v/ format
                         /facebook\.com\/[^\/]+\/videos\/\d+/,
-                        /fb\.watch\/[^\/\s]+/
+                        /facebook\.com\/.*\/posts\/[^\/\s]+/,  // 🚀 MISSING: Posts format
+                        /facebook\.com\/story\.php\?story_fbid=\d+/,  // 🚀 MISSING: Story format
+                        /fb\.watch\/[^\/\s]+/,
+                        /facebook\.com\/.*\/photos\/.*\/\d+/  // 🚀 MISSING: Photo posts with videos
                     ]
                 },
                 tiktok: {

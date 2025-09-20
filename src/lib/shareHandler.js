@@ -16,9 +16,14 @@ export const setupWebShareTarget = () => {
                     {
                         platform: 'facebook',
                         patterns: [
-                            /facebook\.com/,
+                            /facebook\.com\/watch/,
+                            /facebook\.com\/reel/,
+                            /facebook\.com\/share\/[rv]/,
+                            /facebook\.com\/.*\/videos/,
+                            /facebook\.com\/.*\/posts/,
+                            /facebook\.com\/story\.php/,
                             /fb\.watch/,
-                            /fb\.com/
+                            /facebook\.com\/.*\/photos/
                         ]
                     },
                     {
