@@ -417,7 +417,6 @@ export default function EnhancedShoppingListGenerator({
     };
 
     const retryGeneration = () => {
-        ;
         setStep('options');
     };
 
