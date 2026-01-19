@@ -2833,12 +2833,44 @@ Thank you for keeping your Doc Bear's Comfort Kitchen account secure!
             margin: 30px auto;
             padding: 16px 32px;
             background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
-            color: #ffffff;
+            color: #ffffff !important;
             text-decoration: none;
             border-radius: 8px;
             font-weight: 600;
             font-size: 16px;
             text-align: center;
+            transition: all 0.2s;
+            border: none;
+            cursor: pointer;
+        }
+        
+        .verify-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(72, 187, 120, 0.4);
+        }
+        
+        .verify-button:visited {
+            color: #ffffff !important;
+        }
+        
+        .backup-link {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin: 20px 0;
+            text-align: center;
+            font-size: 14px;
+            color: #4a5568;
+        }
+        
+        .backup-link p {
+            margin: 0 0 10px 0;
+        }
+        
+        .backup-link a {
+            color: #48bb78;
+            word-break: break-all;
         }
         
         .footer {
@@ -2859,6 +2891,45 @@ Thank you for keeping your Doc Bear's Comfort Kitchen account secure!
             color: #a0aec0;
             margin-top: 20px;
         }
+        
+        /* Ensure buttons work across email clients */
+        .verify-button-table {
+            width: 100%;
+            border: 0;
+            cellpadding: 0;
+            cellspacing: 0;
+        }
+        
+        .verify-button-table td {
+            text-align: center;
+            padding: 30px 0;
+        }
+        
+        .verify-button-cell {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            border-radius: 8px;
+            padding: 16px 32px;
+            display: inline-block;
+        }
+        
+        .verify-button-cell a {
+            color: #ffffff !important;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 16px;
+        }
+        
+        /* Mobile responsive */
+        @media only screen and (max-width: 600px) {
+            .content, .header, .footer {
+                padding: 25px 20px !important;
+            }
+            
+            .verify-button {
+                width: calc(100% - 40px) !important;
+                padding: 16px 20px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -2875,7 +2946,22 @@ Thank you for keeping your Doc Bear's Comfort Kitchen account secure!
             
             <p>Thank you for creating your account! To get started, please verify your email address:</p>
             
-            <a href="${verificationUrl}" class="verify-button">Verify My Email Address</a>
+            <!-- Primary button using table structure for better email client compatibility -->
+            <table class="verify-button-table">
+                <tr>
+                    <td>
+                        <div class="verify-button-cell">
+                            <a href="${verificationUrl}" target="_blank" rel="noopener noreferrer">Verify My Email Address</a>
+                        </div>
+                    </td>
+                </tr>
+            </table>
+            
+            <!-- Fallback link for email clients that don't support the button -->
+            <div class="backup-link">
+                <p><strong>Button not working?</strong> Copy and paste this link into your browser:</p>
+                <p><a href="${verificationUrl}" target="_blank" rel="noopener noreferrer">${verificationUrl}</a></p>
+            </div>
             
             <p>This verification link will expire in 7 days.</p>
             
@@ -2895,9 +2981,15 @@ Welcome to Doc Bear's Comfort Kitchen!
 
 Hello ${userName},
 
-Thank you for creating your account! To get started, please verify your email address by clicking this link:
+Thank you for creating your account! To get started, please verify your email address.
 
+VERIFY EMAIL LINK:
 ${verificationUrl}
+
+INSTRUCTIONS:
+1. Click the link above if it's clickable in your email
+2. OR copy and paste the entire link into your web browser
+3. Your email will be verified automatically
 
 This verification link will expire in 7 days.
 
