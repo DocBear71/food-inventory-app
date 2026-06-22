@@ -112,7 +112,7 @@ const LegalPage = () => {
                                 >
                                     privacy@docbearscomfort.kitchen
                                 </a>
-                                {' '}| 📞 Business: (319) 826-3463 | 🌐{' '}
+                                {' '}| 📞 Business: (319) 654-5200 | 🌐{' '}
                                 <a
                                         href="https://docbearscomfort.kitchen"
                                         target="_blank"
@@ -164,7 +164,7 @@ const LegalPage = () => {
                             marginBottom: '20px',
                             color: '#bdc3c7'
                         }}>
-                            Phone: (319) 826-3463 | Email: privacy@docbearscomfort.kitchen
+                            Phone: (319) 654-5200 | Email: privacy@docbearscomfort.kitchen
                         </p>
 
                         <div style={{

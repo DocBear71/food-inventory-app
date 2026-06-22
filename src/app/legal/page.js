@@ -141,7 +141,7 @@ export default function LegalPage() {
                             fontSize: '14px',
                             color: '#1565c0'
                         }}>
-                            📞 Business: (319) 826-3463 | 📧{' '}
+                            📞 Business: (319) 654-5200 | 📧{' '}
                             <a
                                 href="mailto:privacy@docbearscomfort.kitchen"
                                 style={{ color: '#1565c0', textDecoration: 'underline' }}
@@ -208,7 +208,7 @@ export default function LegalPage() {
                         marginBottom: '20px',
                         color: '#bdc3c7'
                     }}>
-                        Business Phone: (319) 826-3463 | Email: privacy@docbearscomfort.kitchen
+                        Business Phone: (319) 654-5200 | Email: privacy@docbearscomfort.kitchen
                     </p>
 
                     <div style={{

@@ -420,7 +420,7 @@ const TermsOfUse = () => {
                         <h4 style={{ fontSize: '16px', color: '#856404', marginBottom: '0.5rem' }}>Japan (Specified Commercial Transactions Act):</h4>
                         <ul style={{ color: '#856404', fontSize: '15px', marginLeft: '1.5rem', marginBottom: '1rem' }}>
                             <li>Business operator: Doc Bear Enterprises, LLC.</li>
-                            <li>Contact phone: (319) 826-3463</li>
+                            <li>Contact phone: (319) 654-5200</li>
                             <li>Physical address: 5249 N Park Pl NE, PMB 4011, Cedar Rapids, IA 52402</li>
                             <li>All required merchant information is maintained in our Play Console account</li>
                         </ul>
@@ -821,7 +821,7 @@ const TermsOfUse = () => {
                         <div>5249 N Park Pl NE, PMB 4011</div>
                         <div>Cedar Rapids, IA 52402</div>
                         <div>United States</div>
-                        <div>Phone: (319) 826-3463</div>
+                        <div>Phone: (319) 654-5200</div>
                         <div>Email: privacy@docbearscomfort.kitchen</div>
                     </div>
                 </div>
@@ -892,7 +892,7 @@ const TermsOfUse = () => {
                         <div>5249 N Park Pl NE, PMB 4011</div>
                         <div>Cedar Rapids, IA 52402</div>
                         <div>United States</div>
-                        <div>Phone: (319) 826-3463</div>
+                        <div>Phone: (319) 654-5200</div>
                         <div>Email: privacy@docbearscomfort.kitchen</div>
                     </div>
 
