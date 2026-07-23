@@ -2,14 +2,14 @@ apply plugin: 'com.android.application'
 
 android {
     namespace "kitchen.docbearscomfort"
-    compileSdk 35
+    compileSdk 36
 
     defaultConfig {
         applicationId "kitchen.docbearscomfort"
         minSdkVersion 26
-        targetSdkVersion 35
-        versionCode 26
-        versionName "1.8.1"
+        targetSdkVersion 36
+        versionCode 32
+        versionName "1.8.6"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         // SIMPLIFIED: 16KB native library alignment (handled automatically by AGP 8.11+)
@@ -107,7 +107,8 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
-    implementation 'com.revenuecat.purchases:purchases:8.17.1'
+    // RevenueCat Android SDK — version managed by purchases-capacitor@11.3.2
+    // implementation 'com.revenuecat.purchases:purchases:8.17.1'
 
     // CRITICAL: AndroidX dependencies for non-deprecated edge-to-edge
     implementation 'androidx.core:core:1.13.1'

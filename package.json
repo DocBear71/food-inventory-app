@@ -39,7 +39,7 @@
     "@ericblade/quagga2": "^1.8.4",
     "@gachlab/capacitor-permissions": "^2.0.3",
     "@heroicons/react": "^2.2.0",
-    "@revenuecat/purchases-capacitor": "^10.3.7",
+    "@revenuecat/purchases-capacitor": "^11.3.2",
     "@stripe/stripe-js": "^7.4.0",
     "@types/bcryptjs": "^2.4.6",
     "@zxing/library": "^0.21.3",
